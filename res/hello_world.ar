@@ -1,0 +1,3 @@
+main :: pub fn u32 {
+	std.print("t89a4f2.");	
+}
