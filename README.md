@@ -1,80 +1,251 @@
 # aria
+
 A low-level general-purpose programming toolchain.
 
-## Sample Code
+## Semantics
+
+### Hello World
+
 ```aria
-// this is not real code.
-// it is just used to demo language features.
+main :: pub fn u32 {
+	std.writeln("Hello, world");
+}
+```
 
-#import "stdlib"
+### Comments
 
+```aria 
+main :: pub fn u32 {
+	// this is the main function.
+	// it marks the starting point of the executable.
+}	
+```
+
+### Variable Declaration
+
+```aria
+main :: pub fn u32 {
+	preprocess_time: f32;
+}
+```
+
+### Variable Declaration without Type Annotation
+
+```aria
+main :: pub fn u32 {
+	preprocess_time :: 6.20;	
+}
+```
+
+### Variable Declaration with coercion
+
+ ```aria
+main :: pub fn u32 {
+	preprocess_time: u32 :: 6.20;	
+}
+ ```
+
+### Pointer Declaration
+
+```aria
+main :: pub fn u32 {
+	memory: void* :: std.mem.malloc(256);
+}
+```
+
+### Dereferencing a Pointer
+
+```aria
+main :: pub fn u32 {
+	memory: u32* :: std.mem.malloc(4);
+	*memory = 17;
+}
+```
+
+### Pointer Arithmetic
+
+```aria
+main :: pub fn u32 {
+	memory: u32* :: std.mem.malloc(8);
+	*(memory + 1) = 17;
+
+	// in-memory arrangement:
+	// | <memory> | <memory+1> |
+	// | -------- | ---------- |
+	// |  (undef) |     17     |
+	// | -------- | ---------- |
+}
+```
+
+### #import directive
+
+```aria
+#import "hc.ar"
+
+main :: pub fn u32 {
+	hc.say_hello();
+}
+```
+
+### Custom Types
+
+```aria
+Vector2f :: struct {
+	x: f32,
+	y: f32,
+}
+
+main :: pub fn u32 {
+	vector :: Vector2f {
+		12.3,
+		36.44,
+	};
+
+	std.printfln("[x: %, y: %]", vector.x, vector.y);
+}
+```
+
+### Custom Types with Linked Functions
+
+```aria
+Vector2f :: struct {
+	x: f32,
+	y: f32,
+
+	add :: pub fn (vector: Self) Self {
+		return Self {
+			x: self.x + vector.x,
+			y: self.y + vector.y,
+		};
+	}
+}
+
+main :: pub fn u32 {
+	a :: Vector2f {
+		x: 45.4,
+		y: 323.02,
+	};
+
+	translate_offset :: Vector2f {
+		5.3,
+		1.655,
+	};
+
+	a = a.add(translate_offset);
+	std.printfln("[a.x: %, a.y: %]", a.x, a.y);
+	std.printfln("[translate_offset.x: %, translate_offset.y: %]", translate_offset.x, translate_offset.y);
+	std.printfln("[result.x: %, result.y: %]", a.x, a.y);
+}
+```
+
+### Custom Types with Solitary Functions
+
+```aria
+Vector2f :: struct {
+	x: f32,
+	y: f32,
+
+	new :: pub fn no_instance (x: f32, y: f32) Self {
+		return Self {
+			x, 
+			y,
+		};
+	}
+}
+
+main :: pub fn u32 {
+	vector :: Vector2f.new(5.4, 0.71);
+}
+```
+
+### Built-in Assertions
+
+```aria
+main :: pub fn u32 {
+	#assert(12 == 12);
+	#assert(null != null); // ERROR: failed assertion
+}
+```
+
+### Type Alias
+
+```aria
 string :: alias char*;
 
-main :: fn i32 {
-	window :: std.alloc(Sf.RenderWindow.new(1280, 720, "Hello World"));
-	window.get_options()
-		  .set_type(sf.STYLE_MINIMAL)
-		  .set_default_pos(sf.Vector2f.new(0.0, 0.0))
-		  .init().expect("failed to set options");
+main :: pub fn u32 {
+	name: string :: "t89a4f2";
+}
+```
 
-	while window.is_open() {
-		window.clear();
-		window.render();
+### Namespaces
+
+```aria
+hc :: namespace {
+	say_hello :: pub fn {
+		std.writeln("hc: hello.");
 	}
+}
 
-	// test variables
-	value :: some(123);
-	value_x :: none;
+ether :: namespace {
+	say_hello :: pub fn {
+		std.writeln("ether: hello.");
+	}
+}
+
+main :: pub fn u32 {
+	hc.say_hello(), ether.say_hello();
+}
+```
+
+### Protocols and Extensions
+
+```aria
+Window :: protocol {
+	blit :: fn (bitmap: Bitmap);
+}
+
+WindowsWindow :: struct {
+	// Windows-related variables ...
+}
+
+extension WindowsWindow with Window {
+	blit :: fn (bitmap: Bitmap) {
+		// blit implementation for Windows
+	}
+}
+
+LinuxWindow :: struct {
+	// Linux-related variables ...
+}
+
+extension LinuxWindow with Window {
+	blit :: fn (bitmap: Bitmap) {
+		// blit implementation for Linux
+	}
+}
+```
+
+### Generics
+
+```aria
+// NOTE: all integers implement the integer protocol
+max :: fn<T: integer> (a: T, b: T) T {
+	if a > b {
+		return a;
+	} 
+	else {
+		return b;
+	}
+}
+
+main :: pub fn u32 {
+	max(2, 4);
+	max(3i32, 564i32);
+	max(12u16, 55u16);
+	max<u32>(75, 6);
 	
-	addition :: unwrap value + (unwrap value_x or 0);
-}
-
-std :: namespace {
-	alloc :: pub fn<T> (obj: T) T* {
-		size: u64 :: @sizeof(obj);
-		memory_allocated :: mem.malloc(size);
-		*memory_allocated = obj;
-		return memory_allocated;
-	}
-}
-
-Sf :: namespace {
-	RenderWindow :: struct {
-		new :: pub fn no_instance (width: u32, height: u32, title: string) option self {
-			return Core.create_window();
-		}
-
-		get_options :: pub fn Window.Options {
-			return Window.Options.new();
-		}
-	}
-
-	Window :: namespace {
-		Options :: struct {
-			type: WindowType;
-			default_pos: Vector2f;
-
-			new :: pub fn no_instance Self {
-				return Self {
-					STYLE_NORMAL,
-					Vector2f.zero(),
-				};
-			}
-
-			init :: pub fn Result<u32, string> {
-				return Core.inspect_options(self);
-			}
-
-			set_type :: pub fn (type: WindowType) Self {
-				self.type = type;
-				return self;
-			}
-
-			set_default_pos :: pub fn (pos: Vector2f) Self {
-				self.default_pos = pos;
-				return self;
-			}
-		}
-	}
+	max(4i32, 9i8);   // \
+	max<i8>(89, 4.5); // |- ERROR
+	max("h", "g");    // /
 }
 ```
