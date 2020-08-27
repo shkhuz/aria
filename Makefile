@@ -5,13 +5,47 @@ INC_DIR := $(SRC_DIR)/include
 
 BUILD_DIR := build
 BIN_DIR := $(BUILD_DIR)/bin
+OBJ_DIR := $(BUILD_DIR)/obj
 
-all:
-	mkdir -p $(BIN_DIR)
-	gcc -o $(BIN_DIR)/aria -I $(INC_DIR) $(SRC_DIR)/aria.c
-	$(BIN_DIR)/aria
+C_FILES := $(shell find $(SRC_DIR) -name "*.c")
+ASM_FILES := $(shell find $(SRC_DIR) -name "*.asm")
+
+OBJ_FILES := $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(C_FILES)))
+OBJ_FILES += $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(ASM_FILES)))
+BIN_FILE := $(BIN_DIR)/$(PROJECT)
+
+CC := gcc
+LD := gcc
+
+CFLAGS := -I$(INC_DIR) -std=c99 -pedantic -Wall -Wextra -Wunused -Wshadow -Wno-write-strings -Wdouble-promotion -Wduplicate-decl-specifier -Wformat=2 -Winit-self -Wmisleading-indentation -Wswitch-default -Wstrict-overflow -Walloca -Wconversion -Wunused-macros -Wdate-time -Waddress -Wlogical-op -Wlogical-not-parentheses -Wstrict-prototypes -Wpacked -Winline -m64 -g
+ASMFLAGS := -felf64
+LDFLAGS :=
+
+run: $(BIN_FILE)
+	$^
+
+$(BIN_FILE): $(OBJ_FILES)
+	@mkdir -p $(dir $@)
+	$(LD) -o $@ $(OBJ_FILES)
+
+$(OBJ_DIR)/%.c.o: %.c
+	@mkdir -p $(OBJ_DIR)/$(dir $^)
+	$(CC) -c $(CFLAGS) -o $@ $^
+
+$(OBJ_DIR)/%.asm.o: %.asm
+	@mkdir -p $(OBJ_DIR)/$(dir $^)
+	nasm $(ASMFLAGS) -o $@ $^
 
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: clean
+loc:
+	find $(SRC_DIR) \
+		-name "*.cpp" -or \
+		-name "*.hpp" -or \
+		-name "*.h" -or \
+		-name "*.c" -or \
+		-name "*.asm" \
+	| xargs cat | wc -l
+
+.PHONY: clean loc
