@@ -7,7 +7,7 @@ A low-level general-purpose programming toolchain.
 ### Hello World
 
 ```aria
-main :: pub fn u32 {
+main :: pub fn u8 {
 	std.writeln("Hello, world");
 }
 ```
@@ -15,7 +15,7 @@ main :: pub fn u32 {
 ### Comments
 
 ```aria 
-main :: pub fn u32 {
+main :: pub fn u8 {
 	// this is the main function.
 	// it marks the starting point of the executable.
 }	
@@ -24,7 +24,7 @@ main :: pub fn u32 {
 ### Variable Declaration
 
 ```aria
-main :: pub fn u32 {
+main :: pub fn u8 {
 	preprocess_time: f32;
 }
 ```
@@ -32,7 +32,7 @@ main :: pub fn u32 {
 ### Variable Declaration without Type Annotation
 
 ```aria
-main :: pub fn u32 {
+main :: pub fn u8 {
 	preprocess_time :: 6.20;	
 }
 ```
@@ -40,7 +40,7 @@ main :: pub fn u32 {
 ### Variable Declaration with Coercion
 
  ```aria
-main :: pub fn u32 {
+main :: pub fn u8 {
 	preprocess_time: u32 :: 6.20;	
 }
  ```
@@ -48,7 +48,7 @@ main :: pub fn u32 {
 ### Pointer Declaration
 
 ```aria
-main :: pub fn u32 {
+main :: pub fn u8 {
 	memory: void* :: std.mem.malloc(256);
 }
 ```
@@ -56,7 +56,7 @@ main :: pub fn u32 {
 ### Dereferencing a Pointer
 
 ```aria
-main :: pub fn u32 {
+main :: pub fn u8 {
 	memory: u32* :: std.mem.malloc(4);
 	*memory = 17;
 }
@@ -65,7 +65,7 @@ main :: pub fn u32 {
 ### Pointer Arithmetic
 
 ```aria
-main :: pub fn u32 {
+main :: pub fn u8 {
 	memory: u32* :: std.mem.malloc(8);
 	*(memory + 1) = 17;
 
@@ -82,7 +82,7 @@ main :: pub fn u32 {
 ```aria
 #import "hc.ar"
 
-main :: pub fn u32 {
+main :: pub fn u8 {
 	hc.say_hello();
 }
 ```
@@ -95,7 +95,7 @@ Vector2f :: struct {
 	y: f32,
 }
 
-main :: pub fn u32 {
+main :: pub fn u8 {
 	vector :: Vector2f {
 		12.3,
 		36.44,
@@ -120,7 +120,7 @@ Vector2f :: struct {
 	}
 }
 
-main :: pub fn u32 {
+main :: pub fn u8 {
 	a :: Vector2f {
 		x: 45.4,
 		y: 323.02,
@@ -153,7 +153,7 @@ Vector2f :: struct {
 	}
 }
 
-main :: pub fn u32 {
+main :: pub fn u8 {
 	vector :: Vector2f.new(5.4, 0.71);
 }
 ```
@@ -161,7 +161,7 @@ main :: pub fn u32 {
 ### Built-in Assertions
 
 ```aria
-main :: pub fn u32 {
+main :: pub fn u8 {
 	#assert(12 == 12);
 	#assert(null != null); // ERROR: failed assertion
 }
@@ -172,7 +172,7 @@ main :: pub fn u32 {
 ```aria
 string :: alias char*;
 
-main :: pub fn u32 {
+main :: pub fn u8 {
 	name: string :: "t89a4f2";
 }
 ```
@@ -192,7 +192,7 @@ ether :: namespace {
 	}
 }
 
-main :: pub fn u32 {
+main :: pub fn u8 {
 	hc.say_hello(), ether.say_hello();
 }
 ```
@@ -238,7 +238,7 @@ max :: fn<T: integer> (a: T, b: T) T {
 	}
 }
 
-main :: pub fn u32 {
+main :: pub fn u8 {
 	max(2, 4);
 	max(3i32, 564i32);
 	max(12u16, 55u16);
