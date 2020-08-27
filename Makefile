@@ -14,6 +14,12 @@ OBJ_FILES := $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(C_FILES)))
 OBJ_FILES += $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(ASM_FILES)))
 BIN_FILE := $(BIN_DIR)/$(PROJECT)
 
+DEPS_DIR := deps
+
+HC_DIR := $(DEPS_DIR)/hc
+HC_INC_DIR := $(HC_DIR)/src
+HC_LIB := $(HC_DIR)/libhc.a
+
 CC := gcc
 LD := gcc
 
@@ -21,23 +27,31 @@ CFLAGS := -I$(INC_DIR) -std=c99 -pedantic -Wall -Wextra -Wunused -Wshadow -Wno-w
 ASMFLAGS := -felf64
 LDFLAGS :=
 
+LIBS_INC_DIR_CMD := -I$(HC_INC_DIR)
+LIBS_LIB_DIR_CMD := -L$(HC_DIR)
+LIBS_LIB_CMD := -lhc
+
 run: $(BIN_FILE)
 	$^
 
-$(BIN_FILE): $(OBJ_FILES)
+$(BIN_FILE): $(OBJ_FILES) $(HC_LIB)
 	@mkdir -p $(dir $@)
-	$(LD) -o $@ $(OBJ_FILES)
+	$(LD) -o $@ $(OBJ_FILES) $(LIBS_LIB_DIR_CMD) $(LIBS_LIB_CMD)
 
 $(OBJ_DIR)/%.c.o: %.c
 	@mkdir -p $(OBJ_DIR)/$(dir $^)
-	$(CC) -c $(CFLAGS) -o $@ $^
+	$(CC) -c $(CFLAGS) $(LIBS_INC_DIR_CMD) -o $@ $^
 
 $(OBJ_DIR)/%.asm.o: %.asm
 	@mkdir -p $(OBJ_DIR)/$(dir $^)
 	nasm $(ASMFLAGS) -o $@ $^
 
+$(HC_LIB):
+	cd $(HC_DIR) && $(MAKE)
+
 clean:
 	rm -rf $(BUILD_DIR)
+	cd $(HC_DIR) && $(MAKE) clean
 
 loc:
 	find $(SRC_DIR) \
