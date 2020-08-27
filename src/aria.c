@@ -2,6 +2,8 @@
 #include <hc.h>
 
 int main(int argc, char** argv) {
+	hc_init();
+	
 	int* integers = null;
 	buf_push(integers, 0);
 	buf_push(integers, 1);
@@ -15,4 +17,13 @@ int main(int argc, char** argv) {
 	for (int i = 0; i < 6; ++i) {
 		printf("(%d)\n", integers[i]);
 	}
+
+	char* name = "huzaifa";
+	if (str_intern(name) == str_intern("huzaifa")) {
+		info("it's the same name!");
+	}
+
+	int* mem = malloc(256);
+	free(mem);
+	free(mem);
 }
