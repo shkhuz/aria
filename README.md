@@ -37,7 +37,7 @@ main :: pub fn u32 {
 }
 ```
 
-### Variable Declaration with coercion
+### Variable Declaration with Coercion
 
  ```aria
 main :: pub fn u32 {
