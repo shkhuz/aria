@@ -1,6 +1,4 @@
-# aria
-
-A low-level general-purpose programming toolchain.
+`aria` is an open-source high-performance programming language & toolkit—designed and written by `Huzaifa Shaikh (+huzaifash)`.
 
 ## Semantics
 
@@ -14,11 +12,11 @@ main :: pub fn u8 {
 
 ### Comments
 
-```aria 
+```aria
 main :: pub fn u8 {
 	// this is the main function.
 	// it marks the starting point of the executable.
-}	
+}
 ```
 
 ### Variable Declaration
@@ -33,7 +31,7 @@ main :: pub fn u8 {
 
 ```aria
 main :: pub fn u8 {
-	preprocess_time :: 6.20;	
+	preprocess_time :: 6.20;
 }
 ```
 
@@ -41,7 +39,7 @@ main :: pub fn u8 {
 
  ```aria
 main :: pub fn u8 {
-	preprocess_time: u32 :: 6.20;	
+	preprocess_time: u32 :: 6.20;
 }
  ```
 
@@ -147,7 +145,7 @@ Vector2f :: struct {
 
 	new :: pub fn no_instance (x: f32, y: f32) Self {
 		return Self {
-			x, 
+			x,
 			y,
 		};
 	}
@@ -232,7 +230,7 @@ extension LinuxWindow with Window {
 max :: fn<T: integer> (a: T, b: T) T {
 	if a > b {
 		return a;
-	} 
+	}
 	else {
 		return b;
 	}
@@ -243,7 +241,7 @@ main :: pub fn u8 {
 	max(3i32, 564i32);
 	max(12u16, 55u16);
 	max<u32>(75, 6);
-	
+
 	max(4i32, 9i8);   // \
 	max<i8>(89, 4.5); // |- ERROR
 	max("h", "g");    // /
