@@ -16,26 +16,22 @@ BIN_FILE := $(BIN_DIR)/$(PROJECT)
 
 DEPS_DIR := deps
 
-HC_DIR := $(DEPS_DIR)/hc
-HC_INC_DIR := $(HC_DIR)/src
-HC_LIB := $(HC_DIR)/libhc.a
-
 CC := gcc
 LD := gcc
 
-PREPROCESSOR_DEFINES := -DHC_MEM_DEBUG
+PREPROCESSOR_DEFINES :=
 CFLAGS := $(PREPROCESSOR_DEFINES) -I$(INC_DIR) -std=c99 -pedantic -Wall -Wextra -Wunused -Wshadow -Wno-write-strings -Wdouble-promotion -Wduplicate-decl-specifier -Wformat=2 -Winit-self -Wmisleading-indentation -Wswitch-default -Wstrict-overflow -Walloca -Wconversion -Wunused-macros -Wdate-time -Waddress -Wlogical-op -Wlogical-not-parentheses -Wstrict-prototypes -Wpacked -Winline -m64 -g
 ASMFLAGS := -felf64
 LDFLAGS :=
 
-LIBS_INC_DIR_CMD := -I$(HC_INC_DIR)
-LIBS_LIB_DIR_CMD := -L$(HC_DIR)
-LIBS_LIB_CMD := -lhc
+LIBS_INC_DIR_CMD :=
+LIBS_LIB_DIR_CMD :=
+LIBS_LIB_CMD :=
 
 run: $(BIN_FILE)
 	$^
 
-$(BIN_FILE): $(OBJ_FILES) $(HC_LIB)
+$(BIN_FILE): $(OBJ_FILES)
 	@mkdir -p $(dir $@)
 	$(LD) -o $@ $(OBJ_FILES) $(LIBS_LIB_DIR_CMD) $(LIBS_LIB_CMD)
 
@@ -47,12 +43,8 @@ $(OBJ_DIR)/%.asm.o: %.asm
 	@mkdir -p $(OBJ_DIR)/$(dir $^)
 	nasm $(ASMFLAGS) -o $@ $^
 
-$(HC_LIB):
-	cd $(HC_DIR) && $(MAKE)
-
 clean:
 	rm -rf $(BUILD_DIR)
-	cd $(HC_DIR) && $(MAKE) clean
 
 loc:
 	find $(SRC_DIR) \
