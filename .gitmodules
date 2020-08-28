@@ -1,3 +1,0 @@
-[submodule "deps/hc"]
-	path = deps/hc
-	url = https://github.com/t89a4f2/hc
