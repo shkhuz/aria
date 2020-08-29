@@ -1,0 +1,47 @@
+main :: fn u8 {
+	cmd_options :: std.get_env_args();
+	if cmd_options.args.len < 2 {
+		fatal_error("needs a file.");
+	}
+
+	srcfile_name :: cmd_options.args[0];
+	srcfile :: read_file(srcfile_name);
+	if #is_none(srcfile) {
+		fata_error("cannot read");
+	}
+	srcfile = unwrap srcfile;
+
+	lexer :: Lexer.new();
+	lexer.lex(srcfile);
+}
+
+read_file :: fn (path: string) option<File> {
+	file :: std.fs.read(path);
+	if #is_ok(file) {
+		return some(file);
+	}
+	else {
+		return none;
+	}
+}
+
+Lexer :: struct {
+	srcfile: File*,
+	tokens :: std.vec<Token>,
+
+	char* start,
+	char* current,
+
+	new :: fn Self {
+		return Self {
+			null,
+			srd.vec<Token>.new(),
+			null,
+			null,
+		};
+	}
+
+	lex :: fn (srcfile: File*) {
+
+	}
+}

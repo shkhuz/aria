@@ -9,6 +9,7 @@
 #include <stddef.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <ctype.h>
 
 #include <types.h>
 #include <math.h>

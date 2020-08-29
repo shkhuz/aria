@@ -41,8 +41,8 @@ Token token_new(
 	File* file,
 	u64 line,
 	u64 column,
-	u64 char_count
-) {
+	u64 char_count) {
+
 	Token token;
 	token.lexeme = lexeme;
 	token.start = start;
@@ -74,6 +74,32 @@ Lexer lexer_new(void) {
 	return lexer;
 }
 
+void lexer_addt(Lexer* l, TokenType type) {
+	Token token =
+		token_new(
+				str_intern_range(l->start, l->current),
+				l->start,
+				l->current,
+				type,
+				l->srcfile,
+				l->line,
+				0, /* TODO: compute column */
+				(u64)(l->current - l->start));
+	Token* token_heap = malloc(sizeof(Token));
+	memcpy(token_heap, &token, sizeof(Token));
+
+	buf_push(l->tokens, token_heap);
+}
+
+void lexer_identifier(Lexer* l) {
+	l->current++;
+	while (isalnum(*l->current) || *l->current == '_') {
+		l->current++;
+	}
+
+	lexer_addt(l, T_IDENTIFIER);
+}
+
 void lexer_lex(Lexer* l, File* srcfile) {
 	l->srcfile = srcfile;
 	l->start = srcfile->contents;
@@ -83,7 +109,24 @@ void lexer_lex(Lexer* l, File* srcfile) {
 	for (;l->current != (l->srcfile->contents + l->srcfile->len);) {
 		l->start = l->current;
 
-		l->current++;
+		switch (*l->current) {
+			case 'a': case 'b': case 'c': case 'd': case 'e':
+			case 'f': case 'g': case 'h': case 'i': case 'j':
+			case 'k': case 'l': case 'm': case 'n': case 'o':
+			case 'p': case 'q': case 'r': case 's': case 't':
+			case 'u': case 'v': case 'w': case 'x': case 'y':
+			case 'z': case 'A': case 'B': case 'C': case 'D':
+			case 'E': case 'F': case 'G': case 'H': case 'I':
+			case 'J': case 'K': case 'L': case 'M': case 'N':
+			case 'O': case 'P': case 'Q': case 'R': case 'S':
+			case 'T': case 'U': case 'V': case 'W': case 'X':
+			case 'Y': case 'Z':
+				lexer_identifier(l);
+				break;
+			default:
+				l->current++;
+				break;
+		}
 	}
 }
 
@@ -100,4 +143,9 @@ int main(int argc, char** argv) {
 
 	Lexer lexer = lexer_new();
 	lexer_lex(&lexer, srcfile);
+
+	buf_loop(lexer.tokens, t) {
+		printf("[%s]\n", lexer.tokens[t]->lexeme);
+	}
 }
+
