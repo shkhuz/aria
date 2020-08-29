@@ -29,7 +29,7 @@ LIBS_LIB_DIR_CMD :=
 LIBS_LIB_CMD :=
 
 run: $(BIN_FILE)
-	$^
+	$^ examples/hello_world.ar
 
 $(BIN_FILE): $(OBJ_FILES)
 	@mkdir -p $(dir $@)

@@ -1,24 +1,27 @@
-main :: pub fn u32 {
-	integer :: 12;
-	float :: 23.5434;
-	letter :: 'r';
-	str :: "\"new world\"";
-
-	std.printf(
-		"integer: {}, float: {}, letter: {}, str: {}",
-		integer,
-		float,
-		letter,
-		str,
-	);
+main :: fn u8 {
+	std.get_stdout().write("hello");
 }
 
-std :: namespace {
-	printf :: macro {
-		(s: $str, args: ...) -> {
-			#for |i, c| in s.enumerate() {
-			}
+std :: mod {
+	writer :: trait {
+		write :: fn (bytes: u8[]) result<u64, error>;
+	}
+
+	stdout :: struct;
+	impl writer for stdout {
+		write :: fn (bytes: u8[]) result<u64, error> {
+			syscall.write(STDOUT_FILENO, bytes, bytes.len);
 		}
 	}
-}
 
+	stderr :: struct;
+	impl writer for stderr {
+		write :: fn (bytes: u8[]) result<u64, error> {
+			syscall.write(STDERR_FILENO, bytes, bytes.len);
+		}
+	}
+
+	syscall :: mod {
+		write :: extern fn (file: FILE*, bytes: u8*, len: u64);
+	}
+}
