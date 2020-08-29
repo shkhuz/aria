@@ -42,6 +42,21 @@ Lexer :: struct {
 	}
 
 	lex :: fn (srcfile: File*) {
+		self.srcfile = srcfile;
+		self.start = srcfile.contents;
+		self.current = self.start;
 
+		while self.current != (self.srcfile.contents + self.srcfile.len) {
+			self.start = self.current;
+			switch *self.current {
+				'a', 'b', 'c', ... 'z' -> {
+					identifier();
+				}
+			}
+			self.current += 1;
+		}
+	}
+
+	identifier :: fn {
 	}
 }
