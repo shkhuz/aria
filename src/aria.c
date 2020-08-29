@@ -1,34 +1,25 @@
 #include <arpch.h>
-#include <buf.h>
 
-int main(void) {
+void fatal_error(const char* fmt, ...) {
+	va_list ap;
+	va_start(ap, fmt);
 
-	int* integers = null;
-	buf_push(integers, 0);
-	buf_push(integers, 1);
-	buf_push(integers, 2);
-	buf_push(integers, 3);
-	buf_push(integers, 4);
-	buf_push(integers, 5);
+	fprintf(stderr, "aria: ");
+	vfprintf(stderr, fmt, ap);
+	fprintf(stderr, "\n");
 
-	buf_remove(integers, 3);
+	va_end(ap);
+	exit(1);
+}
 
-	for (int i = 0; i < 6; ++i) {
-		printf("(%d)\n", integers[i]);
+int main(int argc, char** argv) {
+	if (argc < 2) {
+		fatal_error("no input files specified; aborting");
 	}
 
-	if (str_intern("huzaif") == str_intern("huzaifa")) {
-		puts(":: names do match.");
+	const char* srcfile_name = argv[1];
+	File* srcfile = file_read(srcfile_name);
+	if (!srcfile) {
+		fatal_error("cannot read `%s`", srcfile_name);
 	}
-	else {
-		puts(":: names do not match.");
-	}
-
-	File* aria_src_file = file_read("examples/hello_worlda.ar");
-	if (!aria_src_file) {
-		puts(":: cannot find `examples/hello_world.ar`: aborting");
-	} else {
-		puts(aria_src_file->contents);
-	}
-
 }

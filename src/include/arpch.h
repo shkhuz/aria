@@ -12,6 +12,7 @@
 
 #include <types.h>
 #include <math.h>
+#include <buf.h>
 #include <str_intern.h>
 #include <file.h>
 
