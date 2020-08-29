@@ -18,10 +18,17 @@ int main(void) {
 	}
 
 	if (str_intern("huzaif") == str_intern("huzaifa")) {
-		puts("names do match.");
+		puts(":: names do match.");
 	}
 	else {
-		puts("names do not match.");
+		puts(":: names do not match.");
+	}
+
+	File* aria_src_file = file_read("examples/hello_worlda.ar");
+	if (!aria_src_file) {
+		puts(":: cannot find `examples/hello_world.ar`: aborting");
+	} else {
+		puts(aria_src_file->contents);
 	}
 
 }
