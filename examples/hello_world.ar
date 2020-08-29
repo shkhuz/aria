@@ -1,3 +1,24 @@
 main :: pub fn u32 {
-	std.print("t89a4f2.");	
+	integer :: 12;
+	float :: 23.5434;
+	letter :: 'r';
+	str :: "\"new world\"";
+
+	std.printf(
+		"integer: {}, float: {}, letter: {}, str: {}",
+		integer,
+		float,
+		letter,
+		str,
+	);
 }
+
+std :: namespace {
+	printf :: macro {
+		(s: $str, args: ...) -> {
+			#for |i, c| in s.enumerate() {
+			}
+		}
+	}
+}
+
