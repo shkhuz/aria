@@ -1,7 +1,7 @@
 #include <arpch.h>
 #include <buf.h>
 
-int main(int argc, char** argv) {
+int main(void) {
 
 	int* integers = null;
 	buf_push(integers, 0);
@@ -10,12 +10,18 @@ int main(int argc, char** argv) {
 	buf_push(integers, 3);
 	buf_push(integers, 4);
 	buf_push(integers, 5);
-	buf_pop(integers);
 
 	buf_remove(integers, 3);
 
 	for (int i = 0; i < 6; ++i) {
 		printf("(%d)\n", integers[i]);
+	}
+
+	if (str_intern("huzaif") == str_intern("huzaifa")) {
+		puts("names do match.");
+	}
+	else {
+		puts("names do not match.");
 	}
 
 }

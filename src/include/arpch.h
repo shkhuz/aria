@@ -12,5 +12,6 @@
 
 #include <types.h>
 #include <math.h>
+#include <str_intern.h>
 
 #endif /* _ARPCH_H */
