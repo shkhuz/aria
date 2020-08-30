@@ -30,7 +30,9 @@ int main(int argc, char** argv) {
 
 	buf_loop(lexer.tokens, t) {
 		printf(
-			"[%15s: %s]\n",
+			"[%4lu:%4lu | %15s: %s]\n",
+			lexer.tokens[t]->line,
+			lexer.tokens[t]->column,
 			tokentype_str[lexer.tokens[t]->type],
 			lexer.tokens[t]->lexeme);
 	}

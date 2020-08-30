@@ -9,7 +9,7 @@ main :: fn u8 {
 	if #is_none(srcfile) {
 		fatal_error("cannot read");
 	}
-	srcfile = unwrap srcfile;
+	srcfile = #unwrap(srcfile);
 
 	lexer :: Lexer.new();
 	lexer.lex(srcfile);
@@ -27,7 +27,7 @@ read_file :: fn (path: string) option<File> {
 
 Lexer :: struct {
 	srcfile: File*,
-	tokens :: std.vec<Token>,
+	tokens: std.vec<Token>,
 
 	char* start,
 	char* current,

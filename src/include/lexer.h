@@ -12,13 +12,11 @@ typedef struct {
 	char* start;
 	char* current;
 	u64 line;
+
+	char* last_newline;
 } Lexer;
 
 Lexer lexer_new(void);
-void lexer_addt(Lexer* l, TokenType type);
-void lexer_identifier(Lexer* l);
-void lexer_string(Lexer* l);
-void lexer_char(Lexer* l);
 void lexer_lex(Lexer* l, File* srcfile);
 
 #endif /* _LEXER_H */

@@ -11,5 +11,8 @@ typedef struct {
 
 File* file_read(const char* fpath);
 bool file_exists(const char* fpath);
+char* get_line_in_file(File* srcfile, u64 line);
+void print_file_line(File* srcfile, u64 line);
+void print_tab(void);
 
 #endif /* _FILE_H */

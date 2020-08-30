@@ -1,5 +1,6 @@
 #include <lexer.h>
 #include <token.h>
+#include <error_msg.h>
 #include <arpch.h>
 
 Lexer lexer_new(void) {
@@ -9,10 +10,19 @@ Lexer lexer_new(void) {
 	lexer.start = null;
 	lexer.current = null;
 	lexer.line = 1;
+	lexer.last_newline = null;
 	return lexer;
 }
 
-void lexer_addt(Lexer* l, TokenType type) {
+static u64 lexer_compute_column_on_start(Lexer* l) {
+	u64 column = (u64)(l->start - l->last_newline);
+	if (l->line == 1) {
+		column++;
+	}
+	return column;
+}
+
+static void lexer_addt(Lexer* l, TokenType type) {
 	Token token =
 		token_new(
 				str_intern_range(l->start, l->current),
@@ -21,7 +31,7 @@ void lexer_addt(Lexer* l, TokenType type) {
 				type,
 				l->srcfile,
 				l->line,
-				0, /* TODO: compute column */
+				lexer_compute_column_on_start(l),
 				(u64)(l->current - l->start));
 	Token* token_heap = malloc(sizeof(Token));
 	memcpy(token_heap, &token, sizeof(Token));
@@ -29,7 +39,20 @@ void lexer_addt(Lexer* l, TokenType type) {
 	buf_push(l->tokens, token_heap);
 }
 
-void lexer_identifier(Lexer* l) {
+static void lexer_error(Lexer* l, const char* fmt, ...) {
+	va_list ap;
+	va_start(ap, fmt);
+	error(
+		l->srcfile,
+		l->line,
+		lexer_compute_column_on_start(l),
+		1,
+		fmt,
+		ap);
+	va_end(ap);
+}
+
+static void lexer_identifier(Lexer* l) {
 	l->current++;
 	while (isalnum(*l->current) || *l->current == '_') {
 		l->current++;
@@ -38,19 +61,22 @@ void lexer_identifier(Lexer* l) {
 	lexer_addt(l, T_IDENTIFIER);
 }
 
-void lexer_string(Lexer* l) {
+static void lexer_string(Lexer* l) {
 	l->start++;
 	l->current++;
 	while (*l->current != '"') {
 		l->current++;
-		// TODO: handle EOF here;
+		if (*l->current == '\0') {
+			lexer_error(l, "encountered EOF while searching `\"`");
+			return;
+		}
 	}
 
 	lexer_addt(l, T_STRING);
 	l->current++;
 }
 
-void lexer_char(Lexer* l) {
+static void lexer_char(Lexer* l) {
 	l->start++;
 	l->current++;
 	// TODO: handle escape sequences;
@@ -64,6 +90,8 @@ void lexer_lex(Lexer* l, File* srcfile) {
 	l->srcfile = srcfile;
 	l->start = srcfile->contents;
 	l->current = l->start;
+	l->last_newline = l->start;
+	l->line = 1;
 
 	char* contents = srcfile->contents;
 	for (;l->current != (l->srcfile->contents + l->srcfile->len);) {
@@ -88,6 +116,10 @@ void lexer_lex(Lexer* l, File* srcfile) {
 				break;
 			case '\'':
 				lexer_char(l);
+				break;
+			case '\n':
+				l->last_newline = l->current++;
+				l->line++;
 				break;
 			default:
 				l->current++;
