@@ -122,6 +122,16 @@ void lexer_string(Lexer* l) {
 	l->current++;
 }
 
+void lexer_char(Lexer* l) {
+	l->start++;
+	l->current++;
+	// TODO: handle escape sequences;
+
+	l->current++;
+	lexer_addt(l, T_CHAR);
+	l->current++;
+}
+
 void lexer_lex(Lexer* l, File* srcfile) {
 	l->srcfile = srcfile;
 	l->start = srcfile->contents;
@@ -147,6 +157,9 @@ void lexer_lex(Lexer* l, File* srcfile) {
 				break;
 			case '"':
 				lexer_string(l);
+				break;
+			case '\'':
+				lexer_char(l);
 				break;
 			default:
 				l->current++;
