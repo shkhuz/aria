@@ -13,7 +13,7 @@ void fatal_error(const char* fmt, ...) {
 }
 
 typedef enum {
-	T_IDENTIFIER,
+	T_IDENTIFIER = 0,
 	T_KEYWORD,
 	T_STRING,
 	T_CHAR,
@@ -21,6 +21,16 @@ typedef enum {
 	T_FLOAT32,
 	T_FLOAT64,
 } TokenType;
+
+const char* tokentype_str[] = {
+	"T_IDENTIFIER",
+	"T_KEYWORD",
+	"T_STRING",
+	"T_CHAR",
+	"T_INTEGER",
+	"T_FLOAT32",
+	"T_FLOAT64",
+};
 
 typedef struct {
 	char* lexeme;
@@ -100,6 +110,18 @@ void lexer_identifier(Lexer* l) {
 	lexer_addt(l, T_IDENTIFIER);
 }
 
+void lexer_string(Lexer* l) {
+	l->start++;
+	l->current++;
+	while (*l->current != '"') {
+		l->current++;
+		// TODO: handle EOF here;
+	}
+
+	lexer_addt(l, T_STRING);
+	l->current++;
+}
+
 void lexer_lex(Lexer* l, File* srcfile) {
 	l->srcfile = srcfile;
 	l->start = srcfile->contents;
@@ -123,6 +145,9 @@ void lexer_lex(Lexer* l, File* srcfile) {
 			case 'Y': case 'Z':
 				lexer_identifier(l);
 				break;
+			case '"':
+				lexer_string(l);
+				break;
 			default:
 				l->current++;
 				break;
@@ -145,7 +170,10 @@ int main(int argc, char** argv) {
 	lexer_lex(&lexer, srcfile);
 
 	buf_loop(lexer.tokens, t) {
-		printf("[%s]\n", lexer.tokens[t]->lexeme);
+		printf(
+			"[%15s: %s]\n",
+			tokentype_str[lexer.tokens[t]->type],
+			lexer.tokens[t]->lexeme);
 	}
 }
 

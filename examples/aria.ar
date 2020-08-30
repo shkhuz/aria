@@ -7,7 +7,7 @@ main :: fn u8 {
 	srcfile_name :: cmd_options.args[0];
 	srcfile :: read_file(srcfile_name);
 	if #is_none(srcfile) {
-		fata_error("cannot read");
+		fatal_error("cannot read");
 	}
 	srcfile = unwrap srcfile;
 

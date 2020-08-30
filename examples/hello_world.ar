@@ -1,5 +1,6 @@
 main :: fn u8 {
 	std.get_stdout().write("hello");
+	std.get_stderr().write("this is an example errorneous string");
 }
 
 std :: mod {
