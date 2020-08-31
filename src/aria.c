@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
 	const char* srcfile_name = argv[1];
 	File* srcfile = file_read(srcfile_name);
 	if (!srcfile) {
-		fatal_error("cannot read `%s`", srcfile_name);
+		fatal_error("cannot read `%s`: aborting", srcfile_name);
 	}
 
 	Lexer lexer = lexer_new();

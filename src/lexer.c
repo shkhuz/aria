@@ -67,7 +67,7 @@ static void lexer_string(Lexer* l) {
 	while (*l->current != '"') {
 		l->current++;
 		if (*l->current == '\0') {
-			lexer_error(l, "encountered EOF while searching `\"`");
+			lexer_error(l, "mismatched `\"`: encountered EOF");
 			return;
 		}
 	}

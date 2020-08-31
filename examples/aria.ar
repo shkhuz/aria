@@ -1,6 +1,6 @@
 main :: fn u8 {
 	cmd_options :: std.get_env_args();
-	if cmd_options.args.len < 2 {
+	if cmd_options.args.len() < 2 {
 		fatal_error("needs a file.");
 	}
 
@@ -46,7 +46,7 @@ Lexer :: struct {
 		self.start = srcfile.contents;
 		self.current = self.start;
 
-		while self.current != (self.srcfile.contents + self.srcfile.len) {
+		while self.current != (self.srcfile.contents + self.srcfile.len()) {
 			self.start = self.current;
 			switch *self.current {
 				'a', 'b', 'c', ... 'z' -> {
