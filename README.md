@@ -1,6 +1,13 @@
-![aria-banner-transparent-blue.png](assets/aria-banner-transparent-blue.png?raw=true)
-![build](https://github.com/huzaifash/aria/workflows/build/badge.svg)
-An open-source high-performance programming language & toolkit.
+<p align="center">
+    <img src="assets/aria-banner-transparent-blue.png?raw=true" alt="aria-banner-transparent-blue.png">
+    <br/>
+    An open-source high-performance programming language & toolkit.
+    <br/>
+    <br/>
+    <a href="https://github.com/huzaifash/aria/actions">
+        <img src="https://github.com/huzaifash/aria/workflows/build/badge.svg">
+    </a>
+</p>
 
 ## Semantics
 
