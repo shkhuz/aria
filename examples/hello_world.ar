@@ -7,6 +7,9 @@ main :: fn u8 {
 	stderr.write("this is an example errorneous string");
 	stderr.write('f');
 
+	stderr.write(10);
+	stderr.write(6.);
+	stderr.write(453.55);
 }
 
 std :: mod {
@@ -31,4 +34,6 @@ std :: mod {
 	syscall :: mod {
 		write :: extern fn (file: FILE*, bytes: u8*, len: u64);
 	}
+
+	// example "
 }

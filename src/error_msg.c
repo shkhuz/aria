@@ -30,7 +30,7 @@ void error(
 	fprintf(stderr, "| ");
 
 	char* beg_of_line = get_line_in_file(srcfile, line);
-	for (u64 c = 0; c < column - 2; c++) {
+	for (u64 c = 0; c < column - 1; c++) {
 		if (beg_of_line[c] == '\t') print_tab();
 		else fprintf(stderr, " ");
 	}
