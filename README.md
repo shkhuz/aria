@@ -1,5 +1,5 @@
 ![aria-banner-transparent-blue.png](../assets/aria-banner-transparent-blue.png?raw=true)
-`aria` is an open-source high-performance programming language & toolkit—designed and written by `Huzaifa Shaikh (+huzaifash)`.
+An open-source high-performance programming language & toolkit.
 
 ## Semantics
 
