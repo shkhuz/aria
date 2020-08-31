@@ -1,4 +1,5 @@
 ![aria-banner-transparent-blue.png](assets/aria-banner-transparent-blue.png?raw=true)
+![build](https://github.com/huzaifash/aria/workflows/build/badge.svg)
 An open-source high-performance programming language & toolkit.
 
 ## Semantics
