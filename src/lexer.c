@@ -85,6 +85,8 @@ static void lexer_number(Lexer* l) {
 	while (isdigit(*l->current)) l->current++;
 	if (*l->current == '.') {
 		l->current++;
+		// TODO: add support for float64
+		// TODO: check integer and float constant overflow
 		type = T_FLOAT32;
 
 		if (!isdigit(*l->current)) {

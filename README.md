@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="assets/aria-banner-transparent-blue.png?raw=true" alt="aria-banner-transparent-blue.png">
+    <img src="assets/aria-banner-dark-white.png?raw=true" alt="aria-banner-dark-white.png">
     <br/>
     An open-source high-performance programming language & toolkit.
     <br/>
