@@ -4,58 +4,46 @@ An open-source high-performance programming language & toolkit.
 ## Semantics
 
 ### Hello World
-
 ```aria
-main :: pub fn u8 {
-	std.writeln("Hello, world");
+#import <std>
+
+pub main :: fn u8 {
+	std.println("Hello, {}", "world");
 }
 ```
 
 ### Comments
-
 ```aria
-main :: pub fn u8 {
-	// this is the main function.
+pub main :: fn u8 {
+	// this is the `main` function.
 	// it marks the starting point of the executable.
 }
 ```
 
 ### Variable Declaration
-
 ```aria
-main :: pub fn u8 {
+pub main :: fn u8 {
 	preprocess_time: f32;
 }
 ```
 
-### Variable Declaration without Type Annotation
-
+### Variable Declaration Without Type Annotation
 ```aria
-main :: pub fn u8 {
+pub main :: fn u8 {
 	preprocess_time :: 6.20;
 }
 ```
 
-### Variable Declaration with Coercion
-
- ```aria
-main :: pub fn u8 {
-	preprocess_time: u32 :: 6.20;
-}
- ```
-
 ### Pointer Declaration
-
 ```aria
-main :: pub fn u8 {
-	memory: void* :: std.mem.malloc(256);
+pub main :: fn u8 {
+	memory: void*: std.mem.malloc(256);
 }
 ```
 
 ### Dereferencing a Pointer
-
 ```aria
-main :: pub fn u8 {
+pub main :: fn u8 {
 	memory: u32* :: std.mem.malloc(4);
 	*memory = 17;
 }
@@ -64,7 +52,7 @@ main :: pub fn u8 {
 ### Pointer Arithmetic
 
 ```aria
-main :: pub fn u8 {
+pub main :: fn u8 {
 	memory: u32* :: std.mem.malloc(8);
 	*(memory + 1) = 17;
 
@@ -81,7 +69,7 @@ main :: pub fn u8 {
 ```aria
 #import "hc.ar"
 
-main :: pub fn u8 {
+pub main :: fn u8 {
 	hc.say_hello();
 }
 ```
@@ -94,7 +82,7 @@ Vector2f :: struct {
 	y: f32,
 }
 
-main :: pub fn u8 {
+pub main :: fn u8 {
 	vector :: Vector2f {
 		12.3,
 		36.44,
@@ -111,7 +99,7 @@ Vector2f :: struct {
 	x: f32,
 	y: f32,
 
-	add :: pub fn (vector: Self) Self {
+	pub add :: fn (vector: Self) Self {
 		return Self {
 			x: self.x + vector.x,
 			y: self.y + vector.y,
@@ -119,7 +107,7 @@ Vector2f :: struct {
 	}
 }
 
-main :: pub fn u8 {
+pub main :: fn u8 {
 	a :: Vector2f {
 		x: 45.4,
 		y: 323.02,
@@ -144,7 +132,7 @@ Vector2f :: struct {
 	x: f32,
 	y: f32,
 
-	new :: pub fn no_instance (x: f32, y: f32) Self {
+	pub new :: fn no_instance (x: f32, y: f32) Self {
 		return Self {
 			x,
 			y,
@@ -152,7 +140,7 @@ Vector2f :: struct {
 	}
 }
 
-main :: pub fn u8 {
+pub main :: fn u8 {
 	vector :: Vector2f.new(5.4, 0.71);
 }
 ```
@@ -160,7 +148,7 @@ main :: pub fn u8 {
 ### Built-in Assertions
 
 ```aria
-main :: pub fn u8 {
+pub main :: fn u8 {
 	#assert(12 == 12);
 	#assert(null != null); // ERROR: failed assertion
 }
@@ -171,7 +159,7 @@ main :: pub fn u8 {
 ```aria
 string :: alias char*;
 
-main :: pub fn u8 {
+pub main :: fn u8 {
 	name: string :: "t89a4f2";
 }
 ```
@@ -180,26 +168,26 @@ main :: pub fn u8 {
 
 ```aria
 hc :: namespace {
-	say_hello :: pub fn {
+	pub say_hello :: fn {
 		std.writeln("hc: hello.");
 	}
 }
 
 ether :: namespace {
-	say_hello :: pub fn {
+	pub say_hello :: fn {
 		std.writeln("ether: hello.");
 	}
 }
 
-main :: pub fn u8 {
+pub main :: fn u8 {
 	hc.say_hello(), ether.say_hello();
 }
 ```
 
-### Protocols and Extensions
+### Traits
 
 ```aria
-Window :: protocol {
+Window :: trait {
 	blit :: fn (bitmap: Bitmap);
 }
 
@@ -207,7 +195,7 @@ WindowsWindow :: struct {
 	// Windows-related variables ...
 }
 
-extension WindowsWindow with Window {
+impl Window for WindowsWindow {
 	blit :: fn (bitmap: Bitmap) {
 		// blit implementation for Windows
 	}
@@ -217,7 +205,7 @@ LinuxWindow :: struct {
 	// Linux-related variables ...
 }
 
-extension LinuxWindow with Window {
+impl Window for LinuxWindow {
 	blit :: fn (bitmap: Bitmap) {
 		// blit implementation for Linux
 	}
@@ -227,7 +215,7 @@ extension LinuxWindow with Window {
 ### Generics
 
 ```aria
-// NOTE: all integers implement the integer protocol
+// NOTE: all integers implement the `integer` trait
 max :: fn<T: integer> (a: T, b: T) T {
 	if a > b {
 		return a;
@@ -237,7 +225,7 @@ max :: fn<T: integer> (a: T, b: T) T {
 	}
 }
 
-main :: pub fn u8 {
+pub main :: fn u8 {
 	max(2, 4);
 	max(3i32, 564i32);
 	max(12u16, 55u16);
