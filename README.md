@@ -1,4 +1,4 @@
-![aria-banner-transparent-blue.png](../assets/aria-banner-transparent-blue.png?raw=true)
+![aria-banner-transparent-blue.png](assets/aria-banner-transparent-blue.png?raw=true)
 An open-source high-performance programming language & toolkit.
 
 ## Semantics
