@@ -15,10 +15,6 @@ void fatal_error(const char* fmt, ...) {
 }
 
 int main(int argc, char** argv) {
-	// this is a test for GitHub Actions workflow
-	// (.github/workflows/build.yml)
-	return 1;
-
 	if (argc < 2) {
 		fatal_error("no input files specified; aborting");
 	}
