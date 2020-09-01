@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HTML</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <article>
+  <main>
+
+  <img style="margin-top: 0px;" src="../assets/aria-banner-dark-white.png" class="banner">
+  <blockquote>The Aria Programming Language </blockquote>
+
+  <h2 class="subtitle">An open-source high-performance programming
+  language & toolkit.</h2>
+
+  <h2>Table Of Contents</h2>
+  <ul style="font-style: italic">
+    <li><a href="#a_hello_world_program">A Hello World Program</a></li>
+    <li><a href="#comments">Comments</a></li>
+    <li><a href="#variables">Variables</a></li>
+  </ul>
+
+  <h2>A Hello World Program</h2><a name="a_hello_world_program"></a>
+<div class="code"><pre>
+#import &lt;std&gt;
+
+pub main :: fn u8 {
+    std.println("Hello, {}", "world");
+}</pre></div>
+<span class="code-path">main.ar</span>
+
+  <p>The first line is a compiler directive: it tells the compiler to import
+  the standard library into the program's scope. All directives start with a
+  <code>#</code>. Note that the <code>std</code> may or may not be in the
+  directory of the source file: see TODO for more details.</p>
+
+  <p>The third line is a function definition. Here, a <code>main</code>
+  function is defined to return an unsigned 8-bit integer (<code>u8</code>)
+  and is visible to the linker using the <code>pub</code> keyword.</p>
+
+  <p class="last">The very next line is a function call. It uses the <code>println</code>
+  function from the standard library to print "Hello, world" onto the console.
+  Note that the <code>println</code> function is a <em>variadic</em>
+  function—it takes a format argument and a variable number of arguments of
+  any<sup>1</sup> type—and prints them to the console. The <code>{}</code>
+  next to <code>Hello</code> signify the argument location inside the string.
+  Also note that the format parameter must be a compile-time string literal:
+  the compiler checks the format argument at compile-time and throw errors if
+  there is an argument-count mismatch.</p>
+
+  <div class="footer last"> <hr/>
+  <sup>1</sup> <code>println</code> uses traits to determine if any given
+  argument can be stringified. More on traits <a href="#">here</a>. So "any"
+  in this context is being considerate.<hr/></div>
+
+  <h2>Comments</h2><a name="comments"></a>
+<div class="code"><pre>
+#import &lt;std&gt;
+
+pub main :: fn u8 {
+    // this is a comment.
+
+    std.println("Hello."); // Comments go till the end of the line.
+}</pre></div>
+<span class="code-path">comments.ar</span>
+
+  <h2>Variables</h2><a name="variables"></a>
+  <p>From now on, only contextual snippets of code will be shown—implied
+  code will be omitted (like <code>pub main :: fn u8 {</code> or
+  <code>#import &lt;std&gt;</code>).</p>
+
+  <p>A variable is declared and initialized like this:
+<div class="code"><pre>
+preproc_time :: 6.20;
+</pre></div>
+<span class="code-path"></span></p>
+
+<p>A variable declaration without an initializer will require a type
+annotation:
+<div class="code"><pre>
+preproc_time: f32;
+</pre></div>
+<span class="code-path"></span></p>
+
+<p>Or it can combine both:
+<div class="code"><pre>
+preproc_time: f32: 6.20;
+</pre></div>
+<span class="code-path"></span></p>
+
+  <!--
+  <p>For more information, click
+  <a href="#">here</a>.</p>
+
+  <p><code>main()</code> is a special
+  function.</p>
+
+  <p class="last">The first line is a compiler directive: it tells the compiler to import
+  the standard library into the program's scope. All directives start with a
+  <code>#</code>. Note that the <code>std</code> may or may not be in the
+  directory of the source file: see
+  <a href="#"><code>#import</code> Directive</a> for more details.</p>
+
+  <span class="code-path">main.ar</span>
+  <div class="code"><pre>
+<span class=i>#import</span> <span class=ia>&lt;std&gt;</span>
+
+<span class=k>pub</span> main :: <span class=k>fn</span> u8 {
+    std.println("Hello, {}", "world");
+}</pre></div>
+
+  <p class="last">The third line is a function definition. Here, a <code>main</code>
+  function is defined to return an unsigned 8-bit integer (<code>u8</code>)
+  and is visible to the linker using the <code>pub</code> keyword.</p>
+
+  <span class="code-path">symbol_table_generation.ar</span>
+  <div class="code"><pre>
+<span class=i>#import</span> <span class=ia>&lt;std&gt;</span>
+<span class=i>#import</span> <span class=ia>"math.ar"</span>
+
+<span class=k>pub</span> main :: <span class=k>fn</span> u8 {
+    preproc_time :: 6.20;
+    if preproc_time &gt; 2 {
+        std.exit(1);
+    }
+}</pre></div>
+
+  <p class="last">The very next line is a function call. It uses the `println` function
+  from the standard library to print "Hello, world" onto the console. Note
+  that the `println` function is a _variadic_ function—it takes a format
+  argument and a variable number of arguments of any<sup>1</sup> type—and
+  prints them to the console. The `{}` next to `Hello` signify the argument
+  location inside the string. Also note that the format parameter must be a
+  compile-time string literal: the compiler checks the format argument at
+  compile-time and throw errors if there is an argument-count mismatch.</p>
+
+  <div class="footer">
+  <hr/>
+  <p class="last"><sup>1</sup><code> println</code> uses traits to determine
+  if any given argument can be stringified. More on traits
+  <a href="#">here</a>. So "any" in this context is being considerate.</p>
+  <hr/>
+  </div>
+
+  <p>The third line is a function definition. Here, a <code>main</code>
+  function is defined to return an unsigned 8-bit integer (<code>u8</code>)
+  and is visible to the linker using the <code>pub</code> keyword.</p>
+  -->
+
+  </main>
+  </article>
+</body>
+</html>

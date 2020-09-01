@@ -1,0 +1,288 @@
+@font-face {
+  font-family: "Crimson";
+  src: url("fonts/crimson-roman.woff") format('woff');
+}
+
+@font-face {
+  font-family: "Crimson";
+  src: url("fonts/crimson-bold.woff") format('woff');
+  font-weight: bold;
+}
+
+@font-face {
+  font-family: "Crimson";
+  src: url("fonts/crimson-italic.woff") format('woff');
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "DejaVu Sans Mono";
+  src: url("fonts/DejaVuSansMono.woff") format('woff');
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("fonts/IBMPlexMono-Regular.woff") format('woff');
+}
+
+body, h1, h2, h3, h4, p, blockquote, code, ul, ol, dl, dd, img {
+  margin: 0;
+}
+
+html {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  background: #999999 top center/100% auto no-repeat;
+  font-family: Crimson;
+}
+
+article {
+  padding: 48px;
+  margin: 0 auto;
+  max-width: 720px;
+}
+
+main {
+  padding: 48px;
+  background: #000000;
+  color: #ffffff;
+  border-radius: 6px;
+  box-shadow: 0 10px 30px 10px rgba(73, 44, 4, 0.2);
+}
+
+h2 {
+  font: 600 20px/24px "Crimson", Georgia, serif;
+  margin: 30px 0 12px 0;
+  padding-bottom: 2px;
+}
+
+p {
+  margin-bottom: 20px;
+}
+
+p.last {
+  margin-bottom: 5px;
+}
+
+sup {
+  font-size: 9px;
+}
+
+img.banner {
+  display: block;
+  margin: 20% auto 10% auto;
+  width: 100%;
+}
+
+p.center {
+  text-align: center;
+}
+
+.subtitle {
+  margin-top: -20px;
+  margin-bottom: 30px;
+}
+
+a code {
+  color: #1481b8;
+  text-decoration: none;
+  border-bottom: solid 1px
+    rgba(222, 233, 237, 0);
+  transition: color 0.2s ease,
+    border-color 0.4s ease;
+}
+
+a:visited code {
+  color: #1481b8;
+}
+
+a:hover code {
+  color: #004466;
+}
+
+a.button code {
+  display: inline-block;
+  padding: 6px 18px;
+  border-radius: 6px;
+  font: 400 17px/24px "Source Sans Pro",
+    sans-serif;
+  background: #1481b8;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: solid 3px #52b1e0;
+}
+
+a {
+  color: #1481b8;
+  text-decoration: none;
+  border-bottom: solid 1px
+    rgba(222, 233, 237, 0);
+  transition: color 0.2s ease,
+    border-color 0.4s ease;
+}
+
+a:visited {
+  color: #1481b8;
+}
+
+a:hover {
+  color: #004466;
+  border-bottom: solid 1px #dee9ed;
+}
+
+a.button {
+  display: inline-block;
+  padding: 6px 18px;
+  border-radius: 6px;
+  font: 400 17px/24px "Source Sans Pro",
+    sans-serif;
+  background: #1481b8;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: solid 3px #52b1e0;
+}
+
+a.button:hover {
+  border: solid 3px #004466;
+}
+
+.footer {
+  padding: 12px 0;
+  font-size: 14px;
+}
+
+.footer code {
+  font-size: 12px;
+}
+
+blockquote {
+  text-align: center;
+  margin: 24px 0 48px 0;
+  font: italic 28px/36px "Crimson";
+}
+
+ul {
+  padding-bottom: 12px;
+}
+
+code {
+  color: #666666;
+  font: normal 11pt Consolas,
+    Menlo, Monaco, monospace;
+  white-space: nowrap;
+}
+
+.code {
+  background-color: #111;
+  border-left: 2px solid #1451b8;
+  border-radius: 8px;
+
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-color: #888 #222;
+}
+
+.code pre {
+  line-height: 18px;
+  margin: 0px;
+  padding: 10px 0 10px 10px;
+  font-family: "DejaVu Sans Mono";
+  font-size: 13.5px;
+
+  white-space: pre;
+  /*
+  overflow-x: auto;
+  white-space: pre-wrap;
+  white-space: -moz-pre-wrap;
+  white-space: -pre-wrap;
+  white-space: -o-pre-wrap;
+  word-wrap: break-word;
+  */
+}
+
+.code-path {
+  font-family: monospace;
+  font-size: 12px;
+  color: #555;
+  display: block;
+  text-align: right;
+  margin: 0;
+  margin-bottom: 20px;
+  padding: 6px;
+
+  overflow-x: none;
+  white-space: pre-wrap;
+  white-space: -moz-pre-wrap;
+  white-space: -pre-wrap;
+  white-space: -o-pre-wrap;
+  word-wrap: break-word;
+}
+
+.collapse {
+  display: inline;
+  margin: 0;
+  padding: 0;
+}
+
+.i {
+  color: #e34;
+}
+
+.ia {
+  color: #2c2;
+}
+
+.k {
+  color: #46d;
+}
+
+@media only screen and (max-width: 630px) {
+  article {
+    padding: 24px;
+  }
+
+  main {
+    padding: 24px;
+  }
+}
+
+@media only screen and (max-width: 500px) {
+  /* NOTE: collapses */
+  body {
+    font-size: 15px;
+    line-height: 20px;
+  }
+
+  blockquote {
+    margin: 22px 0 44px 0;
+    font-size: 24px;
+    line-height: 33px;
+  }
+
+  /* NOTE: use `em` here. */
+  code {
+    font-size: 14px;
+  }
+
+  h2 {
+    margin: 44px 0 11px 0;
+    font-size: 18px;
+    line-height: 22px;
+  }
+
+  .footer {
+    line-height: 16px;
+  }
+}
+
+@media only screen and (max-width: 400px) {
+  .code-path {
+    font-size: 11px;
+    padding: 0;
+  }
+}
