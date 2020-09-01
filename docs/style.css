@@ -57,6 +57,10 @@ h2 {
   font: 600 20px/24px "Crimson", Georgia, serif;
   margin: 30px 0 12px 0;
   padding-bottom: 2px;
+  border-bottom: solid 1px #dedeee;
+  background-color: #112;
+  padding-top: 3px;
+  padding-bottom: 0px;
 }
 
 p {
@@ -82,8 +86,11 @@ p.center {
 }
 
 .subtitle {
-  margin-top: -20px;
-  margin-bottom: 30px;
+  margin-top: -35px;
+  margin-bottom: 50px;
+  background-color: inherit;
+  border: none;
+  text-align: center;
 }
 
 a code {
@@ -167,7 +174,7 @@ blockquote {
 }
 
 ul {
-  padding-bottom: 12px;
+  padding-bottom: 6px;
 }
 
 code {
@@ -205,6 +212,11 @@ code {
   */
 }
 
+.inline {
+  margin-top: 5px;
+  margin-bottom: 8px;
+}
+
 .code-path {
   font-family: monospace;
   font-size: 12px;
@@ -224,7 +236,8 @@ code {
 }
 
 .collapse {
-  display: inline;
+  display: none;
+  visibility: hidden;
   margin: 0;
   padding: 0;
 }
@@ -271,7 +284,7 @@ code {
 
   h2 {
     margin: 44px 0 11px 0;
-    font-size: 18px;
+    font-size: 20px;
     line-height: 22px;
   }
 
