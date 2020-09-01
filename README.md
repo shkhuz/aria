@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="assets/aria-banner-dark-white.png?raw=true" alt="aria-banner-dark-white.png">
+    <img src="docs/assets/aria-banner-dark-white.png?raw=true" alt="aria-banner-dark-white.png">
     <br/>
 	<br/>
 	<b>An open-source high-performance programming language & toolkit.</b>
