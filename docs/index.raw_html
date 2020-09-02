@@ -38,11 +38,7 @@ language & toolkit.</h2>
 <h2>A Hello World Program</h2><a name="a_hello_world_program"></a>
 
 <div class="code"><pre>
-<span class=i>#import</span> <span class=ia>&lt;std&gt;</span>
-
-<span class=k>pub</span> main :: <span class=k>fn</span> <span class=t>u8</span> {
-    std.<span class=f>println</span>(<span class=s>"Hello, {}"</span>, <span class=s>"world"</span>);
-}
+@hello_world.ar
 </pre></div>
 <span class="code-path">main.ar</span>
 
@@ -73,12 +69,7 @@ in this context is being considerate.<hr/></div>
 <h2>Comments</h2><a name="comments"></a>
 
 <div class="code"><pre>
-<span class=i>#import</span> <span class=ia>&lt;std&gt;</span>
-
-<span class=k>pub</span> main :: <span class=k>fn</span> <span class=t>u8</span> {
-    <span class=c>// this is a comment.</span>
-    std.<span class=f>println</span>(<span class=s>"Hello."</span>); <span class=c>// Comments go till the end of the line.</span>
-}
+@comments.ar
 </pre></div>
 <span class="code-path">comments.ar</span>
 

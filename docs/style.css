@@ -21,6 +21,12 @@
 }
 
 @font-face {
+  font-family: "DejaVu Sans Mono";
+  src: url("fonts/DejaVuSansMono-Bold.woff") format('woff');
+  font-weight: bold;
+}
+
+@font-face {
   font-family: "IBM Plex Mono";
   src: url("fonts/IBMPlexMono-Regular.woff") format('woff');
 }
@@ -251,7 +257,28 @@ code {
 }
 
 .k {
-  color: #46d;
+  color: #86f;
+}
+
+.f {
+  font-weight: bold;
+  color: #ccf;
+}
+
+.s {
+  color: #0c0;
+}
+
+.n {
+  color: #86f;
+}
+
+.t {
+  color: #7f3;
+}
+
+.c {
+  color: #555;
 }
 
 @media only screen and (max-width: 630px) {

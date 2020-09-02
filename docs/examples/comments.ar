@@ -1,0 +1,6 @@
+#import <std>
+
+pub main :: fn u8 {
+    // this is a comment.
+    std.println("Hello."); // Comments go till the end of the line.
+}
