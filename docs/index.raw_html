@@ -40,7 +40,7 @@ language & toolkit.</h2>
 <div class="code"><pre>
 @hello_world.ar
 </pre></div>
-<span class="code-path">main.ar</span>
+<span class="code-path">hello_world.ar</span>
 
 <p>The first line is a compiler directive: it tells the compiler to import
 the standard library into the program's scope. All directives start with a
