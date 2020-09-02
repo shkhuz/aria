@@ -7,14 +7,15 @@ BUILD_DIR := build
 BIN_DIR := $(BUILD_DIR)/bin
 OBJ_DIR := $(BUILD_DIR)/obj
 
+DEPS_DIR := deps
+DOCS_DIR := docs
+
 C_FILES := $(shell find $(SRC_DIR) -name "*.c")
 ASM_FILES := $(shell find $(SRC_DIR) -name "*.asm")
 
 OBJ_FILES := $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(C_FILES)))
 OBJ_FILES += $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(ASM_FILES)))
 BIN_FILE := $(BIN_DIR)/$(PROJECT)
-
-DEPS_DIR := deps
 
 CC := gcc
 LD := gcc
@@ -28,8 +29,8 @@ LIBS_INC_DIR_CMD :=
 LIBS_LIB_DIR_CMD :=
 LIBS_LIB_CMD :=
 
-run: $(BIN_FILE)
-	$^ examples/hello_world.ar
+run: $(BIN_FILE) docs
+	$(BIN_FILE) examples/hello_world.ar
 
 $(BIN_FILE): $(OBJ_FILES)
 	@mkdir -p $(dir $@)
@@ -45,6 +46,10 @@ $(OBJ_DIR)/%.asm.o: %.asm
 
 clean:
 	rm -rf $(BUILD_DIR)
+	cd $(DOCS_DIR) && $(MAKE) clean
+
+docs:
+	cd $(DOCS_DIR) && $(MAKE)
 
 loc:
 	find $(SRC_DIR) \
@@ -55,4 +60,4 @@ loc:
 		-name "*.asm" \
 	| xargs cat | wc -l
 
-.PHONY: clean loc
+.PHONY: clean loc docs

@@ -8,6 +8,6 @@ install: $(AR_HTML_FILES)
 	sed -f add_syn_hlt.sed $^ > $@
 
 clean:
-	rm index.html
-	rm *.ar.html
+	rm -f index.html
+	rm -f examples/*.ar.html
 

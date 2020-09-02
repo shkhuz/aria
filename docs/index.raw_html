@@ -38,7 +38,7 @@ language & toolkit.</h2>
 <h2>A Hello World Program</h2><a name="a_hello_world_program"></a>
 
 <div class="code"><pre>
-@hello_world.ar
+@examples/hello_world.ar
 </pre></div>
 <span class="code-path">hello_world.ar</span>
 
@@ -69,7 +69,7 @@ in this context is being considerate.<hr/></div>
 <h2>Comments</h2><a name="comments"></a>
 
 <div class="code"><pre>
-@comments.ar
+@examples/comments.ar
 </pre></div>
 <span class="code-path">comments.ar</span>
 
