@@ -55,10 +55,10 @@ main {
 
 h2 {
   font: 600 20px/24px "Crimson", Georgia, serif;
-  margin: 30px 0 12px 0;
+  margin: 15px 0 12px 0;
   padding-bottom: 2px;
   border-bottom: solid 1px #dedeee;
-  background-color: #112;
+  background-color: #11112c;
   padding-top: 3px;
   padding-bottom: 0px;
 }
@@ -187,7 +187,7 @@ code {
 .code {
   background-color: #111;
   border-left: 2px solid #1451b8;
-  border-radius: 8px;
+  border-radius: 6px;
 
   width: 100%;
   overflow-x: auto;
