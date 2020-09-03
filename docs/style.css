@@ -16,19 +16,14 @@
 }
 
 @font-face {
-  font-family: "DejaVu Sans Mono";
-  src: url("fonts/DejaVuSansMono.woff") format('woff');
-}
-
-@font-face {
-  font-family: "DejaVu Sans Mono";
-  src: url("fonts/DejaVuSansMono-Bold.woff") format('woff');
-  font-weight: bold;
+  font-family: "IBM Plex Mono";
+  src: url("fonts/IBMPlexMono-Regular.woff") format('woff');
 }
 
 @font-face {
   font-family: "IBM Plex Mono";
-  src: url("fonts/IBMPlexMono-Regular.woff") format('woff');
+  src: url("fonts/IBMPlexMono-Bold.woff") format('woff');
+  font-weight: bold;
 }
 
 body, h1, h2, h3, h4, p, blockquote, code, ul, ol, dl, dd, img {
@@ -204,7 +199,7 @@ code {
   line-height: 18px;
   margin: 0px;
   padding: 10px 0 10px 10px;
-  font-family: "DejaVu Sans Mono";
+  font-family: "IBM Plex Mono";
   font-size: 13.5px;
 
   white-space: pre;
