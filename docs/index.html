@@ -88,17 +88,25 @@ code will be omitted (like <code>pub main :: fn u8 {</code> or
 <code>#import &lt;std&gt;</code>).</p>
 
 <p class="inline">A variable is declared and initialized like this:
-<div class="code"><pre>
-preproc_time :: 6.20;</pre></div></p>
 
-<p class="inline">A variable declaration without an initializer will require a type
-annotation:
 <div class="code"><pre>
-preproc_time: f32;</pre></div></p>
+preproc_time :: <span class=n>6.05</span>;
+</pre></div></p>
+
+<p class="inline">A variable declaration without an initializer will require
+a type annotation:
+
+<div class="code"><pre>
+preproc_time: <span class=t>f32</span>;
+</pre></div></p>
 
 <p class="inline">Or it can combine both:
+
 <div class="inline code"><pre>
-preproc_time: f32: 6.20;</pre></div></p>
+preproc_time: <span class=t>f32</span>: <span class=n>6.05</span>;
+</pre></div></p>
+
+This uses $3.
 
 </main>
 </article>

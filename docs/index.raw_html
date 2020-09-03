@@ -38,7 +38,7 @@ language & toolkit.</h2>
 <h2>A Hello World Program</h2><a name="a_hello_world_program"></a>
 
 <div class="code"><pre>
-@examples/hello_world.ar
+@hello_world.ar
 </pre></div>
 <span class="code-path">hello_world.ar</span>
 
@@ -69,7 +69,7 @@ in this context is being considerate.<hr/></div>
 <h2>Comments</h2><a name="comments"></a>
 
 <div class="code"><pre>
-@examples/comments.ar
+@comments.ar
 </pre></div>
 <span class="code-path">comments.ar</span>
 
@@ -79,17 +79,25 @@ code will be omitted (like <code>pub main :: fn u8 {</code> or
 <code>#import &lt;std&gt;</code>).</p>
 
 <p class="inline">A variable is declared and initialized like this:
-<div class="code"><pre>
-preproc_time :: 6.20;</pre></div></p>
 
-<p class="inline">A variable declaration without an initializer will require a type
-annotation:
 <div class="code"><pre>
-preproc_time: f32;</pre></div></p>
+$1,1p variables.ar
+</pre></div></p>
+
+<p class="inline">A variable declaration without an initializer will require
+a type annotation:
+
+<div class="code"><pre>
+$2,2p variables.ar
+</pre></div></p>
 
 <p class="inline">Or it can combine both:
+
 <div class="inline code"><pre>
-preproc_time: f32: 6.20;</pre></div></p>
+$3,3p variables.ar
+</pre></div></p>
+
+This uses $3.
 
 </main>
 </article>

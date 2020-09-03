@@ -1,8 +1,10 @@
 AR_FILES := $(shell find . -name "*.ar")
 AR_HTML_FILES := $(addsuffix .html, $(AR_FILES))
 
-install: $(AR_HTML_FILES)
-	sed 's/@\(.*\.ar\)/cat \1.html/ge' index.raw_html > index.html
+install: index.html
+
+index.html: $(AR_HTML_FILES) index.raw_html
+	sed -f add_code.sed index.raw_html > index.html
 
 %.ar.html: %.ar
 	sed -f add_syn_hlt.sed $^ > $@
