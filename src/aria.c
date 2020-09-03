@@ -1,40 +1,28 @@
 #include <lexer.h>
 #include <token.h>
+#include <compiler.h>
 #include <arpch.h>
+#include <error_value.h>
 
-void fatal_error(const char* fmt, ...) {
-	va_list ap;
-	va_start(ap, fmt);
-
-	fprintf(stderr, "aria: ");
-	vfprintf(stderr, fmt, ap);
-	fprintf(stderr, "\n");
-
-	va_end(ap);
-	exit(1);
-}
+static bool error_read;
 
 int main(int argc, char** argv) {
+    error_read = false;
+
 	if (argc < 2) {
-		fatal_error("no input files specified; aborting");
+		fatal_error_common("no input files specified; aborting");
 	}
 
-	const char* srcfile_name = argv[1];
-	File* srcfile = file_read(srcfile_name);
-	if (!srcfile) {
-		fatal_error("cannot read `%s`: aborting", srcfile_name);
-	}
+    for (int f = 1; f < argc; f++) {
+        const char* srcfile_name = argv[f];
+        Compiler compiler = compiler_new(srcfile_name);
+        switch (compiler_run(&compiler)) {
+            case ERROR_READ: error_read = true; break;
+        }
+    }
 
-	Lexer lexer = lexer_new();
-	lexer_lex(&lexer, srcfile);
-
-	buf_loop(lexer.tokens, t) {
-		printf(
-			"[%4lu:%4lu | %15s: %s]\n",
-			lexer.tokens[t]->line,
-			lexer.tokens[t]->column,
-			tokentype_str[lexer.tokens[t]->type],
-			lexer.tokens[t]->lexeme);
-	}
+    if (error_read) {
+        fatal_error_common("one or more files were not read: aborting compilation");
+    }
 }
 

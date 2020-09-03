@@ -47,3 +47,29 @@ void error(
 	va_end(aq);
 }
 
+static void _error_common(const char* fmt, va_list ap) {
+    va_list aq;
+    va_copy(aq, ap);
+
+	fprintf(stderr, "aria: ");
+	vfprintf(stderr, fmt, aq);
+	fprintf(stderr, "\n");
+
+    va_end(aq);
+}
+
+void error_common(const char* fmt, ...) {
+	va_list ap;
+	va_start(ap, fmt);
+    _error_common(fmt, ap);
+	va_end(ap);
+}
+
+void fatal_error_common(const char* fmt, ...) {
+	va_list ap;
+	va_start(ap, fmt);
+    _error_common(fmt, ap);
+	va_end(ap);
+	exit(1);
+}
+

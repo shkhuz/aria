@@ -81,20 +81,20 @@ code will be omitted (like <code>pub main :: fn u8 {</code> or
 <p class="inline">A variable is declared and initialized like this:
 
 <div class="code"><pre>
-$1,1p variables.ar
+$1,1 variables.ar
 </pre></div></p>
 
 <p class="inline">A variable declaration without an initializer will require
 a type annotation:
 
 <div class="code"><pre>
-$2,2p variables.ar
+$2,2 variables.ar
 </pre></div></p>
 
 <p class="inline">Or it can combine both:
 
 <div class="inline code"><pre>
-$3,3p variables.ar
+$3,3 variables.ar
 </pre></div></p>
 
 </main>

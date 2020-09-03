@@ -11,4 +11,7 @@ void error(
 	const char* fmt,
 	va_list ap);
 
+void error_common(const char* fmt, ...);
+void fatal_error_common(const char* fmt, ...);
+
 #endif /* _ERROR_MSG_H */

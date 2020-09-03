@@ -3,14 +3,14 @@
 #include <error_msg.h>
 #include <arpch.h>
 
-Lexer lexer_new(void) {
+Lexer lexer_new(File* srcfile) {
 	Lexer lexer;
-	lexer.srcfile = null;
+	lexer.srcfile = srcfile;
 	lexer.tokens = null;
-	lexer.start = null;
-	lexer.current = null;
+	lexer.start = srcfile->contents;
+	lexer.current = lexer.start;
 	lexer.line = 1;
-	lexer.last_newline = null;
+	lexer.last_newline = lexer.start;
 	return lexer;
 }
 
@@ -129,14 +129,8 @@ static void lexer_char(Lexer* l) {
 	l->current++;
 }
 
-void lexer_lex(Lexer* l, File* srcfile) {
-	l->srcfile = srcfile;
-	l->start = srcfile->contents;
-	l->current = l->start;
-	l->last_newline = l->start;
-	l->line = 1;
-
-	char* contents = srcfile->contents;
+void lexer_run(Lexer* l) {
+	char* contents = l->srcfile->contents;
 	for (;l->current != (l->srcfile->contents + l->srcfile->len);) {
 		l->start = l->current;
 
@@ -168,6 +162,11 @@ void lexer_lex(Lexer* l, File* srcfile) {
 				l->last_newline = l->current++;
 				l->line++;
 				break;
+            case ' ':
+            case '\r':
+            case '\t':
+                l->current++;
+                break;
 			default:
 				l->current++;
 				break;
