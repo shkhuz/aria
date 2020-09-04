@@ -56,7 +56,7 @@ main {
 
 h2 {
   font: 600 20px/24px "Crimson", Georgia, serif;
-  margin: 15px 0 12px 0;
+  margin: 30px 0 12px 0;
   padding-bottom: 2px;
   border-bottom: solid 1px #dedeee;
   background-color: #11112c;
@@ -65,10 +65,10 @@ h2 {
 }
 
 p {
-  margin-bottom: 20px;
+  margin: 15px 0px;
 }
 
-p.last {
+.last {
   margin-bottom: 5px;
 }
 
@@ -188,11 +188,16 @@ code {
 .code {
   background-color: #111;
   border-left: 2px solid #1451b8;
-  border-radius: 6px;
+  border-radius: 4px;
+  margin: 5px 0 5px 0;
 
   width: 100%;
   overflow-x: auto;
   scrollbar-color: #888 #222;
+}
+
+.code-wrap {
+  margin-bottom: 20px;
 }
 
 .code pre {
@@ -213,8 +218,8 @@ code {
   */
 }
 
-.inline {
-  margin-top: 5px;
+.in {
+  margin-top: 6px;
   margin-bottom: 8px;
 }
 
@@ -224,8 +229,7 @@ code {
   color: #555;
   display: block;
   text-align: right;
-  margin: 0;
-  margin-bottom: 20px;
+  margin: -5px;
   padding: 6px;
 
   overflow-x: none;
@@ -305,7 +309,7 @@ code {
   }
 
   h2 {
-    margin: 25px 0 11px 0;
+    margin: 28px 0 11px 0;
     font-size: 20px;
     line-height: 22px;
   }

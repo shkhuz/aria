@@ -33,10 +33,12 @@ language & toolkit.</h2>
 <li><a href="#a_hello_world_program">A Hello World Program</a></li>
 <li><a href="#comments">Comments</a></li>
 <li><a href="#variables">Variables</a></li>
+<li><a href="#pointers">Pointers</a></li>
 </ul>
 
 <h2>A Hello World Program</h2><a name="a_hello_world_program"></a>
 
+<div class="code-wrap">
 <div class="code"><pre>
 <span class=i>#import</span> <span class=ia>&lt;std&gt;</span>
 
@@ -45,6 +47,7 @@ language & toolkit.</h2>
 }
 </pre></div>
 <span class="code-path">hello_world.ar</span>
+</div>
 
 <p>The first line is a compiler directive: it tells the compiler to import
 the standard library into the program's scope. All directives start with a
@@ -72,6 +75,7 @@ in this context is being considerate.<hr/></div>
 
 <h2>Comments</h2><a name="comments"></a>
 
+<div class="code-wrap">
 <div class="code"><pre>
 <span class=i>#import</span> <span class=ia>&lt;std&gt;</span>
 
@@ -81,32 +85,67 @@ in this context is being considerate.<hr/></div>
 }
 </pre></div>
 <span class="code-path">comments.ar</span>
+</div>
 
 <h2>Variables</h2><a name="variables"></a>
 <p>From now on, only contextual snippets of code will be shown—implied
 code will be omitted (like <code>pub main :: fn u8 {</code> or
 <code>#import &lt;std&gt;</code>).</p>
 
-<p class="inline">A variable is declared and initialized like this:
+<p>A variable is declared and initialized like this:</p>
 
 <div class="code"><pre>
 preproc_time :: <span class=n>6.05</span>;
-</pre></div></p>
+</pre></div>
 
-<p class="inline">A variable declaration without an initializer will require
-a type annotation:
+<p>A variable declaration without an initializer will require
+a type annotation:</p>
 
 <div class="code"><pre>
 preproc_time: <span class=t>f32</span>;
-</pre></div></p>
+</pre></div>
 
-<p class="inline">Or it can combine both:
+<p>Or it can combine both:</p>
 
-<div class="inline code"><pre>
+<div class="code"><pre>
 preproc_time: <span class=t>f32</span>: <span class=n>6.05</span>;
-</pre></div></p>
+</pre></div>
+
+<h2>Pointers</h2><a name="pointers"></a>
+
+<p>A pointer is a <em>pointer</em> to a block of memory.
+A pointer declaration looks like this:</p>
+
+<div class="code"><pre>
+float_ptr: <span class=t>f32</span>*;
+</pre></div>
+
+<p>This line declares an <code>f32</code> (32-bit floating point)
+pointer. Currently the pointer points to nothing. Memory can be allocated
+using <code>alloc()</code>:</p>
+
+<div class="code"><pre>
+float_ptr :: std.<span class=f>alloc</span>(<span class=t>f32</span>.<span class=f>new</span>());
+</pre></div>
+
+<p>There are a few things going on here. Firstly, the standard library
+implements a function <code>alloc()</code> which takes an argument of any
+<sub>1</sub> type, and allocates it on the <a href="#">heap</a>. The return
+type of <code>alloc()</code> is a pointer to the type of the argument.
+Secondly, <code>f32</code> implements a function <code>new()</code> which
+returns the default value for a 32-bit float. All basic types implement this
+function.</p>
+
+<p>To modify the memory contents at an address pointed to by a pointer, use the
+<code>*</code> (dereference) operator:</p>
+
+<div class="code"><pre>
+float_ptr :: std.<span class=f>alloc</span>(<span class=t>f32</span>.<span class=f>new</span>());
+*float_ptr = <span class=n>12.4</span>;
+</pre></div>
 
 </main>
 </article>
 </body>
 </html>
+

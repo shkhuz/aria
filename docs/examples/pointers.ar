@@ -1,0 +1,4 @@
+float_ptr: f32*;
+float_ptr :: std.alloc(f32.new());
+*float_ptr = 12.4;
+
