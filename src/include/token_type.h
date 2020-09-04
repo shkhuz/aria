@@ -9,6 +9,8 @@ typedef enum {
 	T_INTEGER,
 	T_FLOAT32,
 	T_FLOAT64,
+    T_PLUS,
+    T_MINUS,
     T_EOF,
 } TokenType;
 

@@ -2,8 +2,7 @@
 #define _STMT_H
 
 typedef enum {
-    S_BINARY,
-    S_UNARY,
+    S_EXPR,
 } StmtType;
 
 typedef struct {

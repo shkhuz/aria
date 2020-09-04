@@ -158,6 +158,16 @@ void lexer_run(Lexer* l) {
 			case '\'':
 				lexer_char(l);
 				break;
+
+            #define single_char_token(type) \
+                l->current++; \
+                lexer_addt(l, type);
+
+            case '+': single_char_token(T_PLUS); break;
+            case '-': single_char_token(T_MINUS); break;
+
+            #undef single_char_token(type)
+
 			case '\n':
 				l->last_newline = l->current++;
 				l->line++;
