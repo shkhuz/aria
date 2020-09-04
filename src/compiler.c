@@ -1,4 +1,5 @@
 #include <compiler.h>
+#include <parser.h>
 #include <lexer.h>
 #include <token.h>
 #include <arpch.h>
@@ -20,5 +21,8 @@ int compiler_run(Compiler* c) {
 
     Lexer lexer = lexer_new(srcfile);
     lexer_run(&lexer);
+
+    Parser parser = parser_new(srcfile, lexer.tokens);
+    parser_run(&parser);
 }
 

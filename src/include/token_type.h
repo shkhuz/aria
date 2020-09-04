@@ -9,6 +9,7 @@ typedef enum {
 	T_INTEGER,
 	T_FLOAT32,
 	T_FLOAT64,
+    T_EOF,
 } TokenType;
 
 #endif /* _TOKEN_TYPE_H */

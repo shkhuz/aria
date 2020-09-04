@@ -172,5 +172,6 @@ void lexer_run(Lexer* l) {
 				break;
 		}
 	}
+    lexer_addt(l, T_EOF);
 }
 

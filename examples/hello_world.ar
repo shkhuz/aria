@@ -14,7 +14,7 @@ main :: fn u8 {
 
 std :: mod {
 	writer :: trait {
-		write :: fn (bytes: u8[]) result<u64, error>;
+		write :: fn (bytes: [u8]) result<u64, error>;
 	}
 
 	stdout :: struct;
@@ -36,4 +36,10 @@ std :: mod {
 	}
 
 	// example "
+
+    alloc :: fn<T> (obj: T) [T] {
+        memory: [T]: malloc(#sizeof(obj));
+        *memory = obj;
+        memory
+    }
 }
