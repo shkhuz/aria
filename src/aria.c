@@ -3,6 +3,7 @@
 #include <compiler.h>
 #include <arpch.h>
 #include <error_value.h>
+#include <error_msg.h>
 
 static bool error_read;
 

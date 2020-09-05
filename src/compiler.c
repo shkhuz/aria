@@ -2,8 +2,9 @@
 #include <parser.h>
 #include <lexer.h>
 #include <token.h>
-#include <arpch.h>
 #include <error_value.h>
+#include <error_msg.h>
+#include <arpch.h>
 
 Compiler compiler_new(const char* srcfile_path) {
     Compiler compiler;

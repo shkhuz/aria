@@ -1,4 +1,5 @@
 #include <parser.h>
+#include <ast_print.h>
 #include <token.h>
 #include <expr.h>
 #include <arpch.h>
@@ -84,11 +85,21 @@ static Expr* expr_unary_add_sub(Parser* p) {
     return expr_atom(p);
 }
 
-static Expr* expr_binary_add_sub(Parser* p) {
+static Expr* expr_binary_mul_div(Parser* p) {
     Expr* left = expr_unary_add_sub(p);
-    while (match(T_PLUS) || match(T_MINUS)) {
+    while (match(T_STAR) || match(T_FW_SLASH)) {
         Token* op = previous();
         Expr* right = expr_unary_add_sub(p);
+        left = expr_binary_new(left, right, op);
+    }
+    return left;
+}
+
+static Expr* expr_binary_add_sub(Parser* p) {
+    Expr* left = expr_binary_mul_div(p);
+    while (match(T_PLUS) || match(T_MINUS)) {
+        Token* op = previous();
+        Expr* right = expr_binary_mul_div(p);
         left = expr_binary_new(left, right, op);
     }
     return left;
@@ -99,5 +110,5 @@ static Expr* expr(Parser* p) {
 }
 
 void parser_run(Parser* p) {
-    expr(p);
+    print_expr(expr(p));
 }

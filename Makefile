@@ -20,7 +20,7 @@ BIN_FILE := $(BIN_DIR)/$(PROJECT)
 CC := gcc
 LD := gcc
 
-PREPROCESSOR_DEFINES :=
+PREPROCESSOR_DEFINES := -DTAB_COUNT=4 -DAST_TAB_COUNT=2
 CFLAGS := $(PREPROCESSOR_DEFINES) -I$(INC_DIR) -std=c99 -pedantic -Wall -Wextra -Wunused -Wshadow -Wno-write-strings -Wdouble-promotion -Wduplicate-decl-specifier -Wformat=2 -Winit-self -Wmisleading-indentation -Wswitch-default -Wstrict-overflow -Walloca -Wconversion -Wunused-macros -Wdate-time -Waddress -Wlogical-op -Wlogical-not-parentheses -Wstrict-prototypes -Wpacked -Winline -m64 -g
 ASMFLAGS := -felf64
 LDFLAGS :=
@@ -29,7 +29,7 @@ LIBS_INC_DIR_CMD :=
 LIBS_LIB_DIR_CMD :=
 LIBS_LIB_CMD :=
 
-run: $(BIN_FILE) docs
+run: clean $(BIN_FILE) docs
 	$(BIN_FILE) examples/expr_test.ar
 
 $(BIN_FILE): $(OBJ_FILES)

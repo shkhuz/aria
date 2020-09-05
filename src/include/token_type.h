@@ -11,6 +11,8 @@ typedef enum {
 	T_FLOAT64,
     T_PLUS,
     T_MINUS,
+    T_STAR,
+    T_FW_SLASH,
     T_EOF,
 } TokenType;
 

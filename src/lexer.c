@@ -165,8 +165,10 @@ void lexer_run(Lexer* l) {
 
             case '+': single_char_token(T_PLUS); break;
             case '-': single_char_token(T_MINUS); break;
+            case '*': single_char_token(T_STAR); break;
+            case '/': single_char_token(T_FW_SLASH); break;
 
-            #undef single_char_token(type)
+            #undef single_char_token
 
 			case '\n':
 				l->last_newline = l->current++;
