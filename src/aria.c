@@ -4,11 +4,13 @@
 #include <arpch.h>
 #include <error_value.h>
 #include <error_msg.h>
+#include <keywords.h>
 
 static bool error_read;
 
 int main(int argc, char** argv) {
     error_read = false;
+    keywords_init();
 
 	if (argc < 2) {
 		fatal_error_common("no input files specified; aborting");

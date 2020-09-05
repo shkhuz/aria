@@ -1,16 +1,6 @@
 #include <token.h>
 #include <arpch.h>
 
-const char* tokentype_str[] = {
-	"T_IDENTIFIER",
-	"T_KEYWORD",
-	"T_STRING",
-	"T_CHAR",
-	"T_INTEGER",
-	"T_FLOAT32",
-	"T_FLOAT64",
-};
-
 Token token_new(
 	char* lexeme,
 	char* start,

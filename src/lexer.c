@@ -1,6 +1,7 @@
 #include <lexer.h>
 #include <token.h>
 #include <error_msg.h>
+#include <keywords.h>
 #include <arpch.h>
 
 Lexer lexer_new(File* srcfile) {
@@ -74,10 +75,18 @@ static void error_from_current(Lexer* self, u64 char_count, const char* fmt, ...
 }
 
 static void identifier(Lexer* self) {
+    TokenType type = T_IDENTIFIER;
 	self->current++;
 	while (isalnum(*self->current) || *self->current == '_') self->current++;
+    const char* lexeme = str_intern_range(self->start, self->current);
+    for (u64 k = 0; k < buf_len(keywords); k++) {
+        if (str_intern(lexeme) == str_intern(keywords[k])) {
+            type = T_KEYWORD;
+            break;
+        }
+    }
 
-	addt(self, T_IDENTIFIER);
+	addt(self, type);
 }
 
 static void number(Lexer* self) {

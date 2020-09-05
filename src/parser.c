@@ -190,3 +190,4 @@ void parser_run(Parser* self) {
         buf_push(self->stmts, s);
     }
 }
+

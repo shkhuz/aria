@@ -4,6 +4,7 @@
 #include <token.h>
 #include <error_value.h>
 #include <error_msg.h>
+#include <token_type.h>
 #include <arpch.h>
 
 Compiler compiler_new(const char* srcfile_path) {
@@ -23,8 +24,17 @@ int compiler_run(Compiler* self) {
     Lexer lexer = lexer_new(srcfile);
     lexer_run(&lexer);
 
-    Parser parser = parser_new(srcfile, lexer.tokens);
-    parser_run(&parser);
+    for (u64 t = 0; t < buf_len(lexer.tokens); t++) {
+        printf(
+                "%lu, %lu, %u, %s\n",
+                lexer.tokens[t]->line,
+                lexer.tokens[t]->column,
+                lexer.tokens[t]->type,
+                lexer.tokens[t]->lexeme);
+    }
+
+/*     Parser parser = parser_new(srcfile, lexer.tokens); */
+/*     parser_run(&parser); */
 
     return ERROR_SUCCESS;
 }
