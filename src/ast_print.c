@@ -6,17 +6,16 @@
 
 static int indent_count = 0;
 
-static void string(const char* string) {
-    printf("%s", string);
-}
+#define string(str) \
+    printf("%s", str)
 
-static void chr(char chr) {
-    fputc(chr, stdout);
-}
+#define chr(c) \
+    fputc(c, stdout)
 
-static void l_paren(void) {
-    chr('(');
-}
+#define l_paren() \
+    chr('(')
+
+/* TODO: complete this */
 
 static void r_paren(void) {
     chr(')');

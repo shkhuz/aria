@@ -14,127 +14,127 @@ Lexer lexer_new(File* srcfile) {
 	return lexer;
 }
 
-static u64 lexer_compute_column_on_start(Lexer* l) {
-	u64 column = (u64)(l->start - l->last_newline);
-	if (l->line == 1) {
+static u64 compute_column_on_start(Lexer* self) {
+	u64 column = (u64)(self->start - self->last_newline);
+	if (self->line == 1) {
 		column++;
 	}
 	return column;
 }
 
-static u64 lexer_compute_column_on_current(Lexer* l) {
-	u64 column = (u64)(l->current - l->last_newline);
-	if (l->line == 1) {
+static u64 compute_column_on_current(Lexer* self) {
+	u64 column = (u64)(self->current - self->last_newline);
+	if (self->line == 1) {
 		column++;
 	}
 	return column;
 }
 
-static void lexer_addt(Lexer* l, TokenType type) {
+static void addt(Lexer* self, TokenType type) {
 	Token token =
 		token_new(
-				str_intern_range(l->start, l->current),
-				l->start,
-				l->current,
+				str_intern_range(self->start, self->current),
+				self->start,
+				self->current,
 				type,
-				l->srcfile,
-				l->line,
-				lexer_compute_column_on_start(l),
-				(u64)(l->current - l->start));
+				self->srcfile,
+				self->line,
+				compute_column_on_start(self),
+				(u64)(self->current - self->start));
 	Token* token_heap = malloc(sizeof(Token));
 	memcpy(token_heap, &token, sizeof(Token));
 
-	buf_push(l->tokens, token_heap);
+	buf_push(self->tokens, token_heap);
 }
 
-static void lexer_error_from_start(Lexer* l, u64 char_count, const char* fmt, ...) {
+static void error_from_start(Lexer* self, u64 char_count, const char* fmt, ...) {
 	va_list ap;
 	va_start(ap, fmt);
 	error(
-		l->srcfile,
-		l->line,
-		lexer_compute_column_on_start(l),
+		self->srcfile,
+		self->line,
+		compute_column_on_start(self),
 		char_count,
 		fmt,
 		ap);
 	va_end(ap);
 }
 
-static void lexer_error_from_current(Lexer* l, u64 char_count, const char* fmt, ...) {
+static void error_from_current(Lexer* self, u64 char_count, const char* fmt, ...) {
 	va_list ap;
 	va_start(ap, fmt);
 	error(
-		l->srcfile,
-		l->line,
-		lexer_compute_column_on_current(l),
+		self->srcfile,
+		self->line,
+		compute_column_on_current(self),
 		char_count,
 		fmt,
 		ap);
 	va_end(ap);
 }
 
-static void lexer_identifier(Lexer* l) {
-	l->current++;
-	while (isalnum(*l->current) || *l->current == '_') l->current++;
+static void identifier(Lexer* self) {
+	self->current++;
+	while (isalnum(*self->current) || *self->current == '_') self->current++;
 
-	lexer_addt(l, T_IDENTIFIER);
+	addt(self, T_IDENTIFIER);
 }
 
-static void lexer_number(Lexer* l) {
+static void number(Lexer* self) {
 	TokenType type = T_INTEGER;
-	while (isdigit(*l->current)) l->current++;
-	if (*l->current == '.') {
-		l->current++;
+	while (isdigit(*self->current)) self->current++;
+	if (*self->current == '.') {
+		self->current++;
 		// TODO: add support for float64
 		// TODO: check integer and float constant overflow
 		type = T_FLOAT32;
 
-		if (!isdigit(*l->current)) {
-			lexer_error_from_start(
-				l,
-				(u64)(l->current - l->start),
+		if (!isdigit(*self->current)) {
+			error_from_start(
+				self,
+				(u64)(self->current - self->start),
 				"expect fractional part after `%s`",
-				str_intern_range(l->start, l->current));
+				str_intern_range(self->start, self->current));
 			return;
 		}
 
-		while (isdigit(*l->current)) l->current++;
+		while (isdigit(*self->current)) self->current++;
 	}
 
-	lexer_addt(l, type);
+	addt(self, type);
 }
 
-static void lexer_string(Lexer* l) {
-	l->current++;
-	while (*l->current != '"') {
-		l->current++;
-		if (*l->current == '\0') {
-			lexer_error_from_start(l, 1, "mismatched `\"`: encountered EOF");
+static void string(Lexer* self) {
+	self->current++;
+	while (*self->current != '"') {
+		self->current++;
+		if (*self->current == '\0') {
+			error_from_start(self, 1, "mismatched `\"`: encountered EOF");
 			return;
 		}
 	}
 
-	l->start++;
-	lexer_addt(l, T_STRING);
-	l->current++;
+	self->start++;
+	addt(self, T_STRING);
+	self->current++;
 }
 
-static void lexer_char(Lexer* l) {
-	l->start++;
-	l->current++;
+static void chr(Lexer* self) {
+	self->start++;
+	self->current++;
 	// TODO: handle escape sequences;
 
-	l->current++;
-	lexer_addt(l, T_CHAR);
-	l->current++;
+	self->current++;
+	addt(self, T_CHAR);
+	self->current++;
 }
 
-void lexer_run(Lexer* l) {
-	char* contents = l->srcfile->contents;
-	for (;l->current != (l->srcfile->contents + l->srcfile->len);) {
-		l->start = l->current;
+void lexer_run(Lexer* self) {
+	char* contents = self->srcfile->contents;
+	for (;self->current != (self->srcfile->contents + self->srcfile->len);) {
+		self->start = self->current;
 
-		switch (*l->current) {
+		switch (*self->current) {
 			case 'a': case 'b': case 'c': case 'd': case 'e':
 			case 'f': case 'g': case 'h': case 'i': case 'j':
 			case 'k': case 'l': case 'm': case 'n': case 'o':
@@ -146,44 +146,45 @@ void lexer_run(Lexer* l) {
 			case 'O': case 'P': case 'Q': case 'R': case 'S':
 			case 'T': case 'U': case 'V': case 'W': case 'X':
 			case 'Y': case 'Z':
-				lexer_identifier(l);
+				identifier(self);
 				break;
 			case '0': case '1': case '2': case '3': case '4':
 			case '5': case '6': case '7': case '8': case '9':
-				lexer_number(l);
+				number(self);
 				break;
 			case '"':
-				lexer_string(l);
+				string(self);
 				break;
 			case '\'':
-				lexer_char(l);
+				chr(self);
 				break;
 
             #define single_char_token(type) \
-                l->current++; \
-                lexer_addt(l, type);
+                self->current++; \
+                addt(self, type);
 
             case '+': single_char_token(T_PLUS); break;
             case '-': single_char_token(T_MINUS); break;
             case '*': single_char_token(T_STAR); break;
             case '/': single_char_token(T_FW_SLASH); break;
+            case ';': single_char_token(T_SEMICOLON); break;
 
             #undef single_char_token
 
 			case '\n':
-				l->last_newline = l->current++;
-				l->line++;
+				self->last_newline = self->current++;
+				self->line++;
 				break;
             case ' ':
             case '\r':
             case '\t':
-                l->current++;
+                self->current++;
                 break;
 			default:
-				l->current++;
+				self->current++;
 				break;
 		}
 	}
-    lexer_addt(l, T_EOF);
+    addt(self, T_EOF);
 }
 

@@ -1,13 +1,16 @@
+#define _ERROR_MSG_NO_ERROR_TOKEN_MACRO
 #include <error_msg.h>
+#undef _ERROR_MSG_NO_ERROR_TOKEN_MACRO
+#include <token.h>
 #include <arpch.h>
 
 void error(
-	File* srcfile,
-	u64 line,
-	u64 column,
-	u64 char_count,
-	const char* fmt,
-	va_list ap) {
+        File* srcfile,
+        u64 line,
+        u64 column,
+        u64 char_count,
+        const char* fmt,
+        va_list ap) {
 
 	va_list aq;
 	va_copy(aq, ap);
@@ -47,6 +50,39 @@ void error(
 	va_end(aq);
 }
 
+void error_token(
+        File* srcfile,
+        Token* token,
+        const char* fmt,
+        ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    verror_token(
+            srcfile,
+            token,
+            fmt,
+            ap);
+    va_end(ap);
+}
+
+void verror_token(
+        File* srcfile,
+        Token* token,
+        const char* fmt,
+        va_list ap) {
+    va_list aq;
+    va_copy(aq, ap);
+    error(
+            srcfile,
+            token->line,
+            token->column,
+            token->char_count,
+            fmt,
+            ap);
+    va_end(aq);
+}
+
+/* shared across source files (no unique source file path) */
 static void _error_common(const char* fmt, va_list ap) {
     va_list aq;
     va_copy(aq, ap);

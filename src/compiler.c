@@ -11,12 +11,12 @@ Compiler compiler_new(const char* srcfile_path) {
     compiler.srcfile_path = srcfile_path;
 }
 
-int compiler_run(Compiler* c) {
-    File* srcfile = file_read(c->srcfile_path);
+int compiler_run(Compiler* self) {
+    File* srcfile = file_read(self->srcfile_path);
     if (!srcfile) {
         error_common(
                 "cannot read `%s`: invalid filename or missing file",
-                c->srcfile_path);
+                self->srcfile_path);
         return ERROR_READ;
     }
 
@@ -25,5 +25,7 @@ int compiler_run(Compiler* c) {
 
     Parser parser = parser_new(srcfile, lexer.tokens);
     parser_run(&parser);
+
+    return ERROR_SUCCESS;
 }
 

@@ -17,6 +17,6 @@ typedef struct {
 } Lexer;
 
 Lexer lexer_new(File* srcfile);
-void lexer_run(Lexer* l);
+void lexer_run(Lexer* self);
 
 #endif /* _LEXER_H */

@@ -1,0 +1,7 @@
+#import <std>
+
+main :: fn u8 {
+    some :: 12;
+    std.println("Hello, world");
+}
+

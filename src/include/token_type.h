@@ -13,6 +13,7 @@ typedef enum {
     T_MINUS,
     T_STAR,
     T_FW_SLASH,
+    T_SEMICOLON,
     T_EOF,
 } TokenType;
 

@@ -6,6 +6,6 @@ typedef struct {
 } Compiler;
 
 Compiler compiler_new(const char* srcfile_path);
-int compiler_run(Compiler* c);
+int compiler_run(Compiler* self);
 
 #endif /* _COMPILER_H */

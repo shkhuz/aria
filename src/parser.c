@@ -2,7 +2,11 @@
 #include <ast_print.h>
 #include <token.h>
 #include <expr.h>
+#include <error_msg.h>
 #include <arpch.h>
+
+static bool match(Parser* self, TokenType type);
+static void goto_next_token(Parser* self);
 
 Parser parser_new(File* srcfile, Token** tokens) {
     Parser parser;
@@ -10,38 +14,91 @@ Parser parser_new(File* srcfile, Token** tokens) {
     parser.tokens = tokens;
     parser.tokens_idx = 0;
     parser.stmts = null;
+    parser.error_panic = false;
+    parser.error_count = 0;
     return parser;
 }
 
-static Token* current(Parser* p) {
-    return p->tokens[p->tokens_idx];
+static void sync_to_next_statement(Parser* self) {
+    while (!match(self, T_SEMICOLON)) {
+        goto_next_token(self);
+    }
+    return;
 }
-#define current() current(p)
 
-static Token* previous(Parser* p) {
-    if (p->tokens_idx > 0) {
-        return p->tokens[p->tokens_idx - 1];
+static void error_token_with_sync(
+        Parser* self,
+        Token* token,
+        const char* fmt,
+        ...) {
+
+    self->error_count++;
+    va_list ap;
+    va_start(ap, fmt);
+    verror_token(
+            self->srcfile,
+            token,
+            fmt,
+            ap);
+    sync_to_next_statement(self);
+    va_end(ap);
+}
+
+#define error_store \
+    u64 _error_store = self->error_count;
+
+#define error_return \
+    if (self->error_count > _error_store) return
+
+#define EXPR_CI(name, init_func, ...) \
+    Expr* name = null; \
+    { \
+        error_store; \
+        name = init_func(__VA_ARGS__); \
+        error_return null; \
+    }
+
+#define EXPR(name) \
+    EXPR_CI(name, expr, self)
+
+static Token* current(Parser* self) {
+    return self->tokens[self->tokens_idx];
+}
+
+static Token* previous(Parser* self) {
+    if (self->tokens_idx > 0) {
+        return self->tokens[self->tokens_idx - 1];
     }
     else {
         assert(0);
     }
 }
-#define previous() previous(p)
 
-static void goto_next_token(Parser* p) {
-    if (p->tokens_idx < buf_len(p->tokens)) {
-        p->tokens_idx++;
+static void goto_next_token(Parser* self) {
+    if (self->tokens_idx < buf_len(self->tokens)) {
+        self->tokens_idx++;
     }
 }
 
-static bool match(Parser* p, TokenType type) {
-    if (current()->type == type) {
-        goto_next_token(p);
+static bool match(Parser* self, TokenType type) {
+    if (current(self)->type == type) {
+        goto_next_token(self);
         return true;
     }
     return false;
 }
-#define match(type) match(p, type)
+
+static void consume(Parser* self, TokenType type, const char* fmt, ...) {
+    if (!match(self, type)) {
+        va_list ap;
+        va_start(ap, fmt);
+        error_token_with_sync(self, current(self), fmt, ap);
+        va_end(ap);
+    }
+}
+
+#define consume_semicolon(self) \
+    consume(self, T_SEMICOLON, "expect ';'")
 
 static Expr* expr_integer_new(Token* integer) {
     Expr* expr = expr_new_alloc();
@@ -67,48 +124,69 @@ static Expr* expr_binary_new(Expr* left, Expr* right, Token* op) {
     return expr;
 }
 
-static Expr* expr_atom(Parser* p) {
-    if (match(T_INTEGER)) {
-        return expr_integer_new(previous());
+static Expr* expr_atom(Parser* self) {
+    if (match(self, T_INTEGER)) {
+        return expr_integer_new(previous(self));
     }
     else {
-        assert(0);
+        error_token_with_sync(
+                self,
+                current(self),
+                "invalid ast: `%s` is not expected here",
+                current(self)->lexeme);
+        return null;
     }
 }
 
-static Expr* expr_unary_add_sub(Parser* p) {
-    if (match(T_PLUS) || match(T_MINUS)) {
-        Token* op = previous();
-        Expr* right = expr_unary_add_sub(p);
+static Expr* expr_unary_add_sub(Parser* self) {
+    if (match(self, T_PLUS) || match(self, T_MINUS)) {
+        Token* op = previous(self);
+        EXPR_CI(right, expr_unary_add_sub, self);
         return expr_unary_new(op, right);
     }
-    return expr_atom(p);
+    return expr_atom(self);
 }
 
-static Expr* expr_binary_mul_div(Parser* p) {
-    Expr* left = expr_unary_add_sub(p);
-    while (match(T_STAR) || match(T_FW_SLASH)) {
-        Token* op = previous();
-        Expr* right = expr_unary_add_sub(p);
+static Expr* expr_binary_mul_div(Parser* self) {
+    EXPR_CI(left, expr_unary_add_sub, self);
+    while (match(self, T_STAR) || match(self, T_FW_SLASH)) {
+        Token* op = previous(self);
+        EXPR_CI(right, expr_unary_add_sub, self);
         left = expr_binary_new(left, right, op);
     }
     return left;
 }
 
-static Expr* expr_binary_add_sub(Parser* p) {
-    Expr* left = expr_binary_mul_div(p);
-    while (match(T_PLUS) || match(T_MINUS)) {
-        Token* op = previous();
-        Expr* right = expr_binary_mul_div(p);
+static Expr* expr_binary_add_sub(Parser* self) {
+    EXPR_CI(left, expr_binary_mul_div, self);
+    while (match(self, T_PLUS) || match(self, T_MINUS)) {
+        Token* op = previous(self);
+        EXPR_CI(right, expr_binary_mul_div, self);
         left = expr_binary_new(left, right, op);
     }
     return left;
 }
 
-static Expr* expr(Parser* p) {
-    return expr_binary_add_sub(p);
+static Expr* expr(Parser* self) {
+    return expr_binary_add_sub(self);
 }
 
-void parser_run(Parser* p) {
-    print_expr(expr(p));
+static Stmt* stmt_expr_new(Expr* expr) {
+    Stmt* stmt = stmt_new_alloc();
+    stmt->type = S_EXPR;
+    stmt->s.expr = expr;
+    return stmt;
+}
+
+static Stmt* stmt(Parser* self) {
+    EXPR(e);
+    consume_semicolon(self);
+    return stmt_expr_new(e);
+}
+
+void parser_run(Parser* self) {
+    while (current(self)->type != T_EOF) {
+        Stmt* s = stmt(self);
+        buf_push(self->stmts, s);
+    }
 }
