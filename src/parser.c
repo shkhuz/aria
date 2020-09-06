@@ -6,6 +6,7 @@
 #include <arpch.h>
 
 static bool match(Parser* self, TokenType type);
+static Token* current(Parser* self);
 static void goto_next_token(Parser* self);
 
 Parser parser_new(File* srcfile, Token** tokens) {
@@ -21,6 +22,7 @@ Parser parser_new(File* srcfile, Token** tokens) {
 
 static void sync_to_next_statement(Parser* self) {
     while (!match(self, T_SEMICOLON)) {
+        if (current(self)->type == T_EOF) return;
         goto_next_token(self);
     }
     return;
@@ -187,7 +189,7 @@ static Stmt* stmt(Parser* self) {
 void parser_run(Parser* self) {
     while (current(self)->type != T_EOF) {
         Stmt* s = stmt(self);
-        buf_push(self->stmts, s);
+        if (s) buf_push(self->stmts, s);
     }
 }
 

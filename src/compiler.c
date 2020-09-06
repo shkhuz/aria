@@ -1,3 +1,4 @@
+#include <ast_print.h>
 #include <compiler.h>
 #include <parser.h>
 #include <lexer.h>
@@ -33,8 +34,10 @@ int compiler_run(Compiler* self) {
                 lexer.tokens[t]->lexeme);
     }
 
-/*     Parser parser = parser_new(srcfile, lexer.tokens); */
-/*     parser_run(&parser); */
+    Parser parser = parser_new(srcfile, lexer.tokens);
+    parser_run(&parser);
+
+    print_ast(parser.stmts);
 
     return ERROR_SUCCESS;
 }

@@ -1,6 +1,7 @@
 #include <ast_print.h>
 #include <token.h>
 #include <expr.h>
+#include <stmt.h>
 #include <error_msg.h>
 #include <arpch.h>
 
@@ -49,32 +50,54 @@ static void token(Token* token) {
     string(token->lexeme);
 }
 
-static void expr_integer(Expr* expr) {
-    token(expr->e.integer);
+static void expr(Expr* expr);
+
+static void expr_integer(Expr* e) {
+    token(e->e.integer);
 }
 
-static void expr_unary(Expr* expr) {
+static void expr_unary(Expr* e) {
     l_paren();
-    token(expr->e.unary.op);
-    print_expr(expr->e.unary.right);
+    token(e->e.unary.op);
+    expr(e->e.unary.right);
     r_paren();
 }
 
-static void expr_binary(Expr* expr) {
+static void expr_binary(Expr* e) {
     l_paren();
     format();
-    print_expr(expr->e.binary.left);
-    token(expr->e.binary.op);
-    print_expr(expr->e.binary.right);
+    expr(e->e.binary.left);
+    token(e->e.binary.op);
+    expr(e->e.binary.right);
     format_ret();
     r_paren();
 }
 
-void print_expr(Expr* expr) {
+static void expr(Expr* expr) {
     switch (expr->type) {
         case E_BINARY: expr_binary(expr); break;
         case E_UNARY: expr_unary(expr); break;
         case E_INTEGER: expr_integer(expr); break;
-        case E_NONE: assert(0);
+        case E_NONE: assert(0); break;
+    }
+}
+
+static void stmt_expr(Stmt* s) {
+    string("STMT_EXPR ");
+    format();
+    expr(s->s.expr);
+    format_ret();
+}
+
+static void stmt(Stmt* stmt) {
+    switch (stmt->type) {
+        case S_EXPR: stmt_expr(stmt); break;
+        case S_NONE: assert(0); break;
+    }
+}
+
+void print_ast(Stmt** stmts) {
+    for (u64 s = 0; s < buf_len(stmts); s++) {
+        stmt(stmts[s]);
     }
 }

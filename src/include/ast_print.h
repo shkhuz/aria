@@ -1,8 +1,8 @@
 #ifndef _AST_PRINT_H
 #define _AST_PRINT_H
 
-#include <expr.h>
+#include <stmt.h>
 
-void print_expr(Expr* expr);
+void print_ast(Stmt** stmts);
 
 #endif /* _AST_PRINT_H */
