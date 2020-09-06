@@ -188,7 +188,7 @@ called.</p>
 A struct can be declared like so:</p>
 
 <div class="code"><pre>
-#-e 1,3p -e 11p structs.ar
+#-e 1,3p -e 18p structs.ar
 </pre></div>
 
 <p>The above code declares a struct with two fields,
