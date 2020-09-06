@@ -5,6 +5,10 @@ s/>/\&gt;/g
 # Keywords
 s/\<fn\>/<span class=k>fn<\/span>/g
 s/\<pub\>/<span class=k>pub<\/span>/g
+s/\<struct\>/<span class=k>struct<\/span>/g
+s/\<Self\>/<span class=k>Self<\/span>/g
+s/\<shared\>/<span class=k>shared<\/span>/g
+s/\<mod\>/<span class=k>mod<\/span>/g
 
 # Built-in Types
 s/\<u8\>/<span class=t>u8<\/span>/g
@@ -18,7 +22,7 @@ s/\<i64\>/<span class=t>i64<\/span>/g
 s/\<f32\>/<span class=t>f32<\/span>/g
 s/\<f64\>/<span class=t>f64<\/span>/g
 
-# Functions
+# Function Calls
 s/\([a-zA-Z_][a-zA-Z0-9_]*\)(/<span class=f>\1<\/span>(/g
 
 # Numbers

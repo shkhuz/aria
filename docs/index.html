@@ -34,6 +34,9 @@ language & toolkit.</h2>
 <li><a href="#comments">Comments</a></li>
 <li><a href="#variables">Variables</a></li>
 <li><a href="#pointers">Pointers</a></li>
+<li><a href="#functions">Functions</a></li>
+<li><a href="#structs">Structs</a></li>
+<li><a href="#modules">Modules</a></li>
 </ul>
 
 <h2>A Hello World Program</h2><a name="a_hello_world_program"></a>
@@ -142,6 +145,143 @@ function.</p>
 <div class="code"><pre>
 float_ptr :: std.<span class=f>alloc</span>(<span class=t>f32</span>.<span class=f>new</span>());
 *float_ptr = <span class=n>12.4</span>;
+</pre></div>
+
+<p>To get the address of any variable allocated on the stack, use the
+<code>&amp;</code> (address-of) operator:</p>
+
+<div class="code"><pre>
+count :: <span class=n>322</span>;
+count_ptr :: &count;
+std.<span class=f>println</span>(<span class=s>"count: {}"</span>, *count);
+</pre></div>
+
+<p>The address-of operator returns a pointer to the memory occupied by the
+operand. <code>&</code> and <code>*</code> are complementary operators.</p>
+
+<h2>Functions</h2><a name="functions"></a>
+
+<p>Functions are organized sections of code that accomplish a specific task.
+An empty function definition looks like this:</p>
+
+<div class="code"><pre>
+do_something :: <span class=k>fn</span> {
+}
+</pre></div>
+
+<p>Parameters are written after the <code>fn</code> keyword, enclosed in
+<code>()</code>.</p>
+
+<div class="code"><pre>
+add_u8 :: <span class=k>fn</span> (a: <span class=t>u8</span>, b: <span class=t>u8</span>) <span class=t>u8</span> {
+    a + b
+}
+</pre></div>
+
+<p>The return type of a function is written after the parameters, or after
+the <code>fn</code> keyword if there are no parameters.</p>
+
+<p>Functions implicitly return the last expression in the block.
+Expressions can be explictly returned using the
+<code>return</code> statement.</p>
+
+<h3>Function Calling</h3>
+
+<p>A function can be called by adding the <code>()</code> after the function
+identifier.</p>
+
+<div class="code"><pre>
+add_u8 :: <span class=k>fn</span> (a: <span class=t>u8</span>, b: <span class=t>u8</span>) <span class=t>u8</span> {
+    a + b
+}
+
+<span class=k>pub</span> main :: <span class=k>fn</span> <span class=t>u8</span> {
+    result :: <span class=f>add_u8</span>(<span class=n>54</span>, <span class=n>3</span>);
+    std.<span class=f>println</span>("result: {}, result);
+}
+</pre></div>
+
+<p>The arguments are passed inside the parentheses when the function is
+called.</p>
+
+<h2>Structs</h2><a name="structs"></a>
+
+<p>Structs are a way to define custom data types with set behaviours.
+A struct can be declared like so:</p>
+
+<div class="code"><pre>
+Point :: <span class=k>struct</span> {
+    <span class=k>pub</span> x: <span class=t>f32</span>,
+    <span class=k>pub</span> y: <span class=t>f32</span>,
+
+</pre></div>
+
+<p>The above code declares a struct with two fields,
+<code>x</code> and <code>y</code>. Note the <code>pub</code> keyword before
+the fields. <code>pub</code> is used to make a field accessible to the outside
+code. <code>pub</code> can also be used on functions and variables to allow
+other parts of the code to reference them. Without the <code>pub</code>
+keyword, the item will be hidden and cannot be accessed.</p>
+
+<h3>Linked Functions</h3>
+
+<p>A struct can have functions on them (linked functions).</p>
+
+<div class="code"><pre>
+Point :: <span class=k>struct</span> {
+    <span class=k>pub</span> x: <span class=t>f32</span>,
+    <span class=k>pub</span> y: <span class=t>f32</span>,
+
+    <span class=k>pub</span> new :: <span class=k>fn</span> <span class=k>shared</span> (x: <span class=t>f32</span>, y: <span class=t>f32</span>) <span class=k>Self</span> {
+        <span class=k>Self</span> {
+            x,
+            y,
+        }
+    }
+}
+</pre></div>
+
+<p>The function <code>new</code> here is like the constructor in other
+languages. The <code>Self</code> keyword is a substitute for the struct name.
+This function returns a <code>Point</code> from the arguments passed in.
+Note the <code>shared</code> keyword after <code>fn</code>. It is
+used to use functions in a struct without creating it beforehand.</p>
+
+<p>To call a linked function, use the <code>.</code> (member-access)
+operator:</p>
+
+<div class="code"><pre>
+location :: Point.<span class=f>new</span>(<span class=n>675.43</span>, <span class=n>22.9</span>);
+</pre></div>
+
+<p>Functions without the <code>shared</code> keyword cannot be called
+without instantiating the struct first.</p>
+
+<div class="code"><pre>
+Point :: <span class=k>struct</span> {
+
+    <span class=c>// ...</span>
+
+    <span class=k>pub</span> add :: <span class=k>fn</span> (point: <span class=k>Self</span>) {
+        self.x += point.x;
+        self.y += point.y;
+    }
+}
+
+player :: Point.<span class=f>new</span>(<span class=n>34.0</span>, <span class=n>55.0</span>);
+translate :: Point.<span class=f>new</span>(-<span class=n>11.0</span>, <span class=n>7.0</span>);
+player.<span class=f>add</span>(translate);
+</pre></div>
+
+<h2>Modules</h2><a name="modules"></a>
+
+<p>Modules are a collection of items related to a group. <code>std</code> is
+an example of a module and is imported from the file <code>std</code>. A
+module declaration looks like this:</p>
+
+<div class="code"><pre>
+math :: <span class=k>mod</span> {
+}
 </pre></div>
 
 </main>

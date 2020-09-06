@@ -34,6 +34,9 @@ language & toolkit.</h2>
 <li><a href="#comments">Comments</a></li>
 <li><a href="#variables">Variables</a></li>
 <li><a href="#pointers">Pointers</a></li>
+<li><a href="#functions">Functions</a></li>
+<li><a href="#structs">Structs</a></li>
+<li><a href="#modules">Modules</a></li>
 </ul>
 
 <h2>A Hello World Program</h2><a name="a_hello_world_program"></a>
@@ -132,6 +135,105 @@ function.</p>
 
 <div class="code"><pre>
 $2,3 pointers.ar
+</pre></div>
+
+<p>To get the address of any variable allocated on the stack, use the
+<code>&amp;</code> (address-of) operator:</p>
+
+<div class="code"><pre>
+$5,7 pointers.ar
+</pre></div>
+
+<p>The address-of operator returns a pointer to the memory occupied by the
+operand. <code>&</code> and <code>*</code> are complementary operators.</p>
+
+<h2>Functions</h2><a name="functions"></a>
+
+<p>Functions are organized sections of code that accomplish a specific task.
+An empty function definition looks like this:</p>
+
+<div class="code"><pre>
+$1,2 functions.ar
+</pre></div>
+
+<p>Parameters are written after the <code>fn</code> keyword, enclosed in
+<code>()</code>.</p>
+
+<div class="code"><pre>
+$4,6 functions.ar
+</pre></div>
+
+<p>The return type of a function is written after the parameters, or after
+the <code>fn</code> keyword if there are no parameters.</p>
+
+<p>Functions implicitly return the last expression in the block.
+Expressions can be explictly returned using the
+<code>return</code> statement.</p>
+
+<h3>Function Calling</h3>
+
+<p>A function can be called by adding the <code>()</code> after the function
+identifier.</p>
+
+<div class="code"><pre>
+$4,11 functions.ar
+</pre></div>
+
+<p>The arguments are passed inside the parentheses when the function is
+called.</p>
+
+<h2>Structs</h2><a name="structs"></a>
+
+<p>Structs are a way to define custom data types with set behaviours.
+A struct can be declared like so:</p>
+
+<div class="code"><pre>
+#-e 1,3p -e 11p structs.ar
+</pre></div>
+
+<p>The above code declares a struct with two fields,
+<code>x</code> and <code>y</code>. Note the <code>pub</code> keyword before
+the fields. <code>pub</code> is used to make a field accessible to the outside
+code. <code>pub</code> can also be used on functions and variables to allow
+other parts of the code to reference them. Without the <code>pub</code>
+keyword, the item will be hidden and cannot be accessed.</p>
+
+<h3>Linked Functions</h3>
+
+<p>A struct can have functions on them (linked functions).</p>
+
+<div class="code"><pre>
+#-e 1,10p -e 18p structs.ar
+</pre></div>
+
+<p>The function <code>new</code> here is like the constructor in other
+languages. The <code>Self</code> keyword is a substitute for the struct name.
+This function returns a <code>Point</code> from the arguments passed in.
+Note the <code>shared</code> keyword after <code>fn</code>. It is
+used to use functions in a struct without creating it beforehand.</p>
+
+<p>To call a linked function, use the <code>.</code> (member-access)
+operator:</p>
+
+<div class="code"><pre>
+$20,20 structs.ar
+</pre></div>
+
+<p>Functions without the <code>shared</code> keyword cannot be called
+without instantiating the struct first.</p>
+
+<div class="code"><pre>
+#-e 1,1p -e 11,19p -e 21,23p structs.ar
+</pre></div>
+
+<h2>Modules</h2><a name="modules"></a>
+
+<p>Modules are a collection of items related to a group. <code>std</code> is
+an example of a module and is imported from the file <code>std</code>. A
+module declaration looks like this:</p>
+
+<div class="code"><pre>
+$1,2 modules.ar
 </pre></div>
 
 </main>

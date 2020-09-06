@@ -2,3 +2,6 @@ float_ptr: <span class=t>f32</span>*;
 float_ptr :: std.<span class=f>alloc</span>(<span class=t>f32</span>.<span class=f>new</span>());
 *float_ptr = <span class=n>12.4</span>;
 
+count :: <span class=n>322</span>;
+count_ptr :: &count;
+std.<span class=f>println</span>(<span class=s>"count: {}"</span>, *count);
