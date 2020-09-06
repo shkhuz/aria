@@ -17,4 +17,7 @@
 #include <str_intern.h>
 #include <file.h>
 
+#define COMBINE1(X, Y) X##Y
+#define COMBINE(X,Y) COMBINE1(X,Y)
+
 #endif /* _ARPCH_H */

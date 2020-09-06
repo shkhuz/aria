@@ -14,6 +14,10 @@ typedef enum {
     T_STAR,
     T_FW_SLASH,
     T_SEMICOLON,
+    T_COLON,
+    T_DOUBLE_COLON,
+    T_L_BRACE,
+    T_R_BRACE,
     T_EOF,
 } TokenType;
 

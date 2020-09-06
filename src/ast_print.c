@@ -75,10 +75,10 @@ static void expr_binary(Expr* e) {
 
 static void expr(Expr* expr) {
     switch (expr->type) {
-        case E_BINARY: expr_binary(expr); break;
-        case E_UNARY: expr_unary(expr); break;
-        case E_INTEGER: expr_integer(expr); break;
-        case E_NONE: assert(0); break;
+    case E_BINARY: expr_binary(expr); break;
+    case E_UNARY: expr_unary(expr); break;
+    case E_INTEGER: expr_integer(expr); break;
+    case E_NONE: assert(0); break;
     }
 }
 
@@ -91,8 +91,8 @@ static void stmt_expr(Stmt* s) {
 
 static void stmt(Stmt* stmt) {
     switch (stmt->type) {
-        case S_EXPR: stmt_expr(stmt); break;
-        case S_NONE: assert(0); break;
+    case S_EXPR: stmt_expr(stmt); break;
+    case S_NONE: assert(0); break;
     }
 }
 

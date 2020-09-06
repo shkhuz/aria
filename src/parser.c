@@ -17,15 +17,37 @@ Parser parser_new(File* srcfile, Token** tokens) {
     parser.stmts = null;
     parser.error_panic = false;
     parser.error_count = 0;
+    parser.error_loc = ERRLOC_GLOBAL;
     return parser;
 }
 
+#define check_eof \
+    if (current(self)->type == T_EOF) return
+
 static void sync_to_next_statement(Parser* self) {
-    while (!match(self, T_SEMICOLON)) {
-        if (current(self)->type == T_EOF) return;
-        goto_next_token(self);
+    switch (self->error_loc) {
+    case ERRLOC_GLOBAL:
+    case ERRLOC_FUNCTION_DEF_BODY:
+        while (!match(self, T_SEMICOLON) && current(self)->type != T_L_BRACE) {
+            check_eof;
+            if (current(self)->type == T_L_BRACE) goto skip_brace;
+            goto_next_token(self);
+        }
+        break;
+
+    case ERRLOC_FUNCTION_DEF:
+skip_brace:
+        while (!match(self, T_L_BRACE)) {
+            check_eof;
+            goto_next_token(self);
+        }
+
+        while (!match(self, T_R_BRACE)) {
+            check_eof;
+            goto_next_token(self);
+        }
+        break;
     }
-    return;
 }
 
 static void error_token_with_sync(
@@ -46,18 +68,24 @@ static void error_token_with_sync(
     va_end(ap);
 }
 
-#define error_store \
-    u64 _error_store = self->error_count;
+#define es \
+    u64 COMBINE(_error_store,__LINE__) = self->error_count
 
-#define error_return \
-    if (self->error_count > _error_store) return
+#define er \
+    if (self->error_count > COMBINE(_error_store,__LINE__)) return
+
+#define ern \
+    er null
+
+#define chk(stmt) \
+    es; stmt; ern;
 
 #define EXPR_CI(name, init_func, ...) \
     Expr* name = null; \
     { \
-        error_store; \
+        es; \
         name = init_func(__VA_ARGS__); \
-        error_return null; \
+        ern; \
     }
 
 #define EXPR(name) \
@@ -90,7 +118,7 @@ static bool match(Parser* self, TokenType type) {
     return false;
 }
 
-static void consume(Parser* self, TokenType type, const char* fmt, ...) {
+static void expect(Parser* self, TokenType type, const char* fmt, ...) {
     if (!match(self, type)) {
         va_list ap;
         va_start(ap, fmt);
@@ -99,8 +127,31 @@ static void consume(Parser* self, TokenType type, const char* fmt, ...) {
     }
 }
 
-#define consume_semicolon(self) \
-    consume(self, T_SEMICOLON, "expect ';'")
+static void expect_keyword(
+        Parser* self,
+        const char* keyword,
+        const char* fmt,
+        ...) {
+
+    if (!match(self, T_KEYWORD) &&
+        str_intern(current(self)->lexeme) != str_intern(keyword)) {
+        va_list ap;
+        va_start(ap, fmt);
+        error_token_with_sync(self, current(self), fmt, ap);
+        va_end(ap);
+    }
+}
+#define expect_keyword(self, keyword) \
+    expect_keyword(self, keyword, "expect keyword: `%s`", keyword)
+
+#define expect_semicolon(self) \
+    expect(self, T_SEMICOLON, "expect ';'")
+
+#define expect_double_colon(self) \
+    expect(self, T_DOUBLE_COLON, "expect '::'")
+
+#define expect_l_brace(self) \
+    expect(self, T_L_BRACE, "expect '{'")
 
 static Expr* expr_integer_new(Token* integer) {
     Expr* expr = expr_new_alloc();
@@ -182,13 +233,47 @@ static Stmt* stmt_expr_new(Expr* expr) {
 
 static Stmt* stmt(Parser* self) {
     EXPR(e);
-    consume_semicolon(self);
+    chk(expect_semicolon(self));
     return stmt_expr_new(e);
+}
+
+static Stmt* stmt_function_def_new(Token* identifier, Stmt** body) {
+    Stmt* stmt = stmt_new_alloc();
+    stmt->type = S_FUNCTION_DEF;
+    stmt->s.function_def.identifier = identifier;
+    stmt->s.function_def.body = body;
+    return stmt;
+}
+
+static Stmt* decl(Parser* self) {
+    if (match(self, T_IDENTIFIER)) {
+        self->error_loc = ERRLOC_FUNCTION_DEF;
+        Token* identifier = previous(self);
+        chk(expect_double_colon(self));
+        chk(expect_keyword(self, "fn"));
+        chk(expect_l_brace(self));
+
+        Stmt** body = null;
+        self->error_loc = ERRLOC_FUNCTION_DEF_BODY;
+        while (!match(self, T_R_BRACE)) {
+            Stmt* s = stmt(self);
+            if (s) buf_push(body, s);
+        }
+
+        return stmt_function_def_new(identifier, body);
+    }
+    else {
+        error_token_with_sync(
+                self,
+                current(self),
+                "expect identifier");
+        return null;
+    }
 }
 
 void parser_run(Parser* self) {
     while (current(self)->type != T_EOF) {
-        Stmt* s = stmt(self);
+        Stmt* s = decl(self);
         if (s) buf_push(self->stmts, s);
     }
 }

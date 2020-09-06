@@ -31,6 +31,16 @@ static u64 compute_column_on_current(Lexer* self) {
 	return column;
 }
 
+static bool match(Lexer* self, char c) {
+    if (self->current < (self->srcfile->contents + self->srcfile->len)) {
+        if (*(self->current+1) == c) {
+            self->current++;
+            return true;
+        }
+    }
+    return false;
+}
+
 static void addt(Lexer* self, TokenType type) {
 	Token token =
 		token_new(
@@ -144,54 +154,59 @@ void lexer_run(Lexer* self) {
 		self->start = self->current;
 
 		switch (*self->current) {
-			case 'a': case 'b': case 'c': case 'd': case 'e':
-			case 'f': case 'g': case 'h': case 'i': case 'j':
-			case 'k': case 'l': case 'm': case 'n': case 'o':
-			case 'p': case 'q': case 'r': case 's': case 't':
-			case 'u': case 'v': case 'w': case 'x': case 'y':
-			case 'z': case 'A': case 'B': case 'C': case 'D':
-			case 'E': case 'F': case 'G': case 'H': case 'I':
-			case 'J': case 'K': case 'L': case 'M': case 'N':
-			case 'O': case 'P': case 'Q': case 'R': case 'S':
-			case 'T': case 'U': case 'V': case 'W': case 'X':
-			case 'Y': case 'Z':
-				identifier(self);
-				break;
-			case '0': case '1': case '2': case '3': case '4':
-			case '5': case '6': case '7': case '8': case '9':
-				number(self);
-				break;
-			case '"':
-				string(self);
-				break;
-			case '\'':
-				chr(self);
-				break;
+        case 'a': case 'b': case 'c': case 'd': case 'e':
+        case 'f': case 'g': case 'h': case 'i': case 'j':
+        case 'k': case 'l': case 'm': case 'n': case 'o':
+        case 'p': case 'q': case 'r': case 's': case 't':
+        case 'u': case 'v': case 'w': case 'x': case 'y':
+        case 'z': case 'A': case 'B': case 'C': case 'D':
+        case 'E': case 'F': case 'G': case 'H': case 'I':
+        case 'J': case 'K': case 'L': case 'M': case 'N':
+        case 'O': case 'P': case 'Q': case 'R': case 'S':
+        case 'T': case 'U': case 'V': case 'W': case 'X':
+        case 'Y': case 'Z':
+            identifier(self);
+            break;
+        case '0': case '1': case '2': case '3': case '4':
+        case '5': case '6': case '7': case '8': case '9':
+            number(self);
+            break;
+        case '"':
+            string(self);
+            break;
+        case '\'':
+            chr(self);
+            break;
 
-            #define single_char_token(type) \
-                self->current++; \
-                addt(self, type);
+        #define char_token(type) \
+            self->current++, \
+            addt(self, type)
 
-            case '+': single_char_token(T_PLUS); break;
-            case '-': single_char_token(T_MINUS); break;
-            case '*': single_char_token(T_STAR); break;
-            case '/': single_char_token(T_FW_SLASH); break;
-            case ';': single_char_token(T_SEMICOLON); break;
+        case '+': char_token(T_PLUS); break;
+        case '-': char_token(T_MINUS); break;
+        case '*': char_token(T_STAR); break;
+        case '/': char_token(T_FW_SLASH); break;
+        case ';': char_token(T_SEMICOLON); break;
+        case '{': char_token(T_L_BRACE); break;
+        case '}': char_token(T_R_BRACE); break;
 
-            #undef single_char_token
+        case ':': if (match(self, ':')) char_token(T_DOUBLE_COLON);
+                  else char_token(T_COLON); break;
 
-			case '\n':
-				self->last_newline = self->current++;
-				self->line++;
-				break;
-            case ' ':
-            case '\r':
-            case '\t':
-                self->current++;
-                break;
-			default:
-				self->current++;
-				break;
+        #undef char_token
+
+        case '\n':
+            self->last_newline = self->current++;
+            self->line++;
+            break;
+        case ' ':
+        case '\r':
+        case '\t':
+            self->current++;
+            break;
+        default:
+            self->current++;
+            break;
 		}
 	}
     addt(self, T_EOF);
