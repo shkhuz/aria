@@ -3,7 +3,6 @@
 #include <parser.h>
 #include <lexer.h>
 #include <token.h>
-#include <error_value.h>
 #include <error_msg.h>
 #include <token_type.h>
 #include <arpch.h>
@@ -13,7 +12,7 @@ Compiler compiler_new(const char* srcfile_path) {
     compiler.srcfile_path = srcfile_path;
 }
 
-int compiler_run(Compiler* self) {
+Error compiler_run(Compiler* self) {
     File* srcfile = file_read(self->srcfile_path);
     if (!srcfile) {
         error_common(
@@ -23,7 +22,8 @@ int compiler_run(Compiler* self) {
     }
 
     Lexer lexer = lexer_new(srcfile);
-    lexer_run(&lexer);
+    Error lexer_error = lexer_run(&lexer);
+    if (lexer_error != ERROR_SUCCESS) return lexer_error;
 
     for (u64 t = 0; t < buf_len(lexer.tokens); t++) {
         printf(

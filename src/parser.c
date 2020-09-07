@@ -30,23 +30,36 @@ static void sync_to_next_statement(Parser* self) {
     case ERRLOC_FUNCTION_DEF_BODY:
         while (!match(self, T_SEMICOLON) && current(self)->type != T_L_BRACE) {
             check_eof;
-            if (current(self)->type == T_L_BRACE) goto skip_brace;
             goto_next_token(self);
         }
+        if (current(self)->type == T_L_BRACE) goto skip_brace;
         break;
 
-    case ERRLOC_FUNCTION_DEF:
-skip_brace:
-        while (!match(self, T_L_BRACE)) {
-            check_eof;
-            goto_next_token(self);
-        }
+    case ERRLOC_FUNCTION_DEF: {
+    skip_brace: {
+            u64 brace_count = 0;
+            while (!match(self, T_L_BRACE)) {
+                check_eof;
+                goto_next_token(self);
+            }
+            brace_count++;
 
-        while (!match(self, T_R_BRACE)) {
-            check_eof;
-            goto_next_token(self);
-        }
-        break;
+            while (brace_count != 0) {
+                check_eof;
+                if (match(self, T_L_BRACE)) {
+                    brace_count++;
+                    continue;
+                }
+
+                check_eof;
+                else if (match(self, T_R_BRACE)) {
+                    brace_count--;
+                    continue;
+                }
+
+                check_eof; goto_next_token(self);
+            }
+        }} break;
     }
 }
 
@@ -63,7 +76,8 @@ static void error_token_with_sync(
             self->srcfile,
             token,
             fmt,
-            ap);
+            ap
+    );
     sync_to_next_statement(self);
     va_end(ap);
 }
@@ -118,6 +132,15 @@ static bool match(Parser* self, TokenType type) {
     return false;
 }
 
+static bool match_keyword(Parser* self, const char* keyword) {
+    if (current(self)->type == T_KEYWORD &&
+        str_intern(current(self)->lexeme) == str_intern(keyword)) {
+        goto_next_token(self);
+        return true;
+    }
+    return false;
+}
+
 static void expect(Parser* self, TokenType type, const char* fmt, ...) {
     if (!match(self, type)) {
         va_list ap;
@@ -127,31 +150,28 @@ static void expect(Parser* self, TokenType type, const char* fmt, ...) {
     }
 }
 
-static void expect_keyword(
-        Parser* self,
-        const char* keyword,
-        const char* fmt,
-        ...) {
-
-    if (!match(self, T_KEYWORD) &&
-        str_intern(current(self)->lexeme) != str_intern(keyword)) {
-        va_list ap;
-        va_start(ap, fmt);
-        error_token_with_sync(self, current(self), fmt, ap);
-        va_end(ap);
+static void expect_keyword(Parser* self, const char* keyword) {
+    if (!match_keyword(self, keyword)) {
+        error_token_with_sync(
+                self,
+                current(self),
+                "expect keyword: `%s`",
+                keyword
+        );
     }
 }
-#define expect_keyword(self, keyword) \
-    expect_keyword(self, keyword, "expect keyword: `%s`", keyword)
+
+#define expect_identifier(self) \
+    chk(expect(self, T_IDENTIFIER, "expect identifier"))
 
 #define expect_semicolon(self) \
-    expect(self, T_SEMICOLON, "expect ';'")
+    chk(expect(self, T_SEMICOLON, "expect ';'"))
 
 #define expect_double_colon(self) \
-    expect(self, T_DOUBLE_COLON, "expect '::'")
+    chk(expect(self, T_DOUBLE_COLON, "expect '::'"))
 
 #define expect_l_brace(self) \
-    expect(self, T_L_BRACE, "expect '{'")
+    chk(expect(self, T_L_BRACE, "expect '{'"))
 
 static Expr* expr_integer_new(Token* integer) {
     Expr* expr = expr_new_alloc();
@@ -186,7 +206,8 @@ static Expr* expr_atom(Parser* self) {
                 self,
                 current(self),
                 "invalid ast: `%s` is not expected here",
-                current(self)->lexeme);
+                current(self)->lexeme
+        );
         return null;
     }
 }
@@ -233,7 +254,7 @@ static Stmt* stmt_expr_new(Expr* expr) {
 
 static Stmt* stmt(Parser* self) {
     EXPR(e);
-    chk(expect_semicolon(self));
+    expect_semicolon(self);
     return stmt_expr_new(e);
 }
 
@@ -246,12 +267,13 @@ static Stmt* stmt_function_def_new(Token* identifier, Stmt** body) {
 }
 
 static Stmt* decl(Parser* self) {
-    if (match(self, T_IDENTIFIER)) {
+    self->error_loc = ERRLOC_GLOBAL;
+    if (match_keyword(self, "fn")) {
         self->error_loc = ERRLOC_FUNCTION_DEF;
+        expect_identifier(self);
         Token* identifier = previous(self);
-        chk(expect_double_colon(self));
-        chk(expect_keyword(self, "fn"));
-        chk(expect_l_brace(self));
+
+        expect_l_brace(self);
 
         Stmt** body = null;
         self->error_loc = ERRLOC_FUNCTION_DEF_BODY;
@@ -266,7 +288,8 @@ static Stmt* decl(Parser* self) {
         error_token_with_sync(
                 self,
                 current(self),
-                "expect identifier");
+                "expect top-level declaration"
+        );
         return null;
     }
 }

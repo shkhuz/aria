@@ -12,6 +12,7 @@ Lexer lexer_new(File* srcfile) {
 	lexer.current = lexer.start;
 	lexer.line = 1;
 	lexer.last_newline = lexer.start;
+    lexer.error_state = ERROR_SUCCESS;
 	return lexer;
 }
 
@@ -51,7 +52,8 @@ static void addt(Lexer* self, TokenType type) {
 				self->srcfile,
 				self->line,
 				compute_column_on_start(self),
-				(u64)(self->current - self->start));
+				(u64)(self->current - self->start)
+        );
 	Token* token_heap = malloc(sizeof(Token));
 	memcpy(token_heap, &token, sizeof(Token));
 
@@ -67,8 +69,10 @@ static void error_from_start(Lexer* self, u64 char_count, const char* fmt, ...) 
 		compute_column_on_start(self),
 		char_count,
 		fmt,
-		ap);
+		ap
+    );
 	va_end(ap);
+    self->error_state = ERROR_LEX;
 }
 
 static void error_from_current(Lexer* self, u64 char_count, const char* fmt, ...) {
@@ -80,8 +84,10 @@ static void error_from_current(Lexer* self, u64 char_count, const char* fmt, ...
 		compute_column_on_current(self),
 		char_count,
 		fmt,
-		ap);
+		ap
+    );
 	va_end(ap);
+    self->error_state = ERROR_LEX;
 }
 
 static void identifier(Lexer* self) {
@@ -113,7 +119,8 @@ static void number(Lexer* self) {
 				self,
 				(u64)(self->current - self->start),
 				"expect fractional part after `%s`",
-				str_intern_range(self->start, self->current));
+				str_intern_range(self->start, self->current)
+            );
 			return;
 		}
 
@@ -148,7 +155,7 @@ static void chr(Lexer* self) {
 	self->current++;
 }
 
-void lexer_run(Lexer* self) {
+Error lexer_run(Lexer* self) {
 	char* contents = self->srcfile->contents;
 	for (;self->current != (self->srcfile->contents + self->srcfile->len);) {
 		self->start = self->current;
@@ -187,8 +194,12 @@ void lexer_run(Lexer* self) {
         case '*': char_token(T_STAR); break;
         case '/': char_token(T_FW_SLASH); break;
         case ';': char_token(T_SEMICOLON); break;
+        case '.': char_token(T_DOT); break;
+        case ',': char_token(T_COMMA); break;
         case '{': char_token(T_L_BRACE); break;
         case '}': char_token(T_R_BRACE); break;
+        case '(': char_token(T_L_PAREN); break;
+        case ')': char_token(T_R_PAREN); break;
 
         case ':': if (match(self, ':')) char_token(T_DOUBLE_COLON);
                   else char_token(T_COLON); break;
@@ -205,10 +216,16 @@ void lexer_run(Lexer* self) {
             self->current++;
             break;
         default:
+            error_from_current(
+                    self,
+                    1,
+                    "invalid character"
+            );
             self->current++;
             break;
 		}
 	}
     addt(self, T_EOF);
+    return self->error_state;
 }
 

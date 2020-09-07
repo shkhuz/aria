@@ -1,7 +1,10 @@
 #ifndef _ERROR_VALUE_H
 #define _ERROR_VALUE_H
 
-#define ERROR_SUCCESS 0
-#define ERROR_READ 1
+typedef enum {
+    ERROR_SUCCESS = 0,
+    ERROR_READ,
+    ERROR_LEX,
+} Error;
 
 #endif /* _ERROR_VALUE_H */

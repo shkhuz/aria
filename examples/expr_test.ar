@@ -1,7 +1,21 @@
-main :: fn {
-    454  343;
+namespace game {
+    pub fn init (title: string) err(void, std.error) {
+    }
 }
 
-add :: fn {
-    5345 35;
+pub main :: fn u8 {
+    std.println("result: {}", add(4, 5));
+}
+
+add :: fn (a: u8, b: u8) u8 {
+    a + b
+}
+
+fn main {
+    std.println("result: {}", add(4, 5));
+    545 453;
+}
+
+fn add (a: u8, b: u8) u8 {
+    a + b
 }

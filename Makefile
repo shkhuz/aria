@@ -31,10 +31,10 @@ LIBS_LIB_CMD :=
 
 CMD_ARGS := examples/expr_test.ar
 
-run: clean $(BIN_FILE) docs
+run: $(BIN_FILE) docs
 	$(BIN_FILE) $(CMD_ARGS)
 
-debug: clean $(BIN_FILE)
+debug: $(BIN_FILE)
 	gdb --args $(BIN_FILE) $(CMD_ARGS)
 
 $(BIN_FILE): $(OBJ_FILES)

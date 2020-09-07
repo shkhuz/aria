@@ -3,6 +3,7 @@
 
 #include <token_type.h>
 #include <token.h>
+#include <error_value.h>
 #include <arpch.h>
 
 typedef struct {
@@ -14,9 +15,11 @@ typedef struct {
 	u64 line;
 
 	char* last_newline;
+
+    Error error_state;
 } Lexer;
 
 Lexer lexer_new(File* srcfile);
-void lexer_run(Lexer* self);
+Error lexer_run(Lexer* self);
 
 #endif /* _LEXER_H */
