@@ -31,7 +31,7 @@ LIBS_LIB_CMD :=
 
 CMD_ARGS := examples/expr_test.ar
 
-run: $(BIN_FILE) docs
+install: $(BIN_FILE) docs
 	$(BIN_FILE) $(CMD_ARGS)
 
 debug: $(BIN_FILE)
