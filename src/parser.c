@@ -9,6 +9,7 @@
 static bool match(Parser* self, TokenType type);
 static Token* current(Parser* self);
 static void goto_next_token(Parser* self);
+static void goto_previous_token(Parser* self);
 
 Parser parser_new(File* srcfile, Token** tokens) {
     Parser parser;
@@ -129,6 +130,12 @@ static Token* previous(Parser* self) {
 static void goto_next_token(Parser* self) {
     if (self->tokens_idx < buf_len(self->tokens)) {
         self->tokens_idx++;
+    }
+}
+
+static void goto_previous_token(Parser* self) {
+    if (self->tokens_idx > 0) {
+        self->tokens_idx--;
     }
 }
 
@@ -324,6 +331,15 @@ static Stmt* stmt_expr_new(Expr* expr) {
 }
 
 static Stmt* stmt(Parser* self) {
+    if (match(self, T_IDENTIFIER)) {
+        Token* identifier = previous(self);
+        if (match(self, T_COLON)) {
+            return variable_decl(self, identifier);
+        }
+        else {
+            goto_previous_token(self);
+        }
+    }
     EXPR(e);
     expect_semicolon(self);
     return stmt_expr_new(e);
