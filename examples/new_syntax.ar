@@ -1,3 +1,14 @@
 fn main {
-    std.println("Hello, {}", "world");
+
+}
+
+namespace std {
+    fn alloc<T> (obj: T) T* {
+        obj_memory :: cast<T*> malloc(#sizeof(T));
+        *obj_memory = obj;
+        obj_memory
+    }
+
+    fn malloc (bytes: u64) void* {
+    }
 }

@@ -1,6 +1,7 @@
 #include <parser.h>
 #include <ast_print.h>
 #include <token.h>
+#include <data_type.h>
 #include <expr.h>
 #include <error_msg.h>
 #include <arpch.h>
@@ -102,6 +103,13 @@ static void error_token_with_sync(
         ern; \
     }
 
+#define EXPR_ND(name, init_func, ...) \
+    { \
+        es; \
+        name = init_func(__VA_ARGS__); \
+        ern; \
+    }
+
 #define EXPR(name) \
     EXPR_CI(name, expr, self)
 
@@ -141,6 +149,34 @@ static bool match_keyword(Parser* self, const char* keyword) {
     return false;
 }
 
+typedef struct {
+    DataType* data_type;
+    bool error;
+} DataTypeError;
+
+static DataTypeError match_data_type(Parser* self) {
+    if (match(self, T_IDENTIFIER)) {
+        Token* identifier = previous(self);
+        u8 pointer_count = 0;
+        while (match(self, T_STAR)) {
+            if (pointer_count > 128) {
+                error_token_with_sync(
+                        self,
+                        current(self),
+                        "pointer-to-pointer limit[128] exceeded"
+                );
+                return (DataTypeError){ null, true };
+            }
+            pointer_count++;
+        }
+        return (DataTypeError){
+            data_type_new_alloc(identifier, pointer_count),
+            false
+        };
+    }
+    return (DataTypeError){ null, false };
+}
+
 static void expect(Parser* self, TokenType type, const char* fmt, ...) {
     if (!match(self, type)) {
         va_list ap;
@@ -167,8 +203,8 @@ static void expect_keyword(Parser* self, const char* keyword) {
 #define expect_semicolon(self) \
     chk(expect(self, T_SEMICOLON, "expect ';'"))
 
-#define expect_double_colon(self) \
-    chk(expect(self, T_DOUBLE_COLON, "expect '::'"))
+#define expect_colon(self) \
+    chk(expect(self, T_COLON, "expect ':'"))
 
 #define expect_l_brace(self) \
     chk(expect(self, T_L_BRACE, "expect '{'"))
@@ -245,6 +281,41 @@ static Expr* expr(Parser* self) {
     return expr_binary_add_sub(self);
 }
 
+static Stmt* stmt_variable_decl_new(
+        Token* identifier,
+        DataType* data_type,
+        Expr* initializer) {
+
+    Stmt* stmt = stmt_new_alloc();
+    stmt->type = S_VARIABLE_DECL;
+    stmt->s.variable_decl.identifier = identifier;
+    stmt->s.variable_decl.data_type = data_type;
+    stmt->s.variable_decl.initializer = initializer;
+}
+
+static Stmt* variable_decl(Parser* self, Token* identifier) {
+    DataTypeError data_type = match_data_type(self);
+    if (data_type.error) return null;
+    Expr* initializer = null;
+    if (match(self, T_COLON)) {
+        EXPR_ND(initializer, expr, self);
+    }
+    else if (!data_type.data_type) {
+        error_token_with_sync(
+                self,
+                identifier,
+                "initializer is required when type is not annotated"
+        );
+        return null;
+    }
+    expect_semicolon(self);
+    return stmt_variable_decl_new(
+            identifier,
+            data_type.data_type,
+            initializer
+    );
+}
+
 static Stmt* stmt_expr_new(Expr* expr) {
     Stmt* stmt = stmt_new_alloc();
     stmt->type = S_EXPR;
@@ -284,7 +355,15 @@ static Stmt* decl(Parser* self) {
 
         return stmt_function_def_new(identifier, body);
     }
+    else if (match(self, T_IDENTIFIER)) {
+        Token* identifier = previous(self);
+        if (match(self, T_COLON)) {
+            return variable_decl(self, identifier);
+        }
+        else goto error;
+    }
     else {
+    error:
         error_token_with_sync(
                 self,
                 current(self),

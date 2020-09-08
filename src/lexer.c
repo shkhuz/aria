@@ -93,7 +93,20 @@ static void error_from_current(Lexer* self, u64 char_count, const char* fmt, ...
 static void identifier(Lexer* self) {
     TokenType type = T_IDENTIFIER;
 	self->current++;
-	while (isalnum(*self->current) || *self->current == '_') self->current++;
+    bool limit_exceed_error = false;
+	while (isalnum(*self->current) || *self->current == '_') {
+        if ((u64)(self->current - self->start) > 256) {
+            if (!limit_exceed_error) {
+                error_from_current(
+                        self,
+                        1,
+                        "identifier char-count limit[256] exceeded"
+                );
+            }
+            limit_exceed_error = true;
+        }
+        self->current++;
+    }
     const char* lexeme = str_intern_range(self->start, self->current);
     for (u64 k = 0; k < buf_len(keywords); k++) {
         if (str_intern(lexeme) == str_intern(keywords[k])) {
@@ -194,6 +207,7 @@ Error lexer_run(Lexer* self) {
         case '*': char_token(T_STAR); break;
         case '/': char_token(T_FW_SLASH); break;
         case ';': char_token(T_SEMICOLON); break;
+        case ':': char_token(T_COLON); break;
         case '.': char_token(T_DOT); break;
         case ',': char_token(T_COMMA); break;
         case '{': char_token(T_L_BRACE); break;
@@ -201,8 +215,8 @@ Error lexer_run(Lexer* self) {
         case '(': char_token(T_L_PAREN); break;
         case ')': char_token(T_R_PAREN); break;
 
-        case ':': if (match(self, ':')) char_token(T_DOUBLE_COLON);
-                  else char_token(T_COLON); break;
+        /* case ':': if (match(self, ':')) char_token(T_DOUBLE_COLON); */
+        /*           else char_token(T_COLON); break; */
 
         #undef char_token
 
