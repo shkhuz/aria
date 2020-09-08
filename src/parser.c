@@ -28,8 +28,8 @@ Parser parser_new(File* srcfile, Token** tokens) {
 
 static void sync_to_next_statement(Parser* self) {
     switch (self->error_loc) {
+    case ERRLOC_BLOCK:
     case ERRLOC_GLOBAL:
-    case ERRLOC_FUNCTION_DEF_BODY:
         while (!match(self, T_SEMICOLON) && current(self)->type != T_L_BRACE) {
             check_eof;
             goto_next_token(self);
@@ -330,6 +330,13 @@ static Stmt* stmt_expr_new(Expr* expr) {
     return stmt;
 }
 
+static Stmt* stmt_block_new(Stmt** block) {
+    Stmt* stmt = stmt_new_alloc();
+    stmt->type = S_BLOCK;
+    stmt->s.block = block;
+    return stmt;
+}
+
 static Stmt* stmt(Parser* self) {
     if (match(self, T_IDENTIFIER)) {
         Token* identifier = previous(self);
@@ -340,12 +347,24 @@ static Stmt* stmt(Parser* self) {
             goto_previous_token(self);
         }
     }
-    EXPR(e);
-    expect_semicolon(self);
-    return stmt_expr_new(e);
+    else if (match(self, T_L_BRACE)) {
+        self->error_loc = ERRLOC_BLOCK;
+        Stmt** block = null;
+        while (!match(self, T_R_BRACE)) {
+            check_eof;
+            Stmt* s = stmt(self);
+            if (s) buf_push(block, s);
+        }
+        return stmt_block_new(block);
+    }
+    else {
+        EXPR(e);
+        expect_semicolon(self);
+        return stmt_expr_new(e);
+    }
 }
 
-static Stmt* stmt_function_def_new(Token* identifier, Stmt** body) {
+static Stmt* stmt_function_def_new(Token* identifier, Stmt* body) {
     Stmt* stmt = stmt_new_alloc();
     stmt->type = S_FUNCTION_DEF;
     stmt->s.function_def.identifier = identifier;
@@ -361,13 +380,10 @@ static Stmt* decl(Parser* self) {
         Token* identifier = previous(self);
 
         expect_l_brace(self);
+        goto_previous_token(self);
 
-        Stmt** body = null;
-        self->error_loc = ERRLOC_FUNCTION_DEF_BODY;
-        while (!match(self, T_R_BRACE)) {
-            Stmt* s = stmt(self);
-            if (s) buf_push(body, s);
-        }
+        Stmt* body = stmt(self);
+        if (!body) return null;
 
         return stmt_function_def_new(identifier, body);
     }

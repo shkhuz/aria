@@ -1,16 +1,11 @@
-namespace game {
-    pub fn init (title: string) err(void, std.error) {
-    }
-
-    pub fn run {
-    }
+fn main {
+    time :: 23;
+    time :;
+    time :: 5g;
 }
 
-variable :: 123;
-variable_with_type_annotation: f32;
-variable_with_type_annotation_and_initializer: f32: 123;
-variable_with_nothing :;
+df :: df / s;
 
-fn main {
-    time :;
+fn tmp {
+    pre: f32: 123 * /;
 }

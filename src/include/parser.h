@@ -8,7 +8,7 @@
 typedef enum {
     ERRLOC_GLOBAL,
     ERRLOC_FUNCTION_DEF,
-    ERRLOC_FUNCTION_DEF_BODY,
+    ERRLOC_BLOCK,
 } ErrorLocation;
 
 typedef struct {

@@ -8,6 +8,7 @@ typedef enum {
     S_FUNCTION_DEF,
     S_VARIABLE_DECL,
     S_EXPR,
+    S_BLOCK,
     S_NONE,
 } StmtType;
 
@@ -15,7 +16,7 @@ typedef struct Stmt Stmt;
 
 typedef struct {
     Token* identifier;
-    Stmt** body;
+    Stmt* body;
 } FunctionDef;
 
 typedef struct {
@@ -30,6 +31,7 @@ struct Stmt {
         FunctionDef function_def;
         VariableDecl variable_decl;
         Expr* expr;
+        Stmt** block;
     } s;
 };
 
