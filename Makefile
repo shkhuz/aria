@@ -29,7 +29,7 @@ LIBS_INC_DIR_CMD :=
 LIBS_LIB_DIR_CMD :=
 LIBS_LIB_CMD :=
 
-CMD_ARGS := examples/expr_test.ar
+CMD_ARGS := examples/correct.ar
 
 install: $(BIN_FILE) docs
 	$(BIN_FILE) $(CMD_ARGS)

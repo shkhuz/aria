@@ -16,15 +16,20 @@ static int indent_count = 0;
 #define l_paren() \
     chr('(')
 
-/* TODO: complete this */
+#define r_paren() \
+    chr(')')
 
-static void r_paren(void) {
-    chr(')');
-}
+#define spc() \
+    chr(' ')
 
-static void newline(void) {
-    chr('\n');
-}
+#define comma() \
+    chr(',')
+
+#define colon() \
+    chr(':')
+
+#define newline() \
+    chr('\n')
 
 static void tab(void) {
     for (int i = 0; i < AST_TAB_COUNT; i++) chr(' ');
@@ -48,6 +53,13 @@ static void format_ret(void) {
 
 static void token(Token* token) {
     string(token->lexeme);
+}
+
+static void data_type(DataType* data_type) {
+    token(data_type->identifier);
+    for (u8 p = 0; p < data_type->pointer_count; p++) {
+        chr('*');
+    }
 }
 
 static void expr(Expr* expr);
@@ -82,6 +94,8 @@ static void expr(Expr* expr) {
     }
 }
 
+static void stmt(Stmt* stmt);
+
 static void stmt_expr(Stmt* s) {
     string("STMT_EXPR ");
     format();
@@ -89,8 +103,38 @@ static void stmt_expr(Stmt* s) {
     format_ret();
 }
 
+static void param(Param* param) {
+    token(param->identifier);
+    colon(); spc();
+    data_type(param->data_type);
+    comma(); spc();
+}
+
+static void stmt_function_def(Stmt* s) {
+    string("STMT_FUNCTION_DEF ");
+    token(s->s.function_def.identifier); spc();
+    l_paren();
+    for (u64 p = 0; p < buf_len(s->s.function_def.params); p++) {
+        param(s->s.function_def.params[p]);
+    }
+    r_paren();
+    spc();
+
+    format();
+    stmt(s->s.function_def.body);
+    format_ret();
+}
+
+static void stmt_block(Stmt* s) {
+    for (u64 e = 0; e < buf_len(s->s.block); e++) {
+        stmt(s->s.block[e]);
+    }
+}
+
 static void stmt(Stmt* stmt) {
     switch (stmt->type) {
+    case S_FUNCTION_DEF: stmt_function_def(stmt); break;
+    case S_BLOCK: stmt_block(stmt); break;
     case S_EXPR: stmt_expr(stmt); break;
     case S_NONE: assert(0); break;
     }

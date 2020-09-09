@@ -3,6 +3,7 @@
 
 #include <token.h>
 #include <stmt.h>
+#include <error_value.h>
 #include <arpch.h>
 
 typedef enum {
@@ -20,9 +21,10 @@ typedef struct {
     bool error_panic;
     u64 error_count;
     ErrorLocation error_loc;
+    Error error_state;
 } Parser;
 
 Parser parser_new(File* srcfile, Token** tokens);
-void parser_run(Parser* self);
+Error parser_run(Parser* self);
 
 #endif /* _PARSER_H */

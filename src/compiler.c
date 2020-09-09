@@ -25,17 +25,18 @@ Error compiler_run(Compiler* self) {
     Error lexer_error = lexer_run(&lexer);
     if (lexer_error != ERROR_SUCCESS) return lexer_error;
 
-    for (u64 t = 0; t < buf_len(lexer.tokens); t++) {
-        printf(
-                "%lu, %lu, %u, %s\n",
-                lexer.tokens[t]->line,
-                lexer.tokens[t]->column,
-                lexer.tokens[t]->type,
-                lexer.tokens[t]->lexeme);
-    }
+/*     for (u64 t = 0; t < buf_len(lexer.tokens); t++) { */
+/*         printf( */
+/*                 "%lu, %lu, %u, %s\n", */
+/*                 lexer.tokens[t]->line, */
+/*                 lexer.tokens[t]->column, */
+/*                 lexer.tokens[t]->type, */
+/*                 lexer.tokens[t]->lexeme); */
+/*     } */
 
     Parser parser = parser_new(srcfile, lexer.tokens);
-    parser_run(&parser);
+    Error parser_error = parser_run(&parser);
+    if (parser_error != ERROR_SUCCESS) return parser_error;
 
     print_ast(parser.stmts);
 

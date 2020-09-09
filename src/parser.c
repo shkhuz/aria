@@ -20,6 +20,7 @@ Parser parser_new(File* srcfile, Token** tokens) {
     parser.error_panic = false;
     parser.error_count = 0;
     parser.error_loc = ERRLOC_GLOBAL;
+    parser.error_state = ERROR_SUCCESS;
     return parser;
 }
 
@@ -27,6 +28,8 @@ Parser parser_new(File* srcfile, Token** tokens) {
     if (current(self)->type == T_EOF) return
 
 static void sync_to_next_statement(Parser* self) {
+    self->error_state = ERROR_PARSE;
+
     switch (self->error_loc) {
     case ERRLOC_BLOCK:
     case ERRLOC_GLOBAL:
@@ -72,6 +75,7 @@ static void error_token_with_sync(
         ...) {
 
     self->error_count++;
+    self->error_state = ERROR_PARSE;
     va_list ap;
     va_start(ap, fmt);
     verror_token(
@@ -365,12 +369,15 @@ static Stmt* stmt(Parser* self) {
     else if (match(self, T_L_BRACE)) {
         self->error_loc = ERRLOC_BLOCK;
         Stmt** block = null;
+        bool error = false;
         while (!match(self, T_R_BRACE)) {
             check_eof null;
             Stmt* s = stmt(self);
             if (s) buf_push(block, s);
+            else error = true;
         }
-        return stmt_block_new(block);
+        if (error) return null;
+        else return stmt_block_new(block);
     }
     else {
         EXPR(e);
@@ -454,10 +461,11 @@ static Stmt* decl(Parser* self) {
     }
 }
 
-void parser_run(Parser* self) {
+Error parser_run(Parser* self) {
     while (current(self)->type != T_EOF) {
         Stmt* s = decl(self);
         if (s) buf_push(self->stmts, s);
     }
+    return self->error_state;
 }
 
