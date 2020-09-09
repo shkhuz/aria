@@ -115,7 +115,19 @@ static void error_token_with_sync(
     EXPR_CI(name, expr, self)
 
 static Token* current(Parser* self) {
-    return self->tokens[self->tokens_idx];
+    if (self->tokens_idx < buf_len(self->tokens)) {
+        return self->tokens[self->tokens_idx];
+    }
+    assert(0);
+    return null;
+}
+
+static Token* peek(Parser* self) {
+    if (self->tokens_idx + 1 < buf_len(self->tokens)) {
+        return self->tokens[self->tokens_idx + 1];
+    }
+    assert(0);
+    return null;
 }
 
 static Token* previous(Parser* self) {
@@ -215,6 +227,9 @@ static void expect_keyword(Parser* self, const char* keyword) {
 
 #define expect_l_brace(self) \
     chk(expect(self, T_L_BRACE, "expect '{'"))
+
+#define expect_comma(self) \
+    chk(expect(self, T_COMMA, "expect ','"))
 
 static Expr* expr_integer_new(Token* integer) {
     Expr* expr = expr_new_alloc();
@@ -351,7 +366,7 @@ static Stmt* stmt(Parser* self) {
         self->error_loc = ERRLOC_BLOCK;
         Stmt** block = null;
         while (!match(self, T_R_BRACE)) {
-            check_eof;
+            check_eof null;
             Stmt* s = stmt(self);
             if (s) buf_push(block, s);
         }
@@ -364,10 +379,15 @@ static Stmt* stmt(Parser* self) {
     }
 }
 
-static Stmt* stmt_function_def_new(Token* identifier, Stmt* body) {
+static Stmt* stmt_function_def_new(
+        Token* identifier,
+        Param** params,
+        Stmt* body) {
+
     Stmt* stmt = stmt_new_alloc();
     stmt->type = S_FUNCTION_DEF;
     stmt->s.function_def.identifier = identifier;
+    stmt->s.function_def.params = params;
     stmt->s.function_def.body = body;
     return stmt;
 }
@@ -378,6 +398,35 @@ static Stmt* decl(Parser* self) {
         self->error_loc = ERRLOC_FUNCTION_DEF;
         expect_identifier(self);
         Token* identifier = previous(self);
+        Param** params = null;
+        if (match(self, T_L_PAREN)) {
+            while (!match(self, T_R_PAREN)) {
+                expect_identifier(self);
+                Token* p_identifier = previous(self);
+
+                expect_colon(self);
+                DataTypeError p_data_type = match_data_type(self);
+                if (!p_data_type.data_type && !p_data_type.error) {
+                    error_token_with_sync(
+                            self,
+                            current(self),
+                            "expect data type"
+                    );
+                    return null;
+                }
+                else if (p_data_type.error) return null;
+
+                if (current(self)->type != T_R_PAREN) {
+                    expect_comma(self);
+                }
+                else match(self, T_COMMA);
+
+                buf_push(
+                        params,
+                        param_new_alloc(p_identifier, p_data_type.data_type)
+                );
+            }
+        }
 
         expect_l_brace(self);
         goto_previous_token(self);
@@ -385,7 +434,7 @@ static Stmt* decl(Parser* self) {
         Stmt* body = stmt(self);
         if (!body) return null;
 
-        return stmt_function_def_new(identifier, body);
+        return stmt_function_def_new(identifier, params, body);
     }
     else if (match(self, T_IDENTIFIER)) {
         Token* identifier = previous(self);

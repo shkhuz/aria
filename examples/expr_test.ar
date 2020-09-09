@@ -1,4 +1,4 @@
-fn main {
+fn main(args: int, arg2: f32*,) {
     time :: 23;
     time :;
     time :: 5g;
