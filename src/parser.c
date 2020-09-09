@@ -126,14 +126,6 @@ static Token* current(Parser* self) {
     return null;
 }
 
-static Token* peek(Parser* self) {
-    if (self->tokens_idx + 1 < buf_len(self->tokens)) {
-        return self->tokens[self->tokens_idx + 1];
-    }
-    assert(0);
-    return null;
-}
-
 static Token* previous(Parser* self) {
     if (self->tokens_idx > 0) {
         return self->tokens[self->tokens_idx - 1];

@@ -51,6 +51,16 @@ static void format_ret(void) {
     tab_indent();
 }
 
+static void format_nh(void) {
+    newline();
+    indent_count++;
+}
+
+static void format_ret_nh(void) {
+    newline();
+    indent_count--;
+}
+
 static void token(Token* token) {
     string(token->lexeme);
 }
@@ -120,9 +130,21 @@ static void stmt_function_def(Stmt* s) {
     r_paren();
     spc();
 
-    format();
+    format_nh();
     stmt(s->s.function_def.body);
-    format_ret();
+    format_ret_nh();
+}
+
+static void stmt_variable_decl(Stmt* s) {
+    string("STMT_VARIABLE_DECL ");
+    token(s->s.variable_decl.identifier);
+    if (s->s.variable_decl.data_type) {
+        spc(); data_type(s->s.variable_decl.data_type);
+    }
+    if (s->s.variable_decl.initializer) {
+        string(" = "); expr(s->s.variable_decl.initializer);
+    }
+    newline();
 }
 
 static void stmt_block(Stmt* s) {
@@ -132,8 +154,13 @@ static void stmt_block(Stmt* s) {
 }
 
 static void stmt(Stmt* stmt) {
+    if (stmt->type != S_BLOCK) {
+        tab_indent();
+    }
+
     switch (stmt->type) {
     case S_FUNCTION_DEF: stmt_function_def(stmt); break;
+    case S_VARIABLE_DECL: stmt_variable_decl(stmt); break;
     case S_BLOCK: stmt_block(stmt); break;
     case S_EXPR: stmt_expr(stmt); break;
     case S_NONE: assert(0); break;
