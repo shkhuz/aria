@@ -15,6 +15,5 @@ typedef struct {
 
 Compiler compiler_new(const char* srcfile_path);
 CompileOutput compiler_run(Compiler* self);
-void compiler_register_cache_decl(File* srcfile, Stmt** decls);
 
 #endif /* _COMPILER_H */

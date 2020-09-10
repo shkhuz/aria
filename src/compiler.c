@@ -7,13 +7,6 @@
 #include <token_type.h>
 #include <arpch.h>
 
-typedef struct {
-    const char* path;
-    Stmt** decls;
-} PathDeclMap;
-
-PathDeclMap* decl_cache;
-
 Compiler compiler_new(const char* srcfile_path) {
     Compiler compiler;
     compiler.srcfile_path = srcfile_path;
@@ -33,14 +26,15 @@ CompileOutput compiler_run(Compiler* self) {
     if (lexer_error != ERROR_SUCCESS) {
         return (CompileOutput){ lexer_error, null };
     }
-/*     for (u64 t = 0; t < buf_len(lexer.tokens); t++) { */
-/*         printf( */
-/*                 "%lu, %lu, %u, %s\n", */
-/*                 lexer.tokens[t]->line, */
-/*                 lexer.tokens[t]->column, */
-/*                 lexer.tokens[t]->type, */
-/*                 lexer.tokens[t]->lexeme); */
-/*     } */
+
+    buf_loop(lexer.tokens, t) {
+        printf(
+                "%lu, %lu, %u, %s\n",
+                lexer.tokens[t]->line,
+                lexer.tokens[t]->column,
+                lexer.tokens[t]->type,
+                lexer.tokens[t]->lexeme);
+    }
 
     Parser* parser = malloc(sizeof(Parser));
     *parser = parser_new(srcfile, lexer.tokens);
@@ -52,13 +46,4 @@ CompileOutput compiler_run(Compiler* self) {
     print_ast(parser->stmts);
 
     return (CompileOutput){ ERROR_SUCCESS, parser };
-}
-
-void compiler_register_cache_decl(File* srcfile, Stmt** decls) {
-    buf_loop(decl_cache, f) {
-        if (str_intern(decl_cache[f].path) ==
-            str_intern(srcfile->fpath)) return;
-    }
-
-    buf_push(decl_cache, (PathDeclMap){ srcfile->fpath, decls });
 }
