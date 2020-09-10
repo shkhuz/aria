@@ -12,4 +12,4 @@ typedef struct {
 DataType data_type_new(Token* identifier, u8 pointer_count);
 DataType* data_type_new_alloc(Token* identifier, u8 pointer_count);
 
-#endif
+#endif /* _DATA_TYPE_H */
