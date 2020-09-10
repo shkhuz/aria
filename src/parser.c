@@ -17,6 +17,7 @@ Parser parser_new(File* srcfile, Token** tokens) {
     parser.tokens = tokens;
     parser.tokens_idx = 0;
     parser.stmts = null;
+    parser.decls = null;
     parser.error_panic = false;
     parser.error_count = 0;
     parser.error_loc = ERRLOC_GLOBAL;
@@ -32,6 +33,7 @@ static void sync_to_next_statement(Parser* self) {
 
     switch (self->error_loc) {
     case ERRLOC_BLOCK:
+    case ERRLOC_FUNCTION_HEADER:
     case ERRLOC_GLOBAL:
         while (!match(self, T_SEMICOLON) && current(self)->type != T_L_BRACE) {
             check_eof;
@@ -40,7 +42,7 @@ static void sync_to_next_statement(Parser* self) {
         if (current(self)->type == T_L_BRACE) goto skip_brace;
         break;
 
-    case ERRLOC_FUNCTION_DEF: {
+    case ERRLOC_NONE: {
     skip_brace: {
             u64 brace_count = 0;
             while (!match(self, T_L_BRACE)) {
@@ -391,10 +393,21 @@ static Stmt* stmt_function_def_new(
     return stmt;
 }
 
+static Stmt* stmt_function_decl_new(
+        Token* identifier,
+        Param** params) {
+
+    Stmt* stmt = stmt_new_alloc();
+    stmt->type = S_FUNCTION_DECL;
+    stmt->s.function_decl.identifier = identifier;
+    stmt->s.function_decl.params = params;
+    return stmt;
+}
+
 static Stmt* decl(Parser* self) {
     self->error_loc = ERRLOC_GLOBAL;
     if (match_keyword(self, "fn")) {
-        self->error_loc = ERRLOC_FUNCTION_DEF;
+        self->error_loc = ERRLOC_FUNCTION_HEADER;
         expect_identifier(self);
         Token* identifier = previous(self);
         Param** params = null;
@@ -427,13 +440,21 @@ static Stmt* decl(Parser* self) {
             }
         }
 
-        expect_l_brace(self);
-        goto_previous_token(self);
+        if (match(self, T_L_BRACE)) {
+            goto_previous_token(self);
 
-        Stmt* body = stmt(self);
-        if (!body) return null;
-
-        return stmt_function_def_new(identifier, params, body);
+            Stmt* body = stmt(self);
+            if (!body) return null;
+            buf_push(
+                    self->decls,
+                    stmt_function_decl_new(identifier, params)
+            );
+            return stmt_function_def_new(identifier, params, body);
+        }
+        else {
+            expect_semicolon(self);
+            return stmt_function_decl_new(identifier, params);
+        }
     }
     else if (match(self, T_IDENTIFIER)) {
         Token* identifier = previous(self);

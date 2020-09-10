@@ -7,24 +7,32 @@
 #include <token_type.h>
 #include <arpch.h>
 
+typedef struct {
+    const char* path;
+    Stmt** decls;
+} PathDeclMap;
+
+PathDeclMap* decl_cache;
+
 Compiler compiler_new(const char* srcfile_path) {
     Compiler compiler;
     compiler.srcfile_path = srcfile_path;
 }
 
-Error compiler_run(Compiler* self) {
+CompileOutput compiler_run(Compiler* self) {
     File* srcfile = file_read(self->srcfile_path);
     if (!srcfile) {
         error_common(
                 "cannot read `%s`: invalid filename or missing file",
                 self->srcfile_path);
-        return ERROR_READ;
+        return (CompileOutput){ ERROR_READ, null };
     }
 
     Lexer lexer = lexer_new(srcfile);
     Error lexer_error = lexer_run(&lexer);
-    if (lexer_error != ERROR_SUCCESS) return lexer_error;
-
+    if (lexer_error != ERROR_SUCCESS) {
+        return (CompileOutput){ lexer_error, null };
+    }
 /*     for (u64 t = 0; t < buf_len(lexer.tokens); t++) { */
 /*         printf( */
 /*                 "%lu, %lu, %u, %s\n", */
@@ -34,12 +42,23 @@ Error compiler_run(Compiler* self) {
 /*                 lexer.tokens[t]->lexeme); */
 /*     } */
 
-    Parser parser = parser_new(srcfile, lexer.tokens);
-    Error parser_error = parser_run(&parser);
-    if (parser_error != ERROR_SUCCESS) return parser_error;
+    Parser* parser = malloc(sizeof(Parser));
+    *parser = parser_new(srcfile, lexer.tokens);
+    Error parser_error = parser_run(parser);
+    if (parser_error != ERROR_SUCCESS) {
+        return (CompileOutput){ parser_error, null };
+    }
 
-    print_ast(parser.stmts);
+    print_ast(parser->stmts);
 
-    return ERROR_SUCCESS;
+    return (CompileOutput){ ERROR_SUCCESS, parser };
 }
 
+void compiler_register_cache_decl(File* srcfile, Stmt** decls) {
+    buf_loop(decl_cache, f) {
+        if (str_intern(decl_cache[f].path) ==
+            str_intern(srcfile->fpath)) return;
+    }
+
+    buf_push(decl_cache, (PathDeclMap){ srcfile->fpath, decls });
+}

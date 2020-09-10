@@ -8,8 +8,9 @@
 
 typedef enum {
     ERRLOC_GLOBAL,
-    ERRLOC_FUNCTION_DEF,
+    ERRLOC_FUNCTION_HEADER,
     ERRLOC_BLOCK,
+    ERRLOC_NONE,
 } ErrorLocation;
 
 typedef struct {
@@ -17,6 +18,7 @@ typedef struct {
     Token** tokens;
     u64 tokens_idx;
     Stmt** stmts;
+    Stmt** decls;
 
     bool error_panic;
     u64 error_count;

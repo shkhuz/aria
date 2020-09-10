@@ -135,6 +135,18 @@ static void stmt_function_def(Stmt* s) {
     format_ret_nh();
 }
 
+static void stmt_function_decl(Stmt* s) {
+    string("STMT_FUNCTION_DECL ");
+    token(s->s.function_decl.identifier); spc();
+    l_paren();
+    for (u64 p = 0; p < buf_len(s->s.function_def.params); p++) {
+        param(s->s.function_def.params[p]);
+    }
+    r_paren();
+    spc();
+    newline();
+}
+
 static void stmt_variable_decl(Stmt* s) {
     string("STMT_VARIABLE_DECL ");
     token(s->s.variable_decl.identifier);
@@ -160,10 +172,10 @@ static void stmt(Stmt* stmt) {
 
     switch (stmt->type) {
     case S_FUNCTION_DEF: stmt_function_def(stmt); break;
+    case S_FUNCTION_DECL: stmt_function_decl(stmt); break;
     case S_VARIABLE_DECL: stmt_variable_decl(stmt); break;
     case S_BLOCK: stmt_block(stmt); break;
     case S_EXPR: stmt_expr(stmt); break;
-    case S_NONE: assert(0); break;
     }
 }
 

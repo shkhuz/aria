@@ -1,4 +1,4 @@
-fn main(argc: u64, argv: char**) {
+fn 1main(argc: u64, argv: char**) {
     time :: 34;
     time :: 43 / 89 + 34 * 34 - -43;
 }
@@ -8,3 +8,5 @@ fn game {
     fdf: f32*: 453445645;
     56 / 45 - - 345 + 34;
 }
+
+fn out(arg: T);
