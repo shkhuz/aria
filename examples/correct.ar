@@ -11,4 +11,4 @@ fn game {
     56 / 45 - - 345 + 34;
 }
 
-fn out(arg: T);
+fn out(arg: GameController);

@@ -27,14 +27,14 @@ CompileOutput compiler_run(Compiler* self) {
         return (CompileOutput){ lexer_error, null };
     }
 
-    buf_loop(lexer.tokens, t) {
-        printf(
-                "%lu, %lu, %u, %s\n",
-                lexer.tokens[t]->line,
-                lexer.tokens[t]->column,
-                lexer.tokens[t]->type,
-                lexer.tokens[t]->lexeme);
-    }
+/*     buf_loop(lexer.tokens, t) { */
+/*         printf( */
+/*                 "%lu, %lu, %u, %s\n", */
+/*                 lexer.tokens[t]->line, */
+/*                 lexer.tokens[t]->column, */
+/*                 lexer.tokens[t]->type, */
+/*                 lexer.tokens[t]->lexeme); */
+/*     } */
 
     Parser* parser = malloc(sizeof(Parser));
     *parser = parser_new(srcfile, lexer.tokens);
