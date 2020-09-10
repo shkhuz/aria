@@ -19,6 +19,7 @@ typedef struct {
     u64 tokens_idx;
     Stmt** stmts;
     Stmt** decls;
+    const char** imports;
 
     bool error_panic;
     u64 error_count;

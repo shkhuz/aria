@@ -18,6 +18,7 @@ Parser parser_new(File* srcfile, Token** tokens) {
     parser.tokens_idx = 0;
     parser.stmts = null;
     parser.decls = null;
+    parser.imports = null;
     parser.error_panic = false;
     parser.error_count = 0;
     parser.error_loc = ERRLOC_GLOBAL;
@@ -462,6 +463,23 @@ static Stmt* decl(Parser* self) {
             return variable_decl(self, identifier);
         }
         else goto error;
+    }
+    else if (match(self, T_IMPORT)) {
+        if (str_intern(current(self)->lexeme) == str_intern("\"\"")) {
+            error_token_with_sync(
+                    self,
+                    current(self),
+                    "#import: empty file path"
+            );
+            return null;
+        }
+        goto_next_token(self);
+        Token* path = previous(self);
+        expect_semicolon(self);
+
+        const char* path_without_quotes =
+            str_intern_range(path->start + 1, path->end - 1);
+        buf_push(self->imports, path_without_quotes);
     }
     else {
     error:

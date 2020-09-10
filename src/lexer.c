@@ -108,7 +108,7 @@ static void identifier(Lexer* self) {
         self->current++;
     }
     const char* lexeme = str_intern_range(self->start, self->current);
-    for (u64 k = 0; k < buf_len(keywords); k++) {
+    buf_loop(keywords, k) {
         if (str_intern(lexeme) == str_intern(keywords[k])) {
             type = T_KEYWORD;
             break;
@@ -153,9 +153,8 @@ static void string(Lexer* self) {
 		}
 	}
 
-	self->start++;
-	addt(self, T_STRING);
 	self->current++;
+	addt(self, T_STRING);
 }
 
 static void chr(Lexer* self) {
@@ -166,6 +165,25 @@ static void chr(Lexer* self) {
 	self->current++;
 	addt(self, T_CHAR);
 	self->current++;
+}
+
+static void directive(Lexer* self) {
+    self->current++;
+	while (isalnum(*self->current) || *self->current == '_') {
+        self->current++;
+    }
+
+    const char* lexeme = str_intern_range(self->start, self->current);
+    if (str_intern("#import") == str_intern(lexeme)) addt(self, T_IMPORT);
+    else {
+        error_from_start(
+                self,
+                (u64)(self->current - self->start),
+                "invalid directive: `%s`",
+                lexeme
+        );
+        return;
+    }
 }
 
 Error lexer_run(Lexer* self) {
@@ -196,6 +214,10 @@ Error lexer_run(Lexer* self) {
             break;
         case '\'':
             chr(self);
+            break;
+
+        case '#':
+            directive(self);
             break;
 
         #define char_token(type) \

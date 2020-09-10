@@ -21,6 +21,7 @@ typedef enum {
     T_R_BRACE,
     T_L_PAREN,
     T_R_PAREN,
+    T_IMPORT,
     T_EOF,
 } TokenType;
 

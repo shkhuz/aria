@@ -1,4 +1,6 @@
-fn 1main(argc: u64, argv: char**) {
+#import "token.c";
+
+fn main(argc: u64, argv: char**) {
     time :: 34;
     time :: 43 / 89 + 34 * 34 - -43;
 }
