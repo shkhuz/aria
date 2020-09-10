@@ -23,12 +23,14 @@ typedef struct {
 typedef struct {
     Token* identifier;
     Param** params;
+    DataType* return_type;
     Stmt* body;
 } FunctionDef;
 
 typedef struct {
     Token* identifier;
     Param** params;
+    DataType* return_type;
 } FunctionDecl;
 
 typedef struct {

@@ -11,5 +11,5 @@ index.html: $(AR_HTML_FILES) index.raw_html
 
 clean:
 	rm -f index.html
-	rm -f examples/*.ar.html
+	rm -f $(AR_HTML_FILES)
 

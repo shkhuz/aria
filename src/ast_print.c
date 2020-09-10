@@ -101,6 +101,7 @@ static void expr(Expr* expr) {
     case E_UNARY: expr_unary(expr); break;
     case E_INTEGER: expr_integer(expr); break;
     case E_NONE: assert(0); break;
+    default: assert(0); break;
     }
 }
 
@@ -128,7 +129,9 @@ static void stmt_function_def(Stmt* s) {
         param(s->s.function_def.params[p]);
     }
     r_paren();
-    spc();
+    if (s->s.function_def.return_type) {
+        spc(); data_type(s->s.function_def.return_type);
+    }
 
     format_nh();
     stmt(s->s.function_def.body);
@@ -143,7 +146,9 @@ static void stmt_function_decl(Stmt* s) {
         param(s->s.function_def.params[p]);
     }
     r_paren();
-    spc();
+    if (s->s.function_decl.return_type) {
+        spc(); data_type(s->s.function_decl.return_type);
+    }
     newline();
 }
 
@@ -176,6 +181,7 @@ static void stmt(Stmt* stmt) {
     case S_VARIABLE_DECL: stmt_variable_decl(stmt); break;
     case S_BLOCK: stmt_block(stmt); break;
     case S_EXPR: stmt_expr(stmt); break;
+    default: assert(0); break;
     }
 }
 

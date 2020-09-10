@@ -1,34 +1,30 @@
 PROJECT := aria
-
 SRC_DIR := src
 INC_DIR := $(SRC_DIR)/include
-
 BUILD_DIR := build
 BIN_DIR := $(BUILD_DIR)/bin
 OBJ_DIR := $(BUILD_DIR)/obj
-
 DEPS_DIR := deps
 DOCS_DIR := docs
-
 C_FILES := $(shell find $(SRC_DIR) -name "*.c")
 ASM_FILES := $(shell find $(SRC_DIR) -name "*.asm")
-
 OBJ_FILES := $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(C_FILES)))
 OBJ_FILES += $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(ASM_FILES)))
 BIN_FILE := $(BIN_DIR)/$(PROJECT)
-
 CC := gcc
 LD := gcc
-
 PREPROCESSOR_DEFINES := -DTAB_COUNT=4 -DAST_TAB_COUNT=2
-CFLAGS := $(PREPROCESSOR_DEFINES) -I$(INC_DIR) -std=c99 -pedantic -Wall -Wextra -Wunused -Wshadow -Wno-write-strings -Wdouble-promotion -Wduplicate-decl-specifier -Wformat=2 -Winit-self -Wmisleading-indentation -Wswitch-default -Wstrict-overflow -Walloca -Wconversion -Wunused-macros -Wdate-time -Waddress -Wlogical-op -Wlogical-not-parentheses -Wstrict-prototypes -Wpacked -Winline -m64 -g
+CFLAGS := $(PREPROCESSOR_DEFINES) -I$(INC_DIR) -std=c99 -pedantic -Wall \
+-Wextra -Wunused -Wshadow -Wno-write-strings -Wdouble-promotion \
+-Wduplicate-decl-specifier -Wformat=2 -Winit-self -Wmisleading-indentation \
+-Wswitch-default -Wstrict-overflow -Walloca -Wconversion -Wunused-macros \
+-Wdate-time -Waddress -Wlogical-op -Wlogical-not-parentheses \
+-Wstrict-prototypes -Wpacked -Winline -m64 -g
 ASMFLAGS := -felf64
 LDFLAGS :=
-
 LIBS_INC_DIR_CMD :=
 LIBS_LIB_DIR_CMD :=
 LIBS_LIB_CMD :=
-
 CMD_ARGS := examples/correct.ar
 
 install: $(BIN_FILE) docs
@@ -50,7 +46,11 @@ $(OBJ_DIR)/%.asm.o: %.asm
 	nasm $(ASMFLAGS) -o $@ $^
 
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -f $(OBJ_FILES)
+	rm -rf $(OBJ_DIR)
+	rm -f $(BIN_FILE)
+	rm -d $(BIN_DIR)
+	rm -d $(BUILD_DIR)
 	cd $(DOCS_DIR) && $(MAKE) clean
 
 docs:

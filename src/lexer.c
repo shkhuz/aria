@@ -32,15 +32,15 @@ static u64 compute_column_on_current(Lexer* self) {
 	return column;
 }
 
-static bool match(Lexer* self, char c) {
-    if (self->current < (self->srcfile->contents + self->srcfile->len)) {
-        if (*(self->current+1) == c) {
-            self->current++;
-            return true;
-        }
-    }
-    return false;
-}
+/* static bool match(Lexer* self, char c) { */
+/*     if (self->current < (self->srcfile->contents + self->srcfile->len)) { */
+/*         if (*(self->current+1) == c) { */
+/*             self->current++; */
+/*             return true; */
+/*         } */
+/*     } */
+/*     return false; */
+/* } */
 
 static void addt(Lexer* self, TokenType type) {
 	Token token =
@@ -109,7 +109,7 @@ static void identifier(Lexer* self) {
     }
     const char* lexeme = str_intern_range(self->start, self->current);
     buf_loop(keywords, k) {
-        if (str_intern(lexeme) == str_intern(keywords[k])) {
+        if (str_intern((char*)lexeme) == str_intern((char*)keywords[k])) {
             type = T_KEYWORD;
             break;
         }
@@ -174,7 +174,7 @@ static void directive(Lexer* self) {
     }
 
     const char* lexeme = str_intern_range(self->start, self->current);
-    if (str_intern("#import") == str_intern(lexeme)) addt(self, T_IMPORT);
+    if (str_intern("#import") == str_intern((char*)lexeme)) addt(self, T_IMPORT);
     else {
         error_from_start(
                 self,
@@ -187,7 +187,6 @@ static void directive(Lexer* self) {
 }
 
 Error lexer_run(Lexer* self) {
-	char* contents = self->srcfile->contents;
 	for (;self->current != (self->srcfile->contents + self->srcfile->len);) {
 		self->start = self->current;
 

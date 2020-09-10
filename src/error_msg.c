@@ -4,13 +4,13 @@
 #include <token.h>
 #include <arpch.h>
 
-#define ANSI_FRED     "\e[1;31m"
-#define ANSI_FGREEN   "\x1b[32m"
-#define ANSI_FYELLOW  "\x1b[33m"
-#define ANSI_FBLUE    "\x1b[34m"
-#define ANSI_FMAGENTA "\x1b[35m"
-#define ANSI_FCYAN    "\x1b[36m"
-#define ANSI_RESET   "\x1b[0m"
+#define ANSI_FRED     "\x1B[1;31m"
+/* #define ANSI_FGREEN   "\x1B[32m" */
+/* #define ANSI_FYELLOW  "\x1B[33m" */
+/* #define ANSI_FBLUE    "\x1B[34m" */
+/* #define ANSI_FMAGENTA "\x1B[35m" */
+/* #define ANSI_FCYAN    "\x1B[36m" */
+#define ANSI_RESET   "\x1B[0m"
 
 static char* get_line_in_file(File* srcfile, u64 line) {
 	char* line_start = srcfile->contents;

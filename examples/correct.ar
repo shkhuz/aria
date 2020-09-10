@@ -1,6 +1,6 @@
 #import "token.c";
 
-fn main(argc: u64, argv: char**) {
+fn main(argc: u64, argv: char**) u8 {
     time :: 34;
     time :: 43 / 89 + 34 * 34 - -43;
 }
@@ -8,7 +8,7 @@ fn main(argc: u64, argv: char**) {
 fn game {
     gdf: f32*;
     fdf: f32*: 453445645;
-    56 / 45 - - 345 + 34;
+    56 / 45 - - 345 + 34 * 8;
 }
 
-fn out(arg: GameController);
+fn out(arg: GameController) GameController*;

@@ -27,6 +27,7 @@ int main(int argc, char** argv) {
             case ERROR_READ: error_read = true; break;
             case ERROR_LEX: error_lex = true; break;
             case ERROR_PARSE: error_parse = true; break;
+            default: break;
         }
         if (output.parser) buf_push(parsers, output.parser);
     }

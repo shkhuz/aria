@@ -10,6 +10,7 @@
 Compiler compiler_new(const char* srcfile_path) {
     Compiler compiler;
     compiler.srcfile_path = srcfile_path;
+    return compiler;
 }
 
 CompileOutput compiler_run(Compiler* self) {

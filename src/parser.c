@@ -68,6 +68,7 @@ static void sync_to_next_statement(Parser* self) {
                 check_eof; goto_next_token(self);
             }
         }} break;
+    default: assert(0); break;
     }
 }
 
@@ -160,7 +161,7 @@ static bool match(Parser* self, TokenType type) {
 
 static bool match_keyword(Parser* self, const char* keyword) {
     if (current(self)->type == T_KEYWORD &&
-        str_intern(current(self)->lexeme) == str_intern(keyword)) {
+        str_intern(current(self)->lexeme) == str_intern((char*)keyword)) {
         goto_next_token(self);
         return true;
     }
@@ -204,16 +205,16 @@ static void expect(Parser* self, TokenType type, const char* fmt, ...) {
     }
 }
 
-static void expect_keyword(Parser* self, const char* keyword) {
-    if (!match_keyword(self, keyword)) {
-        error_token_with_sync(
-                self,
-                current(self),
-                "expect keyword: `%s`",
-                keyword
-        );
-    }
-}
+/* static void expect_keyword(Parser* self, const char* keyword) { */
+/*     if (!match_keyword(self, keyword)) { */
+/*         error_token_with_sync( */
+/*                 self, */
+/*                 current(self), */
+/*                 "expect keyword: `%s`", */
+/*                 keyword */
+/*         ); */
+/*     } */
+/* } */
 
 #define expect_identifier(self) \
     chk(expect(self, T_IDENTIFIER, "expect identifier"))
@@ -224,8 +225,8 @@ static void expect_keyword(Parser* self, const char* keyword) {
 #define expect_colon(self) \
     chk(expect(self, T_COLON, "expect ':'"))
 
-#define expect_l_brace(self) \
-    chk(expect(self, T_L_BRACE, "expect '{'"))
+/* #define expect_l_brace(self) \ */
+/*     chk(expect(self, T_L_BRACE, "expect '{'")) */
 
 #define expect_comma(self) \
     chk(expect(self, T_COMMA, "expect ','"))
@@ -312,6 +313,7 @@ static Stmt* stmt_variable_decl_new(
     stmt->s.variable_decl.identifier = identifier;
     stmt->s.variable_decl.data_type = data_type;
     stmt->s.variable_decl.initializer = initializer;
+    return stmt;
 }
 
 static Stmt* variable_decl(Parser* self, Token* identifier) {
@@ -374,34 +376,37 @@ static Stmt* stmt(Parser* self) {
         if (error) return null;
         else return stmt_block_new(block);
     }
-    else {
-        EXPR(e);
-        expect_semicolon(self);
-        return stmt_expr_new(e);
-    }
+
+    EXPR(e);
+    expect_semicolon(self);
+    return stmt_expr_new(e);
 }
 
 static Stmt* stmt_function_def_new(
         Token* identifier,
         Param** params,
+        DataType* return_type,
         Stmt* body) {
 
     Stmt* stmt = stmt_new_alloc();
     stmt->type = S_FUNCTION_DEF;
     stmt->s.function_def.identifier = identifier;
     stmt->s.function_def.params = params;
+    stmt->s.function_def.return_type = return_type;
     stmt->s.function_def.body = body;
     return stmt;
 }
 
 static Stmt* stmt_function_decl_new(
         Token* identifier,
-        Param** params) {
+        Param** params,
+        DataType* return_type) {
 
     Stmt* stmt = stmt_new_alloc();
     stmt->type = S_FUNCTION_DECL;
     stmt->s.function_decl.identifier = identifier;
     stmt->s.function_decl.params = params;
+    stmt->s.function_decl.return_type = return_type;
     return stmt;
 }
 
@@ -441,6 +446,9 @@ static Stmt* decl(Parser* self) {
             }
         }
 
+        DataTypeError return_type = match_data_type(self);
+        if (return_type.error) return null;
+
         if (match(self, T_L_BRACE)) {
             goto_previous_token(self);
 
@@ -448,13 +456,26 @@ static Stmt* decl(Parser* self) {
             if (!body) return null;
             buf_push(
                     self->decls,
-                    stmt_function_decl_new(identifier, params)
+                    stmt_function_decl_new(
+                        identifier,
+                        params,
+                        return_type.data_type
+                    )
             );
-            return stmt_function_def_new(identifier, params, body);
+            return stmt_function_def_new(
+                    identifier,
+                    params,
+                    return_type.data_type,
+                    body
+            );
         }
         else {
             expect_semicolon(self);
-            return stmt_function_decl_new(identifier, params);
+            return stmt_function_decl_new(
+                    identifier,
+                    params,
+                    return_type.data_type
+            );
         }
     }
     else if (match(self, T_IDENTIFIER)) {
@@ -480,16 +501,15 @@ static Stmt* decl(Parser* self) {
         const char* path_without_quotes =
             str_intern_range(path->start + 1, path->end - 1);
         buf_push(self->imports, path_without_quotes);
-    }
-    else {
-    error:
-        error_token_with_sync(
-                self,
-                current(self),
-                "expect top-level declaration"
-        );
         return null;
     }
+error:
+    error_token_with_sync(
+            self,
+            current(self),
+            "expect top-level declaration"
+    );
+    return null;
 }
 
 Error parser_run(Parser* self) {
