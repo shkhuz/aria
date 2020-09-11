@@ -42,6 +42,9 @@ int main(int argc, char** argv) {
         fatal_error_common("aborting compilation");
     }
 
+    // TODO: fix if new file parsers pushed
+    // are not being added
+    bool error_in_addition = false;
     buf_loop(parsers, p) {
         const char** imports = parsers[p]->imports;
         buf_loop(imports, i) {
@@ -70,7 +73,9 @@ int main(int argc, char** argv) {
                     str_intern(import_file_rel_to_cur)) {
                     got_import_file = true;
                     fill_import_decls(parsers[p], parsers[cp]);
-                    printf("got in cache\n");
+                    printf("--- %s (cache) ---\n", parsers[p]->srcfile->fpath);
+                    print_ast(parsers[p]->stmts);
+                    break;
                 }
             }
 
@@ -78,14 +83,19 @@ int main(int argc, char** argv) {
                 const char* srcfile_name = import_file_rel_to_cur;
                 Compiler compiler = compiler_new(srcfile_name);
                 CompileOutput output = compiler_run(&compiler);
-                printf("got by building\n");
                 if (output.parser) {
                     buf_push(parsers, output.parser);
                     fill_import_decls(parsers[p], output.parser);
+                    printf("--- %s (building) ---\n", parsers[p]->srcfile->fpath);
                     print_ast(parsers[p]->stmts);
                 }
+                else error_in_addition = true;
             }
         }
+    }
+
+    if (error_in_addition) {
+        fatal_error_common("aborting compilation");
     }
 }
 

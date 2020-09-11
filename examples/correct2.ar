@@ -1,0 +1,9 @@
+#import "engine.ar";
+
+fn work(g: T) {
+}
+
+fdf :: 34;
+
+fn good(g: F) {
+}
