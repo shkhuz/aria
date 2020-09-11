@@ -486,6 +486,14 @@ static Stmt* decl(Parser* self) {
         else goto error;
     }
     else if (match(self, T_IMPORT)) {
+        if (current(self)->type != T_STRING) {
+            error_token_with_sync(
+                    self,
+                    current(self),
+                    "expect compile-time string"
+            );
+            return null;
+        }
         if (str_intern(current(self)->lexeme) == str_intern("\"\"")) {
             error_token_with_sync(
                     self,

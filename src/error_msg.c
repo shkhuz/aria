@@ -82,10 +82,12 @@ void error(
 	fprintf(stderr, "| ");
 
 	char* beg_of_line = get_line_in_file(srcfile, line);
-	for (u64 c = 0; c < column - 1; c++) {
-		if (beg_of_line[c] == '\t') print_tab();
-		else fprintf(stderr, " ");
-	}
+    if (column != 0) {
+        for (u64 c = 0; c < column - 1; c++) {
+            if (beg_of_line[c] == '\t') print_tab();
+            else fprintf(stderr, " ");
+        }
+    }
 
 	// TODO: check if this works when there are tabs in between
 	// error markers
@@ -138,7 +140,7 @@ static void _error_common(const char* fmt, va_list ap) {
     va_list aq;
     va_copy(aq, ap);
 
-	fprintf(stderr, "aria: ");
+	fprintf(stderr, ANSI_FRED "aria" ANSI_RESET ": ");
 	vfprintf(stderr, fmt, aq);
 	fprintf(stderr, "\n");
 
