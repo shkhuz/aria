@@ -11,6 +11,8 @@ static bool error_read = false;
 static bool error_lex = false;
 static bool error_parse = false;
 
+static void fill_import_decls(Parser* fill, Parser* from);
+
 int main(int argc, char** argv) {
     error_read = false;
     keywords_init();
@@ -62,13 +64,33 @@ int main(int argc, char** argv) {
             );
             printf("%s, %s\n", import_file, import_file_rel_to_cur);
 
+            bool got_import_file = false;
             buf_loop(parsers, cp) {
                 if (str_intern(parsers[cp]->srcfile->fpath) ==
                     str_intern(import_file_rel_to_cur)) {
-                    printf("found\n");
+                    got_import_file = true;
+                    fill_import_decls(parsers[p], parsers[cp]);
+                    printf("got in cache\n");
+                }
+            }
+
+            if (!got_import_file) {
+                const char* srcfile_name = import_file_rel_to_cur;
+                Compiler compiler = compiler_new(srcfile_name);
+                CompileOutput output = compiler_run(&compiler);
+                printf("got by building\n");
+                if (output.parser) {
+                    buf_push(parsers, output.parser);
+                    fill_import_decls(parsers[p], output.parser);
+                    print_ast(parsers[p]->stmts);
                 }
             }
         }
     }
 }
 
+static void fill_import_decls(Parser* fill, Parser* from) {
+    buf_loop(from->decls, d) {
+        buf_push(fill->stmts, from->decls[d]);
+    }
+}
