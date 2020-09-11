@@ -83,7 +83,6 @@ static void error_token_with_sync(
     va_list ap;
     va_start(ap, fmt);
     verror_token(
-            self->srcfile,
             token,
             fmt,
             ap
@@ -382,31 +381,20 @@ static Stmt* stmt(Parser* self) {
     return stmt_expr_new(e);
 }
 
-static Stmt* stmt_function_def_new(
+static Stmt* stmt_function_new(
         Token* identifier,
         Param** params,
         DataType* return_type,
-        Stmt* body) {
+        Stmt* body,
+        bool decl) {
 
     Stmt* stmt = stmt_new_alloc();
-    stmt->type = S_FUNCTION_DEF;
-    stmt->s.function_def.identifier = identifier;
-    stmt->s.function_def.params = params;
-    stmt->s.function_def.return_type = return_type;
-    stmt->s.function_def.body = body;
-    return stmt;
-}
-
-static Stmt* stmt_function_decl_new(
-        Token* identifier,
-        Param** params,
-        DataType* return_type) {
-
-    Stmt* stmt = stmt_new_alloc();
-    stmt->type = S_FUNCTION_DECL;
-    stmt->s.function_decl.identifier = identifier;
-    stmt->s.function_decl.params = params;
-    stmt->s.function_decl.return_type = return_type;
+    stmt->type = S_FUNCTION;
+    stmt->s.function.identifier = identifier;
+    stmt->s.function.params = params;
+    stmt->s.function.return_type = return_type;
+    stmt->s.function.body = body;
+    stmt->s.function.decl = decl;
     return stmt;
 }
 
@@ -456,25 +444,30 @@ static Stmt* decl(Parser* self) {
             if (!body) return null;
             buf_push(
                     self->decls,
-                    stmt_function_decl_new(
+                    stmt_function_new(
                         identifier,
                         params,
-                        return_type.data_type
+                        return_type.data_type,
+                        null,
+                        true
                     )
             );
-            return stmt_function_def_new(
+            return stmt_function_new(
                     identifier,
                     params,
                     return_type.data_type,
-                    body
+                    body,
+                    false
             );
         }
         else {
             expect_semicolon(self);
-            return stmt_function_decl_new(
+            return stmt_function_new(
                     identifier,
                     params,
-                    return_type.data_type
+                    return_type.data_type,
+                    null,
+                    true
             );
         }
     }

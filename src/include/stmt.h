@@ -5,8 +5,7 @@
 #include <data_type.h>
 
 typedef enum {
-    S_FUNCTION_DEF,
-    S_FUNCTION_DECL,
+    S_FUNCTION,
     S_VARIABLE_DECL,
     S_EXPR,
     S_BLOCK,
@@ -25,13 +24,8 @@ typedef struct {
     Param** params;
     DataType* return_type;
     Stmt* body;
-} FunctionDef;
-
-typedef struct {
-    Token* identifier;
-    Param** params;
-    DataType* return_type;
-} FunctionDecl;
+    bool decl;
+} Function;
 
 typedef struct {
     Token* identifier;
@@ -42,8 +36,7 @@ typedef struct {
 struct Stmt {
     StmtType type;
     union s {
-        FunctionDef function_def;
-        FunctionDecl function_decl;
+        Function function;
         VariableDecl variable_decl;
         Expr* expr;
         Stmt** block;

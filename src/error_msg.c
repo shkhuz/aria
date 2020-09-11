@@ -96,14 +96,12 @@ void error(
 }
 
 void error_token(
-        File* srcfile,
         Token* token,
         const char* fmt,
         ...) {
     va_list ap;
     va_start(ap, fmt);
     verror_token(
-            srcfile,
             token,
             fmt,
             ap);
@@ -111,14 +109,13 @@ void error_token(
 }
 
 void verror_token(
-        File* srcfile,
         Token* token,
         const char* fmt,
         va_list ap) {
     va_list aq;
     va_copy(aq, ap);
     error(
-            srcfile,
+            token->srcfile,
             token->line,
             token->column,
             token->char_count,

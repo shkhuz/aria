@@ -5,5 +5,5 @@ fn work(g: T) {
 
 fdf :: 34;
 
-fn good(g: F) {
+fn good(game_controller: F) {
 }

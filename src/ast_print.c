@@ -121,35 +121,26 @@ static void param(Param* param) {
     comma(); spc();
 }
 
-static void stmt_function_def(Stmt* s) {
-    string("STMT_FUNCTION_DEF ");
-    token(s->s.function_def.identifier); spc();
+static void stmt_function(Stmt* s) {
+    string("STMT_FUNCTION");
+    if (s->s.function.decl) string("(decl) ");
+    else string("(def) ");
+    token(s->s.function.identifier); spc();
     l_paren();
-    for (u64 p = 0; p < buf_len(s->s.function_def.params); p++) {
-        param(s->s.function_def.params[p]);
+    for (u64 p = 0; p < buf_len(s->s.function.params); p++) {
+        param(s->s.function.params[p]);
     }
     r_paren();
-    if (s->s.function_def.return_type) {
-        spc(); data_type(s->s.function_def.return_type);
+    if (s->s.function.return_type) {
+        spc(); data_type(s->s.function.return_type);
     }
 
-    format_nh();
-    stmt(s->s.function_def.body);
-    format_ret_nh();
-}
-
-static void stmt_function_decl(Stmt* s) {
-    string("STMT_FUNCTION_DECL ");
-    token(s->s.function_decl.identifier); spc();
-    l_paren();
-    for (u64 p = 0; p < buf_len(s->s.function_def.params); p++) {
-        param(s->s.function_def.params[p]);
+    if (!s->s.function.decl) {
+        format_nh();
+        stmt(s->s.function.body);
+        format_ret_nh();
     }
-    r_paren();
-    if (s->s.function_decl.return_type) {
-        spc(); data_type(s->s.function_decl.return_type);
-    }
-    newline();
+    else newline();
 }
 
 static void stmt_variable_decl(Stmt* s) {
@@ -176,8 +167,7 @@ static void stmt(Stmt* stmt) {
     }
 
     switch (stmt->type) {
-    case S_FUNCTION_DEF: stmt_function_def(stmt); break;
-    case S_FUNCTION_DECL: stmt_function_decl(stmt); break;
+    case S_FUNCTION: stmt_function(stmt); break;
     case S_VARIABLE_DECL: stmt_variable_decl(stmt); break;
     case S_BLOCK: stmt_block(stmt); break;
     case S_EXPR: stmt_expr(stmt); break;

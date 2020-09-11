@@ -9,7 +9,7 @@ typedef struct {
 	char* start;
 	char* end;
 	TokenType type;
-	File* file;
+	File* srcfile;
 	u64 line;
 	u64 column;
 	u64 char_count;
@@ -20,10 +20,12 @@ Token token_new(
 	char* start,
 	char* end,
 	TokenType type,
-	File* file,
+	File* srcfile,
 	u64 line,
 	u64 column,
 	u64 char_count);
+
+bool is_tok_eq(Token* a, Token* b);
 
 extern const char* tokentype_str[];
 
