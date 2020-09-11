@@ -1,7 +1,7 @@
 #import "engine.ar";
 #import "correct2.ar";
 
-fn main(argc: u64, argv: char**) u8 {
+fn main (argc: u64, argv: char**) u8 {
     time :: 34;
     time :: 43 / 89 + 34 * 34 - -43;
 }
@@ -12,5 +12,16 @@ fn game {
     56 / 45 - - 345 + 34 * 8;
 }
 
+fn good (something_good: u64, c: char) char {
+    something_good_alt: char;
+}
+
 fn out(arg: GameController) GameController*;
 
+fn game {
+
+}
+
+fn game {
+
+}

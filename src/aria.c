@@ -13,6 +13,9 @@ static bool error_parse = false;
 
 static void fill_import_decls(Parser* fill, Parser* from);
 
+#define fatal_error_no_msg \
+    exit(1)
+
 int main(int argc, char** argv) {
     error_read = false;
     keywords_init();
@@ -38,9 +41,7 @@ int main(int argc, char** argv) {
     if (error_read) {
         fatal_error_common("one or more files were not read: aborting compilation");
     }
-    else if (error_lex || error_parse) {
-        fatal_error_common("aborting compilation");
-    }
+    else if (error_lex || error_parse) { fatal_error_no_msg; }
 
     // TODO: fix if new file parsers pushed
     // are not being added
@@ -70,11 +71,9 @@ int main(int argc, char** argv) {
             bool got_import_file = false;
             buf_loop(parsers, cp) {
                 if (str_intern(parsers[cp]->srcfile->fpath) ==
-                    str_intern(import_file_rel_to_cur)) {
+                    str_intern((char*)import_file_rel_to_cur)) {
                     got_import_file = true;
                     fill_import_decls(parsers[p], parsers[cp]);
-                    printf("--- %s (cache) ---\n", parsers[p]->srcfile->fpath);
-                    print_ast(parsers[p]->stmts);
                     break;
                 }
             }
@@ -86,16 +85,21 @@ int main(int argc, char** argv) {
                 if (output.parser) {
                     buf_push(parsers, output.parser);
                     fill_import_decls(parsers[p], output.parser);
-                    printf("--- %s (building) ---\n", parsers[p]->srcfile->fpath);
-                    print_ast(parsers[p]->stmts);
                 }
                 else error_in_addition = true;
             }
         }
     }
+    if (error_in_addition) { fatal_error_no_msg; }
 
-    if (error_in_addition) {
-        fatal_error_common("aborting compilation");
+    buf_loop(parsers, p) {
+        printf("\n*** %s ***\n", parsers[p]->srcfile->fpath);
+        print_ast(parsers[p]->stmts);
+    }
+
+    bool post_run_error = compiler_post_run_all(parsers);
+    if (post_run_error) {
+        fatal_error_no_msg;
     }
 }
 

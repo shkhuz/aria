@@ -20,4 +20,13 @@
 #define COMBINE1(X, Y) X##Y
 #define COMBINE(X,Y) COMBINE1(X,Y)
 
+#define ANSI_FBOLD    "\x1B[1m"
+#define ANSI_FRED     "\x1B[1;31m"
+/* #define ANSI_FGREEN   "\x1B[32m" */
+/* #define ANSI_FYELLOW  "\x1B[33m" */
+/* #define ANSI_FBLUE    "\x1B[34m" */
+/* #define ANSI_FMAGENTA "\x1B[35m" */
+/* #define ANSI_FCYAN    "\x1B[36m" */
+#define ANSI_RESET   "\x1B[0m"
+
 #endif /* _ARPCH_H */

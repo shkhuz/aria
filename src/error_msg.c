@@ -1,16 +1,8 @@
-#define _ERROR_MSG_NO_ERROR_TOKEN_MACRO
+#define _ERROR_MSG_NO_ERROR_MACRO
 #include <error_msg.h>
-#undef _ERROR_MSG_NO_ERROR_TOKEN_MACRO
+#undef _ERROR_MSG_NO_ERROR_MACRO
 #include <token.h>
 #include <arpch.h>
-
-#define ANSI_FRED     "\x1B[1;31m"
-/* #define ANSI_FGREEN   "\x1B[32m" */
-/* #define ANSI_FYELLOW  "\x1B[33m" */
-/* #define ANSI_FBLUE    "\x1B[34m" */
-/* #define ANSI_FMAGENTA "\x1B[35m" */
-/* #define ANSI_FCYAN    "\x1B[36m" */
-#define ANSI_RESET   "\x1B[0m"
 
 static char* get_line_in_file(File* srcfile, u64 line) {
 	char* line_start = srcfile->contents;
@@ -46,9 +38,9 @@ void error(
 	va_copy(aq, ap);
 	fprintf(
 		stderr,
-		ANSI_FRED "%s" ANSI_RESET ":"
-        ANSI_FRED "%lu" ANSI_RESET ":"
-        ANSI_FRED "%lu" ANSI_RESET": "
+		ANSI_FBOLD "%s" ANSI_RESET ":"
+        ANSI_FBOLD "%lu" ANSI_RESET ":"
+        ANSI_FBOLD "%lu" ANSI_RESET": "
         ANSI_FRED "error" ANSI_RESET ": ",
 		srcfile->fpath,
 		line,
@@ -140,7 +132,7 @@ static void _error_common(const char* fmt, va_list ap) {
     va_list aq;
     va_copy(aq, ap);
 
-	fprintf(stderr, ANSI_FRED "aria" ANSI_RESET ": ");
+	fprintf(stderr, ANSI_FBOLD "aria" ANSI_RESET ": ");
 	vfprintf(stderr, fmt, aq);
 	fprintf(stderr, "\n");
 

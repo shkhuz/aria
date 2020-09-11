@@ -26,8 +26,9 @@ void verror_token(
 void error_common(const char* fmt, ...);
 void fatal_error_common(const char* fmt, ...);
 
-#ifndef _ERROR_MSG_NO_ERROR_TOKEN_MACRO
+#ifndef _ERROR_MSG_NO_ERROR_MACRO
 #define error_token(token, fmt, ...) \
+    self->error_state = ERROR_ERROR, \
     error_token(self->srcfile, token, fmt, ##__VA_ARGS__)
 #endif
 

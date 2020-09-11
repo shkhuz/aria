@@ -6,6 +6,7 @@ typedef enum {
     ERROR_READ,
     ERROR_LEX,
     ERROR_PARSE,
+    ERROR_ERROR,
 } Error;
 
 #endif /* _ERROR_VALUE_H */

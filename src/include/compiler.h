@@ -15,5 +15,6 @@ typedef struct {
 
 Compiler compiler_new(const char* srcfile_path);
 CompileOutput compiler_run(Compiler* self);
+bool compiler_post_run_all(Parser** parsers);
 
 #endif /* _COMPILER_H */

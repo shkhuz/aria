@@ -1,5 +1,6 @@
 #include <ast_print.h>
 #include <compiler.h>
+#include <linker.h>
 #include <parser.h>
 #include <lexer.h>
 #include <token.h>
@@ -44,7 +45,18 @@ CompileOutput compiler_run(Compiler* self) {
         return (CompileOutput){ parser_error, null };
     }
 
-    print_ast(parser->stmts);
-
     return (CompileOutput){ ERROR_SUCCESS, parser };
+}
+
+bool compiler_post_run_all(Parser** parsers) {
+    bool error = false;
+    buf_loop(parsers, p) {
+        Linker linker = linker_new(parsers[p]->srcfile, parsers[p]->stmts);
+        Error linker_error = linker_run(&linker);
+        if (linker_error != ERROR_SUCCESS) {
+            error = true;
+            continue;
+        }
+    }
+    return error;
 }
