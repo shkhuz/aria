@@ -142,7 +142,10 @@ static void stmt_function(Stmt* s) {
 }
 
 static void stmt_variable_decl(Stmt* s) {
-    string("STMT_VARIABLE_DECL ");
+    string("STMT_VARIABLE_DECL");
+    if (s->s.variable_decl.external) string("(extern) ");
+    else chr(' ');
+
     token(s->s.variable_decl.identifier);
     if (s->s.variable_decl.data_type) {
         spc(); data_type(s->s.variable_decl.data_type);

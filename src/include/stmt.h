@@ -31,6 +31,7 @@ typedef struct {
     Token* identifier;
     DataType* data_type;
     Expr* initializer;
+    bool external;
 } VariableDecl;
 
 struct Stmt {

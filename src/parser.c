@@ -306,13 +306,15 @@ static Expr* expr(Parser* self) {
 static Stmt* stmt_variable_decl_new(
         Token* identifier,
         DataType* data_type,
-        Expr* initializer) {
+        Expr* initializer,
+        bool external) {
 
     Stmt* stmt = stmt_new_alloc();
     stmt->type = S_VARIABLE_DECL;
     stmt->s.variable_decl.identifier = identifier;
     stmt->s.variable_decl.data_type = data_type;
     stmt->s.variable_decl.initializer = initializer;
+    stmt->s.variable_decl.external = external;
     return stmt;
 }
 
@@ -332,10 +334,21 @@ static Stmt* variable_decl(Parser* self, Token* identifier) {
         return null;
     }
     expect_semicolon(self);
+
+    Stmt* variable =
+        stmt_variable_decl_new(
+            identifier,
+            data_type.data_type,
+            null,
+            true
+        );
+    buf_push(self->decls, variable);
+
     return stmt_variable_decl_new(
             identifier,
             data_type.data_type,
-            initializer
+            initializer,
+            false
     );
 }
 
