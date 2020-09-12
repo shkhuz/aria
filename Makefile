@@ -25,7 +25,7 @@ LDFLAGS :=
 LIBS_INC_DIR_CMD :=
 LIBS_LIB_DIR_CMD :=
 LIBS_LIB_CMD :=
-CMD_ARGS := examples/correct.ar
+CMD_ARGS := examples/single_file.ar
 
 install: $(BIN_FILE) docs
 	$(BIN_FILE) $(CMD_ARGS)

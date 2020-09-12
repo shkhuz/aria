@@ -20,6 +20,7 @@ Parser parser_new(File* srcfile, Token** tokens) {
     parser.stmts = null;
     parser.decls = null;
     parser.imports = null;
+    parser.in_function = false;
     parser.error_panic = false;
     parser.error_count = 0;
     parser.error_loc = ERRLOC_GLOBAL;
@@ -238,6 +239,20 @@ static Expr* expr_integer_new(Token* integer) {
     return expr;
 }
 
+static Expr* expr_string_new(Token* str) {
+    Expr* expr = expr_new_alloc();
+    expr->type = E_STRING;
+    expr->e.str = str;
+    return expr;
+}
+
+static Expr* expr_char_new(Token* chr) {
+    Expr* expr = expr_new_alloc();
+    expr->type = E_CHAR;
+    expr->e.chr = chr;
+    return expr;
+}
+
 static Expr* expr_unary_new(Token* op, Expr* right) {
     Expr* expr = expr_new_alloc();
     expr->type = E_UNARY;
@@ -258,6 +273,12 @@ static Expr* expr_binary_new(Expr* left, Expr* right, Token* op) {
 static Expr* expr_atom(Parser* self) {
     if (match(self, T_INTEGER)) {
         return expr_integer_new(previous(self));
+    }
+    else if (match(self, T_STRING)) {
+        return expr_string_new(previous(self));
+    }
+    else if (match(self, T_CHAR)) {
+        return expr_char_new(previous(self));
     }
     else {
         error_token_with_sync(
@@ -322,8 +343,16 @@ static Stmt* variable_decl(Parser* self, Token* identifier) {
     DataTypeError data_type = match_data_type(self);
     if (data_type.error) return null;
     Expr* initializer = null;
-    if (match(self, T_COLON)) {
+    if (match(self, T_EQUAL)) {
         EXPR_ND(initializer, expr, self);
+    }
+    else if (current(self)->type != T_SEMICOLON) {
+        error_token_with_sync(
+                self,
+                current(self),
+                "expect `=`"
+        );
+        return null;
     }
     else if (!data_type.data_type) {
         error_token_with_sync(
@@ -335,14 +364,16 @@ static Stmt* variable_decl(Parser* self, Token* identifier) {
     }
     expect_semicolon(self);
 
-    Stmt* variable =
-        stmt_variable_decl_new(
-            identifier,
-            data_type.data_type,
-            null,
-            true
-        );
-    buf_push(self->decls, variable);
+    if (!self->in_function) {
+        Stmt* variable =
+            stmt_variable_decl_new(
+                identifier,
+                data_type.data_type,
+                null,
+                true
+            );
+        buf_push(self->decls, variable);
+    }
 
     return stmt_variable_decl_new(
             identifier,
@@ -416,6 +447,7 @@ static Stmt* decl(Parser* self) {
     self->error_loc = ERRLOC_GLOBAL;
     if (match_keyword(self, "fn")) {
         self->error_loc = ERRLOC_FUNCTION_HEADER;
+
         expect_identifier(self);
         Token* identifier = previous(self);
         Param** params = null;
@@ -457,8 +489,11 @@ static Stmt* decl(Parser* self) {
         if (match(self, T_L_BRACE)) {
             goto_previous_token(self);
 
+            self->in_function = true;
             Stmt* body = stmt(self);
+            self->in_function = false;
             if (!body) return null;
+
             buf_push(
                     self->decls,
                     stmt_function_new(

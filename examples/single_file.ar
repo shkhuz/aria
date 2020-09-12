@@ -1,0 +1,8 @@
+#import "import_this.ar";
+
+fn main {
+    time := 12;
+}
+
+global := 'c';
+str := "x343";

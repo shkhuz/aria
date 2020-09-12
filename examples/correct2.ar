@@ -3,7 +3,7 @@
 fn work(g: T) {
 }
 
-fdf :: 34;
+fdf := 34;
 
 fn good(game_controller: F) {
 }

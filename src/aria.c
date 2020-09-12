@@ -99,7 +99,12 @@ int main(int argc, char** argv) {
     if (error_in_addition) { fatal_error_no_msg; }
 
     buf_loop(parsers, p) {
-        printf("\n*** %s ***\n", parsers[p]->srcfile->fpath);
+        printf(
+                ANSI_FMAGENTA "\n***" ANSI_RESET
+                " %s "
+                ANSI_FMAGENTA "***\n" ANSI_RESET,
+                parsers[p]->srcfile->fpath
+        );
         print_ast(parsers[p]->stmts);
     }
 

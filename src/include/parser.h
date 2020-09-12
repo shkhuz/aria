@@ -21,6 +21,8 @@ typedef struct {
     Stmt** decls;
     const char** imports;
 
+    bool in_function;
+
     bool error_panic;
     u64 error_count;
     ErrorLocation error_loc;

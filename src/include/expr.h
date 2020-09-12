@@ -7,6 +7,8 @@ typedef enum {
     E_BINARY,
     E_UNARY,
     E_INTEGER,
+    E_STRING,
+    E_CHAR,
     E_NONE,
 } ExprType;
 
@@ -29,6 +31,8 @@ struct Expr {
         ExprBinary binary;
         ExprUnary unary;
         Token* integer;
+        Token* str;
+        Token* chr;
     } e;
 };
 

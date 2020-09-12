@@ -78,6 +78,14 @@ static void expr_integer(Expr* e) {
     token(e->e.integer);
 }
 
+static void expr_string(Expr* e) {
+    token(e->e.str);
+}
+
+static void expr_char(Expr* e) {
+    token(e->e.chr);
+}
+
 static void expr_unary(Expr* e) {
     l_paren();
     token(e->e.unary.op);
@@ -100,6 +108,8 @@ static void expr(Expr* expr) {
     case E_BINARY: expr_binary(expr); break;
     case E_UNARY: expr_unary(expr); break;
     case E_INTEGER: expr_integer(expr); break;
+    case E_STRING: expr_string(expr); break;
+    case E_CHAR: expr_char(expr); break;
     case E_NONE: assert(0); break;
     default: assert(0); break;
     }

@@ -156,13 +156,11 @@ static void string(Lexer* self) {
 }
 
 static void chr(Lexer* self) {
-	self->start++;
 	self->current++;
 	// TODO: handle escape sequences;
 
-	self->current++;
+	self->current += 2;
 	addt(self, T_CHAR);
-	self->current++;
 }
 
 static void directive(Lexer* self) {
@@ -233,6 +231,7 @@ Error lexer_run(Lexer* self) {
         case '}': char_token(T_R_BRACE); break;
         case '(': char_token(T_L_PAREN); break;
         case ')': char_token(T_R_PAREN); break;
+        case '=': char_token(T_EQUAL); break;
 
         /* case ':': if (match(self, ':')) char_token(T_DOUBLE_COLON); */
         /*           else char_token(T_COLON); break; */
