@@ -64,7 +64,9 @@ static void add_function(Linker* self, Stmt* stmt) {
                     if (!is_dt_eq(
                                 second_params[i]->data_type,
                                 first_params[i]->data_type)) {
+
                         DataType* dt = second_params[i]->data_type;
+                        assert(!dt->compiler_generated);
                         error_data_type(
                                 dt,
                                 "parameter type does not match previous declaration"
@@ -72,6 +74,25 @@ static void add_function(Linker* self, Stmt* stmt) {
                         error = true;
                     }
                 }
+
+                if (!is_dt_eq(
+                            stmt->s.function.return_type,
+                            chk->s.function.return_type)) {
+
+                    DataType* dt = stmt->s.function.return_type;
+                    const char* error_msg =
+                        "return type does not match previous declaration";
+
+                    if (dt->compiler_generated) {
+                        error_token(
+                                stmt->s.function.identifier,
+                                error_msg
+                        );
+                    }
+                    else { error_data_type(dt, error_msg); }
+                    error = true;
+                }
+
                 if (error) return;
             }
         }
@@ -82,8 +103,7 @@ static void add_function(Linker* self, Stmt* stmt) {
 Error linker_run(Linker* self) {
     buf_loop(self->stmts, s) {
         switch (self->stmts[s]->type) {
-        case S_FUNCTION:
-            add_function(self, self->stmts[s]); break;
+        case S_FUNCTION: add_function(self, self->stmts[s]); break;
         }
     }
     return self->error_state;

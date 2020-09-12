@@ -1,10 +1,12 @@
 #include <lexer.h>
+#include <ast_print.h>
 #include <token.h>
 #include <compiler.h>
 #include <arpch.h>
 #include <error_value.h>
 #include <error_msg.h>
 #include <keywords.h>
+#include <builtin_types.h>
 #include <str.h>
 
 static bool error_read = false;
@@ -21,6 +23,7 @@ static void fill_import_decls(Parser* fill, Parser* from);
 int main(int argc, char** argv) {
     error_read = false;
     keywords_init();
+    builtin_types_init();
 
 	if (argc < 2) {
 		fatal_error_common("no input files specified; aborting");

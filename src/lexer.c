@@ -43,8 +43,8 @@ static u64 compute_column_on_current(Lexer* self) {
 /* } */
 
 static void addt(Lexer* self, TokenType type) {
-	Token token =
-		token_new(
+	Token* token =
+		token_new_alloc(
 				str_intern_range(self->start, self->current),
 				self->start,
 				self->current,
@@ -54,10 +54,8 @@ static void addt(Lexer* self, TokenType type) {
 				compute_column_on_start(self),
 				(u64)(self->current - self->start)
         );
-	Token* token_heap = malloc(sizeof(Token));
-	memcpy(token_heap, &token, sizeof(Token));
 
-	buf_push(self->tokens, token_heap);
+	buf_push(self->tokens, token);
 }
 
 static void error_from_start(Lexer* self, u64 char_count, const char* fmt, ...) {

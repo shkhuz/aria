@@ -131,9 +131,7 @@ static void stmt_function(Stmt* s) {
         param(s->s.function.params[p]);
     }
     r_paren();
-    if (s->s.function.return_type) {
-        spc(); data_type(s->s.function.return_type);
-    }
+    spc(); data_type(s->s.function.return_type);
 
     if (!s->s.function.decl) {
         format_nh();

@@ -3,6 +3,7 @@
 #include <token.h>
 #include <data_type.h>
 #include <expr.h>
+#include <builtin_types.h>
 #include <error_msg.h>
 #include <arpch.h>
 
@@ -436,6 +437,9 @@ static Stmt* decl(Parser* self) {
 
         DataTypeError return_type = match_data_type(self);
         if (return_type.error) return null;
+        if (!return_type.data_type) {
+            return_type.data_type = builtin_types.void_type;
+        }
 
         if (match(self, T_L_BRACE)) {
             goto_previous_token(self);
