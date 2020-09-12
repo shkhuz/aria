@@ -47,6 +47,7 @@ static void add_function(Linker* self, Stmt* stmt) {
                     return;
                 }
 
+                bool error = false;
                 buf_loop(second_params, i) {
                     if (!is_tok_eq(
                                 second_params[i]->identifier,
@@ -57,8 +58,21 @@ static void add_function(Linker* self, Stmt* stmt) {
                                 token,
                                 "parameter name does not match previous declaration"
                         );
+                        error = true;
+                    }
+
+                    if (!is_dt_eq(
+                                second_params[i]->data_type,
+                                first_params[i]->data_type)) {
+                        DataType* dt = second_params[i]->data_type;
+                        error_data_type(
+                                dt,
+                                "parameter type does not match previous declaration"
+                        );
+                        error = true;
                     }
                 }
+                if (error) return;
             }
         }
     }

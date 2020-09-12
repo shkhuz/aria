@@ -10,11 +10,13 @@
 static bool error_read = false;
 static bool error_lex = false;
 static bool error_parse = false;
+static bool error_error = false;
 
 static void fill_import_decls(Parser* fill, Parser* from);
 
+/* TODO: change to `exit(1)` when not debugging */
 #define fatal_error_no_msg \
-    exit(1)
+    exit(0)
 
 int main(int argc, char** argv) {
     error_read = false;
@@ -33,6 +35,7 @@ int main(int argc, char** argv) {
             case ERROR_READ: error_read = true; break;
             case ERROR_LEX: error_lex = true; break;
             case ERROR_PARSE: error_parse = true; break;
+            case ERROR_ERROR: error_error = true; break;
             default: break;
         }
         if (output.parser) buf_push(parsers, output.parser);
@@ -41,7 +44,7 @@ int main(int argc, char** argv) {
     if (error_read) {
         fatal_error_common("one or more files were not read: aborting compilation");
     }
-    else if (error_lex || error_parse) { fatal_error_no_msg; }
+    else if (error_lex || error_parse || error_error) { fatal_error_no_msg; }
 
     // TODO: fix if new file parsers pushed
     // are not being added

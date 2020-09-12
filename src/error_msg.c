@@ -124,6 +124,35 @@ void verror_token(
     va_end(aq);
 }
 
+void error_data_type(
+        DataType* dt,
+        const char* fmt,
+        ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    verror_data_type(
+            dt,
+            fmt,
+            ap);
+    va_end(ap);
+}
+
+void verror_data_type(
+        DataType* dt,
+        const char* fmt,
+        va_list ap) {
+    va_list aq;
+    va_copy(aq, ap);
+    error(
+            dt->identifier->srcfile,
+            dt->identifier->line,
+            dt->identifier->column,
+            dt->identifier->char_count + dt->pointer_count,
+            fmt,
+            ap);
+    va_end(aq);
+}
+
 /* shared across source files (no unique source file path) */
 static void _error_common(const char* fmt, va_list ap) {
     va_list aq;

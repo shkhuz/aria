@@ -14,3 +14,11 @@ DataType* data_type_new_alloc(Token* identifier, u8 pointer_count) {
     return data_type;
 }
 
+bool is_dt_eq(DataType* a, DataType* b) {
+    if (is_tok_eq(a->identifier, b->identifier)) {
+        if (a->pointer_count == b->pointer_count) {
+            return true;
+        }
+    }
+    return false;
+}

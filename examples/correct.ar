@@ -12,7 +12,7 @@ fn game {
     56 / 45 - - 345 + 34 * 8;
 }
 
-fn good (something_good: u64) char {
+fn good (something_good: F*) char {
     something_good_alt: char;
 }
 
@@ -25,3 +25,4 @@ fn game {
 fn game {
 
 }
+

@@ -1,6 +1,7 @@
 #ifndef _ERROR_MSG_H
 #define _ERROR_MSG_H
 
+#include <data_type.h>
 #include <token.h>
 #include <arpch.h>
 
@@ -21,13 +22,26 @@ void verror_token(
         const char* fmt,
         va_list ap);
 
+void error_data_type(
+        DataType* dt,
+        const char* fmt,
+        ...);
+void verror_data_type(
+        DataType* dt,
+        const char* fmt,
+        va_list ap);
+
 void error_common(const char* fmt, ...);
 void fatal_error_common(const char* fmt, ...);
 
 #ifndef _ERROR_MSG_NO_ERROR_MACRO
-#define error_token(token, fmt, ...) \
+#define error_token(token, ...) \
     self->error_state = ERROR_ERROR, \
-    error_token(token, fmt, ##__VA_ARGS__)
+    error_token(token, ##__VA_ARGS__)
+
+#define error_data_type(dt, ...) \
+    self->error_state = ERROR_ERROR, \
+    error_data_type(dt, ##__VA_ARGS__)
 #endif
 
 #endif /* _ERROR_MSG_H */
