@@ -27,6 +27,8 @@ typedef struct {
 
 struct Expr {
     ExprType type;
+    Token* head;
+    Token* tail;
     union e {
         ExprBinary binary;
         ExprUnary unary;

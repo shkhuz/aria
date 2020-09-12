@@ -6,3 +6,4 @@ fn main {
 
 global := 'c';
 str := "x343";
+global := "dsd";

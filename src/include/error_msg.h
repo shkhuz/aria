@@ -1,6 +1,7 @@
 #ifndef _ERROR_MSG_H
 #define _ERROR_MSG_H
 
+#include <expr.h>
 #include <data_type.h>
 #include <token.h>
 #include <arpch.h>
@@ -31,6 +32,15 @@ void verror_data_type(
         const char* fmt,
         va_list ap);
 
+void error_expr(
+        Expr* expr,
+        const char* fmt,
+        ...);
+void verror_expr(
+        Expr* expr,
+        const char* fmt,
+        va_list ap);
+
 void error_common(const char* fmt, ...);
 void fatal_error_common(const char* fmt, ...);
 
@@ -42,6 +52,10 @@ void fatal_error_common(const char* fmt, ...);
 #define error_data_type(dt, ...) \
     self->error_state = ERROR_ERROR, \
     error_data_type(dt, ##__VA_ARGS__)
+
+#define error_expr(expr, ...) \
+    self->error_state = ERROR_ERROR, \
+    error_expr(expr, ##__VA_ARGS__)
 #endif
 
 #endif /* _ERROR_MSG_H */

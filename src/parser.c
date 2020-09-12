@@ -235,6 +235,8 @@ static void expect(Parser* self, TokenType type, const char* fmt, ...) {
 static Expr* expr_integer_new(Token* integer) {
     Expr* expr = expr_new_alloc();
     expr->type = E_INTEGER;
+    expr->head = integer;
+    expr->tail = integer;
     expr->e.integer = integer;
     return expr;
 }
@@ -242,6 +244,8 @@ static Expr* expr_integer_new(Token* integer) {
 static Expr* expr_string_new(Token* str) {
     Expr* expr = expr_new_alloc();
     expr->type = E_STRING;
+    expr->head = str;
+    expr->tail = str;
     expr->e.str = str;
     return expr;
 }
@@ -249,6 +253,8 @@ static Expr* expr_string_new(Token* str) {
 static Expr* expr_char_new(Token* chr) {
     Expr* expr = expr_new_alloc();
     expr->type = E_CHAR;
+    expr->head = chr;
+    expr->tail = chr;
     expr->e.chr = chr;
     return expr;
 }
@@ -256,6 +262,8 @@ static Expr* expr_char_new(Token* chr) {
 static Expr* expr_unary_new(Token* op, Expr* right) {
     Expr* expr = expr_new_alloc();
     expr->type = E_UNARY;
+    expr->head = op;
+    expr->tail = right->tail;
     expr->e.unary.op = op;
     expr->e.unary.right = right;
     return expr;
@@ -264,6 +272,8 @@ static Expr* expr_unary_new(Token* op, Expr* right) {
 static Expr* expr_binary_new(Expr* left, Expr* right, Token* op) {
     Expr* expr = expr_new_alloc();
     expr->type = E_BINARY;
+    expr->head = left->head;
+    expr->tail = right->tail;
     expr->e.binary.left = left;
     expr->e.binary.right = right;
     expr->e.binary.op = op;

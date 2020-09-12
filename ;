@@ -111,18 +111,8 @@ static void add_function(Linker* self, Stmt* stmt) {
 
 static void add_variable_decl(Linker* self, Stmt* stmt) {
     bool error = false;
-
-    Expr* initializer = stmt->s.variable_decl.initializer;
-    if (initializer) {
-        error_expr(
-                initializer,
-                "global-variable initializer is not permitted"
-        );
-        error = true;
-    }
-
-    buf_loop(self->global_scope->variables, v) {
-        Stmt* chk = self->global_scope->variables[v];
+    buf_loop(self->global_scope, v) {
+        Stmt* chk = self->global_scope[v];
         if (is_tok_eq(
                     stmt->s.variable_decl.identifier,
                     chk->s.variable_decl.identifier)) {
@@ -156,17 +146,12 @@ static void add_variable_decl(Linker* self, Stmt* stmt) {
                                 stmt->s.variable_decl.identifier,
                                 error_msg
                         );
-                        error = true;
+                        return;
                     }
                 }
             }
-
-            if (error) return;
         }
     }
-    if (error) return;
-
-    buf_push(self->global_scope->variables, stmt);
 }
 
 Error linker_run(Linker* self) {

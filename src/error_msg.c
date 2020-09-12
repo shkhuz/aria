@@ -153,6 +153,35 @@ void verror_data_type(
     va_end(aq);
 }
 
+void error_expr(
+        Expr* expr,
+        const char* fmt,
+        ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    verror_expr(
+            expr,
+            fmt,
+            ap);
+    va_end(ap);
+}
+
+void verror_expr(
+        Expr* expr,
+        const char* fmt,
+        va_list ap) {
+    va_list aq;
+    va_copy(aq, ap);
+    error(
+            expr->head->srcfile,
+            expr->head->line,
+            expr->head->column,
+            (u64)(expr->tail->end - expr->head->start),
+            fmt,
+            ap);
+    va_end(aq);
+}
+
 /* shared across source files (no unique source file path) */
 static void _error_common(const char* fmt, va_list ap) {
     va_list aq;

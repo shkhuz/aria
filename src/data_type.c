@@ -26,6 +26,21 @@ DataType* data_type_from_string_int(const char* identifier, u8 pointer_count) {
 }
 
 bool is_dt_eq(DataType* a, DataType* b) {
+    assert(a);
+    assert(b);
+    if (is_tok_eq(a->identifier, b->identifier)) {
+        if (a->pointer_count == b->pointer_count) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool is_dt_eq_null(DataType* a, DataType* b) {
+    bool a_present = (a ? true : false);
+    bool b_present = (b ? true : false);
+    if (a_present != b_present) return false;
+
     if (is_tok_eq(a->identifier, b->identifier)) {
         if (a->pointer_count == b->pointer_count) {
             return true;
