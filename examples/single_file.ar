@@ -1,6 +1,6 @@
 #import "import_this.ar";
 
-fn main {
+fn main (game_controller: GameController) {
     time := 12;
 }
 

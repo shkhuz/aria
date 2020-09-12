@@ -16,12 +16,7 @@ typedef struct Stmt Stmt;
 
 typedef struct {
     Token* identifier;
-    DataType* data_type;
-} Param;
-
-typedef struct {
-    Token* identifier;
-    Param** params;
+    Stmt** params;
     DataType* return_type;
     Stmt* body;
     bool decl;
@@ -44,8 +39,6 @@ struct Stmt {
     } s;
 };
 
-Param param_new(Token* identifier, DataType* data_type);
-Param* param_new_alloc(Token* identifier, DataType* data_type);
 Stmt stmt_new(void);
 Stmt* stmt_new_alloc(void);
 

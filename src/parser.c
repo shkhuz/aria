@@ -438,7 +438,7 @@ static Stmt* stmt(Parser* self) {
 
 static Stmt* stmt_function_new(
         Token* identifier,
-        Param** params,
+        Stmt** params,
         DataType* return_type,
         Stmt* body,
         bool decl) {
@@ -460,7 +460,7 @@ static Stmt* decl(Parser* self) {
 
         expect_identifier(self);
         Token* identifier = previous(self);
-        Param** params = null;
+        Stmt** params = null;
         if (match(self, T_L_PAREN)) {
             while (!match(self, T_R_PAREN)) {
                 expect_identifier(self);
@@ -483,10 +483,14 @@ static Stmt* decl(Parser* self) {
                 }
                 else match(self, T_COMMA);
 
-                buf_push(
-                        params,
-                        param_new_alloc(p_identifier, p_data_type.data_type)
-                );
+                Stmt* param =
+                    stmt_variable_decl_new(
+                            p_identifier,
+                            p_data_type.data_type,
+                            null,
+                            false
+                    );
+                buf_push(params, param);
             }
         }
 

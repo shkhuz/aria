@@ -37,8 +37,8 @@ static void add_function(Linker* self, Stmt* stmt) {
                 return;
             }
             else {
-                Param** first_params = chk->s.function.params;
-                Param** second_params = stmt->s.function.params;
+                Stmt** first_params = chk->s.function.params;
+                Stmt** second_params = stmt->s.function.params;
 
                 u64 first_arity = buf_len(first_params);
                 u64 second_arity = buf_len(second_params);
@@ -59,10 +59,11 @@ static void add_function(Linker* self, Stmt* stmt) {
                 bool error = false;
                 buf_loop(second_params, i) {
                     if (!is_tok_eq(
-                                second_params[i]->identifier,
-                                first_params[i]->identifier)) {
+                                second_params[i]->s.variable_decl.identifier,
+                                first_params[i]->s.variable_decl.identifier)) {
 
-                        Token* token = second_params[i]->identifier;
+                        Token* token =
+                            second_params[i]->s.variable_decl.identifier;
                         error_token(
                                 token,
                                 "parameter name does not match previous declaration"
@@ -71,10 +72,11 @@ static void add_function(Linker* self, Stmt* stmt) {
                     }
 
                     if (!is_dt_eq(
-                                second_params[i]->data_type,
-                                first_params[i]->data_type)) {
+                                second_params[i]->s.variable_decl.data_type,
+                                first_params[i]->s.variable_decl.data_type)) {
 
-                        DataType* dt = second_params[i]->data_type;
+                        DataType* dt =
+                            second_params[i]->s.variable_decl.data_type;
                         assert(!dt->compiler_generated);
                         error_data_type(
                                 dt,

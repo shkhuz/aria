@@ -124,10 +124,10 @@ static void stmt_expr(Stmt* s) {
     format_ret();
 }
 
-static void param(Param* param) {
-    token(param->identifier);
+static void param(Stmt* param) {
+    token(param->s.variable_decl.identifier);
     colon(); spc();
-    data_type(param->data_type);
+    data_type(param->s.variable_decl.data_type);
     comma(); spc();
 }
 
@@ -137,7 +137,7 @@ static void stmt_function(Stmt* s) {
     else string("(def) ");
     token(s->s.function.identifier); spc();
     l_paren();
-    for (u64 p = 0; p < buf_len(s->s.function.params); p++) {
+    buf_loop(s->s.function.params, p) {
         param(s->s.function.params[p]);
     }
     r_paren();
