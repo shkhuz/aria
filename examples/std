@@ -1,0 +1,3 @@
+struct string {
+    data: char*,
+}

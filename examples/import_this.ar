@@ -1,5 +1,11 @@
+#import "std";
+
 fn import_this_fn {
     import_this_local := 34;
+    {
+        import_this_local: char;
+    }
+    import_local := import_this_local;
 }
 
 fn import_this_fn {}

@@ -1,5 +1,6 @@
 #import "import_this.ar";
 #import "third_file.ar";
+#import "std";
 
 struct GameController {
     r: string,
@@ -17,6 +18,8 @@ fn main (game_controller: GameController, game_controller: char**) void {
         time := 12;
         time := 434;
     }
+
+    game := game_engine;
 }
 
 game_controller: u8;

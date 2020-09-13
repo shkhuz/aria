@@ -74,6 +74,10 @@ static void data_type(DataType* data_type) {
 
 static void expr(Expr* expr);
 
+static void expr_variable_ref(Expr* e) {
+    token(e->e.variable_ref.identifier);
+}
+
 static void expr_integer(Expr* e) {
     token(e->e.integer);
 }
@@ -107,6 +111,7 @@ static void expr(Expr* expr) {
     switch (expr->type) {
     case E_BINARY: expr_binary(expr); break;
     case E_UNARY: expr_unary(expr); break;
+    case E_VARIABLE_REF: expr_variable_ref(expr); break;
     case E_INTEGER: expr_integer(expr); break;
     case E_STRING: expr_string(expr); break;
     case E_CHAR: expr_char(expr); break;

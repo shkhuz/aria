@@ -259,6 +259,16 @@ static void expect(Parser* self, TokenType type, const char* fmt, ...) {
 #define expect_comma_lp(self) \
     chklp(expect(self, T_COMMA, expect_comma_error_msg))
 
+static Expr* expr_variable_ref_new(Token* identifier) {
+    Expr* expr = expr_new_alloc();
+    expr->type = E_VARIABLE_REF;
+    expr->head = identifier;
+    expr->tail = identifier;
+    expr->e.variable_ref.identifier = identifier;
+    expr->e.variable_ref.variable_ref = null;
+    return expr;
+}
+
 static Expr* expr_integer_new(Token* integer) {
     Expr* expr = expr_new_alloc();
     expr->type = E_INTEGER;
@@ -308,7 +318,10 @@ static Expr* expr_binary_new(Expr* left, Expr* right, Token* op) {
 }
 
 static Expr* expr_atom(Parser* self) {
-    if (match(self, T_INTEGER)) {
+    if (match(self, T_IDENTIFIER)) {
+        return expr_variable_ref_new(previous(self));
+    }
+    else if (match(self, T_INTEGER)) {
         return expr_integer_new(previous(self));
     }
     else if (match(self, T_STRING)) {

@@ -264,6 +264,32 @@ static VariableScope is_variable_in_scope(Linker* self, Stmt* stmt) {
     return scope_in;
 }
 
+static VariableScope is_variable_ref_in_scope(Linker* self, Expr* expr) {
+    VariableScope scope_in = VS_NO_SCOPE;
+    bool first_iter = true;
+    Scope* scope = self->current_scope;
+
+    while (scope != null) {
+        buf_loop(scope->variables, v) {
+            if (is_tok_eq(
+                        expr->e.variable_ref.identifier,
+                        scope->variables[v]->s.variable_decl.identifier)) {
+
+                if (first_iter) scope_in = VS_CURRENT_SCOPE;
+                else scope_in = VS_OUTER_SCOPE;
+                expr->e.variable_ref.variable_ref = scope->variables[v];
+                break;
+            }
+        }
+
+        if (scope_in != VS_NO_SCOPE) break;
+        scope = scope->parent_scope;
+        first_iter = false;
+    }
+
+    return scope_in;
+}
+
 static void check_and_add_to_scope(Linker* self, Stmt* stmt) {
     VariableScope scope = is_variable_in_scope(self, stmt);
     Token* identifier = stmt->s.variable_decl.identifier;
@@ -326,7 +352,35 @@ static void check_data_type(Linker* self, DataType* dt, bool is_return_type) {
     }
 }
 
+static void check_expr(Linker* self, Expr* expr);
+
+static void check_expr_binary(Linker* self, Expr* expr) {
+    check_expr(self, expr->e.binary.left);
+    check_expr(self, expr->e.binary.right);
+}
+
+static void check_expr_unary(Linker* self, Expr* expr) {
+    check_expr(self, expr->e.unary.right);
+}
+
+static void check_expr_variable_ref(Linker* self, Expr* expr) {
+    VariableScope scope = is_variable_ref_in_scope(self, expr);
+    if (scope == VS_NO_SCOPE) {
+        error_expr(
+                expr,
+                "undefined variable `%s`",
+                expr->e.variable_ref.identifier->lexeme
+        );
+        return;
+    }
+}
+
 static void check_expr(Linker* self, Expr* expr) {
+    switch (expr->type) {
+    case E_BINARY: check_expr_binary(self, expr); break;
+    case E_UNARY: check_expr_unary(self, expr); break;
+    case E_VARIABLE_REF: check_expr_variable_ref(self, expr); break;
+    }
 }
 
 static void check_stmt(Linker* self, Stmt* stmt);
