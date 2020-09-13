@@ -1,6 +1,9 @@
 #include <linker.h>
 #include <error_msg.h>
+#include <builtin_types.h>
 #include <arpch.h>
+
+#define variable_redecl_error_msg "redeclaration of variable `%s`"
 
 Linker linker_new(File* srcfile, Stmt** stmts) {
     Linker linker;
@@ -158,7 +161,7 @@ static void add_variable_decl(Linker* self, Stmt* stmt) {
                 Token* token = stmt->s.variable_decl.identifier;
                 error_token(
                         token,
-                        "redeclaration of variable `%s`",
+                        variable_redecl_error_msg,
                         token->lexeme
                 );
                 error = true;
@@ -195,10 +198,108 @@ static void add_variable_decl(Linker* self, Stmt* stmt) {
     buf_push(self->global_scope->variables, stmt);
 }
 
+static VariableScope is_variable_in_scope(Linker* self, Stmt* stmt) {
+    VariableScope scope_in = VS_NO_SCOPE;
+    bool first_iter = true;
+    Scope* scope = self->current_scope;
+
+    while (scope != null) {
+        buf_loop(scope->variables, v) {
+            Stmt* chk = scope->variables[v];
+            if (is_tok_eq(
+                        stmt->s.variable_decl.identifier,
+                        chk->s.variable_decl.identifier)) {
+
+                if (first_iter) scope_in = VS_CURRENT_SCOPE;
+                else scope_in = VS_OUTER_SCOPE;
+                break;
+            }
+        }
+
+        if (scope_in != VS_NO_SCOPE) break;
+        scope = scope->parent_scope;
+        first_iter = false;
+    }
+
+    return scope_in;
+}
+
+static void check_and_add_to_scope(Linker* self, Stmt* stmt) {
+    VariableScope scope = is_variable_in_scope(self, stmt);
+    Token* identifier = stmt->s.variable_decl.identifier;
+    if (scope == VS_CURRENT_SCOPE) {
+        error_token(
+                identifier,
+                variable_redecl_error_msg,
+                identifier->lexeme
+        );
+        return;
+    }
+    else if (scope == VS_OUTER_SCOPE) {
+        error_token(
+                identifier,
+                "variable shadows another variable"
+        );
+        return;
+    }
+    buf_push(self->current_scope->variables, stmt);
+}
+
+static void check_data_type(Linker* self, DataType* dt, bool is_return_type) {
+    if (is_dt_eq(dt, builtin_types.e.void_type) && !is_return_type) {
+        error_data_type(
+                dt,
+                "invalid use of `void` type"
+        );
+        return;
+    }
+
+    bool found = false;
+    buf_loop(self->struct_sym_tbl, s) {
+        if (is_tok_eq(
+                    dt->identifier,
+                    self->struct_sym_tbl[s]->s.struct_decl.identifier)) {
+
+            found = true;
+            break;
+        }
+    }
+
+    if (!found) {
+        for (u64 t = 0; t < BUILTIN_TYPES_LEN; t++) {
+            if (is_tok_eq(
+                        builtin_types.l[t]->identifier,
+                        dt->identifier)) {
+
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+        error_data_type(
+                dt,
+                "undefined type"
+        );
+        return;
+    }
+}
+
+static void check_function(Linker* self, Stmt* stmt) {
+    change_scope(scope);
+    Stmt** params = stmt->s.function.params;
+    buf_loop(params, p) {
+        check_data_type(self, params[p]->s.variable_decl.data_type, false);
+        check_and_add_to_scope(self, params[p]);
+    }
+    revert_scope(scope);
+}
+
 static void check_stmt(Linker* self, Stmt* stmt) {
-    /* switch (self->stmts[s]->type) { */
-    /* case S_FUNCTION: check_function(self, stmt); break; */
-    /* } */
+    switch (stmt->type) {
+    case S_FUNCTION: check_function(self, stmt); break;
+    }
 }
 
 Error linker_run(Linker* self) {

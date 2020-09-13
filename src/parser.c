@@ -365,6 +365,7 @@ static Stmt* stmt_variable_decl_new(
         Token* identifier,
         DataType* data_type,
         Expr* initializer,
+        bool global,
         bool external) {
 
     Stmt* stmt = stmt_new_alloc();
@@ -372,6 +373,7 @@ static Stmt* stmt_variable_decl_new(
     stmt->s.variable_decl.identifier = identifier;
     stmt->s.variable_decl.data_type = data_type;
     stmt->s.variable_decl.initializer = initializer;
+    stmt->s.variable_decl.global = global;
     stmt->s.variable_decl.external = external;
     return stmt;
 }
@@ -407,6 +409,7 @@ static Stmt* variable_decl(Parser* self, Token* identifier) {
                 identifier,
                 data_type.data_type,
                 null,
+                true,
                 true
             );
         buf_push(self->decls, variable);
@@ -416,6 +419,7 @@ static Stmt* variable_decl(Parser* self, Token* identifier) {
             identifier,
             data_type.data_type,
             initializer,
+            !self->in_function,
             false
     );
 }
@@ -523,6 +527,7 @@ static Stmt* decl(Parser* self) {
                             p_identifier,
                             p_data_type.data_type,
                             null,
+                            false,
                             false
                     );
                 buf_push(params, param);
@@ -532,7 +537,7 @@ static Stmt* decl(Parser* self) {
         DataTypeError return_type = match_data_type(self);
         if (return_type.error) return null;
         if (!return_type.data_type) {
-            return_type.data_type = builtin_types.void_type;
+            return_type.data_type = builtin_types.e.void_type;
         }
 
         if (match(self, T_L_BRACE)) {
@@ -608,6 +613,7 @@ static Stmt* decl(Parser* self) {
                         f_identifier,
                         dt.data_type,
                         null,
+                        false,
                         false
                 );
             buf_push(fields, field);

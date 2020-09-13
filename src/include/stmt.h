@@ -32,6 +32,7 @@ typedef struct {
     Token* identifier;
     DataType* data_type;
     Expr* initializer;
+    bool global;
     bool external;
 } VariableDecl;
 
