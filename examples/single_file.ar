@@ -6,7 +6,7 @@ struct GameController {
     id: u64,
 }
 
-fn main (game_controller: GameController, game_controller: char**) {
+fn main (game_controller: GameController, game_controller: char**) int** {
     time := 12;
 }
 

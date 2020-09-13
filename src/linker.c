@@ -288,11 +288,15 @@ static void check_data_type(Linker* self, DataType* dt, bool is_return_type) {
 
 static void check_function(Linker* self, Stmt* stmt) {
     change_scope(scope);
+
     Stmt** params = stmt->s.function.params;
     buf_loop(params, p) {
         check_data_type(self, params[p]->s.variable_decl.data_type, false);
         check_and_add_to_scope(self, params[p]);
     }
+
+    check_data_type(self, stmt->s.function.return_type, true);
+
     revert_scope(scope);
 }
 
