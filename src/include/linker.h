@@ -9,10 +9,12 @@
 typedef struct {
     File* srcfile;
     Stmt** stmts;
-    Stmt** function_sym_tbl;
 
+    Stmt** function_sym_tbl;
+    Stmt** struct_sym_tbl;
     Scope* global_scope;
     Scope* current_scope;
+
     Error error_state;
 } Linker;
 

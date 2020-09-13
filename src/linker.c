@@ -7,6 +7,7 @@ Linker linker_new(File* srcfile, Stmt** stmts) {
     linker.srcfile = srcfile;
     linker.stmts = stmts;
     linker.function_sym_tbl = null;
+    linker.struct_sym_tbl = null;
     linker.global_scope = scope_new(null);
     linker.current_scope = linker.global_scope;
     linker.error_state = ERROR_SUCCESS;
@@ -19,6 +20,29 @@ Linker linker_new(File* srcfile, Stmt** stmts) {
 
 #define revert_scope(name) \
     self->current_scope = name->parent_scope;
+
+static void add_struct(Linker* self, Stmt* stmt) {
+    buf_loop(self->struct_sym_tbl, p) {
+        Stmt* chk = self->struct_sym_tbl[p];
+        if (is_tok_eq(
+                    stmt->s.struct_decl.identifier,
+                    chk->s.struct_decl.identifier)) {
+
+            // TODO: see if the compiler has to
+            // error on redefinition of struct
+            // or compare the two structs and
+            // see if they differ
+            Token* token = stmt->s.struct_decl.identifier;
+            error_token(
+                    token,
+                    "redefinition of struct `%s`",
+                    token->lexeme
+            );
+            return;
+        }
+    }
+    buf_push(self->struct_sym_tbl, stmt);
+}
 
 static void add_function(Linker* self, Stmt* stmt) {
     buf_loop(self->function_sym_tbl, p) {
@@ -180,6 +204,7 @@ static void check_stmt(Linker* self, Stmt* stmt) {
 Error linker_run(Linker* self) {
     buf_loop(self->stmts, s) {
         switch (self->stmts[s]->type) {
+        case S_STRUCT: add_struct(self, self->stmts[s]); break;
         case S_FUNCTION: add_function(self, self->stmts[s]); break;
         case S_VARIABLE_DECL: add_variable_decl(self, self->stmts[s]); break;
         default: break;

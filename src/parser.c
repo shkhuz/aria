@@ -598,7 +598,7 @@ static Stmt* decl(Parser* self) {
                 continue;
             }
 
-            if (current(self)->type != T_R_PAREN) {
+            if (current(self)->type != T_R_BRACE) {
                 expect_comma_lp(self);
             }
             else match(self, T_COMMA);
@@ -612,7 +612,10 @@ static Stmt* decl(Parser* self) {
                 );
             buf_push(fields, field);
         }
-        return stmt_struct_new(identifier, fields);
+
+        Stmt* struct_stmt = stmt_struct_new(identifier, fields);
+        buf_push(self->decls, struct_stmt);
+        return struct_stmt;
     }
 
     else if (match(self, T_IDENTIFIER)) {

@@ -8,3 +8,9 @@ import_this_global: GameController;
 
 import_this_var: int = 343 + 'c';
 
+struct Object {
+    name: string,
+    id: u64,
+}
+
+struct Object { }
