@@ -296,6 +296,16 @@ static Expr* expr_char_new(Token* chr) {
     return expr;
 }
 
+static Expr* expr_function_call_new(Expr* left, Expr** args, Token* r_paren) {
+    Expr* expr = expr_new_alloc();
+    expr->type = E_FUNCTION_CALL;
+    expr->head = left->head;
+    expr->tail = r_paren;
+    expr->e.function_call.left = left;
+    expr->e.function_call.args = args;
+    return expr;
+}
+
 static Expr* expr_unary_new(Token* op, Expr* right) {
     Expr* expr = expr_new_alloc();
     expr->type = E_UNARY;
@@ -316,6 +326,8 @@ static Expr* expr_binary_new(Expr* left, Expr* right, Token* op) {
     expr->e.binary.op = op;
     return expr;
 }
+
+static Expr* expr(Parser* self);
 
 static Expr* expr_atom(Parser* self) {
     if (match(self, T_IDENTIFIER)) {
@@ -341,13 +353,44 @@ static Expr* expr_atom(Parser* self) {
     }
 }
 
+static Expr* expr_call_access(Parser* self) {
+    EXPR_CI(left, expr_atom, self);
+    while (match(self, T_L_PAREN)) {
+
+        if (previous(self)->type == T_L_PAREN) {
+            if (left->type != E_VARIABLE_REF) {
+                error_expr(
+                        left,
+                        "invalid operand to call operator"
+                );
+                return null;
+            }
+
+            Expr** args = null;
+            while (!match(self, T_R_PAREN)) {
+                check_eof null;
+                EXPR_CI(arg, expr, self);
+                buf_push(args, arg);
+
+                if (current(self)->type != T_R_PAREN) {
+                    expect_comma(self);
+                }
+                else match(self, T_COMMA);
+            }
+            Token* r_paren = previous(self);
+            left = expr_function_call_new(left, args, r_paren);
+        }
+    }
+    return left;
+}
+
 static Expr* expr_unary_add_sub(Parser* self) {
     if (match(self, T_PLUS) || match(self, T_MINUS)) {
         Token* op = previous(self);
         EXPR_CI(right, expr_unary_add_sub, self);
         return expr_unary_new(op, right);
     }
-    return expr_atom(self);
+    return expr_call_access(self);
 }
 
 static Expr* expr_binary_mul_div(Parser* self) {

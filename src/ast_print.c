@@ -90,6 +90,18 @@ static void expr_char(Expr* e) {
     token(e->e.chr);
 }
 
+static void expr_function_call(Expr* e) {
+    expr(e->e.function_call.left);
+    l_paren();
+    format();
+    buf_loop(e->e.function_call.args, a) {
+        expr(e->e.function_call.args[a]);
+        comma();
+    }
+    format_ret();
+    r_paren();
+}
+
 static void expr_unary(Expr* e) {
     l_paren();
     token(e->e.unary.op);
@@ -111,6 +123,7 @@ static void expr(Expr* expr) {
     switch (expr->type) {
     case E_BINARY: expr_binary(expr); break;
     case E_UNARY: expr_unary(expr); break;
+    case E_FUNCTION_CALL: expr_function_call(expr); break;
     case E_VARIABLE_REF: expr_variable_ref(expr); break;
     case E_INTEGER: expr_integer(expr); break;
     case E_STRING: expr_string(expr); break;

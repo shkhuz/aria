@@ -20,12 +20,15 @@ fn main (game_controller: GameController, game_controller: char**) void {
     }
 
     game := game_engine;
+    func_call := init_engine();
 }
 
 game_controller: u8;
 
 global: string;
 global := "dsd";
+
+call := func_call("dfd", 45, 45 + 4);
 
 id: u64;
 
