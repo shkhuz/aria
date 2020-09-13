@@ -2,13 +2,13 @@ fn import_this_fn {
     import_this_local := 34;
 }
 
+fn import_this_fn {}
+
 import_this_global: GameController;
 
 import_this_var: int = 343 + 'c';
 
 struct Object {
-    name: string,
-    id: u64,
+    name: char*,
+    id: string,
 }
-
-struct Object { }

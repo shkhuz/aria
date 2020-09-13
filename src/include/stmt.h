@@ -18,6 +18,7 @@ typedef struct Stmt Stmt;
 typedef struct {
     Token* identifier;
     Stmt** fields;
+    bool external;
 } Struct;
 
 typedef struct {

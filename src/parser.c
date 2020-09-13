@@ -484,11 +484,12 @@ static Stmt* stmt_function_new(
     return stmt;
 }
 
-static Stmt* stmt_struct_new(Token* identifier, Stmt** fields) {
+static Stmt* stmt_struct_new(Token* identifier, Stmt** fields, bool external) {
     Stmt* stmt = stmt_new_alloc();
     stmt->type = S_STRUCT;
     stmt->s.struct_decl.identifier = identifier;
     stmt->s.struct_decl.fields = fields;
+    stmt->s.struct_decl.external = external;
     return stmt;
 }
 
@@ -619,9 +620,9 @@ static Stmt* decl(Parser* self) {
             buf_push(fields, field);
         }
 
-        Stmt* struct_stmt = stmt_struct_new(identifier, fields);
+        Stmt* struct_stmt = stmt_struct_new(identifier, fields, true);
         buf_push(self->decls, struct_stmt);
-        return struct_stmt;
+        return stmt_struct_new(identifier, fields, false);
     }
 
     else if (match(self, T_IDENTIFIER)) {

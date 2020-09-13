@@ -31,17 +31,57 @@ static void add_struct(Linker* self, Stmt* stmt) {
                     stmt->s.struct_decl.identifier,
                     chk->s.struct_decl.identifier)) {
 
-            // TODO: see if the compiler has to
-            // error on redefinition of struct
-            // or compare the two structs and
-            // see if they differ
-            Token* token = stmt->s.struct_decl.identifier;
-            error_token(
-                    token,
-                    "redefinition of struct `%s`",
-                    token->lexeme
-            );
-            return;
+            if (stmt->s.struct_decl.external &&
+                chk->s.struct_decl.external) {
+                if (str_intern(
+                            stmt->s.struct_decl.identifier->srcfile->fpath
+                    ) ==
+                    str_intern(
+                            chk->s.struct_decl.identifier->srcfile->fpath
+                    )) {
+                    return;
+                }
+            }
+
+            Stmt** first_fields = chk->s.struct_decl.fields;
+            Stmt** second_fields = stmt->s.struct_decl.fields;
+
+            u64 first_flen = buf_len(first_fields);
+            u64 second_flen = buf_len(second_fields);
+            if (first_flen != second_flen) {
+                error_token(
+                        stmt->s.struct_decl.identifier,
+                        "fields differ in redeclaration"
+                );
+                return;
+            }
+
+            bool error = false;
+            buf_loop(first_fields, f) {
+                if (!is_tok_eq(
+                            first_fields[f]->s.variable_decl.identifier,
+                            second_fields[f]->s.variable_decl.identifier)) {
+
+                    error_token(
+                            second_fields[f]->s.variable_decl.identifier,
+                            "field name differs from previous declaration"
+                    );
+                    error = true;
+                }
+
+                if (!is_dt_eq(
+                            first_fields[f]->s.variable_decl.data_type,
+                            second_fields[f]->s.variable_decl.data_type)) {
+
+                    error_data_type(
+                            second_fields[f]->s.variable_decl.data_type,
+                            "field type differs from previous declaration"
+                    );
+                    error = true;
+                }
+            }
+
+            if (error) return;
         }
     }
     buf_push(self->struct_sym_tbl, stmt);

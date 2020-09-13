@@ -1,4 +1,5 @@
 #import "import_this.ar";
+#import "third_file.ar";
 
 struct GameController {
     r: string,
