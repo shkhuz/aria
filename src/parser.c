@@ -45,6 +45,14 @@ static void sync_to_next_statement(Parser* self) {
         if (current(self)->type == T_L_BRACE) goto skip_brace;
         break;
 
+    case ERRLOC_STRUCT_FIELD:
+        while (!match(self, T_COMMA) && current(self)->type != T_L_BRACE) {
+            check_eof;
+            goto_next_token(self);
+        }
+        if (current(self)->type == T_L_BRACE) goto skip_brace;
+        break;
+
     case ERRLOC_NONE: {
     skip_brace: {
             u64 brace_count = 0;
@@ -99,11 +107,17 @@ static void error_token_with_sync(
 #define er \
     if (self->error_count > COMBINE(_error_store,__LINE__)) return
 
+#define ec \
+    if (self->error_count > COMBINE(_error_store,__LINE__)) continue
+
 #define ern \
     er null
 
 #define chk(stmt) \
     es; stmt; ern;
+
+#define chklp(stmt) \
+    es; stmt; ec;
 
 #define EXPR_CI(name, init_func, ...) \
     Expr* name = null; \
@@ -217,20 +231,33 @@ static void expect(Parser* self, TokenType type, const char* fmt, ...) {
 /*     } */
 /* } */
 
+#define expect_identifier_error_msg "expect identifier"
+#define expect_colon_error_msg "expect ':'"
+#define expect_comma_error_msg "expect ','"
+
 #define expect_identifier(self) \
-    chk(expect(self, T_IDENTIFIER, "expect identifier"))
+    chk(expect(self, T_IDENTIFIER, expect_identifier_error_msg))
+
+#define expect_identifier_lp(self) \
+    chklp(expect(self, T_IDENTIFIER, expect_identifier_error_msg))
 
 #define expect_semicolon(self) \
     chk(expect(self, T_SEMICOLON, "expect ';'"))
 
 #define expect_colon(self) \
-    chk(expect(self, T_COLON, "expect ':'"))
+    chk(expect(self, T_COLON, expect_colon_error_msg))
 
-/* #define expect_l_brace(self) \ */
-/*     chk(expect(self, T_L_BRACE, "expect '{'")) */
+#define expect_colon_lp(self) \
+    chklp(expect(self, T_COLON, expect_colon_error_msg))
+
+#define expect_l_brace(self) \
+    chk(expect(self, T_L_BRACE, "expect '{'"))
 
 #define expect_comma(self) \
-    chk(expect(self, T_COMMA, "expect ','"))
+    chk(expect(self, T_COMMA, expect_comma_error_msg))
+
+#define expect_comma_lp(self) \
+    chklp(expect(self, T_COMMA, expect_comma_error_msg))
 
 static Expr* expr_integer_new(Token* integer) {
     Expr* expr = expr_new_alloc();
@@ -453,6 +480,14 @@ static Stmt* stmt_function_new(
     return stmt;
 }
 
+static Stmt* stmt_struct_new(Token* identifier, Stmt** fields) {
+    Stmt* stmt = stmt_new_alloc();
+    stmt->type = S_STRUCT;
+    stmt->s.struct_decl.identifier = identifier;
+    stmt->s.struct_decl.fields = fields;
+    return stmt;
+}
+
 static Stmt* decl(Parser* self) {
     self->error_loc = ERRLOC_GLOBAL;
     if (match_keyword(self, "fn")) {
@@ -537,6 +572,49 @@ static Stmt* decl(Parser* self) {
             );
         }
     }
+
+    else if (match_keyword(self, "struct")) {
+        expect_identifier(self);
+        Token* identifier = previous(self);
+
+        expect_l_brace(self);
+        self->error_loc = ERRLOC_STRUCT_FIELD;
+
+        Stmt** fields = null;
+        while (!match(self, T_R_BRACE)) {
+            check_eof null;
+            expect_identifier_lp(self);
+            Token* f_identifier = previous(self);
+            expect_colon_lp(self);
+
+            DataTypeError dt = match_data_type(self);
+            if (dt.error) continue;
+            if (!dt.data_type) {
+                error_token_with_sync(
+                        self,
+                        current(self),
+                        "expect field data-type"
+                );
+                continue;
+            }
+
+            if (current(self)->type != T_R_PAREN) {
+                expect_comma_lp(self);
+            }
+            else match(self, T_COMMA);
+
+            Stmt* field =
+                stmt_variable_decl_new(
+                        f_identifier,
+                        dt.data_type,
+                        null,
+                        false
+                );
+            buf_push(fields, field);
+        }
+        return stmt_struct_new(identifier, fields);
+    }
+
     else if (match(self, T_IDENTIFIER)) {
         Token* identifier = previous(self);
         if (match(self, T_COLON)) {
@@ -544,6 +622,7 @@ static Stmt* decl(Parser* self) {
         }
         else goto error;
     }
+
     else if (match(self, T_IMPORT)) {
         if (current(self)->type != T_STRING) {
             error_token_with_sync(

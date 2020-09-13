@@ -117,11 +117,22 @@ static void expr(Expr* expr) {
 
 static void stmt(Stmt* stmt);
 
-static void stmt_expr(Stmt* s) {
-    string("STMT_EXPR ");
+static void stmt_struct(Stmt* stmt) {
+    string("STMT_STRUCT ");
+    token(stmt->s.struct_decl.identifier);
     format();
-    expr(s->s.expr);
+
+    Stmt** fields = stmt->s.struct_decl.fields;
+    buf_loop(fields, f) {
+        token(fields[f]->s.variable_decl.identifier);
+        string(": ");
+        data_type(fields[f]->s.variable_decl.data_type);
+
+        newline();
+        tab_indent();
+    }
     format_ret();
+
 }
 
 static void param(Stmt* param) {
@@ -172,12 +183,20 @@ static void stmt_block(Stmt* s) {
     }
 }
 
+static void stmt_expr(Stmt* s) {
+    string("STMT_EXPR ");
+    format();
+    expr(s->s.expr);
+    format_ret();
+}
+
 static void stmt(Stmt* stmt) {
     if (stmt->type != S_BLOCK) {
         tab_indent();
     }
 
     switch (stmt->type) {
+    case S_STRUCT: stmt_struct(stmt); break;
     case S_FUNCTION: stmt_function(stmt); break;
     case S_VARIABLE_DECL: stmt_variable_decl(stmt); break;
     case S_BLOCK: stmt_block(stmt); break;

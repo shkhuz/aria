@@ -10,6 +10,7 @@ typedef enum {
     ERRLOC_GLOBAL,
     ERRLOC_FUNCTION_HEADER,
     ERRLOC_BLOCK,
+    ERRLOC_STRUCT_FIELD,
     ERRLOC_NONE,
 } ErrorLocation;
 

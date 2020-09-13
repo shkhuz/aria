@@ -171,13 +171,25 @@ static void add_variable_decl(Linker* self, Stmt* stmt) {
     buf_push(self->global_scope->variables, stmt);
 }
 
+static void check_stmt(Linker* self, Stmt* stmt) {
+    /* switch (self->stmts[s]->type) { */
+    /* case S_FUNCTION: check_function(self, stmt); break; */
+    /* } */
+}
+
 Error linker_run(Linker* self) {
     buf_loop(self->stmts, s) {
         switch (self->stmts[s]->type) {
         case S_FUNCTION: add_function(self, self->stmts[s]); break;
         case S_VARIABLE_DECL: add_variable_decl(self, self->stmts[s]); break;
+        default: break;
         }
     }
+
+    buf_loop(self->stmts, s) {
+        check_stmt(self, self->stmts[s]);
+    }
+
     return self->error_state;
 }
 

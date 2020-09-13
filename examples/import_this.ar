@@ -5,3 +5,6 @@ fn import_this_fn {
 fn main(video_controller: VideoController) { }
 
 import_this_global: GameController;
+
+import_this_var: int = 343 + 'c';
+

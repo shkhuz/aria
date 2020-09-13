@@ -5,6 +5,7 @@
 #include <data_type.h>
 
 typedef enum {
+    S_STRUCT,
     S_FUNCTION,
     S_VARIABLE_DECL,
     S_EXPR,
@@ -13,6 +14,11 @@ typedef enum {
 } StmtType;
 
 typedef struct Stmt Stmt;
+
+typedef struct {
+    Token* identifier;
+    Stmt** fields;
+} Struct;
 
 typedef struct {
     Token* identifier;
@@ -32,6 +38,7 @@ typedef struct {
 struct Stmt {
     StmtType type;
     union s {
+        Struct struct_decl;
         Function function;
         VariableDecl variable_decl;
         Expr* expr;

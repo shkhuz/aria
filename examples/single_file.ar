@@ -1,5 +1,11 @@
 #import "import_this.ar";
 
+struct GameController {
+    r: string,
+    version: u8,
+    id: u64,
+}
+
 fn main (game_controller: GameController) {
     time := 12;
 }
@@ -7,3 +13,5 @@ fn main (game_controller: GameController) {
 global := 'c';
 str := "x343";
 global := "dsd";
+
+import_this_var: u8;
