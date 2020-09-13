@@ -6,14 +6,16 @@ struct GameController {
     id: u64,
 }
 
+time: char;
+
 fn main (game_controller: GameController, game_controller: char**) int** {
     time := 12;
+    time := 434;
 }
 
 game_controller: u8;
 
-global := 'c';
-str := "x343";
+global: string;
 global := "dsd";
 
 id: u64;

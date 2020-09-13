@@ -286,23 +286,58 @@ static void check_data_type(Linker* self, DataType* dt, bool is_return_type) {
     }
 }
 
-static void check_function(Linker* self, Stmt* stmt) {
+static void check_expr(Linker* self, Expr* expr) {
+}
+
+static void check_stmt(Linker* self, Stmt* stmt);
+
+static void check_stmt_function(Linker* self, Stmt* stmt) {
     change_scope(scope);
 
     Stmt** params = stmt->s.function.params;
     buf_loop(params, p) {
+        // TODO: see if adding param first to the
+        // symbol table generates fewer errors
         check_data_type(self, params[p]->s.variable_decl.data_type, false);
         check_and_add_to_scope(self, params[p]);
     }
 
     check_data_type(self, stmt->s.function.return_type, true);
 
+    if (!stmt->s.function.decl) {
+        check_stmt(self, stmt->s.function.body);
+    }
+
     revert_scope(scope);
+}
+
+static void check_stmt_variable_decl(Linker* self, Stmt* stmt) {
+    if (stmt->s.variable_decl.data_type && !stmt->s.variable_decl.external) {
+        check_data_type(self, stmt->s.variable_decl.data_type, false);
+    }
+
+    if (!stmt->s.variable_decl.external) {
+        if (stmt->s.variable_decl.initializer) {
+            check_expr(self, stmt->s.variable_decl.initializer);
+        }
+    }
+
+    if (!stmt->s.variable_decl.global) {
+        check_and_add_to_scope(self, stmt);
+    }
+}
+
+static void check_stmt_block(Linker* self, Stmt* stmt) {
+    buf_loop(stmt->s.block, s) {
+        check_stmt(self, stmt->s.block[s]);
+    }
 }
 
 static void check_stmt(Linker* self, Stmt* stmt) {
     switch (stmt->type) {
-    case S_FUNCTION: check_function(self, stmt); break;
+    case S_FUNCTION: check_stmt_function(self, stmt); break;
+    case S_VARIABLE_DECL: check_stmt_variable_decl(self, stmt); break;
+    case S_BLOCK: check_stmt_block(self, stmt); break;
     }
 }
 
