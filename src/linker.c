@@ -331,6 +331,30 @@ static void check_expr(Linker* self, Expr* expr) {
 
 static void check_stmt(Linker* self, Stmt* stmt);
 
+static void check_stmt_struct(Linker* self, Stmt* stmt) {
+    change_scope(scope);
+
+    Stmt** fields = stmt->s.struct_decl.fields;
+    buf_loop(fields, f) {
+        check_data_type(self, fields[f]->s.variable_decl.data_type, false);
+
+        VariableScope scope_in = is_variable_in_scope(self, fields[f]);
+        if (scope_in == VS_CURRENT_SCOPE) {
+            Token* identifier = fields[f]->s.variable_decl.identifier;
+            error_token(
+                    identifier,
+                    "redeclaration of field `%s`",
+                    identifier->lexeme
+            );
+            continue;
+        }
+
+        buf_push(scope->variables, fields[f]);
+    }
+
+    revert_scope(scope);
+}
+
 static void check_stmt_function(Linker* self, Stmt* stmt) {
     change_scope(scope);
 
@@ -368,13 +392,16 @@ static void check_stmt_variable_decl(Linker* self, Stmt* stmt) {
 }
 
 static void check_stmt_block(Linker* self, Stmt* stmt) {
+    change_scope(scope);
     buf_loop(stmt->s.block, s) {
         check_stmt(self, stmt->s.block[s]);
     }
+    revert_scope(scope);
 }
 
 static void check_stmt(Linker* self, Stmt* stmt) {
     switch (stmt->type) {
+    case S_STRUCT: check_stmt_struct(self, stmt); break;
     case S_FUNCTION: check_stmt_function(self, stmt); break;
     case S_VARIABLE_DECL: check_stmt_variable_decl(self, stmt); break;
     case S_BLOCK: check_stmt_block(self, stmt); break;

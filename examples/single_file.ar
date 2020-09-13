@@ -5,13 +5,18 @@ struct GameController {
     r: string,
     version: u8,
     id: u64,
+    obj: void,
+    r: char,
 }
 
 time: char;
 
-fn main (game_controller: GameController, game_controller: char**) int** {
-    time := 12;
-    time := 434;
+fn main (game_controller: GameController, game_controller: char**) void {
+    time := 34 + 45;
+    {
+        time := 12;
+        time := 434;
+    }
 }
 
 game_controller: u8;
