@@ -19,7 +19,7 @@ CFLAGS := $(PREPROCESSOR_DEFINES) -I$(INC_DIR) -std=c99 -pedantic -Wall \
 -Wduplicate-decl-specifier -Wformat=2 -Winit-self -Wmisleading-indentation \
 -Wswitch-default -Wstrict-overflow -Walloca -Wconversion -Wunused-macros \
 -Wdate-time -Waddress -Wlogical-op -Wlogical-not-parentheses \
--Wstrict-prototypes -Wpacked -Winline -m64 -g
+-Wstrict-prototypes -Wpacked -Winline -m64 -g -O0
 ASMFLAGS := -felf64
 LDFLAGS :=
 LIBS_INC_DIR_CMD :=

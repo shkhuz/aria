@@ -145,8 +145,12 @@ static void string(Lexer* self) {
 	self->current++;
 	while (*self->current != '"') {
 		self->current++;
-		if (*self->current == '\0') {
-			error_from_start(self, 1, "mismatched `\"`: encountered EOF");
+		if (*self->current == '\0' || *self->current == '\n') {
+			error_from_start(
+                    self,
+                    (u64)(self->current - self->start),
+                    "mismatched double-quote (\")"
+            );
 			return;
 		}
 	}

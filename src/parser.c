@@ -303,6 +303,7 @@ static Expr* expr_function_call_new(Expr* left, Expr** args, Token* r_paren) {
     expr->tail = r_paren;
     expr->e.function_call.left = left;
     expr->e.function_call.args = args;
+    expr->e.function_call.called = null;
     return expr;
 }
 

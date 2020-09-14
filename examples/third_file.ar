@@ -3,3 +3,7 @@ struct Object {
 }
 
 third: void;
+
+fn init_engine {
+
+}

@@ -363,6 +363,43 @@ static void check_expr_unary(Linker* self, Expr* expr) {
     check_expr(self, expr->e.unary.right);
 }
 
+static void check_expr_function_call(Linker* self, Expr* expr) {
+    assert(expr->e.function_call.left->type == E_VARIABLE_REF);
+    buf_loop(self->function_sym_tbl, f) {
+        if (is_tok_eq(
+                    expr->e.function_call.left->e.variable_ref.identifier,
+                    self->function_sym_tbl[f]->s.function.identifier)) {
+            expr->e.function_call.called = self->function_sym_tbl[f];
+            break;
+        }
+    }
+
+    if (!expr->e.function_call.called) {
+        error_expr(
+                expr->e.function_call.left,
+                "undefined function `%s`",
+                expr->e.function_call.left->e.variable_ref.identifier->lexeme
+        );
+        return;
+    }
+
+    assert(expr->e.function_call.called);
+    u64 arg_len = buf_len(expr->e.function_call.args);
+    u64 param_len = buf_len(expr->e.function_call.called->s.function.params);
+    if (arg_len != param_len) {
+        error_expr(
+                expr->e.function_call.left,
+                "function expects %lu argument(s), but given %lu",
+                param_len,
+                arg_len
+        );
+    }
+
+    buf_loop(expr->e.function_call.args, a) {
+        check_expr(self, expr->e.function_call.args[a]);
+    }
+}
+
 static void check_expr_variable_ref(Linker* self, Expr* expr) {
     VariableScope scope = is_variable_ref_in_scope(self, expr);
     if (scope == VS_NO_SCOPE) {
@@ -379,6 +416,7 @@ static void check_expr(Linker* self, Expr* expr) {
     switch (expr->type) {
     case E_BINARY: check_expr_binary(self, expr); break;
     case E_UNARY: check_expr_unary(self, expr); break;
+    case E_FUNCTION_CALL: check_expr_function_call(self, expr); break;
     case E_VARIABLE_REF: check_expr_variable_ref(self, expr); break;
     }
 }

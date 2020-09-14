@@ -20,7 +20,7 @@ fn main (game_controller: GameController, game_controller: char**) void {
     }
 
     game := game_engine;
-    func_call := init_engine();
+    func_call := init_engine(import_this_fn());
 }
 
 game_controller: u8;
@@ -28,9 +28,11 @@ game_controller: u8;
 global: string;
 global := "dsd";
 
-call := func_call("dfd", 45, 45 + 4);
-
-id: u64;
+call :=
+    func_call(
+            "dfd",
+            45,
+            45 + 4,
+    );
 
 import_this_var: u8;
-
