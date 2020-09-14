@@ -418,6 +418,11 @@ static void check_expr(Linker* self, Expr* expr) {
     case E_UNARY: check_expr_unary(self, expr); break;
     case E_FUNCTION_CALL: check_expr_function_call(self, expr); break;
     case E_VARIABLE_REF: check_expr_variable_ref(self, expr); break;
+    case E_INTEGER:
+    case E_STRING:
+    case E_CHAR:
+    case E_NONE: break;
+    default: assert(0); break;
     }
 }
 
@@ -491,12 +496,17 @@ static void check_stmt_block(Linker* self, Stmt* stmt) {
     revert_scope(scope);
 }
 
+static void check_stmt_expr(Linker* self, Stmt* stmt) {
+    check_expr(self, stmt->s.expr);
+}
+
 static void check_stmt(Linker* self, Stmt* stmt) {
     switch (stmt->type) {
     case S_STRUCT: check_stmt_struct(self, stmt); break;
     case S_FUNCTION: check_stmt_function(self, stmt); break;
     case S_VARIABLE_DECL: check_stmt_variable_decl(self, stmt); break;
     case S_BLOCK: check_stmt_block(self, stmt); break;
+    case S_EXPR: check_stmt_expr(self, stmt); break;
     }
 }
 

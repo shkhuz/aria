@@ -1,31 +1,20 @@
-#import "engine.ar";
-#import "correct2.ar";
+#import "std";
 
-fn main (argc: u64, argv: char**) u8 {
-    time := 34;
-    time := 43 / 89 + 34 * 34 - -43;
+fn main {
+    game_engine := game_engine_new();
+    game_engine_run(game_engine);
 }
 
-fn game {
-    gdf: f32*;
-    fdf: f32* = 453445645;
-    56 / 45 - - 345 + 34 * 8;
+fn game_engine_new GameEngine {
+    game_engine: GameEngine;
 }
 
-fn good (something_good: F*) char {
-    something_good_alt: char;
+fn game_engine_run(game_engine: GameEngine) {
 }
 
-correct := 231;
-correct: char;
-
-fn out(arg: GameController) GameController*;
-
-fn game {
-
-}
-
-fn game {
-
+struct GameEngine {
+    width: u64,
+    height: u64,
+    title: string,
 }
 
