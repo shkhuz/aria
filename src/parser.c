@@ -253,6 +253,9 @@ static void expect(Parser* self, TokenType type, const char* fmt, ...) {
 #define expect_l_brace(self) \
     chk(expect(self, T_L_BRACE, "expect '{'"))
 
+#define expect_l_paren(self) \
+    chk(expect(self, T_L_PAREN, "expect '('"))
+
 #define expect_comma(self) \
     chk(expect(self, T_COMMA, expect_comma_error_msg))
 
@@ -558,38 +561,38 @@ static Stmt* decl(Parser* self) {
         expect_identifier(self);
         Token* identifier = previous(self);
         Stmt** params = null;
-        if (match(self, T_L_PAREN)) {
-            while (!match(self, T_R_PAREN)) {
-                expect_identifier(self);
-                Token* p_identifier = previous(self);
+        expect_l_paren(self);
 
-                expect_colon(self);
-                DataTypeError p_data_type = match_data_type(self);
-                if (!p_data_type.data_type && !p_data_type.error) {
-                    error_token_with_sync(
-                            self,
-                            current(self),
-                            "expect data type"
-                    );
-                    return null;
-                }
-                else if (p_data_type.error) return null;
+        while (!match(self, T_R_PAREN)) {
+            expect_identifier(self);
+            Token* p_identifier = previous(self);
 
-                if (current(self)->type != T_R_PAREN) {
-                    expect_comma(self);
-                }
-                else match(self, T_COMMA);
-
-                Stmt* param =
-                    stmt_variable_decl_new(
-                            p_identifier,
-                            p_data_type.data_type,
-                            null,
-                            false,
-                            false
-                    );
-                buf_push(params, param);
+            expect_colon(self);
+            DataTypeError p_data_type = match_data_type(self);
+            if (!p_data_type.data_type && !p_data_type.error) {
+                error_token_with_sync(
+                        self,
+                        current(self),
+                        "expect data type"
+                );
+                return null;
             }
+            else if (p_data_type.error) return null;
+
+            if (current(self)->type != T_R_PAREN) {
+                expect_comma(self);
+            }
+            else match(self, T_COMMA);
+
+            Stmt* param =
+                stmt_variable_decl_new(
+                        p_identifier,
+                        p_data_type.data_type,
+                        null,
+                        false,
+                        false
+                );
+            buf_push(params, param);
         }
 
         DataTypeError return_type = match_data_type(self);
