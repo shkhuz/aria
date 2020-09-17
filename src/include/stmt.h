@@ -9,6 +9,7 @@ typedef enum {
     S_FUNCTION,
     S_VARIABLE_DECL,
     S_EXPR,
+    S_RETURN,
     S_BLOCK,
     S_NONE,
 } StmtType;
@@ -44,6 +45,7 @@ struct Stmt {
         Function function;
         VariableDecl variable_decl;
         Expr* expr;
+        Expr* ret;
         Stmt** block;
     } s;
 };

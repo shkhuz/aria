@@ -185,9 +185,9 @@ static void stmt_variable_decl(Stmt* s) {
     if (s->s.variable_decl.external) string("(extern) ");
     else chr(' ');
 
-    token(s->s.variable_decl.identifier);
+    token(s->s.variable_decl.identifier); string(" : ");
     if (s->s.variable_decl.data_type) {
-        spc(); data_type(s->s.variable_decl.data_type);
+        data_type(s->s.variable_decl.data_type);
     }
     if (s->s.variable_decl.initializer) {
         string(" = "); expr(s->s.variable_decl.initializer);
@@ -208,6 +208,13 @@ static void stmt_expr(Stmt* s) {
     format_ret();
 }
 
+static void stmt_return(Stmt* s) {
+    string("STMT_RETURN ");
+    format();
+    expr(s->s.ret);
+    format_ret();
+}
+
 static void stmt(Stmt* stmt) {
     if (stmt->type != S_BLOCK) {
         tab_indent();
@@ -219,6 +226,7 @@ static void stmt(Stmt* stmt) {
     case S_VARIABLE_DECL: stmt_variable_decl(stmt); break;
     case S_BLOCK: stmt_block(stmt); break;
     case S_EXPR: stmt_expr(stmt); break;
+    case S_RETURN: stmt_return(stmt); break;
     default: assert(0); break;
     }
 }

@@ -1,0 +1,12 @@
+#import <std>;
+
+fn main() {
+    game := Game::new(1280, 720, "Demo");
+    game.run();
+}
+
+struct Game {
+    shared fn new(width: u8, height: u8, title: string) {
+
+    }
+}

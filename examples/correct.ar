@@ -7,6 +7,7 @@ fn main() {
 
 fn game_engine_new() GameEngine {
     game_engine: GameEngine;
+    return game_engine;
 }
 
 fn game_engine_run(game_engine: GameEngine) u8 {

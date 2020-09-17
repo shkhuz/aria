@@ -7,4 +7,5 @@ void keywords_init(void) {
     buf_push(keywords, str_intern("fn"));
     buf_push(keywords, str_intern("pub"));
     buf_push(keywords, str_intern("struct"));
+    buf_push(keywords, str_intern("return"));
 }

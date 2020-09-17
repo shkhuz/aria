@@ -500,6 +500,10 @@ static void check_stmt_expr(Linker* self, Stmt* stmt) {
     check_expr(self, stmt->s.expr);
 }
 
+static void check_stmt_return(Linker* self, Stmt* stmt) {
+    check_expr(self, stmt->s.ret);
+}
+
 static void check_stmt(Linker* self, Stmt* stmt) {
     switch (stmt->type) {
     case S_STRUCT: check_stmt_struct(self, stmt); break;
@@ -507,6 +511,7 @@ static void check_stmt(Linker* self, Stmt* stmt) {
     case S_VARIABLE_DECL: check_stmt_variable_decl(self, stmt); break;
     case S_BLOCK: check_stmt_block(self, stmt); break;
     case S_EXPR: check_stmt_expr(self, stmt); break;
+    case S_RETURN: check_stmt_return(self, stmt); break;
     }
 }
 

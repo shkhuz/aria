@@ -491,6 +491,13 @@ static Stmt* stmt_expr_new(Expr* expr) {
     return stmt;
 }
 
+static Stmt* stmt_return_new(Expr* expr) {
+    Stmt* stmt = stmt_new_alloc();
+    stmt->type = S_RETURN;
+    stmt->s.ret = expr;
+    return stmt;
+}
+
 static Stmt* stmt_block_new(Stmt** block) {
     Stmt* stmt = stmt_new_alloc();
     stmt->type = S_BLOCK;
@@ -521,10 +528,20 @@ static Stmt* stmt(Parser* self) {
         if (error) return null;
         else return stmt_block_new(block);
     }
+    else if (match_keyword(self, "return")) {
+        EXPR(e);
+        expect_semicolon(self);
+        return stmt_return_new(e);
+    }
 
     EXPR(e);
-    expect_semicolon(self);
-    return stmt_expr_new(e);
+    if (current(self)->type == T_R_BRACE) {
+        return stmt_return_new(e);
+    }
+    else {
+        expect_semicolon(self);
+        return stmt_expr_new(e);
+    }
 }
 
 static Stmt* stmt_function_new(
