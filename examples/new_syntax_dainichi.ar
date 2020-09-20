@@ -1,0 +1,69 @@
+#import "test.ar"
+#import "../test.ar" // clash!
+#import "../test.ar" = engine_test // works
+
+// structs are public by default.
+// can be hidden with `pvt`
+pvt struct Time {
+    pub shared fn in_seconds() u64 {
+        cast[u64](system::time::secs)
+    }
+
+    pub shared fn in_millis() u64 {
+        self.in_seconds() * 1000
+    }
+
+    pub shared fn reset() {
+        system::time::reset();
+    }
+}
+
+fn main() {
+    for {
+        if Time::in_seconds() > 5 {
+            Time::reset();
+            game_engine := std::alloc(GameEngine);
+            break;
+        }
+    }
+
+    std::alloc({12.0, 45.3});
+}
+
+namespace test { } // error! `test` defined at line 1
+
+namespace std {
+    struct vec<T> {
+        data: T*;
+        len: u64;
+        cap: u64;
+
+        pub shared fn new() Self {
+            vec { null, 0, 0 }
+        }
+
+        pub fn push(obj: T) {
+            if self.len == self.cap {
+                self.reserve(self.cap + self.cap / 2);
+            }
+
+            data[len] = obj;
+            len += 1;
+        }
+
+        pub fn reserve(n: u64) {
+            if n <= self.cap { return; }
+            self.data = std::realloc(self.data, n);
+            self.cap = n;
+        }
+    }
+
+    struct string {
+        std::vec<char> data;
+
+        pub shared fn new(data: char*) {
+
+        }
+    }
+}
+
