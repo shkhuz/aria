@@ -3,9 +3,9 @@
 
 /* #include <expr.h> */
 /* #include <data_type.h> */
-/* #include <token.h> */
 #include "arpch.h"
 #include "util/util.h"
+#include "ds/ds.h"
 
 void error(
 	File* srcfile,
@@ -15,14 +15,14 @@ void error(
 	const char* fmt,
 	va_list ap);
 
-/* void error_token( */
-/*         Token* token, */
-/*         const char* fmt, */
-/*         ...); */
-/* void verror_token( */
-/*         Token* token, */
-/*         const char* fmt, */
-/*         va_list ap); */
+void error_token(
+        Token* token,
+        const char* fmt,
+        ...);
+void verror_token(
+        Token* token,
+        const char* fmt,
+        va_list ap);
 
 /* void error_data_type( */
 /*         DataType* dt, */

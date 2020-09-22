@@ -1,9 +1,9 @@
 #define _ERROR_MSG_NO_ERROR_MACRO
 #include "error_msg.h"
 #undef _ERROR_MSG_NO_ERROR_MACRO
-/* #include <token.h> */
 #include "arpch.h"
 #include "util/util.h"
+#include "ds/ds.h"
 
 static char* get_line_in_file(File* srcfile, u64 line) {
 	char* line_start = srcfile->contents;
@@ -57,19 +57,26 @@ void error(
 
 	char* line_start_store = get_line_in_file(srcfile, line);
 	char* line_start = line_start_store;
+    u64 error_char_count = 0;
+    bool count_error_chars = false;
+
 	while (*line_start != '\n' && *line_start != '\0') {
         u64 color_to_put_to = (u64)(line_start - line_start_store + 1);
         if (color_to_put_to == column) {
             fprintf(stderr, ANSI_FRED);
+            count_error_chars = true;
         }
         if (color_to_put_to == column + char_count) {
             fprintf(stderr, ANSI_RESET);
+            count_error_chars = false;
         }
 		if (*line_start == '\t') print_tab();
 		else fprintf(stderr, "%c", *line_start);
 		line_start++;
+
+        if (count_error_chars) error_char_count++;
 	}
-	fprintf(stderr, "\n");
+	fprintf(stderr, ANSI_RESET "\n");
 
 	for (int c = 0; c < bar_indent; c++) fprintf(stderr, " ");
 	fprintf(stderr, "| ");
@@ -86,7 +93,7 @@ void error(
 	// error markers
     fprintf(stderr, ANSI_FRED);
 	char* column_start = beg_of_line + column - 1;
-	for (u64 c = 0; c < char_count; c++) {
+	for (u64 c = 0; c < error_char_count; c++) {
 		if (column_start[c] == '\t') fprintf(stderr, "^^^^");
 		else fprintf(stderr, "^");
 	}
@@ -96,34 +103,34 @@ void error(
 	va_end(aq);
 }
 
-/* void error_token( */
-/*         Token* token, */
-/*         const char* fmt, */
-/*         ...) { */
-/*     va_list ap; */
-/*     va_start(ap, fmt); */
-/*     verror_token( */
-/*             token, */
-/*             fmt, */
-/*             ap); */
-/*     va_end(ap); */
-/* } */
+void error_token(
+        Token* token,
+        const char* fmt,
+        ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    verror_token(
+            token,
+            fmt,
+            ap);
+    va_end(ap);
+}
 
-/* void verror_token( */
-/*         Token* token, */
-/*         const char* fmt, */
-/*         va_list ap) { */
-/*     va_list aq; */
-/*     va_copy(aq, ap); */
-/*     error( */
-/*             token->srcfile, */
-/*             token->line, */
-/*             token->column, */
-/*             token->char_count, */
-/*             fmt, */
-/*             ap); */
-/*     va_end(aq); */
-/* } */
+void verror_token(
+        Token* token,
+        const char* fmt,
+        va_list ap) {
+    va_list aq;
+    va_copy(aq, ap);
+    error(
+            token->srcfile,
+            token->line,
+            token->column,
+            token->char_count,
+            fmt,
+            ap);
+    va_end(aq);
+}
 
 /* void error_data_type( */
 /*         DataType* dt, */

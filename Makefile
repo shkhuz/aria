@@ -19,7 +19,7 @@ LDFLAGS :=
 LIBS_INC_DIR_CMD :=
 LIBS_LIB_DIR_CMD :=
 LIBS_LIB_CMD :=
-CMD_ARGS :=
+CMD_ARGS := examples/can_compile.ar
 
 install: $(BIN_FILE) docs
 	$(BIN_FILE) $(CMD_ARGS)
