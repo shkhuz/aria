@@ -27,6 +27,24 @@ fn main() {
         }
     }
 
+    useless_variable: void;
+    pointer_to_nothing: void*;
+    name: char*;
+    name_constant: const char*;
+    vector: std::vec<u64>;
+
+    // oops! #typeof(count) = "void";
+    count := if true { 1212; } else { 4234; };
+
+    // now #typeof(count) = "u64";
+    count := if true { 1212 } else { 4234 };
+
+    // error! else branch required
+    count := if true { true };
+
+    tuple: (u64, [char]);
+    tuple_init := (12, "hello");
+
     std::alloc({12.0, 45.3});
 }
 
@@ -55,14 +73,6 @@ namespace std {
             if n <= self.cap { return; }
             self.data = std::realloc(self.data, n);
             self.cap = n;
-        }
-    }
-
-    struct string {
-        std::vec<char> data;
-
-        pub shared fn new(data: char*) {
-
         }
     }
 }

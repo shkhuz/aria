@@ -1,6 +1,5 @@
 PROJECT := aria
 SRC_DIR := src
-INC_DIR := $(SRC_DIR)/include
 BUILD_DIR := build
 BIN_DIR := $(BUILD_DIR)/bin
 OBJ_DIR := $(BUILD_DIR)/obj
@@ -14,18 +13,13 @@ BIN_FILE := $(BIN_DIR)/$(PROJECT)
 CC := gcc
 LD := gcc
 PREPROCESSOR_DEFINES := -DTAB_COUNT=4 -DAST_TAB_COUNT=2
-CFLAGS := $(PREPROCESSOR_DEFINES) -I$(INC_DIR) -std=c99 -pedantic -Wall \
--Wextra -Wunused -Wshadow -Wno-write-strings -Wdouble-promotion \
--Wduplicate-decl-specifier -Wformat=2 -Winit-self -Wmisleading-indentation \
--Wswitch-default -Wstrict-overflow -Walloca -Wconversion -Wunused-macros \
--Wdate-time -Waddress -Wlogical-op -Wlogical-not-parentheses \
--Wstrict-prototypes -Wpacked -Winline -m64 -g -O0
+CFLAGS := $(PREPROCESSOR_DEFINES) -I$(SRC_DIR) -Wall -Wextra -Wshadow -std=c99 -m64 -g -O0
 ASMFLAGS := -felf64
 LDFLAGS :=
 LIBS_INC_DIR_CMD :=
 LIBS_LIB_DIR_CMD :=
 LIBS_LIB_CMD :=
-CMD_ARGS := examples/correct.ar
+CMD_ARGS :=
 
 install: $(BIN_FILE) docs
 	$(BIN_FILE) $(CMD_ARGS)
