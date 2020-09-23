@@ -14,6 +14,7 @@ int main(int argc, char** argv) {
     }
 
     keywords_init();
+    builtin_types_init();
 
     bool error = false;
     for (int f = 1; f < argc; f++) {

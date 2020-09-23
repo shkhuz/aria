@@ -10,7 +10,10 @@ typedef enum {
     T_R_BRACE,
     T_L_PAREN,
     T_R_PAREN,
+    T_STAR,
     T_SEMICOLON,
+    T_COLON,
+    T_COMMA,
     T_EOF,
 } TokenType;
 

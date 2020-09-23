@@ -124,7 +124,7 @@ static void number(Lexer* self) {
 	addt(self, type);
 }
 
-bool lex(Lexer* self, File* srcfile) {
+TokenOutput lex(Lexer* self, File* srcfile) {
     self->srcfile = srcfile;
     self->tokens =  null;
 	self->start = srcfile->contents;
@@ -160,6 +160,9 @@ bool lex(Lexer* self, File* srcfile) {
             addt(self, type)
 
         case ';': char_token(T_SEMICOLON); break;
+        case ':': char_token(T_COLON); break;
+        case ',': char_token(T_COMMA); break;
+        case '*': char_token(T_STAR); break;
         case '{': char_token(T_L_BRACE); break;
         case '}': char_token(T_R_BRACE); break;
         case '(': char_token(T_L_PAREN); break;
@@ -186,6 +189,6 @@ bool lex(Lexer* self, File* srcfile) {
 	}
 
     addt(self, T_EOF);
-    return self->error_state;
+    return (TokenOutput){ self->error_state, self->tokens };
 }
 

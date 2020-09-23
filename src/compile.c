@@ -15,11 +15,14 @@ AstOutput build_ast(Compiler* self, const char* fpath) {
     }
 
     Lexer lexer;
-    bool lexer_error = lex(&lexer, srcfile);
-    if (lexer_error) {
+    TokenOutput tokens = lex(&lexer, srcfile);
+    if (tokens.error) {
         return (AstOutput){ true, null };
     }
 
-    return (AstOutput){ false, null };
+    Parser parser;
+    AstOutput ast = parse(&parser, srcfile, tokens.tokens);
+
+    return (AstOutput){ false, ast.ast };
 }
 

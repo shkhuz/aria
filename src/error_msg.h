@@ -1,8 +1,6 @@
 #ifndef _ERROR_MSG_H
 #define _ERROR_MSG_H
 
-/* #include <expr.h> */
-/* #include <data_type.h> */
 #include "arpch.h"
 #include "util/util.h"
 #include "ds/ds.h"
@@ -24,23 +22,23 @@ void verror_token(
         const char* fmt,
         va_list ap);
 
-/* void error_data_type( */
-/*         DataType* dt, */
-/*         const char* fmt, */
-/*         ...); */
-/* void verror_data_type( */
-/*         DataType* dt, */
-/*         const char* fmt, */
-/*         va_list ap); */
+void error_data_type(
+        DataType* dt,
+        const char* fmt,
+        ...);
+void verror_data_type(
+        DataType* dt,
+        const char* fmt,
+        va_list ap);
 
-/* void error_expr( */
-/*         Expr* expr, */
-/*         const char* fmt, */
-/*         ...); */
-/* void verror_expr( */
-/*         Expr* expr, */
-/*         const char* fmt, */
-/*         va_list ap); */
+void error_expr(
+        Expr* expr,
+        const char* fmt,
+        ...);
+void verror_expr(
+        Expr* expr,
+        const char* fmt,
+        va_list ap);
 
 void error_common(const char* fmt, ...);
 void fatal_error_common(const char* fmt, ...);
