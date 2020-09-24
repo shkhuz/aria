@@ -1,8 +1,8 @@
-#include "aria.h"
 #include "arpch.h"
-#include "ds/ds.h"
 #include "util/util.h"
+#include "ds/ds.h"
 #include "error_msg.h"
+#include "aria.h"
 
 #define push_stmt(stmt) buf_push(self->ast->stmts, stmt)
 

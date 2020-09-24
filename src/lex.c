@@ -1,7 +1,7 @@
-#include "aria.h"
 #include "arpch.h"
 #include "ds/ds.h"
 #include "error_msg.h"
+#include "aria.h"
 
 static u64 compute_column_on_start(Lexer* self) {
 	u64 column = (u64)(self->start - self->last_newline);

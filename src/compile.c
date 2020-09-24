@@ -3,14 +3,12 @@
 #include "util/util.h"
 #include "error_msg.h"
 
-AstOutput build_ast(Compiler* self, const char* fpath) {
-    self->fpath = fpath;
-
-    File* srcfile = file_read(self->fpath);
+AstOutput build_ast(const char* fpath) {
+    File* srcfile = file_read(fpath);
     if (!srcfile) {
         error_common(
                 "cannot read `%s`: invalid filename or missing file",
-                self->fpath);
+                fpath);
         return (AstOutput){ true, null };
     }
 
@@ -26,3 +24,12 @@ AstOutput build_ast(Compiler* self, const char* fpath) {
     return (AstOutput){ false, ast.ast };
 }
 
+bool check_ast(Ast* ast) {
+    Resolver resolver;
+    bool error = resolve_ast(&resolver, ast);
+    if (error) return error;
+
+    TypeChecker type_checker;
+    error = type_check_ast(&type_checker, ast);
+    return error;
+}
