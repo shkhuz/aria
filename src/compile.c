@@ -20,6 +20,9 @@ AstOutput build_ast(const char* fpath) {
 
     Parser parser;
     AstOutput ast = parse(&parser, srcfile, tokens.tokens);
+    if (ast.error) {
+        return (AstOutput){ true, null };
+    }
 
     return (AstOutput){ false, ast.ast };
 }

@@ -13,6 +13,7 @@ static bool match(Parser* self, TokenType type);
 static Token* current(Parser* self);
 static void goto_next_token(Parser* self);
 static void goto_previous_token(Parser* self);
+static Stmt* variable_decl(Parser* self, Token* identifier);
 
 static void sync_to_next_statement(Parser* self) {
     self->error_state = true;
@@ -339,6 +340,17 @@ static StmtLevelOutput stmt(Parser* self) {
         return out;
     }
 
+    else if (match(self, T_IDENTIFIER)) {
+        Token* identifier = previous(self);
+        if (match(self, T_COLON)) {
+            out.stmt = variable_decl(self, identifier);
+            return out;
+        }
+        else {
+            goto_previous_token(self);
+        }
+    }
+
     Expr* e = null;
     { es; e = expr(self); er out; }
     if (current(self)->type == T_R_BRACE) {
@@ -347,7 +359,9 @@ static StmtLevelOutput stmt(Parser* self) {
         return out;
     }
     else {
-        expect_semicolon_custom(self);
+        if (e->type != E_BLOCK) {
+            expect_semicolon_custom(self);
+        }
         out.stmt = stmt_expr_new(e);
         return out;
     }
@@ -370,6 +384,40 @@ static Stmt* stmt_variable_decl_new(
     stmt->variable_decl.global = global;
     stmt->variable_decl.external = external;
     return stmt;
+}
+
+static Stmt* variable_decl(Parser* self, Token* identifier) {
+    DataTypeError data_type = match_data_type(self);
+    if (data_type.error) return null;
+    Expr* initializer = null;
+    if (match(self, T_EQUAL)) {
+        EXPR_ND(initializer, expr, self);
+    }
+    else if (current(self)->type != T_SEMICOLON) {
+        error_token_with_sync(
+                self,
+                current(self),
+                "expect `=`"
+        );
+        return null;
+    }
+    else if (!data_type.data_type) {
+        error_token_with_sync(
+                self,
+                identifier,
+                "initializer is required when type is not annotated"
+        );
+        return null;
+    }
+    expect_semicolon(self);
+
+    return stmt_variable_decl_new(
+            identifier,
+            data_type.data_type,
+            initializer,
+            !self->in_function,
+            false
+    );
 }
 
 static Stmt* stmt_function_new(
@@ -476,6 +524,15 @@ static Stmt* decl(Parser* self) {
             );
         }
     }
+
+    else if (match(self, T_IDENTIFIER)) {
+        Token* identifier = previous(self);
+        if (match(self, T_COLON)) {
+            return variable_decl(self, identifier);
+        }
+        else goto error;
+    }
+
 error:
     error_token_with_sync(
             self,

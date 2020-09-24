@@ -1,3 +1,17 @@
-fn main() u64 {
-    2
+glo: char;
+glosd: u64;
+
+fn main(df: char) u64 {
+    two: char;
+    hello_world_str := {
+        12;
+        return 3423;
+        12
+    };
+    df := {
+        hello_world_str: string;
+    };
+    return 2;
 }
+
+fn sd() {}

@@ -14,6 +14,7 @@ typedef enum {
     T_SEMICOLON,
     T_COLON,
     T_COMMA,
+    T_EQUAL,
     T_EOF,
 } TokenType;
 

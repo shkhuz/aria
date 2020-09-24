@@ -66,6 +66,7 @@ static void gen_functions(CodeGenerator* self) {
             gen_function_header(self, stmt);
             gen_l_brace(self);
             gen_r_brace(self);
+            gen_newline(self);
         }
     }
 }
@@ -94,5 +95,6 @@ void gen_code_for_ast(CodeGenerator* self, Ast* ast, const char* fpath) {
     FILE* file = fopen(fpath, "w");
     fwrite(self->code, sizeof(char), buf_len(self->code) - 1, file);
     fclose(file);
+    printf("%s", self->code);
 }
 

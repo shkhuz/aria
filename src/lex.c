@@ -167,6 +167,7 @@ TokenOutput lex(Lexer* self, File* srcfile) {
         case '}': char_token(T_R_BRACE); break;
         case '(': char_token(T_L_PAREN); break;
         case ')': char_token(T_R_PAREN); break;
+        case '=': char_token(T_EQUAL); break;
 
         case '\n':
             self->last_newline = self->current++;

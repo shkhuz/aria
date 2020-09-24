@@ -5,6 +5,7 @@
 #include "token_type.h"
 #include "data_type.h"
 #include "builtin_types.h"
+#include "scope.h"
 #include "expr.h"
 #include "stmt.h"
 #include "ast.h"

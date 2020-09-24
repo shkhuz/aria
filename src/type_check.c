@@ -12,7 +12,10 @@ static DataType* typeck_block_expr(TypeChecker* self, Expr* check) {
         typeck_stmt(self, check->block.stmts[s]);
     }
 
-    return typeck_expr(self, check->block.ret);
+    if (check->block.ret) {
+        return typeck_expr(self, check->block.ret);
+    }
+    return builtin_types.e.void_type;
 }
 
 static DataType* typeck_expr(TypeChecker* self, Expr* check) {
@@ -25,6 +28,8 @@ static DataType* typeck_expr(TypeChecker* self, Expr* check) {
 
 static void typeck_function(TypeChecker* self, Stmt* check) {
     DataType* block_type = typeck_expr(self, check->function.block);
+    if (block_type == builtin_types.e.void_type) return;
+
     if (!is_dt_eq(block_type, check->function.return_type)) {
         error_token(
                 check->function.identifier,
@@ -49,7 +54,7 @@ static void typeck_stmt(TypeChecker* self, Stmt* check) {
     case S_FUNCTION: typeck_function(self, check); break;
     case S_RETURN: typeck_return_stmt(self, check); break;
     case S_EXPR: typeck_expr_stmt(self, check); break;
-    default: assert(0); break;
+    /* default: assert(0); break; */
     }
 }
 
