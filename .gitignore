@@ -1,3 +1,6 @@
 build/
 .dev/
 .gdb_history
+*.o
+a.out
+*.c

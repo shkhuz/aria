@@ -72,6 +72,7 @@ bool type_check_ast(TypeChecker* self, Ast* ast);
 typedef struct {
     Ast* ast;
     char* code;
+    u64 indent;
 } CodeGenerator;
 
 void gen_code_for_ast(CodeGenerator* self, Ast* ast, const char* fpath);

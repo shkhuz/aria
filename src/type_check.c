@@ -43,6 +43,26 @@ static void typeck_function(TypeChecker* self, Stmt* check) {
     }
 }
 
+static void typeck_variable_decl(TypeChecker* self, Stmt* check) {
+    if (!check->variable_decl.data_type) {
+        check->variable_decl.data_type =
+            typeck_expr(self, check->variable_decl.initializer);
+        return;
+    }
+
+    if (check->variable_decl.initializer && check->variable_decl.data_type) {
+        DataType* assign_type =
+            typeck_expr(self, check->variable_decl.initializer);
+        if (!assign_type) return;
+        if (!is_dt_eq(check->variable_decl.data_type, assign_type)) {
+            error_expr(
+                    check->variable_decl.initializer,
+                    "initializer type conflicts from annotated type"
+            );
+        }
+    }
+}
+
 static void typeck_return_stmt(TypeChecker* self, Stmt* check) {
 }
 
@@ -52,6 +72,7 @@ static void typeck_expr_stmt(TypeChecker* self, Stmt* check) {
 static void typeck_stmt(TypeChecker* self, Stmt* check) {
     switch (check->type) {
     case S_FUNCTION: typeck_function(self, check); break;
+    case S_VARIABLE_DECL: typeck_variable_decl(self, check); break;
     case S_RETURN: typeck_return_stmt(self, check); break;
     case S_EXPR: typeck_expr_stmt(self, check); break;
     /* default: assert(0); break; */

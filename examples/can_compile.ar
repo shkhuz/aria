@@ -8,10 +8,15 @@ fn main(df: char) u64 {
         return 3423;
         12
     };
-    df := {
-        hello_world_str: string;
-    };
+    2;
     return 2;
+    23
 }
 
-fn sd() {}
+fn sd(a: u64, b: u32) {
+    var: u64 = 323;
+    var_block := {
+        3324234;
+        12
+    };
+}
