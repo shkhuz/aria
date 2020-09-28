@@ -53,7 +53,8 @@ static DataType* typeck_expr(TypeChecker* self, Expr* check) {
 }
 
 static void typeck_function(TypeChecker* self, Stmt* check) {
-    DataType* block_type = typeck_expr(self, check->function.block);
+    DataType* block_type = null;
+    chkv(block_type = typeck_expr(self, check->function.block));
     if (block_type == builtin_types.e.void_type) return;
 
     if (!is_dt_eq(block_type, check->function.return_type)) {

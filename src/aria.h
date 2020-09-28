@@ -74,6 +74,8 @@ typedef struct {
     Ast* ast;
     char* code;
     u64 indent;
+
+    bool convert_last_block_elem_to_ret;
 } CodeGenerator;
 
 void gen_code_for_ast(CodeGenerator* self, Ast* ast, const char* fpath);
