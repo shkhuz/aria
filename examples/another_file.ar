@@ -1,0 +1,11 @@
+fn main() u64 {
+    {
+        {
+            {
+                tmp_num := 12;
+                tmp_num
+            }
+        }
+    }
+}
+
