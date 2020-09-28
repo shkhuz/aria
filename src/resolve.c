@@ -84,31 +84,31 @@ static VariableScope is_variable_in_scope(Resolver* self, Stmt* check) {
     return scope_in;
 }
 
-/* static VariableScope is_variable_ref_in_scope(Resolver* self, Expr* expr) { */
-/*     VariableScope scope_in = VS_NO_SCOPE; */
-/*     bool first_iter = true; */
-/*     Scope* scope = self->current_scope; */
+static VariableScope is_variable_ref_in_scope(Resolver* self, Expr* expr) {
+    VariableScope scope_in = VS_NO_SCOPE;
+    bool first_iter = true;
+    Scope* scope = self->current_scope;
 
-/*     while (scope != null) { */
-/*         buf_loop(scope->variables, v) { */
-/*             if (is_tok_eq( */
-/*                         expr->variable_ref.identifier, */
-/*                         scope->variables[v]->s.variable_decl.identifier)) { */
+    while (scope != null) {
+        buf_loop(scope->variables, v) {
+            if (is_tok_eq(
+                        expr->variable_ref.identifier,
+                        scope->variables[v]->variable_decl.identifier)) {
 
-/*                 if (first_iter) scope_in = VS_CURRENT_SCOPE; */
-/*                 else scope_in = VS_OUTER_SCOPE; */
-/*                 expr->e.variable_ref.variable_ref = scope->variables[v]; */
-/*                 break; */
-/*             } */
-/*         } */
+                if (first_iter) scope_in = VS_CURRENT_SCOPE;
+                else scope_in = VS_OUTER_SCOPE;
+                expr->variable_ref.declaration = scope->variables[v];
+                break;
+            }
+        }
 
-/*         if (scope_in != VS_NO_SCOPE) break; */
-/*         scope = scope->parent_scope; */
-/*         first_iter = false; */
-/*     } */
+        if (scope_in != VS_NO_SCOPE) break;
+        scope = scope->parent_scope;
+        first_iter = false;
+    }
 
-/*     return scope_in; */
-/* } */
+    return scope_in;
+}
 
 static void check_and_add_to_scope(Resolver* self, Stmt* check) {
     VariableScope scope = is_variable_in_scope(self, check);
@@ -153,6 +153,11 @@ static void resolve_data_type(Resolver* self, DataType* dt) {
     }
 }
 
+static void resolve_assign_expr(Resolver* self, Expr* check) {
+    resolve_expr(self, check->assign.left);
+    resolve_expr(self, check->assign.right);
+}
+
 static void resolve_block_expr(Resolver* self, Expr* check) {
     change_scope(scope);
     buf_loop(check->block.stmts, s) {
@@ -164,9 +169,22 @@ static void resolve_block_expr(Resolver* self, Expr* check) {
     revert_scope(scope);
 }
 
+static void resolve_variable_ref_expr(Resolver* self, Expr* check) {
+	VariableScope scope_in_found = is_variable_ref_in_scope(self, check);
+	if (scope_in_found == VS_NO_SCOPE) {
+        error_expr(
+                check,
+                "undefined variable: `%s`",
+                check->variable_ref.identifier->lexeme
+        );
+	}
+}
+
 static void resolve_expr(Resolver* self, Expr* check) {
     switch (check->type) {
+    case E_ASSIGN: resolve_assign_expr(self, check); break;
     case E_BLOCK: resolve_block_expr(self, check); break;
+    case E_VARIABLE_REF: resolve_variable_ref_expr(self, check); break;
     }
 }
 

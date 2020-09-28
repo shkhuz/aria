@@ -64,6 +64,7 @@ bool resolve_ast(Resolver* self, Ast* ast);
 
 typedef struct {
     Ast* ast;
+    u64 error_count;
     bool error_state;
 } TypeChecker;
 

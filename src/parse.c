@@ -85,24 +85,9 @@ static void error_token_with_sync(
     va_end(ap);
 }
 
-#define es \
-    u64 COMBINE(_error_store,__LINE__) = self->error_count
+#include "error_recover.h"
 
-#define er \
-    if (self->error_count > COMBINE(_error_store,__LINE__)) return
-
-#define ec \
-    if (self->error_count > COMBINE(_error_store,__LINE__)) continue
-
-#define ern \
-    er null
-
-#define chk(stmt) \
-    es; stmt; ern;
-
-#define chklp(stmt) \
-    es; stmt; ec;
-
+/* custom initialization */
 #define EXPR_CI(name, init_func, ...) \
     Expr* name = null; \
     { \
@@ -111,6 +96,7 @@ static void error_token_with_sync(
         ern; \
     }
 
+/* no declaration */
 #define EXPR_ND(name, init_func, ...) \
     { \
         es; \
@@ -254,6 +240,15 @@ static Expr* expr_integer_new(Token* integer) {
     return expr;
 }
 
+static Expr* expr_variable_ref_new(Token* identifier) {
+    Expr* expr = expr_new_alloc();
+    expr->type = E_VARIABLE_REF;
+    expr->head = identifier;
+    expr->tail = identifier;
+    expr->variable_ref.identifier = identifier;
+    return expr;
+}
+
 static Expr* expr_block_new(
         Stmt** stmts,
         Expr* ret,
@@ -269,9 +264,22 @@ static Expr* expr_block_new(
     return expr;
 }
 
+static Expr* expr_assign_new(Expr* left, Expr* right) {
+    Expr* expr = expr_new_alloc();
+    expr->type = E_ASSIGN;
+    expr->head = left->head;
+    expr->tail = right->tail;
+    expr->assign.left = left;
+    expr->assign.right = right;
+    return expr;
+}
+
 static Expr* expr_atom(Parser* self) {
     if (match(self, T_INTEGER)) {
         return expr_integer_new(previous(self));
+    }
+    else if (match(self, T_IDENTIFIER)) {
+        return expr_variable_ref_new(previous(self));
     }
     else if (match(self, T_L_BRACE)) {
         Token* l_brace = previous(self);
@@ -307,8 +315,26 @@ static Expr* expr_atom(Parser* self) {
     }
 }
 
+static Expr* expr_assign(Parser* self) {
+    EXPR_CI(left, expr_atom, self);
+    if (match(self, T_EQUAL)) {
+        EXPR_CI(right, expr_assign, self);
+        if (left->type == E_VARIABLE_REF) {
+            return expr_assign_new(left, right);
+        }
+        else {
+            error_expr(
+                    left,
+                    "invalid assignment target"
+            );
+            return null;
+        }
+    }
+    return left;
+}
+
 static Expr* expr(Parser* self) {
-    return expr_atom(self);
+    return expr_assign(self);
 }
 
 static Stmt* stmt_expr_new(Expr* expr) {

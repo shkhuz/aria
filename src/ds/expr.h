@@ -4,13 +4,25 @@
 #include "token.h"
 
 typedef enum {
+    E_ASSIGN,
     E_INTEGER,
+    E_VARIABLE_REF,
     E_BLOCK,
     E_NONE,
 } ExprType;
 
 typedef struct Expr Expr;
 struct Stmt;
+
+typedef struct {
+    Expr* left;
+    Expr* right;
+} ExprAssign;
+
+typedef struct {
+    Token* identifier;
+    struct Stmt* declaration;
+} ExprVariableRef;
 
 typedef struct {
     struct Stmt** stmts;
@@ -22,6 +34,8 @@ struct Expr {
     Token* head;
     Token* tail;
     union {
+        ExprAssign assign;
+        ExprVariableRef variable_ref;
         ExprBlock block;
         Token* integer;
     };

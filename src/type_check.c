@@ -1,11 +1,35 @@
 #include "arpch.h"
 #include "util/util.h"
+#include "error_recover.h"
 #include "error_msg.h"
 #include "ds/ds.h"
 #include "aria.h"
 
 static void typeck_stmt(TypeChecker* self, Stmt* check);
 static DataType* typeck_expr(TypeChecker* self, Expr* check);
+
+static DataType* typeck_assign_expr(TypeChecker* self, Expr* check) {
+    DataType* left_type = null;
+    DataType* right_type = null;
+    chk((left_type = typeck_expr(self, check->assign.left),
+        right_type = typeck_expr(self, check->assign.right))
+    );
+    if (!is_dt_eq(left_type, right_type)) {
+        error_expr(
+                check->assign.right,
+                "conflicting types for assignment operator"
+        );
+        return null;
+    }
+    return left_type;
+}
+
+static DataType* typeck_variable_ref_expr(TypeChecker* self, Expr* check) {
+    if (check->variable_ref.declaration->variable_decl.data_type) {
+        return check->variable_ref.declaration->variable_decl.data_type;
+    }
+    else assert(0);
+}
 
 static DataType* typeck_block_expr(TypeChecker* self, Expr* check) {
     buf_loop(check->block.stmts, s) {
@@ -20,7 +44,9 @@ static DataType* typeck_block_expr(TypeChecker* self, Expr* check) {
 
 static DataType* typeck_expr(TypeChecker* self, Expr* check) {
     switch (check->type) {
+    case E_ASSIGN: return typeck_assign_expr(self, check); break;
     case E_INTEGER: return builtin_types.e.u64_type; break;
+    case E_VARIABLE_REF: return typeck_variable_ref_expr(self, check); break;
     case E_BLOCK: return typeck_block_expr(self, check); break;
     default: assert(0); break;
     }
@@ -36,11 +62,6 @@ static void typeck_function(TypeChecker* self, Stmt* check) {
                 "return type conflicts from last expression returned"
         );
     }
-
-    Stmt** block = check->function.block->block.stmts;
-    buf_loop(block, s) {
-        typeck_stmt(self, block[s]);
-    }
 }
 
 static void typeck_variable_decl(TypeChecker* self, Stmt* check) {
@@ -51,9 +72,10 @@ static void typeck_variable_decl(TypeChecker* self, Stmt* check) {
     }
 
     if (check->variable_decl.initializer && check->variable_decl.data_type) {
-        DataType* assign_type =
-            typeck_expr(self, check->variable_decl.initializer);
-        if (!assign_type) return;
+        // TODO: check if this error recovery system works
+        DataType* assign_type = null;
+        chkv(assign_type =
+                typeck_expr(self, check->variable_decl.initializer));
         if (!is_dt_eq(check->variable_decl.data_type, assign_type)) {
             error_expr(
                     check->variable_decl.initializer,
@@ -67,6 +89,16 @@ static void typeck_return_stmt(TypeChecker* self, Stmt* check) {
 }
 
 static void typeck_expr_stmt(TypeChecker* self, Stmt* check) {
+    DataType* block_type = null;
+    chkv(block_type = typeck_expr(self, check->expr));
+    if (check->expr->type == E_BLOCK) {
+        if (!is_dt_eq(block_type, builtin_types.e.void_type)) {
+            error_expr(
+                    check->expr->block.ret,
+                    "freestanding block ought to return `void`"
+            );
+        }
+    }
 }
 
 static void typeck_stmt(TypeChecker* self, Stmt* check) {
@@ -81,6 +113,7 @@ static void typeck_stmt(TypeChecker* self, Stmt* check) {
 
 bool type_check_ast(TypeChecker* self, Ast* ast) {
     self->ast = ast;
+    self->error_count = 0;
     self->error_state = false;
 
     buf_loop(self->ast->stmts, s) {

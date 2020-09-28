@@ -2,19 +2,29 @@ glo: char;
 glosd: u64;
 
 fn main(df: char) u64 {
-    two: char;
+    from: u64;
+    {
+        from;
+    }
+    two: u64;
     hello_world_str := {
         12;
         return 3423;
         12
     };
-    2;
+    two;
+    from = {
+        hello_world := {
+            12
+        };
+        hello_world
+    };
     return 2;
     23
 }
 
-fn sd(a: u64, b: u32) {
-    var: u64 = 323;
+fn sd(a: u64, b: u32) u64 {
+    var: u64 = a;
     var_block := {
         3324234;
         12

@@ -36,17 +36,3 @@ bool is_dt_eq(DataType* a, DataType* b) {
     return false;
 }
 
-bool is_dt_eq_null(DataType* a, DataType* b) {
-    bool a_present = (a ? true : false);
-    bool b_present = (b ? true : false);
-    if (a_present != b_present) return false;
-
-    if (is_tok_eq(a->identifier, b->identifier)) {
-        if (a->pointer_count == b->pointer_count) {
-            return true;
-        }
-    }
-    return false;
-}
-
-
