@@ -40,6 +40,9 @@ void verror_expr(
         const char* fmt,
         va_list ap);
 
+void error_info_expect_type(DataType* dt);
+void error_info_got_type(DataType* dt);
+
 void error_common(const char* fmt, ...);
 void fatal_error_common(const char* fmt, ...);
 

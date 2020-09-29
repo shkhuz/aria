@@ -27,6 +27,8 @@ static void print_tab(void) {
 	}
 }
 
+static int last_bar_indent_offset = 7;
+
 void error(
         File* srcfile,
         u64 line,
@@ -54,6 +56,7 @@ void error(
 
 	int bar_indent = fprintf(stderr, "%6lu | ", line) - 2;
 	assert(bar_indent > 0);
+    last_bar_indent_offset = bar_indent;
 
 	char* line_start_store = get_line_in_file(srcfile, line);
 	char* line_start = line_start_store;
@@ -188,6 +191,29 @@ void verror_expr(
             fmt,
             ap);
     va_end(aq);
+}
+
+static void error_write_dt_to_stderr(DataType* dt) {
+    fprintf(stderr, "%s", dt->identifier->lexeme);
+    for (u8 p = 0; p < dt->pointer_count; p++) {
+        fprintf(stderr, "%c", '*');
+    }
+}
+
+void error_info_expect_type(DataType* dt) {
+	for (int c = 0; c < last_bar_indent_offset; c++) fprintf(stderr, " ");
+	fprintf(stderr, "| ");
+    fprintf(stderr, ANSI_FBOLD "expect type" ANSI_RESET ": `");
+    error_write_dt_to_stderr(dt);
+    fprintf(stderr, "`\n");
+}
+
+void error_info_got_type(DataType* dt) {
+	for (int c = 0; c < last_bar_indent_offset; c++) fprintf(stderr, " ");
+	fprintf(stderr, "| ");
+    fprintf(stderr, ANSI_FBOLD "   got type" ANSI_RESET ": `");
+    error_write_dt_to_stderr(dt);
+    fprintf(stderr, "`\n");
 }
 
 /* shared across source files (no unique source file path) */

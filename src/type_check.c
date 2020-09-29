@@ -19,6 +19,8 @@ static DataType* typeck_assign_expr(TypeChecker* self, Expr* check) {
                 check->assign.right,
                 "conflicting types for assignment operator"
         );
+        error_info_expect_type(left_type);
+        error_info_got_type(right_type);
         return null;
     }
     return left_type;
@@ -53,15 +55,28 @@ static DataType* typeck_expr(TypeChecker* self, Expr* check) {
 }
 
 static void typeck_function(TypeChecker* self, Stmt* check) {
+    self->enclosed_function = check;
     DataType* block_type = null;
-    chkv(block_type = typeck_expr(self, check->function.block));
+    es; block_type = typeck_expr(self, check->function.block); self->enclosed_function = null; er;
     if (block_type == builtin_types.e.void_type) return;
 
     if (!is_dt_eq(block_type, check->function.return_type)) {
-        error_token(
-                check->function.identifier,
-                "return type conflicts from last expression returned"
-        );
+        const char* err_msg =
+            "return type conflicts from last expression returned";
+        if (check->function.block->block.ret) {
+            error_expr(
+                    check->function.block->block.ret,
+                    err_msg
+            );
+        }
+        else {
+            error_token(
+                    check->function.identifier,
+                    err_msg
+            );
+        }
+        error_info_expect_type(check->function.return_type);
+        error_info_got_type(block_type);
     }
 }
 
@@ -82,22 +97,37 @@ static void typeck_variable_decl(TypeChecker* self, Stmt* check) {
                     check->variable_decl.initializer,
                     "initializer type conflicts from annotated type"
             );
+            error_info_expect_type(check->variable_decl.data_type);
+            error_info_got_type(assign_type);
         }
     }
 }
 
 static void typeck_return_stmt(TypeChecker* self, Stmt* check) {
+    DataType* return_type = null;
+    chkv(return_type = typeck_expr(self, check->ret));
+
+    if (!is_dt_eq(self->enclosed_function->function.return_type, return_type)) {
+        error_expr(
+                check->ret,
+                "expression type conflicts with return type"
+        );
+        error_info_expect_type(self->enclosed_function->function.return_type);
+        error_info_got_type(return_type);
+    }
 }
 
 static void typeck_expr_stmt(TypeChecker* self, Stmt* check) {
     DataType* block_type = null;
     chkv(block_type = typeck_expr(self, check->expr));
     if (check->expr->type == E_BLOCK) {
-        if (!is_dt_eq(block_type, builtin_types.e.void_type)) {
+        if (!is_dt_eq(builtin_types.e.void_type, block_type)) {
             error_expr(
                     check->expr->block.ret,
                     "freestanding block ought to return `void`"
             );
+            error_info_expect_type(builtin_types.e.void_type);
+            error_info_got_type(block_type);
         }
     }
 }
@@ -114,6 +144,7 @@ static void typeck_stmt(TypeChecker* self, Stmt* check) {
 
 bool type_check_ast(TypeChecker* self, Ast* ast) {
     self->ast = ast;
+    self->enclosed_function = null;
     self->error_count = 0;
     self->error_state = false;
 

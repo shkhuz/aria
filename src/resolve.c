@@ -220,10 +220,15 @@ static void resolve_variable_decl(Resolver* self, Stmt* check) {
     }
 }
 
+static void resolve_return_stmt(Resolver* self, Stmt* check) {
+    resolve_expr(self, check->ret);
+}
+
 static void resolve_stmt(Resolver* self, Stmt* check) {
     switch (check->type) {
     case S_FUNCTION: resolve_function(self, check); break;
     case S_VARIABLE_DECL: resolve_variable_decl(self, check); break;
+    case S_RETURN: resolve_return_stmt(self, check); break;
     case S_EXPR: resolve_expr(self, check->expr); break;
     }
 }
