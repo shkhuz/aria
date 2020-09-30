@@ -11,12 +11,12 @@ static DataType* typeck_expr(TypeChecker* self, Expr* check);
 static DataType* typeck_assign_expr(TypeChecker* self, Expr* check) {
     DataType* left_type = null;
     DataType* right_type = null;
-    chk((left_type = typeck_expr(self, check->assign.left),
-        right_type = typeck_expr(self, check->assign.right))
+    chk((left_type = typeck_expr(self, check->binary.left),
+        right_type = typeck_expr(self, check->binary.right))
     );
     if (!is_dt_eq(left_type, right_type)) {
         error_expr(
-                check->assign.right,
+                check->binary.right,
                 "conflicting types for assignment operator"
         );
         error_info_expect_type(left_type);
@@ -24,6 +24,61 @@ static DataType* typeck_assign_expr(TypeChecker* self, Expr* check) {
         return null;
     }
     return left_type;
+}
+
+static DataType* typeck_add_sub_expr(TypeChecker* self, Expr* check) {
+    DataType* left_type = null;
+    DataType* right_type = null;
+    chk((left_type = typeck_expr(self, check->binary.left),
+        right_type = typeck_expr(self, check->binary.right))
+    );
+
+    bool pre_error = false;
+    const char* int_operand_err_msg =
+        "`%s` operator requires integer operand";
+
+    if (!is_dt_integer(left_type)) {
+        error_expr(
+                check->binary.left,
+                int_operand_err_msg,
+                check->binary.op->lexeme
+        );
+        pre_error = true;
+    }
+
+    if (!is_dt_integer(right_type)) {
+        error_expr(
+                check->binary.right,
+                int_operand_err_msg,
+                check->binary.op->lexeme
+        );
+        pre_error = true;
+    }
+
+    if (!pre_error) {
+        if (!is_dt_eq(left_type, right_type)) {
+            error_token(
+                    check->binary.op,
+                    "`%s` operator requires similar types",
+                    check->binary.op->lexeme
+            );
+            error_info_expect_type(left_type);
+            error_info_got_type(right_type);
+            pre_error = true;
+        }
+    }
+
+    if (pre_error) return null;
+    return left_type;
+}
+
+static DataType* typeck_binary_expr(TypeChecker* self, Expr* check) {
+    switch (check->binary.op->type) {
+    case T_PLUS:
+    case T_MINUS: return typeck_add_sub_expr(self, check); break;
+    case T_EQUAL: return typeck_assign_expr(self, check); break;
+    default: assert(0); break;
+    }
 }
 
 static DataType* typeck_variable_ref_expr(TypeChecker* self, Expr* check) {
@@ -46,7 +101,7 @@ static DataType* typeck_block_expr(TypeChecker* self, Expr* check) {
 
 static DataType* typeck_expr(TypeChecker* self, Expr* check) {
     switch (check->type) {
-    case E_ASSIGN: return typeck_assign_expr(self, check); break;
+    case E_BINARY: return typeck_binary_expr(self, check); break;
     case E_INTEGER: return builtin_types.e.u64_type; break;
     case E_VARIABLE_REF: return typeck_variable_ref_expr(self, check); break;
     case E_BLOCK: return typeck_block_expr(self, check); break;

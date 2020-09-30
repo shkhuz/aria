@@ -4,7 +4,7 @@
 #include "token.h"
 
 typedef enum {
-    E_ASSIGN,
+    E_BINARY,
     E_INTEGER,
     E_VARIABLE_REF,
     E_BLOCK,
@@ -17,7 +17,8 @@ struct Stmt;
 typedef struct {
     Expr* left;
     Expr* right;
-} ExprAssign;
+    Token* op;
+} ExprBinary;
 
 typedef struct {
     Token* identifier;
@@ -34,7 +35,7 @@ struct Expr {
     Token* head;
     Token* tail;
     union {
-        ExprAssign assign;
+        ExprBinary binary;
         ExprVariableRef variable_ref;
         ExprBlock block;
         Token* integer;
@@ -43,5 +44,7 @@ struct Expr {
 
 Expr expr_new(void);
 Expr* expr_new_alloc(void);
+Expr* expr_variable_ref_from_token(Token* identifier);
+Expr* expr_variable_ref_from_string(const char* identifier);
 
 #endif /* _EXPR_H */

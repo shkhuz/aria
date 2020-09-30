@@ -1,6 +1,7 @@
+#include <arpch.h>
 #include "data_type.h"
 #include "token.h"
-#include <arpch.h>
+#include "ds/ds.h"
 
 DataType data_type_new(Token* identifier, u8 pointer_count) {
     DataType data_type;
@@ -36,3 +37,18 @@ bool is_dt_eq(DataType* a, DataType* b) {
     return false;
 }
 
+bool is_dt_integer(DataType* dt) {
+    assert(dt);
+
+    if (is_dt_eq(dt, builtin_types.e.u8_type)  ||
+        is_dt_eq(dt, builtin_types.e.u16_type) ||
+        is_dt_eq(dt, builtin_types.e.u32_type) ||
+        is_dt_eq(dt, builtin_types.e.u64_type) ||
+        is_dt_eq(dt, builtin_types.e.i8_type)  ||
+        is_dt_eq(dt, builtin_types.e.i16_type) ||
+        is_dt_eq(dt, builtin_types.e.i32_type) ||
+        is_dt_eq(dt, builtin_types.e.i64_type)) {
+        return true;
+    }
+    return false;
+}

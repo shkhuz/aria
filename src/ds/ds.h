@@ -3,6 +3,7 @@
 
 #include "token.h"
 #include "token_type.h"
+#include "token_cache.h"
 #include "data_type.h"
 #include "builtin_types.h"
 #include "scope.h"

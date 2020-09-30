@@ -16,6 +16,7 @@ int main(int argc, char** argv) {
 
     keywords_init();
     builtin_types_init();
+    token_cache_init();
 
     Ast** asts = null;
     bool error = false;

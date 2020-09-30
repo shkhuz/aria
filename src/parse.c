@@ -231,6 +231,17 @@ typedef struct {
 
 static StmtLevelOutput stmt(Parser* self);
 
+static Expr* expr_binary_new(Expr* left, Expr* right, Token* op) {
+    Expr* expr = expr_new_alloc();
+    expr->type = E_BINARY;
+    expr->head = left->head;
+    expr->tail = right->tail;
+    expr->binary.left = left;
+    expr->binary.right = right;
+    expr->binary.op = op;
+    return expr;
+}
+
 static Expr* expr_integer_new(Token* integer) {
     Expr* expr = expr_new_alloc();
     expr->type = E_INTEGER;
@@ -261,16 +272,6 @@ static Expr* expr_block_new(
     expr->tail = r_brace;
     expr->block.stmts = stmts;
     expr->block.ret = ret;
-    return expr;
-}
-
-static Expr* expr_assign_new(Expr* left, Expr* right) {
-    Expr* expr = expr_new_alloc();
-    expr->type = E_ASSIGN;
-    expr->head = left->head;
-    expr->tail = right->tail;
-    expr->assign.left = left;
-    expr->assign.right = right;
     return expr;
 }
 
@@ -315,12 +316,24 @@ static Expr* expr_atom(Parser* self) {
     }
 }
 
-static Expr* expr_assign(Parser* self) {
+static Expr* expr_binary_add_sub(Parser* self) {
     EXPR_CI(left, expr_atom, self);
+    while (match(self, T_PLUS) ||
+           match(self, T_MINUS)) {
+        Token* op = previous(self);
+        EXPR_CI(right, expr_atom, self);
+        left = expr_binary_new(left, right, op);
+    }
+    return left;
+}
+
+static Expr* expr_assign(Parser* self) {
+    EXPR_CI(left, expr_binary_add_sub, self);
     if (match(self, T_EQUAL)) {
+        Token* op = previous(self);
         EXPR_CI(right, expr_assign, self);
         if (left->type == E_VARIABLE_REF) {
-            return expr_assign_new(left, right);
+            return expr_binary_new(left, right, op);
         }
         else {
             error_expr(
