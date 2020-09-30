@@ -45,6 +45,7 @@ clean:
 	rm -f $(BIN_FILE)
 	rm -d $(BIN_DIR)
 	rm -d $(BUILD_DIR)
+	rm a.out
 	cd $(DOCS_DIR) && $(MAKE) clean
 
 docs:
