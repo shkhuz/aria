@@ -7,14 +7,14 @@ fn main(df: char) u64 {
         from;
     }
     two: u64;
-    hello_world_str := {
+    hello_world_str :: {
         12;
         return 3423;
         12
     };
     two;
     from = {
-        hello_world := {
+        hello_world :: {
             12
         };
         hello_world
@@ -30,8 +30,8 @@ fn main(df: char) u64 {
 }
 
 fn sd(a: u64, b: u32) u64 {
-    var: u64 = a;
-    var_block := {
+    var: u64: a;
+    var_block :: {
         3324234;
         12
     };
@@ -44,8 +44,10 @@ fn sd(a: u64, b: u32) u64 {
 
 fn max(a: u64, game_controller_id: u32) u64 {
     a = {
-        hello: u64 = 23;
+        hello: u64: 23;
         hello
     };
-    x := { { 1 } + { 2 } };
+    x :: { { 1 } + { 2 } };
+    y: char;
+    ptr: void;
 }

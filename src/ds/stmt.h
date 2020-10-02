@@ -18,6 +18,7 @@ typedef struct Stmt Stmt;
 typedef struct {
     Token* identifier;
     Stmt** params;
+    Stmt** variable_decls;
     DataType* return_type;
     Expr* block;
     bool decl;

@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
     buf_loop(asts, ast) {
         CodeGenerator code_generator;
         char* output_code_fpath =
-                not_dir(change_ext_for_path(asts[ast]->srcfile->fpath, "c"));
+                not_dir(change_ext_for_path(asts[ast]->srcfile->fpath, "asm"));
         buf_push(output_code_fpaths, output_code_fpath);
         gen_code_for_ast(
                 &code_generator,
@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
         );
     }
 
-    char* output_code_fpaths_concat = "gcc ";
+    char* output_code_fpaths_concat = "nasm -felf64 ";
     buf_loop(output_code_fpaths, f) {
         output_code_fpaths_concat =
             concat(

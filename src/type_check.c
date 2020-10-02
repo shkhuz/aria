@@ -139,10 +139,8 @@ static void typeck_variable_decl(TypeChecker* self, Stmt* check) {
     if (!check->variable_decl.data_type) {
         check->variable_decl.data_type =
             typeck_expr(self, check->variable_decl.initializer);
-        return;
-    }
-
-    if (check->variable_decl.initializer && check->variable_decl.data_type) {
+    } else if (check->variable_decl.initializer &&
+               check->variable_decl.data_type) {
         // TODO: check if this error recovery system works
         DataType* assign_type = null;
         chkv(assign_type =
@@ -155,6 +153,10 @@ static void typeck_variable_decl(TypeChecker* self, Stmt* check) {
             error_info_expect_type(check->variable_decl.data_type);
             error_info_got_type(assign_type);
         }
+    }
+
+    if (self->enclosed_function) {
+        buf_push(self->enclosed_function->function.variable_decls, check);
     }
 }
 

@@ -9,4 +9,6 @@ typedef struct {
 
 extern TokenCache token_cache;
 
+void token_cache_init(void);
+
 #endif /* _TOKEN_CACHE_H */

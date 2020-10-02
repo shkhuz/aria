@@ -61,7 +61,9 @@ static void sync_to_next_statement(Parser* self) {
 
                 check_eof; goto_next_token(self);
             }
+            while (match(self, T_SEMICOLON));
         }} break;
+
     default: assert(0); break;
     }
 }
@@ -429,14 +431,14 @@ static Stmt* variable_decl(Parser* self, Token* identifier) {
     DataTypeError data_type = match_data_type(self);
     if (data_type.error) return null;
     Expr* initializer = null;
-    if (match(self, T_EQUAL)) {
+    if (match(self, T_COLON)) {
         EXPR_ND(initializer, expr, self);
     }
     else if (current(self)->type != T_SEMICOLON) {
         error_token_with_sync(
                 self,
                 current(self),
-                "expect `=`"
+                "expect `:` before initializer"
         );
         return null;
     }
@@ -470,6 +472,7 @@ static Stmt* stmt_function_new(
     stmt->type = S_FUNCTION;
     stmt->function.identifier = identifier;
     stmt->function.params = params;
+    stmt->function.variable_decls = null;
     stmt->function.return_type = return_type;
     stmt->function.block = block;
     stmt->function.decl = decl;

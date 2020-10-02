@@ -6,8 +6,7 @@
 
 #define gen_l_paren(self) gen_chr(self, '(')
 #define gen_r_paren(self) gen_chr(self, ')')
-#define gen_l_brace(self) gen_chr(self, '{')
-#define gen_r_brace(self) gen_chr(self, '}')
+#define gen_colon(self) gen_chr(self, ':')
 #define gen_semicolon(self) gen_chr(self, ';')
 #define gen_newline(self) gen_chr(self, '\n')
 #define gen_space(self) gen_chr(self, ' ')
@@ -23,64 +22,121 @@ static void gen_str(CodeGenerator* self, char* str) {
     }
 }
 
-static void gen_line(CodeGenerator* self, char* str) {
-    gen_str(self, str);
-    gen_newline(self);
+static void gen_tab(CodeGenerator* self) {
+    for (u64 c = 0; c < TAB_COUNT; c++) {
+        gen_space(self);
+    }
 }
 
 static void gen_token(CodeGenerator* self, Token* token) {
     gen_str(self, token->lexeme);
 }
 
-static void gen_data_type(CodeGenerator* self, DataType* dt) {
-    gen_token(self, dt->identifier);
-    for (u64 p = 0; p < dt->pointer_count; p++) {
-        gen_chr(self, '*');
-    }
+/* asm write (w/o fmt) */
+static void asmw(CodeGenerator* self, const char* str) {
+    gen_tab(self);
+    gen_str(self, (char*)str);
+    gen_newline(self);
 }
 
-static void gen_function_header(CodeGenerator* self, Stmt* stmt) {
-    assert(stmt->type == S_FUNCTION);
-    gen_data_type(self, stmt->function.return_type);
-    gen_space(self);
-    gen_token(self, stmt->function.identifier);
-    gen_l_paren(self);
-    gen_r_paren(self);
+static char _asmp_buffer[512];
+
+/* asm print (w/ fmt) */
+static void asmp(CodeGenerator* self, const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    size_t bytes_written =
+        vsnprintf(_asmp_buffer, sizeof(_asmp_buffer), fmt, ap);
+    assert(bytes_written < 511);
+    _asmp_buffer[bytes_written] = 0;
+    asmw(self, _asmp_buffer);
+    va_end(ap);
 }
 
-static void gen_function_decls(CodeGenerator* self) {
-    buf_loop(self->ast->stmts, s) {
-        Stmt* stmt = self->ast->stmts[s];
-        if (stmt->type == S_FUNCTION) {
-            gen_function_header(self, stmt);
-            gen_semicolon(self);
-            gen_newline(self);
-        }
-    }
+static void label(CodeGenerator* self, const char* identifier) {
+    gen_str(self, (char*)identifier);
+    gen_colon(self);
+    gen_newline(self);
 }
 
-static void gen_functions(CodeGenerator* self) {
-    buf_loop(self->ast->stmts, s) {
-        Stmt* stmt = self->ast->stmts[s];
-        if (stmt->type == S_FUNCTION) {
-            gen_function_header(self, stmt);
-            gen_l_brace(self);
-            gen_r_brace(self);
-            gen_newline(self);
-        }
+static void label_from_token(CodeGenerator* self, Token* token) {
+    label(self, token->lexeme);
+}
+
+#define DT_SIZE_POINTER 8
+#define DT_SIZE_CHAR    1
+#define DT_SIZE_U8      1
+#define DT_SIZE_U16     2
+#define DT_SIZE_U32     4
+#define DT_SIZE_U64     8
+#define DT_SIZE_I8      1
+#define DT_SIZE_I16     2
+#define DT_SIZE_I32     4
+#define DT_SIZE_I64     8
+
+static u64 get_data_type_size(CodeGenerator* self, DataType* dt) {
+    if (dt->pointer_count) {
+        return DT_SIZE_POINTER;
     }
+
+    if (str_intern(dt->identifier->lexeme) == str_intern("void"))
+        return 0;
+    if (str_intern(dt->identifier->lexeme) == str_intern("char"))
+        return DT_SIZE_CHAR;
+
+    if (str_intern(dt->identifier->lexeme) == str_intern("u8"))
+        return DT_SIZE_U8;
+    if (str_intern(dt->identifier->lexeme) == str_intern("u16"))
+        return DT_SIZE_U16;
+    if (str_intern(dt->identifier->lexeme) == str_intern("u32"))
+        return DT_SIZE_U32;
+    if (str_intern(dt->identifier->lexeme) == str_intern("u64"))
+        return DT_SIZE_U64;
+
+    if (str_intern(dt->identifier->lexeme) == str_intern("i8"))
+        return DT_SIZE_I8;
+    if (str_intern(dt->identifier->lexeme) == str_intern("i16"))
+        return DT_SIZE_I16;
+    if (str_intern(dt->identifier->lexeme) == str_intern("i32"))
+        return DT_SIZE_I32;
+    if (str_intern(dt->identifier->lexeme) == str_intern("i64"))
+        return DT_SIZE_I64;
+    assert(0);
 }
 
 static void gen_prelude(CodeGenerator* self) {
-    gen_line(self, "#include <stdint.h>");
-    gen_line(self, "typedef uint8_t u8;");
-    gen_line(self, "typedef uint16_t u16;");
-    gen_line(self, "typedef uint32_t u32;");
-    gen_line(self, "typedef uint64_t u64;");
-    gen_line(self, "typedef int8_t i8;");
-    gen_line(self, "typedef int16_t i16;");
-    gen_line(self, "typedef int32_t i32;");
-    gen_line(self, "typedef int64_t i64;");
+    asmw(self, "section .text");
+}
+
+static void gen_stmt(CodeGenerator* self, Stmt* stmt);
+
+static void gen_function(CodeGenerator* self, Stmt* stmt) {
+    label_from_token(self, stmt->function.identifier);
+    asmw(self, "push rbp");
+    asmw(self, "mov rbp, rsp");
+
+    u64 resv_local_variables_stack_space = 0;
+    buf_loop(stmt->function.variable_decls, v) {
+        resv_local_variables_stack_space +=
+            get_data_type_size(
+                    self,
+                    stmt->function.variable_decls[v]->variable_decl.data_type
+            );
+    }
+    printf("stack space: %lu\n", resv_local_variables_stack_space);
+
+    buf_loop(stmt->function.block->block.stmts, s) {
+        gen_stmt(self, stmt->function.block->block.stmts[s]);
+    }
+
+    asmw(self, "leave");
+    asmw(self, "ret");
+}
+
+static void gen_stmt(CodeGenerator* self, Stmt* stmt) {
+    switch (stmt->type) {
+    case S_FUNCTION: gen_function(self, stmt); break;
+    }
 }
 
 void gen_code_for_ast(CodeGenerator* self, Ast* ast, const char* fpath) {
@@ -88,8 +144,9 @@ void gen_code_for_ast(CodeGenerator* self, Ast* ast, const char* fpath) {
     self->code = null;
 
     gen_prelude(self);
-    gen_function_decls(self);
-    gen_functions(self);
+    buf_loop(self->ast->stmts, s) {
+        gen_stmt(self, self->ast->stmts[s]);
+    }
     buf_push(self->code, '\0');
 
     FILE* file = fopen(fpath, "w");

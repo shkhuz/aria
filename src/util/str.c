@@ -38,8 +38,8 @@ char* concat(const char* a, const char* b) {
     u64 bl = strlen(b);
 
     char* res = malloc(al + bl + 1);
-    strncpy(res, a, al);
-    strncpy(res + al, b, bl);
+    memcpy(res, a, al);
+    memcpy(res + al, b, bl);
     res[al + bl] = '\0';
     return res;
 }
@@ -65,7 +65,7 @@ char* change_ext_for_path(const char* path, const char* ext) {
 
 char* not_dir(const char* path) {
     FindCharResult slash = find_last_of(path, '/');
-    if (!slash.found) return path;
+    if (!slash.found) return (char*)path;
 
     return substr(path, slash.pos + 1, strlen(path));
 }
