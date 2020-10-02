@@ -521,10 +521,11 @@ static Stmt* decl(Parser* self) {
             buf_push(params, param);
         }
 
-        DataTypeError return_type = match_data_type(self);
-        if (return_type.error) return null;
-        if (!return_type.data_type) {
-            return_type.data_type = builtin_types.e.void_type;
+        DataTypeError return_type;
+        return_type.data_type = builtin_types.e.void_type;
+        if (match(self, T_COLON)) {
+            return_type = match_data_type(self);
+            if (return_type.error) return null;
         }
 
         if (match(self, T_L_BRACE)) {
@@ -552,6 +553,15 @@ static Stmt* decl(Parser* self) {
                     block,
                     false
             );
+        }
+
+        if (current(self)->type != T_SEMICOLON) {
+            error_token_with_sync(
+                    self,
+                    current(self),
+                    "expected `:`, `;` or `{`"
+            );
+            return null;
         }
 
         // function declaration

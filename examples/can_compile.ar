@@ -1,7 +1,7 @@
 glo: char;
 glosd: u64;
 
-fn main(df: char) u64 {
+fn main(df: char): u64 {
     from: u64;
     {
         from;
@@ -29,7 +29,7 @@ fn main(df: char) u64 {
     }
 }
 
-fn sd(a: u64, b: u32) u64 {
+fn sd(a: u64, b: u32): u64 {
     var: u64: a;
     var_block :: {
         3324234;
@@ -42,7 +42,7 @@ fn sd(a: u64, b: u32) u64 {
     }
 }
 
-fn max(a: u64, game_controller_id: u32) u64 {
+fn max(a: u64, game_controller_id: u32): u64 {
     a = {
         hello: u64: 23;
         hello
@@ -50,4 +50,8 @@ fn max(a: u64, game_controller_id: u32) u64 {
     x :: { { 1 } + { 2 } };
     y: char;
     ptr: void;
+}
+
+fn void_fn() {
+
 }

@@ -123,7 +123,14 @@ static void gen_function(CodeGenerator* self, Stmt* stmt) {
                     stmt->function.variable_decls[v]->variable_decl.data_type
             );
     }
-    printf("stack space: %lu\n", resv_local_variables_stack_space);
+    /* align to 16-bytes for amd64 calling convention */
+    resv_local_variables_stack_space =
+        math_round_up(resv_local_variables_stack_space, 16);
+    printf(
+            "(%s) stack space: %lu\n",
+            stmt->function.identifier->lexeme,
+            resv_local_variables_stack_space
+    );
 
     buf_loop(stmt->function.block->block.stmts, s) {
         gen_stmt(self, stmt->function.block->block.stmts[s]);
