@@ -54,6 +54,14 @@ AstOutput parse(Parser* self, File* srcfile, Token** tokens);
 
 typedef struct {
     Ast* ast;
+    u64 indent;
+    bool first_stmt;
+} AstDebugger;
+
+void ast_debug(AstDebugger* self, Ast* ast);
+
+typedef struct {
+    Ast* ast;
     Stmt** func_sym_tbl;
     Scope* global_scope;
     Scope* current_scope;

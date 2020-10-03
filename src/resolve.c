@@ -221,8 +221,8 @@ static void resolve_variable_decl(Resolver* self, Stmt* check) {
 }
 
 static void resolve_return_stmt(Resolver* self, Stmt* check) {
-    if (check->ret) {
-        resolve_expr(self, check->ret);
+    if (check->ret.expr) {
+        resolve_expr(self, check->ret.expr);
     }
 }
 

@@ -359,10 +359,11 @@ static Stmt* stmt_expr_new(Expr* expr) {
     return stmt;
 }
 
-static Stmt* stmt_return_new(Expr* expr) {
+static Stmt* stmt_return_new(Token* return_keyword, Expr* expr) {
     Stmt* stmt = stmt_new_alloc();
     stmt->type = S_RETURN;
-    stmt->ret = expr;
+    stmt->ret.return_keyword = return_keyword;
+    stmt->ret.expr = expr;
     return stmt;
 }
 
@@ -374,11 +375,14 @@ static StmtLevelOutput stmt(Parser* self) {
     out.is_stmt = true;
     out.stmt = null;
     if (match_keyword(self, "return")) {
+        Token* return_keyword = prev(self);
         Expr* e = null;
         if (!match(self, T_SEMICOLON)) {
             { es; e = expr(self); er out; }
-            out.stmt = stmt_return_new(e);
+            out.stmt = stmt_return_new(return_keyword, e);
             expect_semicolon_custom(self);
+        } else {
+            out.stmt = stmt_return_new(return_keyword, null);
         }
         return out;
     }

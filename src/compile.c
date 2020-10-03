@@ -24,6 +24,12 @@ AstOutput build_ast(const char* fpath) {
         return (AstOutput){ true, null };
     }
 
+    int times_dash = printf("--- %s ---\n", srcfile->fpath);
+    AstDebugger ast_debugger;
+    ast_debug(&ast_debugger, ast.ast);
+    for (int i = 0; i < times_dash-1 /* sub 1 for nl */; i++) printf("-");
+    printf("\n");
+
     return (AstOutput){ false, ast.ast };
 }
 

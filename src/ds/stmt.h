@@ -33,13 +33,18 @@ typedef struct {
     bool external;
 } VariableDecl;
 
+typedef struct {
+    Token* return_keyword;
+    Expr* expr;
+} ExprReturn;
+
 struct Stmt {
     StmtType type;
     union {
         Function function;
         VariableDecl variable_decl;
         Expr* expr;
-        Expr* ret;
+        ExprReturn ret;
     };
 };
 

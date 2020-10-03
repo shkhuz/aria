@@ -1,3 +1,10 @@
-fn main(): u64 {
+fn main(): void {
+    game_engine :: 12;
+    game_engine_id: u64: 12;
+    game_engine_id_s32: i32;
     return;
+}
+
+fn good() {
+
 }
