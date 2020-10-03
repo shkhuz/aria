@@ -109,8 +109,22 @@ static void gen_prelude(CodeGenerator* self) {
 }
 
 static void gen_stmt(CodeGenerator* self, Stmt* stmt);
+static void gen_expr(CodeGenerator* self, Expr* expr);
+
+static void gen_integer_expr(CodeGenerator* self, Expr* expr) {
+    asmp(self, "mov rax, %s", expr->integer->lexeme);
+}
+
+static void gen_expr(CodeGenerator* self, Expr* expr) {
+    switch (expr->type) {
+    case E_INTEGER: gen_integer_expr(self, expr); break;
+    }
+}
 
 static void gen_function(CodeGenerator* self, Stmt* stmt) {
+    if (stmt->function.pub) {
+        asmp(self, "global %s", stmt->function.identifier->lexeme);
+    }
     label_from_token(self, stmt->function.identifier);
     asmw(self, "push rbp");
     asmw(self, "mov rbp, rsp");
@@ -126,23 +140,33 @@ static void gen_function(CodeGenerator* self, Stmt* stmt) {
     /* align to 16-bytes for amd64 calling convention */
     resv_local_variables_stack_space =
         math_round_up(resv_local_variables_stack_space, 16);
-    printf(
-            "(%s) stack space: %lu\n",
-            stmt->function.identifier->lexeme,
-            resv_local_variables_stack_space
-    );
+    /* printf( */
+    /*         "(%s) stack space: %lu\n", */
+    /*         stmt->function.identifier->lexeme, */
+    /*         resv_local_variables_stack_space */
+    /* ); */
+    if (resv_local_variables_stack_space != 0) {
+        asmp(self, "sub rsp, %lu", resv_local_variables_stack_space);
+    }
 
     buf_loop(stmt->function.block->block.stmts, s) {
         gen_stmt(self, stmt->function.block->block.stmts[s]);
     }
 
+    label(self, ".Lreturn");
     asmw(self, "leave");
     asmw(self, "ret");
+    asmw(self, "");
+}
+
+static void gen_expr_stmt(CodeGenerator* self, Stmt* stmt) {
+    gen_expr(self, stmt->expr);
 }
 
 static void gen_stmt(CodeGenerator* self, Stmt* stmt) {
     switch (stmt->type) {
     case S_FUNCTION: gen_function(self, stmt); break;
+    case S_EXPR: gen_expr_stmt(self, stmt); break;
     }
 }
 

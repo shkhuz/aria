@@ -13,7 +13,7 @@ BIN_FILE := $(BIN_DIR)/$(PROJECT)
 CC := gcc
 LD := gcc
 PREPROCESSOR_DEFINES := -DTAB_COUNT=4 -DAST_TAB_COUNT=2
-CFLAGS := $(PREPROCESSOR_DEFINES) -I$(SRC_DIR) -Wall -Wextra -Wshadow -std=c99 -m64 -g -O3
+CFLAGS := $(PREPROCESSOR_DEFINES) -I$(SRC_DIR) -Wall -Wextra -Wshadow -std=c99 -m64 -g -O0
 ASMFLAGS := -felf64
 LDFLAGS :=
 LIBS_INC_DIR_CMD :=

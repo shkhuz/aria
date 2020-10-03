@@ -1,7 +1,7 @@
 glo: char;
 glosd: u64;
 
-fn main(df: char): u64 {
+pub fn main(df: char): u64 {
     from: u64;
     {
         from;

@@ -7,10 +7,10 @@
 #define push_stmt(stmt) buf_push(self->ast->stmts, stmt)
 
 #define check_eof \
-    if (current(self)->type == T_EOF) return
+    if (cur(self)->type == T_EOF) return
 
 static bool match(Parser* self, TokenType type);
-static Token* current(Parser* self);
+static Token* cur(Parser* self);
 static void goto_next_token(Parser* self);
 static void goto_previous_token(Parser* self);
 static Stmt* variable_decl(Parser* self, Token* identifier);
@@ -22,19 +22,19 @@ static void sync_to_next_statement(Parser* self) {
     case ERRLOC_BLOCK:
     case ERRLOC_FUNCTION_HEADER:
     case ERRLOC_GLOBAL:
-        while (!match(self, T_SEMICOLON) && current(self)->type != T_L_BRACE) {
+        while (!match(self, T_SEMICOLON) && cur(self)->type != T_L_BRACE) {
             check_eof;
             goto_next_token(self);
         }
-        if (current(self)->type == T_L_BRACE) goto skip_brace;
+        if (cur(self)->type == T_L_BRACE) goto skip_brace;
         break;
 
 /*     case ERRLOC_STRUCT_FIELD: */
-/*         while (!match(self, T_COMMA) && current(self)->type != T_L_BRACE) { */
+/*         while (!match(self, T_COMMA) && cur(self)->type != T_L_BRACE) { */
 /*             check_eof; */
 /*             goto_next_token(self); */
 /*         } */
-/*         if (current(self)->type == T_L_BRACE) goto skip_brace; */
+/*         if (cur(self)->type == T_L_BRACE) goto skip_brace; */
 /*         break; */
 
     case ERRLOC_NONE: {
@@ -109,7 +109,7 @@ static void error_token_with_sync(
 #define EXPR(name) \
     EXPR_CI(name, expr, self)
 
-static Token* current(Parser* self) {
+static Token* cur(Parser* self) {
     if (self->tokens_idx < buf_len(self->ast->tokens)) {
         return self->ast->tokens[self->tokens_idx];
     }
@@ -117,7 +117,7 @@ static Token* current(Parser* self) {
     return null;
 }
 
-static Token* previous(Parser* self) {
+static Token* prev(Parser* self) {
     if (self->tokens_idx > 0) {
         return self->ast->tokens[self->tokens_idx - 1];
     }
@@ -138,7 +138,7 @@ static void goto_previous_token(Parser* self) {
 }
 
 static bool match(Parser* self, TokenType type) {
-    if (current(self)->type == type) {
+    if (cur(self)->type == type) {
         goto_next_token(self);
         return true;
     }
@@ -146,8 +146,8 @@ static bool match(Parser* self, TokenType type) {
 }
 
 static bool match_keyword(Parser* self, const char* keyword) {
-    if (current(self)->type == T_KEYWORD &&
-        str_intern(current(self)->lexeme) == str_intern((char*)keyword)) {
+    if (cur(self)->type == T_KEYWORD &&
+        str_intern(cur(self)->lexeme) == str_intern((char*)keyword)) {
         goto_next_token(self);
         return true;
     }
@@ -161,13 +161,13 @@ typedef struct {
 
 static DataTypeError match_data_type(Parser* self) {
     if (match(self, T_IDENTIFIER)) {
-        Token* identifier = previous(self);
+        Token* identifier = prev(self);
         u8 pointer_count = 0;
         while (match(self, T_STAR)) {
             if (pointer_count > 128) {
                 error_token_with_sync(
                         self,
-                        current(self),
+                        cur(self),
                         "pointer-to-pointer limit[128] exceeded"
                 );
                 return (DataTypeError){ null, true };
@@ -186,7 +186,7 @@ static void expect(Parser* self, TokenType type, const char* fmt, ...) {
     if (!match(self, type)) {
         va_list ap;
         va_start(ap, fmt);
-        error_token_with_sync(self, current(self), fmt, ap);
+        error_token_with_sync(self, cur(self), fmt, ap);
         va_end(ap);
     }
 }
@@ -279,13 +279,13 @@ static Expr* expr_block_new(
 
 static Expr* expr_atom(Parser* self) {
     if (match(self, T_INTEGER)) {
-        return expr_integer_new(previous(self));
+        return expr_integer_new(prev(self));
     }
     else if (match(self, T_IDENTIFIER)) {
-        return expr_variable_ref_new(previous(self));
+        return expr_variable_ref_new(prev(self));
     }
     else if (match(self, T_L_BRACE)) {
-        Token* l_brace = previous(self);
+        Token* l_brace = prev(self);
         self->error_loc = ERRLOC_BLOCK;
         Stmt** block = null;
         Expr* ret = null;
@@ -302,7 +302,7 @@ static Expr* expr_atom(Parser* self) {
                 ret = s.expr;
             }
         }
-        Token* r_brace = previous(self);
+        Token* r_brace = prev(self);
 
         if (error) return null;
         else return expr_block_new(block, ret, l_brace, r_brace);
@@ -310,9 +310,9 @@ static Expr* expr_atom(Parser* self) {
     else {
         error_token_with_sync(
                 self,
-                current(self),
+                cur(self),
                 "invalid ast: `%s` is not expected here",
-                current(self)->lexeme
+                cur(self)->lexeme
         );
         return null;
     }
@@ -322,7 +322,7 @@ static Expr* expr_binary_add_sub(Parser* self) {
     EXPR_CI(left, expr_atom, self);
     while (match(self, T_PLUS) ||
            match(self, T_MINUS)) {
-        Token* op = previous(self);
+        Token* op = prev(self);
         EXPR_CI(right, expr_atom, self);
         left = expr_binary_new(left, right, op);
     }
@@ -332,7 +332,7 @@ static Expr* expr_binary_add_sub(Parser* self) {
 static Expr* expr_assign(Parser* self) {
     EXPR_CI(left, expr_binary_add_sub, self);
     if (match(self, T_EQUAL)) {
-        Token* op = previous(self);
+        Token* op = prev(self);
         EXPR_CI(right, expr_assign, self);
         if (left->type == E_VARIABLE_REF) {
             return expr_binary_new(left, right, op);
@@ -375,14 +375,16 @@ static StmtLevelOutput stmt(Parser* self) {
     out.stmt = null;
     if (match_keyword(self, "return")) {
         Expr* e = null;
-        { es; e = expr(self); er out; }
-        out.stmt = stmt_return_new(e);
-        expect_semicolon_custom(self);
+        if (!match(self, T_SEMICOLON)) {
+            { es; e = expr(self); er out; }
+            out.stmt = stmt_return_new(e);
+            expect_semicolon_custom(self);
+        }
         return out;
     }
 
     else if (match(self, T_IDENTIFIER)) {
-        Token* identifier = previous(self);
+        Token* identifier = prev(self);
         if (match(self, T_COLON)) {
             out.stmt = variable_decl(self, identifier);
             return out;
@@ -394,7 +396,7 @@ static StmtLevelOutput stmt(Parser* self) {
 
     Expr* e = null;
     { es; e = expr(self); er out; }
-    if (current(self)->type == T_R_BRACE) {
+    if (cur(self)->type == T_R_BRACE) {
         out.is_stmt = false;
         out.expr = e;
         return out;
@@ -434,10 +436,10 @@ static Stmt* variable_decl(Parser* self, Token* identifier) {
     if (match(self, T_COLON)) {
         EXPR_ND(initializer, expr, self);
     }
-    else if (current(self)->type != T_SEMICOLON) {
+    else if (cur(self)->type != T_SEMICOLON) {
         error_token_with_sync(
                 self,
-                current(self),
+                cur(self),
                 "expect `:` before initializer"
         );
         return null;
@@ -466,7 +468,8 @@ static Stmt* stmt_function_new(
         Stmt** params,
         DataType* return_type,
         Expr* block,
-        bool decl) {
+        bool decl,
+        bool pub) {
 
     Stmt* stmt = stmt_new_alloc();
     stmt->type = S_FUNCTION;
@@ -476,36 +479,42 @@ static Stmt* stmt_function_new(
     stmt->function.return_type = return_type;
     stmt->function.block = block;
     stmt->function.decl = decl;
+    stmt->function.pub = pub;
     return stmt;
 }
 
 static Stmt* decl(Parser* self) {
     self->error_loc = ERRLOC_GLOBAL;
 
+    bool pub = false;
+    if (match_keyword(self, "pub")) {
+        pub = true;
+    }
+
     if (match_keyword(self, "fn")) {
         self->error_loc = ERRLOC_FUNCTION_HEADER;
         expect_identifier(self);
-        Token* identifier = previous(self);
+        Token* identifier = prev(self);
         Stmt** params = null;
         expect_l_paren(self);
 
         while (!match(self, T_R_PAREN)) {
             expect_identifier(self);
-            Token* p_identifier = previous(self);
+            Token* p_identifier = prev(self);
 
             expect_colon(self);
             DataTypeError p_data_type = match_data_type(self);
             if (!p_data_type.data_type && !p_data_type.error) {
                 error_token_with_sync(
                         self,
-                        current(self),
+                        cur(self),
                         "expect data type"
                 );
                 return null;
             }
             else if (p_data_type.error) return null;
 
-            if (current(self)->type != T_R_PAREN) {
+            if (cur(self)->type != T_R_PAREN) {
                 expect_comma(self);
             }
             else match(self, T_COMMA);
@@ -551,14 +560,15 @@ static Stmt* decl(Parser* self) {
                     params,
                     return_type.data_type,
                     block,
-                    false
+                    false,
+                    pub
             );
         }
 
-        if (current(self)->type != T_SEMICOLON) {
+        if (cur(self)->type != T_SEMICOLON) {
             error_token_with_sync(
                     self,
-                    current(self),
+                    cur(self),
                     "expected `:`, `;` or `{`"
             );
             return null;
@@ -572,13 +582,14 @@ static Stmt* decl(Parser* self) {
                     params,
                     return_type.data_type,
                     null,
-                    true
+                    true,
+                    pub
             );
         }
     }
 
     else if (match(self, T_IDENTIFIER)) {
-        Token* identifier = previous(self);
+        Token* identifier = prev(self);
         if (match(self, T_COLON)) {
             return variable_decl(self, identifier);
         }
@@ -588,7 +599,7 @@ static Stmt* decl(Parser* self) {
 error:
     error_token_with_sync(
             self,
-            current(self),
+            cur(self),
             "expect top-level declaration"
     );
     return null;
@@ -609,7 +620,7 @@ AstOutput parse(Parser* self, File* srcfile, Token** tokens) {
     self->error_loc = ERRLOC_NONE;
     self->error_state = false;
 
-    while (current(self)->type != T_EOF) {
+    while (cur(self)->type != T_EOF) {
         Stmt* s = decl(self);
         if (s) push_stmt(s);
     }

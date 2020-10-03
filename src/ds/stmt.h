@@ -22,6 +22,7 @@ typedef struct {
     DataType* return_type;
     Expr* block;
     bool decl;
+    bool pub;
 } Function;
 
 typedef struct {

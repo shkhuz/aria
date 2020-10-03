@@ -162,7 +162,11 @@ static void typeck_variable_decl(TypeChecker* self, Stmt* check) {
 
 static void typeck_return_stmt(TypeChecker* self, Stmt* check) {
     DataType* return_type = null;
-    chkv(return_type = typeck_expr(self, check->ret));
+    if (check->ret) {
+        chkv(return_type = typeck_expr(self, check->ret));
+    } else {
+        return_type = builtin_types.e.void_type;
+    }
 
     if (!is_dt_eq(self->enclosed_function->function.return_type, return_type)) {
         error_expr(
