@@ -113,21 +113,26 @@ static void typeck_function(TypeChecker* self, Stmt* check) {
     self->enclosed_function = check;
     DataType* block_type = null;
     es; block_type = typeck_expr(self, check->function.block); self->enclosed_function = null; er;
-    if (block_type == builtin_types.e.void_type) return;
 
     if (!is_dt_eq(block_type, check->function.return_type)) {
-        const char* err_msg =
-            "return type conflicts from last expression returned";
-        if (check->function.block->block.ret) {
-            error_expr(
-                    check->function.block->block.ret,
-                    err_msg
+        if (is_dt_eq(block_type, builtin_types.e.void_type)) {
+            /* check if last stmt is a return stmt */
+            if (buf_len(check->function.block->block.stmts) > 0) {
+                if (check->function.block->block.stmts[
+                        buf_len(check->function.block->block.stmts) - 1
+                    ]->type == S_RETURN) {
+                    return;
+                }
+            }
+            error_token(
+                    check->function.identifier,
+                    "non-void function must return expression"
             );
         }
         else {
-            error_token(
-                    check->function.identifier,
-                    err_msg
+            error_expr(
+                    check->function.block->block.ret,
+                    "return type conflicts from last expression returned"
             );
         }
         error_info_expect_type(check->function.return_type);

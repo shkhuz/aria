@@ -42,14 +42,44 @@ static void indent(AstDebugger* self) {
 static void dbg_stmt(AstDebugger* self, Stmt* stmt);
 static void dbg_expr(AstDebugger* self, Expr* expr);
 
+static void dbg_binary_expr(AstDebugger* self, Expr* expr) {
+    dbg_expr(self, expr->binary.left);
+    print_space(self);
+    print_token(self, expr->binary.op);
+    print_space(self);
+    dbg_expr(self, expr->binary.right);
+}
+
 static void dbg_integer_expr(AstDebugger* self, Expr* expr) {
     print_token(self, expr->integer);
+}
+
+static void dbg_variable_ref(AstDebugger* self, Expr* expr) {
+    print_token(self, expr->variable_ref.identifier);
+}
+
+static void dbg_block_expr(AstDebugger* self, Expr* expr) {
+    print_str(self, "block ");
+    self->indent++;
+    buf_loop(expr->block.stmts, s) {
+        dbg_stmt(self, expr->block.stmts[s]);
+    }
+    if (expr->block.ret) {
+        print_newline(self);
+        indent(self);
+        print_str(self, "<- ");
+        dbg_expr(self, expr->block.ret);
+    }
+    self->indent--;
 }
 
 static void dbg_expr(AstDebugger* self, Expr* expr) {
     print_l_paren(self);
     switch (expr->type) {
+    case E_BINARY: dbg_binary_expr(self, expr); break;
     case E_INTEGER: dbg_integer_expr(self, expr); break;
+    case E_VARIABLE_REF: dbg_variable_ref(self, expr); break;
+    case E_BLOCK: dbg_block_expr(self, expr); break;
     }
     print_r_paren(self);
 }
@@ -63,20 +93,19 @@ static void dbg_function(AstDebugger* self, Stmt* stmt) {
     print_l_paren(self);
     Stmt** params = stmt->function.params;
     buf_loop(params, p) {
+        print_l_paren(self);
         print_token(self, params[p]->variable_decl.identifier);
         print_str(self, ": ");
         print_data_type(self, params[p]->variable_decl.data_type);
+        print_r_paren(self);
+        if (p != buf_len(params)-1) print_space(self);
     }
     print_r_paren(self);
     print_space(self);
     print_data_type(self, stmt->function.return_type);
+    print_space(self);
 
-    self->indent++;
-    buf_loop(stmt->function.block->block.stmts, s) {
-        dbg_stmt(self, stmt->function.block->block.stmts[s]);
-    }
-    self->indent--;
-
+    dbg_expr(self, stmt->function.block);
     print_r_paren(self);
 }
 
@@ -108,6 +137,10 @@ static void dbg_return_stmt(AstDebugger* self, Stmt* stmt) {
     print_r_paren(self);
 }
 
+static void dbg_expr_stmt(AstDebugger* self, Stmt* stmt) {
+    dbg_expr(self, stmt->expr);
+}
+
 static void dbg_stmt(AstDebugger* self, Stmt* stmt) {
     if (!self->first_stmt) {
         print_newline(self);
@@ -119,6 +152,7 @@ static void dbg_stmt(AstDebugger* self, Stmt* stmt) {
     case S_FUNCTION: dbg_function(self, stmt); break;
     case S_VARIABLE_DECL: dbg_variable_decl(self, stmt); break;
     case S_RETURN: dbg_return_stmt(self, stmt); break;
+    case S_EXPR: dbg_expr_stmt(self, stmt); break;
     }
 }
 
