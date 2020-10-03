@@ -108,6 +108,10 @@ static void gen_prelude(CodeGenerator* self) {
     asmw(self, "section .text");
 }
 
+/* register push/pop macros */
+#define push_rax(self) asmw(self, "push rax")
+#define pop_rbx(self) asmw(self, "pop rbx")
+
 static void gen_stmt(CodeGenerator* self, Stmt* stmt);
 static void gen_expr(CodeGenerator* self, Expr* expr);
 
@@ -115,8 +119,32 @@ static void gen_integer_expr(CodeGenerator* self, Expr* expr) {
     asmp(self, "mov rax, %s", expr->integer->lexeme);
 }
 
+static void gen_binary_arithmetic_expr(CodeGenerator* self, Expr* expr) {
+    gen_expr(self, expr->binary.right);
+    push_rax(self);
+    gen_expr(self, expr->binary.left);
+    pop_rbx(self);
+
+    const char* operation_opcode = "";
+    switch (expr->binary.op->type) {
+    case T_PLUS: operation_opcode = "add"; break;
+    case T_MINUS: operation_opcode = "sub"; break;
+    default: assert(0); break;
+    }
+
+    asmp(self, "%s rax, rbx", operation_opcode);
+}
+
+static void gen_binary_expr(CodeGenerator* self, Expr* expr) {
+    switch (expr->binary.op->type) {
+    case T_PLUS:
+    case T_MINUS: gen_binary_arithmetic_expr(self, expr); break;
+    }
+}
+
 static void gen_expr(CodeGenerator* self, Expr* expr) {
     switch (expr->type) {
+    case E_BINARY: gen_binary_expr(self, expr); break;
     case E_INTEGER: gen_integer_expr(self, expr); break;
     }
 }
@@ -153,10 +181,15 @@ static void gen_function(CodeGenerator* self, Stmt* stmt) {
         gen_stmt(self, stmt->function.block->block.stmts[s]);
     }
 
-    label(self, ".Lreturn");
+    label(self, ".return");
     asmw(self, "leave");
     asmw(self, "ret");
     asmw(self, "");
+}
+
+static void gen_return_stmt(CodeGenerator* self, Stmt* stmt) {
+    gen_expr(self, stmt->ret.expr);
+    asmw(self, "jmp .return");
 }
 
 static void gen_expr_stmt(CodeGenerator* self, Stmt* stmt) {
@@ -166,6 +199,7 @@ static void gen_expr_stmt(CodeGenerator* self, Stmt* stmt) {
 static void gen_stmt(CodeGenerator* self, Stmt* stmt) {
     switch (stmt->type) {
     case S_FUNCTION: gen_function(self, stmt); break;
+    case S_RETURN: gen_return_stmt(self, stmt); break;
     case S_EXPR: gen_expr_stmt(self, stmt); break;
     }
 }

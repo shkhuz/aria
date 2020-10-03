@@ -1,24 +1,3 @@
-fn main(argc: u64, argv: char**): u64 {
-    game_engine :: 12;
-    game_engine_id: u64: 12;
-    game_engine_id_s32: i32;
-    1234;
-    {
-        tmp_alloc :: game_engine;
-        game_engine = 12 + 1;
-        game_engine_id = tmp_alloc;
-    }
-    var :: {
-        x: u64;
-        y: u64;
-        x = x + y;
-        12 + x
-    };
-    return 0;
-    1 + 2
-}
-
-fn good(): u64 {
-    return 0;
-    1
+pub fn main(): u64 {
+    return 1 + 3 + 3 - 2;
 }
