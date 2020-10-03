@@ -81,8 +81,10 @@ bool type_check_ast(TypeChecker* self, Ast* ast);
 
 typedef struct {
     Ast* ast;
+    Stmt* enclosed_function;
     char* code;
     u64 indent;
+    u64 next_local_var_offset;
 
     bool convert_last_block_elem_to_ret;
 } CodeGenerator;

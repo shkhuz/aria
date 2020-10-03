@@ -16,9 +16,15 @@ typedef enum {
 typedef struct Stmt Stmt;
 
 typedef struct {
+    Stmt* stmt;
+    /* offset from frame pointer */
+    u64 offset;
+} VariableDeclOffset;
+
+typedef struct {
     Token* identifier;
     Stmt** params;
-    Stmt** variable_decls;
+    VariableDeclOffset** variable_decls;
     DataType* return_type;
     Expr* block;
     bool decl;
