@@ -33,6 +33,7 @@ typedef struct {
     bool external;
     /* offset from frame pointer */
     u64 offset;
+    bool param;
 } VariableDecl;
 
 typedef struct {

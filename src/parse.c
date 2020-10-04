@@ -421,7 +421,8 @@ static Stmt* stmt_variable_decl_new(
         DataType* data_type,
         Expr* initializer,
         bool global,
-        bool external) {
+        bool external,
+        bool param) {
 
     Stmt* stmt = stmt_new_alloc();
     stmt->type = S_VARIABLE_DECL;
@@ -430,6 +431,7 @@ static Stmt* stmt_variable_decl_new(
     stmt->variable_decl.initializer = initializer;
     stmt->variable_decl.global = global;
     stmt->variable_decl.external = external;
+    stmt->variable_decl.param = param;
     return stmt;
 }
 
@@ -463,6 +465,7 @@ static Stmt* variable_decl(Parser* self, Token* identifier) {
             data_type.data_type,
             initializer,
             !self->in_function,
+            false,
             false
     );
 }
@@ -529,7 +532,8 @@ static Stmt* decl(Parser* self) {
                         p_data_type.data_type,
                         null,
                         false,
-                        false
+                        false,
+                        true
                 );
             buf_push(params, param);
         }

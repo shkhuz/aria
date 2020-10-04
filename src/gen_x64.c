@@ -150,6 +150,10 @@ static const char* get_nasm_type_specifier(CodeGenerator* self, DataType* dt) {
 static void move_rax_into_variable(
         CodeGenerator* self,
         Stmt* var) {
+    if (is_dt_eq(var->variable_decl.data_type, builtin_types.e.void_type)) {
+        return;
+    }
+
     asmp(
             self,
             "mov %s [rbp - %lu], rax",
@@ -161,6 +165,10 @@ static void move_rax_into_variable(
 static void move_variable_into_rax(
         CodeGenerator* self,
         Stmt* var) {
+    if (is_dt_eq(var->variable_decl.data_type, builtin_types.e.void_type)) {
+        return;
+    }
+
     asmp(
             self,
             "mov rax, %s [rbp - %lu]",
@@ -190,13 +198,7 @@ static void gen_binary_arithmetic_expr(CodeGenerator* self, Expr* expr) {
 
 static void gen_assign_expr(CodeGenerator* self, Expr* expr) {
     gen_expr(self, expr->binary.right);
-    Stmt** vars = self->enclosed_function->function.variable_decls;
-    buf_loop(vars, v) {
-        if (is_tok_eq(expr->binary.left->variable_ref.identifier,
-                      vars[v]->variable_decl.identifier)) {
-            move_rax_into_variable(self, vars[v]);
-        }
-    }
+    move_rax_into_variable(self, expr->binary.left->variable_ref.declaration);
 }
 
 static void gen_binary_expr(CodeGenerator* self, Expr* expr) {
@@ -212,14 +214,32 @@ static void gen_integer_expr(CodeGenerator* self, Expr* expr) {
     asmp(self, "mov rax, %s", expr->integer->lexeme);
 }
 
+const char* param_registers[6] = {
+    "rdi",
+    "rsi",
+    "rdx",
+    "rcx",
+    "r8",
+    "r9"
+};
+
 static void gen_variable_ref(CodeGenerator* self, Expr* expr) {
-    Stmt** vars =
-        self->enclosed_function->function.variable_decls;
-    buf_loop(vars, v) {
-        if (is_tok_eq(vars[v]->variable_decl.identifier,
-                      expr->variable_ref.identifier)) {
-            move_variable_into_rax(self, vars[v]);
-        }
+    Stmt* var = expr->variable_ref.declaration;
+    if (var->variable_decl.param) {
+        const char* reg_in = param_registers[var->variable_decl.offset];
+        asmp(self, "mov rax, %s", reg_in);
+    }
+    else {
+        move_variable_into_rax(self, var);
+    }
+}
+
+static void gen_block_expr(CodeGenerator* self, Expr* expr) {
+    buf_loop(expr->block.stmts, s) {
+        gen_stmt(self, expr->block.stmts[s]);
+    }
+    if (expr->block.ret) {
+        gen_expr(self, expr->block.ret);
     }
 }
 
@@ -228,7 +248,13 @@ static void gen_expr(CodeGenerator* self, Expr* expr) {
     case E_BINARY: gen_binary_expr(self, expr); break;
     case E_INTEGER: gen_integer_expr(self, expr); break;
     case E_VARIABLE_REF: gen_variable_ref(self, expr); break;
+    case E_BLOCK: gen_block_expr(self, expr); break;
     }
+}
+
+static void gen_function_param(CodeGenerator* self, Stmt* param, u64 idx) {
+    /* offset is used as an index into register table for parameters */
+    param->variable_decl.offset = idx;
 }
 
 static void gen_function(CodeGenerator* self, Stmt* stmt) {
@@ -240,9 +266,16 @@ static void gen_function(CodeGenerator* self, Stmt* stmt) {
     asmw(self, "push rbp");
     asmw(self, "mov rbp, rsp");
 
+    /* TODO: lift this restriction */
+    assert(buf_len(stmt->function.params) <= 6);
+    buf_loop(stmt->function.params, p) {
+        gen_function_param(self, stmt->function.params[p], p);
+    }
+
     u64 resv_local_variables_stack_space = 0;
     Stmt** variable_decls = stmt->function.variable_decls;
     buf_loop(variable_decls, v) {
+        if (variable_decls[v]->variable_decl.param) continue;
         resv_local_variables_stack_space +=
             get_data_type_size(
                     self,
@@ -261,9 +294,7 @@ static void gen_function(CodeGenerator* self, Stmt* stmt) {
         asmp(self, "sub rsp, %lu", resv_local_variables_stack_space);
     }
 
-    buf_loop(stmt->function.block->block.stmts, s) {
-        gen_stmt(self, stmt->function.block->block.stmts[s]);
-    }
+    gen_expr(self, stmt->function.block);
     self->enclosed_function = null;
 
     label(self, ".return");
@@ -273,16 +304,9 @@ static void gen_function(CodeGenerator* self, Stmt* stmt) {
 }
 
 static void gen_variable_decl(CodeGenerator* self, Stmt* stmt) {
-    Stmt** vars =
-        self->enclosed_function->function.variable_decls;
-    buf_loop(vars, v) {
-        if (is_tok_eq(vars[v]->variable_decl.identifier,
-                      stmt->variable_decl.identifier)) {
-            vars[v]->variable_decl.offset = self->next_local_var_offset;
-            self->next_local_var_offset +=
-                get_data_type_size(self, stmt->variable_decl.data_type);
-        }
-    }
+    stmt->variable_decl.offset = self->next_local_var_offset;
+    self->next_local_var_offset +=
+        get_data_type_size(self, stmt->variable_decl.data_type);
 
     if (stmt->variable_decl.initializer) {
         gen_expr(self, stmt->variable_decl.initializer);

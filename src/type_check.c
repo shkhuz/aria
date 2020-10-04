@@ -109,8 +109,40 @@ static DataType* typeck_expr(TypeChecker* self, Expr* check) {
     }
 }
 
+static void typeck_variable_decl(TypeChecker* self, Stmt* check) {
+    if (!check->variable_decl.data_type) {
+        check->variable_decl.data_type =
+            typeck_expr(self, check->variable_decl.initializer);
+    } else if (check->variable_decl.initializer &&
+               check->variable_decl.data_type) {
+        // TODO: check if this error recovery system works
+        DataType* assign_type = null;
+        chkv(assign_type =
+                typeck_expr(self, check->variable_decl.initializer));
+        if (!is_dt_eq(check->variable_decl.data_type, assign_type)) {
+            error_expr(
+                    check->variable_decl.initializer,
+                    "initializer type conflicts from annotated type"
+            );
+            error_info_expect_type(check->variable_decl.data_type);
+            error_info_got_type(assign_type);
+        }
+    }
+
+    if (self->enclosed_function) {
+        buf_push(
+                self->enclosed_function->function.variable_decls,
+                check
+        );
+    }
+}
+
 static void typeck_function(TypeChecker* self, Stmt* check) {
     self->enclosed_function = check;
+    buf_loop(check->function.params, p) {
+        typeck_variable_decl(self, check->function.params[p]);
+    }
+
     DataType* block_type = null;
     es; block_type = typeck_expr(self, check->function.block); self->enclosed_function = null; er;
 
@@ -137,34 +169,6 @@ static void typeck_function(TypeChecker* self, Stmt* check) {
         }
         error_info_expect_type(check->function.return_type);
         error_info_got_type(block_type);
-    }
-}
-
-static void typeck_variable_decl(TypeChecker* self, Stmt* check) {
-    if (!check->variable_decl.data_type) {
-        check->variable_decl.data_type =
-            typeck_expr(self, check->variable_decl.initializer);
-    } else if (check->variable_decl.initializer &&
-               check->variable_decl.data_type) {
-        // TODO: check if this error recovery system works
-        DataType* assign_type = null;
-        chkv(assign_type =
-                typeck_expr(self, check->variable_decl.initializer));
-        if (!is_dt_eq(check->variable_decl.data_type, assign_type)) {
-            error_expr(
-                    check->variable_decl.initializer,
-                    "initializer type conflicts from annotated type"
-            );
-            error_info_expect_type(check->variable_decl.data_type);
-            error_info_got_type(assign_type);
-        }
-    }
-
-    if (self->enclosed_function) {
-        buf_push(
-                self->enclosed_function->function.variable_decls,
-                check
-        );
     }
 }
 
