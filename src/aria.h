@@ -66,6 +66,7 @@ typedef struct {
     Scope* global_scope;
     Scope* current_scope;
     bool error_state;
+    u64 error_count;
 } Resolver;
 
 bool resolve_ast(Resolver* self, Ast* ast);
@@ -85,6 +86,7 @@ typedef struct {
     char* code;
     u64 indent;
     u64 next_local_var_offset;
+    u64 next_param_stack_offset;
 
     bool convert_last_block_elem_to_ret;
 } CodeGenerator;

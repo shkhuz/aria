@@ -226,8 +226,21 @@ const char* param_registers[6] = {
 static void gen_variable_ref(CodeGenerator* self, Expr* expr) {
     Stmt* var = expr->variable_ref.declaration;
     if (var->variable_decl.param) {
-        const char* reg_in = param_registers[var->variable_decl.offset];
-        asmp(self, "mov rax, %s", reg_in);
+        u64 var_offset = var->variable_decl.offset;
+        if (var_offset > 5) {
+            /* on stack */
+            asmp(
+                    self,
+                    "mov rax, %s [rbp + %lu]",
+                    get_nasm_type_specifier(self, var->variable_decl.data_type),
+                    var_offset
+            );
+        }
+        else {
+            /* in reg */
+            const char* reg_in = param_registers[var_offset];
+            asmp(self, "mov rax, %s", reg_in);
+        }
     }
     else {
         move_variable_into_rax(self, var);
@@ -255,6 +268,15 @@ static void gen_expr(CodeGenerator* self, Expr* expr) {
 static void gen_function_param(CodeGenerator* self, Stmt* param, u64 idx) {
     /* offset is used as an index into register table for parameters */
     param->variable_decl.offset = idx;
+    if (idx > 5) {
+        u64 type_sz = get_data_type_size(self, param->variable_decl.data_type);
+        param->variable_decl.offset =
+            self->next_param_stack_offset +
+            type_sz +
+            /* 8 = sizeof(ret_addr) */
+            8;
+        self->next_param_stack_offset += type_sz;
+    }
 }
 
 static void gen_function(CodeGenerator* self, Stmt* stmt) {
@@ -266,8 +288,6 @@ static void gen_function(CodeGenerator* self, Stmt* stmt) {
     asmw(self, "push rbp");
     asmw(self, "mov rbp, rsp");
 
-    /* TODO: lift this restriction */
-    assert(buf_len(stmt->function.params) <= 6);
     buf_loop(stmt->function.params, p) {
         gen_function_param(self, stmt->function.params[p], p);
     }
@@ -337,6 +357,7 @@ void gen_code_for_ast(CodeGenerator* self, Ast* ast, const char* fpath) {
     self->enclosed_function = null;
     self->code = null;
     self->next_local_var_offset = 8;
+    self->next_param_stack_offset = 0;
 
     gen_prelude(self);
     buf_loop(self->ast->stmts, s) {

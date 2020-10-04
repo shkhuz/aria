@@ -241,6 +241,7 @@ bool resolve_ast(Resolver* self, Ast* ast) {
     self->global_scope = scope_new(null);
     self->current_scope = self->global_scope;
     self->error_state = false;
+    self->error_count = 0;
 
     buf_loop(self->ast->stmts, s) {
         Stmt* current_stmt = self->ast->stmts[s];

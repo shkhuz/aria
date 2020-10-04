@@ -49,14 +49,17 @@ void fatal_error_common(const char* fmt, ...);
 #ifndef _ERROR_MSG_NO_ERROR_MACRO
 #define error_token(token, ...) \
     self->error_state = true, \
+    self->error_count++, \
     error_token(token, ##__VA_ARGS__)
 
 #define error_data_type(dt, ...) \
     self->error_state = true, \
+    self->error_count++, \
     error_data_type(dt, ##__VA_ARGS__)
 
 #define error_expr(expr, ...) \
     self->error_state = true, \
+    self->error_count++, \
     error_expr(expr, ##__VA_ARGS__)
 #endif
 
