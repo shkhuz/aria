@@ -21,7 +21,7 @@ LIBS_LIB_DIR_CMD :=
 LIBS_LIB_CMD :=
 CMD_ARGS := examples/gen_test.ar
 
-install: $(BIN_FILE) docs
+install: $(BIN_FILE) #docs
 	mkdir -p .dev
 	cd .dev; ../$(BIN_FILE) ../$(CMD_ARGS) && nasm -felf64 ../examples/std.asm && ld gen_test.o std.o
 

@@ -161,12 +161,9 @@ static void typeck_variable_decl(TypeChecker* self, Stmt* check) {
     }
 
     if (self->enclosed_function) {
-        VariableDeclOffset* var = malloc(sizeof(*var));
-        var->stmt = check;
-        var->offset = 0;
         buf_push(
                 self->enclosed_function->function.variable_decls,
-                var
+                check
         );
     }
 }

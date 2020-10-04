@@ -1,4 +1,5 @@
 pub fn main(): u64 {
-    a :: 1 + 2;
+    a: u64;
+    a = 2;
     return a;
 }

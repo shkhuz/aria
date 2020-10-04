@@ -16,15 +16,9 @@ typedef enum {
 typedef struct Stmt Stmt;
 
 typedef struct {
-    Stmt* stmt;
-    /* offset from frame pointer */
-    u64 offset;
-} VariableDeclOffset;
-
-typedef struct {
     Token* identifier;
     Stmt** params;
-    VariableDeclOffset** variable_decls;
+    Stmt** variable_decls;
     DataType* return_type;
     Expr* block;
     bool decl;
@@ -37,6 +31,8 @@ typedef struct {
     Expr* initializer;
     bool global;
     bool external;
+    /* offset from frame pointer */
+    u64 offset;
 } VariableDecl;
 
 typedef struct {
