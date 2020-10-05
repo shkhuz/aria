@@ -43,6 +43,9 @@ void verror_expr(
 void error_info_expect_type(DataType* dt);
 void error_info_got_type(DataType* dt);
 
+void error_info_expect_args(u64 count);
+void error_info_got_args(u64 count);
+
 void error_common(const char* fmt, ...);
 void fatal_error_common(const char* fmt, ...);
 

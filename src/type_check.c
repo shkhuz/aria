@@ -81,6 +81,27 @@ static DataType* typeck_binary_expr(TypeChecker* self, Expr* check) {
     }
 }
 
+static DataType* typeck_func_call_expr(TypeChecker* self, Expr* check) {
+    Stmt** params = check->func_call.callee->function.params;
+    Expr** args = check->func_call.args;
+
+    buf_loop(args, a) {
+        DataType* param_type = params[a]->variable_decl.data_type;
+        DataType* arg_type = null;
+        chklp(arg_type = typeck_expr(self, args[a]));
+
+        if (!is_dt_eq(param_type, arg_type)) {
+            error_expr(
+                    args[a],
+                    "conflicting argument type"
+            );
+            error_info_expect_type(param_type);
+            error_info_got_type(arg_type);
+        }
+    }
+    return check->func_call.callee->function.return_type;
+}
+
 static DataType* typeck_variable_ref_expr(TypeChecker* self, Expr* check) {
     if (check->variable_ref.declaration->variable_decl.data_type) {
         return check->variable_ref.declaration->variable_decl.data_type;
@@ -102,6 +123,7 @@ static DataType* typeck_block_expr(TypeChecker* self, Expr* check) {
 static DataType* typeck_expr(TypeChecker* self, Expr* check) {
     switch (check->type) {
     case E_BINARY: return typeck_binary_expr(self, check); break;
+    case E_FUNC_CALL: return typeck_func_call_expr(self, check); break;
     case E_INTEGER: return builtin_types.e.u64_type; break;
     case E_VARIABLE_REF: return typeck_variable_ref_expr(self, check); break;
     case E_BLOCK: return typeck_block_expr(self, check); break;

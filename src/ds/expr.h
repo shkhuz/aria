@@ -5,6 +5,7 @@
 
 typedef enum {
     E_BINARY,
+    E_FUNC_CALL,
     E_INTEGER,
     E_VARIABLE_REF,
     E_BLOCK,
@@ -19,6 +20,12 @@ typedef struct {
     Expr* right;
     Token* op;
 } ExprBinary;
+
+typedef struct {
+    Expr* left;
+    Expr** args;
+    struct Stmt* callee;
+} ExprFuncCall;
 
 typedef struct {
     Token* identifier;
@@ -36,6 +43,7 @@ struct Expr {
     Token* tail;
     union {
         ExprBinary binary;
+        ExprFuncCall func_call;
         ExprVariableRef variable_ref;
         ExprBlock block;
         Token* integer;

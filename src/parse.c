@@ -87,6 +87,25 @@ static void error_token_with_sync(
     va_end(ap);
 }
 
+static void error_expr_with_sync(
+        Parser* self,
+        Expr* expr,
+        const char* fmt,
+        ...) {
+
+    self->error_count++;
+    self->error_state = true;
+    va_list ap;
+    va_start(ap, fmt);
+    verror_expr(
+            expr,
+            fmt,
+            ap
+    );
+    sync_to_next_statement(self);
+    va_end(ap);
+}
+
 #include "error_recover.h"
 
 /* custom initialization */
@@ -96,6 +115,15 @@ static void error_token_with_sync(
         es; \
         name = init_func(__VA_ARGS__); \
         ern; \
+    }
+
+/* custom initialization; continue if error */
+#define EXPR_CI_LP(name, init_func, ...) \
+    Expr* name = null; \
+    { \
+        es; \
+        name = init_func(__VA_ARGS__); \
+        ec; \
     }
 
 /* no declaration */
@@ -244,6 +272,16 @@ static Expr* expr_binary_new(Expr* left, Expr* right, Token* op) {
     return expr;
 }
 
+static Expr* expr_func_call_new(Expr* left, Expr** args, Token* r_paren) {
+    Expr* expr = expr_new_alloc();
+    expr->type = E_FUNC_CALL;
+    expr->head = left->head;
+    expr->tail = r_paren;
+    expr->func_call.left = left;
+    expr->func_call.args = args;
+    return expr;
+}
+
 static Expr* expr_integer_new(Token* integer) {
     Expr* expr = expr_new_alloc();
     expr->type = E_INTEGER;
@@ -276,6 +314,8 @@ static Expr* expr_block_new(
     expr->block.ret = ret;
     return expr;
 }
+
+static Expr* expr_assign(Parser* self);
 
 static Expr* expr_atom(Parser* self) {
     if (match(self, T_INTEGER)) {
@@ -318,12 +358,41 @@ static Expr* expr_atom(Parser* self) {
     }
 }
 
-static Expr* expr_binary_add_sub(Parser* self) {
+static Expr* expr_postfix(Parser* self) {
     EXPR_CI(left, expr_atom, self);
+    while (match(self, T_L_PAREN)) {
+        if (prev(self)->type == T_L_PAREN) {
+            /* func call */
+            if (left->type != E_VARIABLE_REF) {
+                error_expr_with_sync(
+                        self,
+                        left,
+                        "invalid operand to call operator"
+                );
+                return null;
+            }
+
+            Expr** args = null;
+            while (!match(self, T_R_PAREN)) {
+                EXPR_CI_LP(arg, expr_assign, self);
+                if (arg) buf_push(args, arg);
+                if (cur(self)->type != T_R_PAREN) {
+                    expect_comma(self);
+                }
+                else match(self, T_COMMA);
+            }
+            left = expr_func_call_new(left, args, prev(self));
+        }
+    }
+    return left;
+}
+
+static Expr* expr_binary_add_sub(Parser* self) {
+    EXPR_CI(left, expr_postfix, self);
     while (match(self, T_PLUS) ||
            match(self, T_MINUS)) {
         Token* op = prev(self);
-        EXPR_CI(right, expr_atom, self);
+        EXPR_CI(right, expr_postfix, self);
         left = expr_binary_new(left, right, op);
     }
     return left;

@@ -200,20 +200,43 @@ static void error_write_dt_to_stderr(DataType* dt) {
     }
 }
 
-void error_info_expect_type(DataType* dt) {
+static void eprint_last_err_msg_line_num_indent(void) {
 	for (int c = 0; c < last_bar_indent_offset; c++) fprintf(stderr, " ");
 	fprintf(stderr, "| ");
+}
+
+void error_info_expect_type(DataType* dt) {
+    eprint_last_err_msg_line_num_indent();
     fprintf(stderr, ANSI_FBOLD "expect type" ANSI_RESET ": `");
     error_write_dt_to_stderr(dt);
     fprintf(stderr, "`\n");
 }
 
 void error_info_got_type(DataType* dt) {
-	for (int c = 0; c < last_bar_indent_offset; c++) fprintf(stderr, " ");
-	fprintf(stderr, "| ");
+    eprint_last_err_msg_line_num_indent();
     fprintf(stderr, ANSI_FBOLD "   got type" ANSI_RESET ": `");
     error_write_dt_to_stderr(dt);
     fprintf(stderr, "`\n");
+}
+
+void error_info_expect_args(u64 count) {
+    eprint_last_err_msg_line_num_indent();
+    fprintf(
+            stderr,
+            ANSI_FBOLD "expect argument(s)" ANSI_RESET ": "
+    );
+    fprintf(stderr, "%lu", count);
+    fprintf(stderr, "\n");
+}
+
+void error_info_got_args(u64 count) {
+    eprint_last_err_msg_line_num_indent();
+    fprintf(
+            stderr,
+            ANSI_FBOLD "   got argument(s)" ANSI_RESET ": "
+    );
+    fprintf(stderr, "%lu", count);
+    fprintf(stderr, "\n");
 }
 
 /* shared across source files (no unique source file path) */

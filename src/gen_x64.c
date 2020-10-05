@@ -210,10 +210,6 @@ static void gen_binary_expr(CodeGenerator* self, Expr* expr) {
     }
 }
 
-static void gen_integer_expr(CodeGenerator* self, Expr* expr) {
-    asmp(self, "mov rax, %s", expr->integer->lexeme);
-}
-
 const char* param_registers[6] = {
     "rdi",
     "rsi",
@@ -222,6 +218,63 @@ const char* param_registers[6] = {
     "r8",
     "r9"
 };
+
+static void gen_func_call_expr(CodeGenerator* self, Expr* expr) {
+    /* call prologue */
+    asmw(self, "push r10");
+    asmw(self, "push r11");
+    Expr** args = expr->func_call.args;
+    u64 args_len = buf_len(args);
+    for (u64 a = 0; a < (MIN(args_len, 6)); a++) {
+        /* put in reg */
+        asmp(
+                self,
+                "push %s",
+                param_registers[a]
+        );
+    }
+
+    for (u64 a = 0; a < (MIN(args_len, 6)); a++) {
+        gen_expr(self, args[a]);
+        asmp(
+                self,
+                "mov %s, rax",
+                param_registers[a]
+        );
+    }
+    if (args_len > 6) {
+        /* a -> 6 because first 6 args are already generated */
+        for (u64 a = args_len; a -- > 6;) {
+            /* push on stack, loop .. right to left */
+            gen_expr(self, args[a]);
+            asmw(self, "push rax");
+        }
+    }
+
+    asmp(self, "call %s", expr->func_call.callee->function.identifier->lexeme);
+
+    /* call epilogue */
+    if (args_len > 6) {
+        for (u64 a = args_len; a -- > 6;) {
+            /* pop from stack */
+            asmw(self, "add rsp, 8");
+        }
+    }
+    for (u64 a = (MIN(args_len, 6)); a-- > 0;) {
+        /* put in reg */
+        asmp(
+                self,
+                "pop %s",
+                param_registers[a]
+        );
+    }
+    asmw(self, "pop r11");
+    asmw(self, "pop r10");
+}
+
+static void gen_integer_expr(CodeGenerator* self, Expr* expr) {
+    asmp(self, "mov rax, %s", expr->integer->lexeme);
+}
 
 static void gen_variable_ref(CodeGenerator* self, Expr* expr) {
     Stmt* var = expr->variable_ref.declaration;
@@ -259,6 +312,7 @@ static void gen_block_expr(CodeGenerator* self, Expr* expr) {
 static void gen_expr(CodeGenerator* self, Expr* expr) {
     switch (expr->type) {
     case E_BINARY: gen_binary_expr(self, expr); break;
+    case E_FUNC_CALL: gen_func_call_expr(self, expr); break;
     case E_INTEGER: gen_integer_expr(self, expr); break;
     case E_VARIABLE_REF: gen_variable_ref(self, expr); break;
     case E_BLOCK: gen_block_expr(self, expr); break;
@@ -287,6 +341,7 @@ static void gen_function(CodeGenerator* self, Stmt* stmt) {
     label_from_token(self, stmt->function.identifier);
     asmw(self, "push rbp");
     asmw(self, "mov rbp, rsp");
+    asmw(self, "push rbx");
 
     buf_loop(stmt->function.params, p) {
         gen_function_param(self, stmt->function.params[p], p);
@@ -318,6 +373,7 @@ static void gen_function(CodeGenerator* self, Stmt* stmt) {
     self->enclosed_function = null;
 
     label(self, ".return");
+    asmw(self, "pop rbx");
     asmw(self, "leave");
     asmw(self, "ret");
     asmw(self, "");

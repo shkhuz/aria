@@ -158,15 +158,41 @@ static void resolve_binary_expr(Resolver* self, Expr* check) {
     resolve_expr(self, check->binary.right);
 }
 
-static void resolve_block_expr(Resolver* self, Expr* check) {
-    change_scope(scope);
-    buf_loop(check->block.stmts, s) {
-        resolve_stmt(self, check->block.stmts[s]);
+static void resolve_func_call_expr(Resolver* self, Expr* check) {
+    if (check->func_call.left->type == E_VARIABLE_REF) {
+        buf_loop(self->func_sym_tbl, f) {
+            if (is_tok_eq(check->func_call.left->variable_ref.identifier,
+                          self->func_sym_tbl[f]->function.identifier)) {
+                check->func_call.callee = self->func_sym_tbl[f];
+                break;
+            }
+        }
+
+        if (!check->func_call.callee) {
+            error_expr(
+                    check->func_call.left,
+                    "undefined function: `%s`",
+                    check->func_call.left->variable_ref.identifier->lexeme
+            );
+            return;
+        }
+
+        u64 arg_len = buf_len(check->func_call.args);
+        u64 param_len = buf_len(check->func_call.callee->function.params);
+        if (arg_len != param_len) {
+            error_expr(
+                    check,
+                    "conflicting arity"
+            );
+            error_info_expect_args(param_len);
+            error_info_got_args(arg_len);
+            return;
+        }
     }
-    if (check->block.ret) {
-        resolve_expr(self, check->block.ret);
+
+    buf_loop(check->func_call.args, a) {
+        resolve_expr(self, check->func_call.args[a]);
     }
-    revert_scope(scope);
 }
 
 static void resolve_variable_ref_expr(Resolver* self, Expr* check) {
@@ -180,11 +206,23 @@ static void resolve_variable_ref_expr(Resolver* self, Expr* check) {
 	}
 }
 
+static void resolve_block_expr(Resolver* self, Expr* check) {
+    change_scope(scope);
+    buf_loop(check->block.stmts, s) {
+        resolve_stmt(self, check->block.stmts[s]);
+    }
+    if (check->block.ret) {
+        resolve_expr(self, check->block.ret);
+    }
+    revert_scope(scope);
+}
+
 static void resolve_expr(Resolver* self, Expr* check) {
     switch (check->type) {
     case E_BINARY: resolve_binary_expr(self, check); break;
-    case E_BLOCK: resolve_block_expr(self, check); break;
+    case E_FUNC_CALL: resolve_func_call_expr(self, check); break;
     case E_VARIABLE_REF: resolve_variable_ref_expr(self, check); break;
+    case E_BLOCK: resolve_block_expr(self, check); break;
     }
 }
 
