@@ -147,6 +147,15 @@ static const char* get_nasm_type_specifier(CodeGenerator* self, DataType* dt) {
     assert(0);
 }
 
+const char* param_registers[6] = {
+    "rdi",
+    "rsi",
+    "rdx",
+    "rcx",
+    "r8",
+    "r9"
+};
+
 static void move_rax_into_variable(
         CodeGenerator* self,
         Stmt* var) {
@@ -154,12 +163,31 @@ static void move_rax_into_variable(
         return;
     }
 
-    asmp(
-            self,
-            "mov %s [rbp - %lu], rax",
-            get_nasm_type_specifier(self, var->variable_decl.data_type),
-            var->variable_decl.offset
-    );
+    if (var->variable_decl.param) {
+        u64 var_offset = var->variable_decl.offset;
+        if (var_offset > 5) {
+            /* on stack */
+            asmp(
+                    self,
+                    "mov %s [rbp + %lu], rax",
+                    get_nasm_type_specifier(self, var->variable_decl.data_type),
+                    var_offset
+            );
+        }
+        else {
+            /* in reg */
+            const char* reg_in = param_registers[var_offset];
+            asmp(self, "mov %s, rax", reg_in);
+        }
+    }
+    else {
+        asmp(
+                self,
+                "mov %s [rbp - %lu], rax",
+                get_nasm_type_specifier(self, var->variable_decl.data_type),
+                var->variable_decl.offset
+        );
+    }
 }
 
 static void move_variable_into_rax(
@@ -169,12 +197,31 @@ static void move_variable_into_rax(
         return;
     }
 
-    asmp(
-            self,
-            "mov rax, %s [rbp - %lu]",
-            get_nasm_type_specifier(self, var->variable_decl.data_type),
-            var->variable_decl.offset
-    );
+    if (var->variable_decl.param) {
+        u64 var_offset = var->variable_decl.offset;
+        if (var_offset > 5) {
+            /* on stack */
+            asmp(
+                    self,
+                    "mov rax, %s [rbp + %lu]",
+                    get_nasm_type_specifier(self, var->variable_decl.data_type),
+                    var_offset
+            );
+        }
+        else {
+            /* in reg */
+            const char* reg_in = param_registers[var_offset];
+            asmp(self, "mov rax, %s", reg_in);
+        }
+    }
+    else {
+        asmp(
+                self,
+                "mov rax, %s [rbp - %lu]",
+                get_nasm_type_specifier(self, var->variable_decl.data_type),
+                var->variable_decl.offset
+        );
+    }
 }
 
 static void gen_stmt(CodeGenerator* self, Stmt* stmt);
@@ -209,15 +256,6 @@ static void gen_binary_expr(CodeGenerator* self, Expr* expr) {
     default: break;
     }
 }
-
-const char* param_registers[6] = {
-    "rdi",
-    "rsi",
-    "rdx",
-    "rcx",
-    "r8",
-    "r9"
-};
 
 static void gen_func_call_expr(CodeGenerator* self, Expr* expr) {
     /* call prologue */
@@ -277,27 +315,7 @@ static void gen_integer_expr(CodeGenerator* self, Expr* expr) {
 }
 
 static void gen_variable_ref(CodeGenerator* self, Expr* expr) {
-    Stmt* var = expr->variable_ref.declaration;
-    if (var->variable_decl.param) {
-        u64 var_offset = var->variable_decl.offset;
-        if (var_offset > 5) {
-            /* on stack */
-            asmp(
-                    self,
-                    "mov rax, %s [rbp + %lu]",
-                    get_nasm_type_specifier(self, var->variable_decl.data_type),
-                    var_offset
-            );
-        }
-        else {
-            /* in reg */
-            const char* reg_in = param_registers[var_offset];
-            asmp(self, "mov rax, %s", reg_in);
-        }
-    }
-    else {
-        move_variable_into_rax(self, var);
-    }
+    move_variable_into_rax(self, expr->variable_ref.declaration);
 }
 
 static void gen_block_expr(CodeGenerator* self, Expr* expr) {
