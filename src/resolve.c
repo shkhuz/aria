@@ -14,91 +14,87 @@
 static void resolve_stmt(Resolver* self, Stmt* check);
 static void resolve_expr(Resolver* self, Expr* check);
 
-static bool assert_eq_function_header(Resolver* self, Stmt* a, Stmt* b) {
-    Stmt** a_params = a->function.params;
-    Stmt** b_params = b->function.params;
+/* static bool assert_eq_function_header(Resolver* self, Stmt* a, Stmt* b) { */
+/*     Stmt** a_params = a->function.params; */
+/*     Stmt** b_params = b->function.params; */
 
-    u64 a_param_len = buf_len(a_params);
-    u64 b_param_len = buf_len(b_params);
+/*     u64 a_param_len = buf_len(a_params); */
+/*     u64 b_param_len = buf_len(b_params); */
 
-    if (a_param_len != b_param_len) {
-        error_token(
-                b->function.identifier,
-                "conflicting arity between declarations"
-        );
-        error_info_expect_u64("parameter(s)", a_param_len);
-        error_info_got_u64("parameter(s)", b_param_len);
-        return false;
-    }
+/*     if (a_param_len != b_param_len) { */
+/*         error_token( */
+/*                 b->function.identifier, */
+/*                 "conflicting arity between declarations" */
+/*         ); */
+/*         error_info_expect_u64("parameter(s)", a_param_len); */
+/*         error_info_got_u64("parameter(s)", b_param_len); */
+/*         return false; */
+/*     } */
 
-    bool eq = true;
-    buf_loop(a_params, p) {
-        if (!is_tok_eq(a_params[p]->variable_decl.identifier,
-                       b_params[p]->variable_decl.identifier)) {
-            error_token(
-                    b_params[p]->variable_decl.identifier,
-                    "conflicting parameter name between declarations"
-            );
-            eq = false;
-        }
+/*     bool eq = true; */
+/*     buf_loop(a_params, p) { */
+/*         if (!is_tok_eq(a_params[p]->variable_decl.identifier, */
+/*                        b_params[p]->variable_decl.identifier)) { */
+/*             error_token( */
+/*                     b_params[p]->variable_decl.identifier, */
+/*                     "conflicting parameter name between declarations" */
+/*             ); */
+/*             eq = false; */
+/*         } */
 
-        if (!is_dt_eq(a_params[p]->variable_decl.data_type,
-                      b_params[p]->variable_decl.data_type)) {
-            error_data_type(
-                    b_params[p]->variable_decl.data_type,
-                    "conflicting parameter type between declarations"
-            );
-            eq = false;
-        }
-    }
+/*         if (!is_dt_eq(a_params[p]->variable_decl.data_type, */
+/*                       b_params[p]->variable_decl.data_type)) { */
+/*             error_data_type( */
+/*                     b_params[p]->variable_decl.data_type, */
+/*                     "conflicting parameter type between declarations" */
+/*             ); */
+/*             eq = false; */
+/*         } */
+/*     } */
 
-    if (!is_dt_eq(a->function.return_type,
-                  b->function.return_type)) {
-        const char* err_msg = "conflicting return type between declarations";
-        if (b->function.return_type->compiler_generated) {
-            error_token(
-                    b->function.identifier,
-                    err_msg
-            );
-        }
-        else {
-            error_data_type(
-                    b->function.return_type,
-                    err_msg
-            );
-        }
-        eq = false;
-    }
-    return eq;
-}
+/*     if (!is_dt_eq(a->function.return_type, */
+/*                   b->function.return_type)) { */
+/*         const char* err_msg = "conflicting return type between declarations"; */
+/*         if (b->function.return_type->compiler_generated) { */
+/*             error_token( */
+/*                     b->function.identifier, */
+/*                     err_msg */
+/*             ); */
+/*         } */
+/*         else { */
+/*             error_data_type( */
+/*                     b->function.return_type, */
+/*                     err_msg */
+/*             ); */
+/*         } */
+/*         eq = false; */
+/*     } */
+/*     return eq; */
+/* } */
+
+#define first_defined_here_note_msg "first defined here:"
+#define defined_here_note_msg "defined_here:"
 
 static void insert_function_into_sym_tbl(Resolver* self, Stmt* check) {
-    bool same_decls = false;
     buf_loop(self->ast->func_sym_tbl, f) {
         Stmt* check_against = self->ast->func_sym_tbl[f];
         if (is_tok_eq(
                     check->function.identifier,
                     check_against->function.identifier)) {
-            if (!check->function.decl && !check_against->function.decl) {
-                error_token(
-                        check->function.identifier,
-                        "redefinition of function: `%s`",
-                        check->function.identifier->lexeme
-                );
-            }
-            else {
-                if (assert_eq_function_header(self, check_against, check)) {
-                    if (check->function.decl && check_against->function.decl) {
-                        same_decls = true;
-                    }
-                }
-            }
+            error_token(
+                    check->function.identifier,
+                    "duplicate symbol: `%s`",
+                    check->function.identifier->lexeme
+            );
+            note_token(
+                    check_against->function.identifier,
+                    first_defined_here_note_msg
+            );
+            return;
         }
     }
 
-    if (!same_decls) {
-        buf_push(self->ast->func_sym_tbl, check);
-    }
+    buf_push(self->ast->func_sym_tbl, check);
 }
 
 #define variable_redecl_error_msg "redeclaration of variable `%s`"
@@ -122,14 +118,19 @@ static void insert_variable_into_sym_tbl(Resolver* self, Stmt* check) {
                     variable_redecl_error_msg,
                     check->variable_decl.identifier->lexeme
             );
+            note_token(
+                    check_against->variable_decl.identifier,
+                    first_defined_here_note_msg
+            );
             return;
         }
     }
     buf_push(self->global_scope->variables, check);
 }
 
-static VariableScope is_variable_in_scope(Resolver* self, Stmt* check) {
-    VariableScope scope_in = VS_NO_SCOPE;
+static ScopeSearchResult is_variable_in_scope(Resolver* self, Stmt* check) {
+    ScopeSearchResult result;
+    result.scope_in = VS_NO_SCOPE;
     bool first_iter = true;
     Scope* scope = self->current_scope;
 
@@ -140,18 +141,19 @@ static VariableScope is_variable_in_scope(Resolver* self, Stmt* check) {
                         check->variable_decl.identifier,
                         check_against->variable_decl.identifier)) {
 
-                if (first_iter) scope_in = VS_CURRENT_SCOPE;
-                else scope_in = VS_OUTER_SCOPE;
+                if (first_iter) result.scope_in = VS_CURRENT_SCOPE;
+                else result.scope_in = VS_OUTER_SCOPE;
+                result.defined = check_against;
                 break;
             }
         }
 
-        if (scope_in != VS_NO_SCOPE) break;
+        if (result.scope_in != VS_NO_SCOPE) break;
         scope = scope->parent_scope;
         first_iter = false;
     }
 
-    return scope_in;
+    return result;
 }
 
 static VariableScope is_variable_ref_in_scope(Resolver* self, Expr* expr) {
@@ -181,20 +183,28 @@ static VariableScope is_variable_ref_in_scope(Resolver* self, Expr* expr) {
 }
 
 static void check_and_add_to_scope(Resolver* self, Stmt* check) {
-    VariableScope scope = is_variable_in_scope(self, check);
+    ScopeSearchResult result = is_variable_in_scope(self, check);
     Token* identifier = check->variable_decl.identifier;
-    if (scope == VS_CURRENT_SCOPE) {
+    if (result.scope_in == VS_CURRENT_SCOPE) {
         error_token(
                 identifier,
                 variable_redecl_error_msg,
                 identifier->lexeme
         );
+        note_token(
+                result.defined->variable_decl.identifier,
+                first_defined_here_note_msg
+        );
         return;
     }
-    else if (scope == VS_OUTER_SCOPE) {
+    else if (result.scope_in == VS_OUTER_SCOPE) {
         error_token(
                 identifier,
                 "variable shadows another variable"
+        );
+        note_token(
+                result.defined->variable_decl.identifier,
+                first_defined_here_note_msg
         );
         return;
     }
@@ -253,6 +263,10 @@ static void resolve_func_call_expr(Resolver* self, Expr* check) {
             error_expr(
                     check,
                     "conflicting arity"
+            );
+            note_token(
+                    check->func_call.callee->function.identifier,
+                    defined_here_note_msg
             );
             error_info_expect_u64("argument(s)", param_len);
             error_info_got_u64("argument(s)", arg_len);

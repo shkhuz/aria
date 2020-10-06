@@ -47,7 +47,8 @@ static void addt(Lexer* self, TokenType type) {
 static void error_from_start(Lexer* self, u64 char_count, const char* fmt, ...) {
 	va_list ap;
 	va_start(ap, fmt);
-	error(
+	msg(
+        MSG_ERROR,
 		self->srcfile,
 		self->line,
 		compute_column_on_start(self),
@@ -62,7 +63,8 @@ static void error_from_start(Lexer* self, u64 char_count, const char* fmt, ...) 
 static void error_from_current(Lexer* self, u64 char_count, const char* fmt, ...) {
 	va_list ap;
 	va_start(ap, fmt);
-	error(
+	msg(
+        MSG_ERROR,
 		self->srcfile,
 		self->line,
 		compute_column_on_current(self),

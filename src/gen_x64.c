@@ -499,7 +499,7 @@ static void gen_rodata(CodeGenerator* self) {
         gen_tab(self);
         gen_str(self, "db `");
         gen_str(self, self->static_strings[s]->b);
-        gen_str(self, "`");
+        gen_str(self, "\\0`");
         gen_newline(self);
     }
 }

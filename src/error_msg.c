@@ -1,6 +1,6 @@
-#define _ERROR_MSG_NO_ERROR_MACRO
+#define _MSG_NO_ERROR_MACRO
 #include "error_msg.h"
-#undef _ERROR_MSG_NO_ERROR_MACRO
+#undef _MSG_NO_ERROR_MACRO
 #include "arpch.h"
 #include "util/util.h"
 #include "ds/ds.h"
@@ -21,7 +21,7 @@ static char* get_line_in_file(File* srcfile, u64 line) {
 	return line_start;
 }
 
-static void print_tab(void) {
+static void eprint_tab(void) {
 	for (u64 t = 0; t < TAB_COUNT; t++) {
 		fprintf(stderr, " ");
 	}
@@ -29,7 +29,8 @@ static void print_tab(void) {
 
 static int last_bar_indent_offset = 7;
 
-void error(
+void msg(
+        MsgType type,
         File* srcfile,
         u64 line,
         u64 column,
@@ -37,17 +38,27 @@ void error(
         const char* fmt,
         va_list ap) {
 
+    char* color = null;
+    char* typeof_msg_str = null;
+    switch (type) {
+    case MSG_ERROR: color = ANSI_FRED; typeof_msg_str = "error"; break;
+    case MSG_NOTE: color = ANSI_FBOLD; typeof_msg_str = "note"; break;
+    default: assert(0); break;
+    }
+
 	va_list aq;
 	va_copy(aq, ap);
 	fprintf(
 		stderr,
 		ANSI_FBOLD "%s" ANSI_RESET ":"
         ANSI_FBOLD "%lu" ANSI_RESET ":"
-        ANSI_FBOLD "%lu" ANSI_RESET": "
-        ANSI_FRED "error" ANSI_RESET ": ",
+        ANSI_FBOLD "%lu" ANSI_RESET ": %s%s"
+        ANSI_RESET ": ",
 		srcfile->fpath,
 		line,
-		column);
+		column,
+        color,
+        typeof_msg_str);
 	vfprintf(
 		stderr,
 		fmt,
@@ -66,14 +77,14 @@ void error(
 	while (*line_start != '\n' && *line_start != '\0') {
         u64 color_to_put_to = (u64)(line_start - line_start_store + 1);
         if (color_to_put_to == column) {
-            fprintf(stderr, ANSI_FRED);
+            fprintf(stderr, color);
             count_error_chars = true;
         }
         if (color_to_put_to == column + char_count) {
             fprintf(stderr, ANSI_RESET);
             count_error_chars = false;
         }
-		if (*line_start == '\t') print_tab();
+		if (*line_start == '\t') eprint_tab();
 		else fprintf(stderr, "%c", *line_start);
 		line_start++;
 
@@ -87,14 +98,14 @@ void error(
 	char* beg_of_line = get_line_in_file(srcfile, line);
     if (column != 0) {
         for (u64 c = 0; c < column - 1; c++) {
-            if (beg_of_line[c] == '\t') print_tab();
+            if (beg_of_line[c] == '\t') eprint_tab();
             else fprintf(stderr, " ");
         }
     }
 
 	// TODO: check if this works when there are tabs in between
 	// error markers
-    fprintf(stderr, ANSI_FRED);
+    fprintf(stderr, color);
 	char* column_start = beg_of_line + column - 1;
 	for (u64 c = 0; c < error_char_count; c++) {
 		if (column_start[c] == '\t') fprintf(stderr, "^^^^");
@@ -106,26 +117,30 @@ void error(
 	va_end(aq);
 }
 
-void error_token(
+void msg_token(
+        MsgType type,
         Token* token,
         const char* fmt,
         ...) {
     va_list ap;
     va_start(ap, fmt);
-    verror_token(
+    vmsg_token(
+            type,
             token,
             fmt,
             ap);
     va_end(ap);
 }
 
-void verror_token(
+void vmsg_token(
+        MsgType type,
         Token* token,
         const char* fmt,
         va_list ap) {
     va_list aq;
     va_copy(aq, ap);
-    error(
+    msg(
+            type,
             token->srcfile,
             token->line,
             token->column,
@@ -135,26 +150,30 @@ void verror_token(
     va_end(aq);
 }
 
-void error_data_type(
+void msg_data_type(
+        MsgType type,
         DataType* dt,
         const char* fmt,
         ...) {
     va_list ap;
     va_start(ap, fmt);
-    verror_data_type(
+    vmsg_data_type(
+            type,
             dt,
             fmt,
             ap);
     va_end(ap);
 }
 
-void verror_data_type(
+void vmsg_data_type(
+        MsgType type,
         DataType* dt,
         const char* fmt,
         va_list ap) {
     va_list aq;
     va_copy(aq, ap);
-    error(
+    msg(
+            type,
             dt->identifier->srcfile,
             dt->identifier->line,
             dt->identifier->column,
@@ -164,26 +183,30 @@ void verror_data_type(
     va_end(aq);
 }
 
-void error_expr(
+void msg_expr(
+        MsgType type,
         Expr* expr,
         const char* fmt,
         ...) {
     va_list ap;
     va_start(ap, fmt);
-    verror_expr(
+    vmsg_expr(
+            type,
             expr,
             fmt,
             ap);
     va_end(ap);
 }
 
-void verror_expr(
+void vmsg_expr(
+        MsgType type,
         Expr* expr,
         const char* fmt,
         va_list ap) {
     va_list aq;
     va_copy(aq, ap);
-    error(
+    msg(
+            type,
             expr->head->srcfile,
             expr->head->line,
             expr->head->column,

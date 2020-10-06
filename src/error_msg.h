@@ -5,7 +5,13 @@
 #include "util/util.h"
 #include "ds/ds.h"
 
-void error(
+typedef enum {
+    MSG_ERROR,
+    MSG_NOTE,
+} MsgType;
+
+void msg(
+    MsgType type,
 	File* srcfile,
 	u64 line,
 	u64 column,
@@ -13,29 +19,35 @@ void error(
 	const char* fmt,
 	va_list ap);
 
-void error_token(
+void msg_token(
+        MsgType type,
         Token* token,
         const char* fmt,
         ...);
-void verror_token(
+void vmsg_token(
+        MsgType type,
         Token* token,
         const char* fmt,
         va_list ap);
 
-void error_data_type(
+void msg_data_type(
+        MsgType type,
         DataType* dt,
         const char* fmt,
         ...);
-void verror_data_type(
+void vmsg_data_type(
+        MsgType type,
         DataType* dt,
         const char* fmt,
         va_list ap);
 
-void error_expr(
+void msg_expr(
+        MsgType type,
         Expr* expr,
         const char* fmt,
         ...);
-void verror_expr(
+void vmsg_expr(
+        MsgType type,
         Expr* expr,
         const char* fmt,
         va_list ap);
@@ -49,21 +61,30 @@ void error_info_got_u64(char* pre, u64 n);
 void error_common(const char* fmt, ...);
 void fatal_error_common(const char* fmt, ...);
 
-#ifndef _ERROR_MSG_NO_ERROR_MACRO
+#ifndef _MSG_NO_ERROR_MACRO
 #define error_token(token, ...) \
     self->error_state = true, \
     self->error_count++, \
-    error_token(token, ##__VA_ARGS__)
+    msg_token(MSG_ERROR, token, ##__VA_ARGS__)
 
 #define error_data_type(dt, ...) \
     self->error_state = true, \
     self->error_count++, \
-    error_data_type(dt, ##__VA_ARGS__)
+    msg_data_type(MSG_ERROR, dt, ##__VA_ARGS__)
 
 #define error_expr(expr, ...) \
     self->error_state = true, \
     self->error_count++, \
-    error_expr(expr, ##__VA_ARGS__)
+    msg_expr(MSG_ERROR, expr, ##__VA_ARGS__)
+
+#define note_token(token, ...) \
+    msg_token(MSG_NOTE, token, ##__VA_ARGS__)
+
+#define note_data_type(dt, ...) \
+    msg_data_type(MSG_NOTE, dt, ##__VA_ARGS__)
+
+#define note_expr(expr, ...) \
+    msg_expr(MSG_NOTE, expr, ##__VA_ARGS__)
 #endif
 
 #endif /* _ERROR_MSG_H */

@@ -78,7 +78,8 @@ static void error_token_with_sync(
     self->error_state = true;
     va_list ap;
     va_start(ap, fmt);
-    verror_token(
+    vmsg_token(
+            MSG_ERROR,
             token,
             fmt,
             ap
@@ -97,7 +98,8 @@ static void error_expr_with_sync(
     self->error_state = true;
     va_list ap;
     va_start(ap, fmt);
-    verror_expr(
+    vmsg_expr(
+            MSG_ERROR,
             expr,
             fmt,
             ap

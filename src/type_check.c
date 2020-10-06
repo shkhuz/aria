@@ -8,6 +8,9 @@
 static void typeck_stmt(TypeChecker* self, Stmt* check);
 static DataType* typeck_expr(TypeChecker* self, Expr* check);
 
+#define type_annotated_here_note_msg "type annotated here:"
+#define type_infered_from_here_note_msg "type infered from here:"
+
 static DataType* typeck_assign_expr(TypeChecker* self, Expr* check) {
     DataType* left_type = null;
     DataType* right_type = null;
@@ -19,6 +22,19 @@ static DataType* typeck_assign_expr(TypeChecker* self, Expr* check) {
                 check->binary.right,
                 "conflicting types for assignment operator"
         );
+        if (left_type->compiler_generated) {
+            note_expr(
+                    check->binary.left->variable_ref.declaration->
+                        variable_decl.initializer,
+                    type_infered_from_here_note_msg
+            );
+        }
+        else {
+            note_data_type(
+                    left_type,
+                    type_annotated_here_note_msg
+            );
+        }
         error_info_expect_type(left_type);
         error_info_got_type(right_type);
         return null;
@@ -95,6 +111,10 @@ static DataType* typeck_func_call_expr(TypeChecker* self, Expr* check) {
                     args[a],
                     "conflicting argument type"
             );
+            note_data_type(
+                    params[a]->variable_decl.data_type,
+                    "parameter type defined here:"
+            );
             error_info_expect_type(param_type);
             error_info_got_type(arg_type);
         }
@@ -151,6 +171,10 @@ static void typeck_variable_decl(TypeChecker* self, Stmt* check) {
                     check->variable_decl.initializer,
                     "initializer type conflicts from annotated type"
             );
+            note_data_type(
+                    check->variable_decl.data_type,
+                    type_annotated_here_note_msg
+            );
             error_info_expect_type(check->variable_decl.data_type);
             error_info_got_type(assign_type);
         }
@@ -160,6 +184,23 @@ static void typeck_variable_decl(TypeChecker* self, Stmt* check) {
         buf_push(
                 self->enclosed_function->function.variable_decls,
                 check
+        );
+    }
+}
+
+static void print_note_for_conflicting_return_types(
+        TypeChecker* self,
+        Stmt* function) {
+    if (function->function.return_type->compiler_generated) {
+        note_token(
+                function->function.identifier,
+                "return type is infered as `void` because return type is not annotated"
+        );
+    }
+    else {
+        note_data_type(
+                function->function.return_type,
+                "return type annotated here:"
         );
     }
 }
@@ -188,8 +229,8 @@ static void typeck_function(TypeChecker* self, Stmt* check) {
                     return;
                 }
             }
-            error_token(
-                    check->function.identifier,
+            error_data_type(
+                    check->function.return_type,
                     "non-void function must return expression"
             );
         }
@@ -198,6 +239,7 @@ static void typeck_function(TypeChecker* self, Stmt* check) {
                     check->function.block->block.ret,
                     "return type conflicts from last expression returned"
             );
+            print_note_for_conflicting_return_types(self, check);
         }
         error_info_expect_type(check->function.return_type);
         error_info_got_type(block_type);
@@ -226,6 +268,7 @@ static void typeck_return_stmt(TypeChecker* self, Stmt* check) {
                     err_msg
             );
         }
+        print_note_for_conflicting_return_types(self, self->enclosed_function);
         error_info_expect_type(self->enclosed_function->function.return_type);
         error_info_got_type(return_type);
     }

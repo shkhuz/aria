@@ -14,6 +14,11 @@ typedef enum {
 	VS_NO_SCOPE,
 } VariableScope;
 
+typedef struct {
+    struct Stmt* defined;
+    VariableScope scope_in;
+} ScopeSearchResult;
+
 Scope* scope_new(Scope* parent_scope);
 
 #endif /* _SCOPE_H */

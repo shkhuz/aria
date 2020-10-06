@@ -1,8 +1,13 @@
-pub fn main(): u64 {
-    write_str("Hello, world\n", 13);
-    return 0;
+pub fn main() {
+    write_char({
+        puts("Hello!");
+        puts("Welcome to the Aria Programming Language!");
+        getchar()
+    });
 }
 
-fn write_str(str: char*, len: u64);
-fn write_str(str: char*, len: u64);
+pub fn puts(str: char*) {}
+
+fn getchar(): u8;
+fn write_char(c: u8);
 

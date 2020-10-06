@@ -1,6 +1,7 @@
     section .text
     global _start
     global write_str
+    global write_char
     global exit
     extern main
 
@@ -23,6 +24,20 @@ write_str:
     mov rdi, 1    ; rdi = file
     syscall
     pop rdx
+    pop rbp
+    ret
+
+; writes a character to stdout
+; rdi = char
+write_char:
+    push rbp
+    mov rbp, rsp
+    push rdi
+    lea rax, [rsp]
+    mov rdi, rax
+    mov rsi, 1
+    call write_str
+    pop rdi
     pop rbp
     ret
 
