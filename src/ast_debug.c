@@ -104,7 +104,7 @@ static void dbg_expr(AstDebugger* self, Expr* expr) {
 
 static void dbg_function(AstDebugger* self, Stmt* stmt) {
     print_l_paren(self);
-    print_str(self, "function ");
+    print_str(self, stmt->function.decl ? "extern_func " : "function ");
     print_token(self, stmt->function.identifier);
     print_space(self);
 
@@ -121,9 +121,11 @@ static void dbg_function(AstDebugger* self, Stmt* stmt) {
     print_r_paren(self);
     print_space(self);
     print_data_type(self, stmt->function.return_type);
-    print_space(self);
 
-    dbg_expr(self, stmt->function.block);
+    if (!stmt->function.decl) {
+        print_space(self);
+        dbg_expr(self, stmt->function.block);
+    }
     print_r_paren(self);
 }
 

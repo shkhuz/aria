@@ -219,23 +219,25 @@ void error_info_got_type(DataType* dt) {
     fprintf(stderr, "`\n");
 }
 
-void error_info_expect_args(u64 count) {
+void error_info_expect_u64(char* pre, u64 n) {
     eprint_last_err_msg_line_num_indent();
     fprintf(
             stderr,
-            ANSI_FBOLD "expect argument(s)" ANSI_RESET ": "
+            ANSI_FBOLD "expect %s" ANSI_RESET ": ",
+            pre
     );
-    fprintf(stderr, "%lu", count);
+    fprintf(stderr, "%lu", n);
     fprintf(stderr, "\n");
 }
 
-void error_info_got_args(u64 count) {
+void error_info_got_u64(char* pre, u64 n) {
     eprint_last_err_msg_line_num_indent();
     fprintf(
             stderr,
-            ANSI_FBOLD "   got argument(s)" ANSI_RESET ": "
+            ANSI_FBOLD "   got %s" ANSI_RESET ": ",
+            pre
     );
-    fprintf(stderr, "%lu", count);
+    fprintf(stderr, "%lu", n);
     fprintf(stderr, "\n");
 }
 

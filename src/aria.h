@@ -62,7 +62,6 @@ void ast_debug(AstDebugger* self, Ast* ast);
 
 typedef struct {
     Ast* ast;
-    Stmt** func_sym_tbl;
     Scope* global_scope;
     Scope* current_scope;
     bool error_state;

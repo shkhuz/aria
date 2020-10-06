@@ -65,7 +65,13 @@ static void label_from_token(CodeGenerator* self, Token* token) {
 
 static void gen_prelude(CodeGenerator* self) {
     asmw(self, "section .text");
-    asmw(self, "extern write_str");
+    Stmt** stmts = self->ast->stmts;
+    buf_loop(self->ast->func_sym_tbl, s) {
+        if (stmts[s]->type == S_FUNCTION &&
+            stmts[s]->function.decl) {
+            asmp(self, "extern %s", stmts[s]->function.identifier->lexeme);
+        }
+    }
 }
 
 /* register push/pop macros */
@@ -410,6 +416,8 @@ static void gen_function_param(CodeGenerator* self, Stmt* param, u64 idx) {
 }
 
 static void gen_function(CodeGenerator* self, Stmt* stmt) {
+    if (stmt->function.decl) return;
+
     self->enclosed_function = stmt;
     if (stmt->function.pub) {
         asmp(self, "global %s", stmt->function.identifier->lexeme);
@@ -507,7 +515,7 @@ void gen_code_for_ast(CodeGenerator* self, Ast* ast, const char* fpath) {
     self->next_free_string_label = 0;
 
     gen_prelude(self);
-    buf_loop(self->ast->stmts, s) {
+    buf_loop(self->ast->func_sym_tbl, s) {
         gen_stmt(self, self->ast->stmts[s]);
     }
     gen_rodata(self);

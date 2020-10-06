@@ -1,5 +1,6 @@
     section .text
     global _start
+    global write_str
     global exit
     extern main
 

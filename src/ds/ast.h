@@ -10,6 +10,7 @@ typedef struct {
     Token** tokens;
     Stmt** stmts;
     Stmt** decls;
+    Stmt** func_sym_tbl;
     const char** imports;
 } Ast;
 

@@ -170,6 +170,11 @@ static void typeck_function(TypeChecker* self, Stmt* check) {
         typeck_variable_decl(self, check->function.params[p]);
     }
 
+    if (check->function.decl) {
+        self->enclosed_function = null;
+        return;
+    }
+
     DataType* block_type = null;
     es; block_type = typeck_expr(self, check->function.block); self->enclosed_function = null; er;
 

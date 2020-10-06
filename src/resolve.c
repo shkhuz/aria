@@ -14,21 +14,91 @@
 static void resolve_stmt(Resolver* self, Stmt* check);
 static void resolve_expr(Resolver* self, Expr* check);
 
+static bool assert_eq_function_header(Resolver* self, Stmt* a, Stmt* b) {
+    Stmt** a_params = a->function.params;
+    Stmt** b_params = b->function.params;
+
+    u64 a_param_len = buf_len(a_params);
+    u64 b_param_len = buf_len(b_params);
+
+    if (a_param_len != b_param_len) {
+        error_token(
+                b->function.identifier,
+                "conflicting arity between declarations"
+        );
+        error_info_expect_u64("parameter(s)", a_param_len);
+        error_info_got_u64("parameter(s)", b_param_len);
+        return false;
+    }
+
+    bool eq = true;
+    buf_loop(a_params, p) {
+        if (!is_tok_eq(a_params[p]->variable_decl.identifier,
+                       b_params[p]->variable_decl.identifier)) {
+            error_token(
+                    b_params[p]->variable_decl.identifier,
+                    "conflicting parameter name between declarations"
+            );
+            eq = false;
+        }
+
+        if (!is_dt_eq(a_params[p]->variable_decl.data_type,
+                      b_params[p]->variable_decl.data_type)) {
+            error_data_type(
+                    b_params[p]->variable_decl.data_type,
+                    "conflicting parameter type between declarations"
+            );
+            eq = false;
+        }
+    }
+
+    if (!is_dt_eq(a->function.return_type,
+                  b->function.return_type)) {
+        const char* err_msg = "conflicting return type between declarations";
+        if (b->function.return_type->compiler_generated) {
+            error_token(
+                    b->function.identifier,
+                    err_msg
+            );
+        }
+        else {
+            error_data_type(
+                    b->function.return_type,
+                    err_msg
+            );
+        }
+        eq = false;
+    }
+    return eq;
+}
+
 static void insert_function_into_sym_tbl(Resolver* self, Stmt* check) {
-    buf_loop(self->func_sym_tbl, f) {
-        Stmt* check_against = self->func_sym_tbl[f];
+    bool same_decls = false;
+    buf_loop(self->ast->func_sym_tbl, f) {
+        Stmt* check_against = self->ast->func_sym_tbl[f];
         if (is_tok_eq(
                     check->function.identifier,
                     check_against->function.identifier)) {
-            error_token(
-                    check->function.identifier,
-                    "redefinition of function: `%s`",
-                    check->function.identifier->lexeme
-            );
-            return;
+            if (!check->function.decl && !check_against->function.decl) {
+                error_token(
+                        check->function.identifier,
+                        "redefinition of function: `%s`",
+                        check->function.identifier->lexeme
+                );
+            }
+            else {
+                if (assert_eq_function_header(self, check_against, check)) {
+                    if (check->function.decl && check_against->function.decl) {
+                        same_decls = true;
+                    }
+                }
+            }
         }
     }
-    buf_push(self->func_sym_tbl, check);
+
+    if (!same_decls) {
+        buf_push(self->ast->func_sym_tbl, check);
+    }
 }
 
 #define variable_redecl_error_msg "redeclaration of variable `%s`"
@@ -160,10 +230,10 @@ static void resolve_binary_expr(Resolver* self, Expr* check) {
 
 static void resolve_func_call_expr(Resolver* self, Expr* check) {
     if (check->func_call.left->type == E_VARIABLE_REF) {
-        buf_loop(self->func_sym_tbl, f) {
+        buf_loop(self->ast->func_sym_tbl, f) {
             if (is_tok_eq(check->func_call.left->variable_ref.identifier,
-                          self->func_sym_tbl[f]->function.identifier)) {
-                check->func_call.callee = self->func_sym_tbl[f];
+                          self->ast->func_sym_tbl[f]->function.identifier)) {
+                check->func_call.callee = self->ast->func_sym_tbl[f];
                 break;
             }
         }
@@ -184,8 +254,8 @@ static void resolve_func_call_expr(Resolver* self, Expr* check) {
                     check,
                     "conflicting arity"
             );
-            error_info_expect_args(param_len);
-            error_info_got_args(arg_len);
+            error_info_expect_u64("argument(s)", param_len);
+            error_info_got_u64("argument(s)", arg_len);
             return;
         }
     }
@@ -239,7 +309,9 @@ static void resolve_function(Resolver* self, Stmt* check) {
 
     resolve_data_type(self, check->function.return_type);
 
-    resolve_expr(self, check->function.block);
+    if (!check->function.decl) {
+        resolve_expr(self, check->function.block);
+    }
 
     revert_scope(scope);
 }
@@ -275,7 +347,7 @@ static void resolve_stmt(Resolver* self, Stmt* check) {
 
 bool resolve_ast(Resolver* self, Ast* ast) {
     self->ast = ast;
-    self->func_sym_tbl = null;
+    self->ast->func_sym_tbl = null;
     self->global_scope = scope_new(null);
     self->current_scope = self->global_scope;
     self->error_state = false;

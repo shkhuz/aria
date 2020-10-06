@@ -663,7 +663,7 @@ static Stmt* decl(Parser* self) {
             return null;
         }
 
-        // function declaration
+        /* function declaration */
         else {
             expect_semicolon(self);
             return stmt_function_new(
