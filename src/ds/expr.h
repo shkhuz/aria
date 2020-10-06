@@ -8,6 +8,7 @@ typedef enum {
     E_FUNC_CALL,
     E_INTEGER,
     E_VARIABLE_REF,
+    E_STRING,
     E_BLOCK,
     E_NONE,
 } ExprType;
@@ -47,6 +48,7 @@ struct Expr {
         ExprVariableRef variable_ref;
         ExprBlock block;
         Token* integer;
+        Token* string;
     };
 };
 

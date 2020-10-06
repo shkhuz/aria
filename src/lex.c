@@ -124,6 +124,23 @@ static void number(Lexer* self) {
 	addt(self, type);
 }
 
+static void string(Lexer* self) {
+    self->current++;
+    while (*self->current != '"') {
+        self->current++;
+        if (*self->current == '\n' || *self->current == '\0') {
+            error_from_start(
+                    self,
+                    (u64)(self->current - self->start),
+                    "missing terminating `\"`"
+            );
+            return;
+        }
+    }
+    self->current++;
+    addt(self, T_STRING);
+}
+
 TokenOutput lex(Lexer* self, File* srcfile) {
     self->srcfile = srcfile;
     self->tokens =  null;
@@ -153,6 +170,9 @@ TokenOutput lex(Lexer* self, File* srcfile) {
         case '0': case '1': case '2': case '3': case '4':
         case '5': case '6': case '7': case '8': case '9':
             number(self);
+            break;
+        case '"':
+            string(self);
             break;
 
         #define char_token(type) \

@@ -1,8 +1,23 @@
 pub fn main(): u64 {
-    return add(1, 1, 1, 1, 1, 1, 1);
+    a :: sub(
+        {
+            sub(4, 1)
+        },
+        {
+            sub(2, 1)
+        },
+    );
+    str :: "Hello World";
+    return add(a, 1, 1, 1, 1, 1, 1);
+}
+
+fn sub(a: u64, b: u64): u64 {
+    str :: "Hello World";
+    a - b
 }
 
 fn add(a: u64, b: u64, c: u64, d: u64, e: u64, f: u64, g: u64): u64 {
+    str :: "Hello";
     g = 1;
     a + b + c + d + e + f + g
 }

@@ -81,14 +81,22 @@ typedef struct {
 bool type_check_ast(TypeChecker* self, Ast* ast);
 
 typedef struct {
+    char* a;
+    char* b;
+} TwoStringMap;
+
+typedef struct {
     Ast* ast;
     Stmt* enclosed_function;
+
     char* code;
     u64 indent;
+
     u64 next_local_var_offset;
     u64 next_param_stack_offset;
 
-    bool convert_last_block_elem_to_ret;
+    TwoStringMap** static_strings;
+    u64 next_free_string_label;
 } CodeGenerator;
 
 void gen_code_for_ast(CodeGenerator* self, Ast* ast, const char* fpath);

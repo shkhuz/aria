@@ -300,6 +300,15 @@ static Expr* expr_variable_ref_new(Token* identifier) {
     return expr;
 }
 
+static Expr* expr_string_new(Token* string) {
+    Expr* expr = expr_new_alloc();
+    expr->type = E_STRING;
+    expr->head = string;
+    expr->tail = string;
+    expr->string = string;
+    return expr;
+}
+
 static Expr* expr_block_new(
         Stmt** stmts,
         Expr* ret,
@@ -323,6 +332,9 @@ static Expr* expr_atom(Parser* self) {
     }
     else if (match(self, T_IDENTIFIER)) {
         return expr_variable_ref_new(prev(self));
+    }
+    else if (match(self, T_STRING)) {
+        return expr_string_new(prev(self));
     }
     else if (match(self, T_L_BRACE)) {
         Token* l_brace = prev(self);

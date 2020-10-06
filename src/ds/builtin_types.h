@@ -9,6 +9,7 @@
 struct BuiltinTypesStruct {
     DataType* void_type;
     DataType* char_type;
+    DataType* char_ptr_type;
     DataType* u8_type;
     DataType* u16_type;
     DataType* u32_type;

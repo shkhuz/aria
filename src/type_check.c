@@ -109,6 +109,10 @@ static DataType* typeck_variable_ref_expr(TypeChecker* self, Expr* check) {
     else assert(0);
 }
 
+static DataType* typeck_string_expr(TypeChecker* self, Expr* check) {
+    return builtin_types.e.char_ptr_type;
+}
+
 static DataType* typeck_block_expr(TypeChecker* self, Expr* check) {
     buf_loop(check->block.stmts, s) {
         typeck_stmt(self, check->block.stmts[s]);
@@ -126,6 +130,7 @@ static DataType* typeck_expr(TypeChecker* self, Expr* check) {
     case E_FUNC_CALL: return typeck_func_call_expr(self, check); break;
     case E_INTEGER: return builtin_types.e.u64_type; break;
     case E_VARIABLE_REF: return typeck_variable_ref_expr(self, check); break;
+    case E_STRING: typeck_string_expr(self, check); break;
     case E_BLOCK: return typeck_block_expr(self, check); break;
     default: assert(0); break;
     }

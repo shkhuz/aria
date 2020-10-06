@@ -70,6 +70,10 @@ static void dbg_variable_ref(AstDebugger* self, Expr* expr) {
     print_token(self, expr->variable_ref.identifier);
 }
 
+static void dbg_string_expr(AstDebugger* self, Expr* expr) {
+    print_token(self, expr->string);
+}
+
 static void dbg_block_expr(AstDebugger* self, Expr* expr) {
     print_str(self, "block ");
     self->indent++;
@@ -92,6 +96,7 @@ static void dbg_expr(AstDebugger* self, Expr* expr) {
     case E_FUNC_CALL: dbg_func_call_expr(self, expr); break;
     case E_INTEGER: dbg_integer_expr(self, expr); break;
     case E_VARIABLE_REF: dbg_variable_ref(self, expr); break;
+    case E_STRING: dbg_string_expr(self, expr); break;
     case E_BLOCK: dbg_block_expr(self, expr); break;
     }
     print_r_paren(self);

@@ -65,6 +65,7 @@ static void label_from_token(CodeGenerator* self, Token* token) {
 
 static void gen_prelude(CodeGenerator* self) {
     asmw(self, "section .text");
+    asmw(self, "extern write_str");
 }
 
 /* register push/pop macros */
@@ -224,6 +225,50 @@ static void move_variable_into_rax(
     }
 }
 
+static char* generate_next_free_string_label(CodeGenerator* self) {
+    const char* label_fmt = "__aria_static_str_%lu";
+    size_t need_len = snprintf(
+            null,
+            0,
+            label_fmt,
+            self->next_free_string_label
+    );
+    char* label = malloc(need_len + 1);
+    sprintf(
+            label,
+            label_fmt,
+            self->next_free_string_label
+    );
+    label[need_len] = 0;
+    self->next_free_string_label++;
+    return label;
+}
+
+/* returns asm label */
+static char* static_strings_contains(CodeGenerator* self, char* check) {
+    buf_loop(self->static_strings, s) {
+        if (str_intern(self->static_strings[s]->b) ==
+            str_intern(check)) {
+            return self->static_strings[s]->a;
+        }
+    }
+    return null;
+}
+
+static char* static_strings_push(CodeGenerator* self, char* str) {
+    TwoStringMap* map = malloc(sizeof(*map));
+    map->a = generate_next_free_string_label(self);
+    map->b = str_intern(str);
+    buf_push(self->static_strings, map);
+    return map->a;
+}
+
+static char* static_strings_get_label_for_str(CodeGenerator* self, char* str) {
+    char* label = static_strings_contains(self, str);
+    if (label) return label;
+    return static_strings_push(self, str);
+}
+
 static void gen_stmt(CodeGenerator* self, Stmt* stmt);
 static void gen_expr(CodeGenerator* self, Expr* expr);
 
@@ -318,6 +363,18 @@ static void gen_variable_ref(CodeGenerator* self, Expr* expr) {
     move_variable_into_rax(self, expr->variable_ref.declaration);
 }
 
+static void gen_string_expr(CodeGenerator* self, Expr* expr) {
+    char* label =
+        static_strings_get_label_for_str(
+                self,
+                str_intern_range(
+                    expr->string->start + 1,
+                    expr->string->end - 1
+                )
+        );
+    asmp(self, "mov rax, %s", label);
+}
+
 static void gen_block_expr(CodeGenerator* self, Expr* expr) {
     buf_loop(expr->block.stmts, s) {
         gen_stmt(self, expr->block.stmts[s]);
@@ -333,6 +390,7 @@ static void gen_expr(CodeGenerator* self, Expr* expr) {
     case E_FUNC_CALL: gen_func_call_expr(self, expr); break;
     case E_INTEGER: gen_integer_expr(self, expr); break;
     case E_VARIABLE_REF: gen_variable_ref(self, expr); break;
+    case E_STRING: gen_string_expr(self, expr); break;
     case E_BLOCK: gen_block_expr(self, expr); break;
     }
 }
@@ -426,17 +484,33 @@ static void gen_stmt(CodeGenerator* self, Stmt* stmt) {
     }
 }
 
+static void gen_rodata(CodeGenerator* self) {
+    asmw(self, "section .rodata");
+    buf_loop(self->static_strings, s) {
+        label(self, self->static_strings[s]->a);
+        gen_tab(self);
+        gen_str(self, "db `");
+        gen_str(self, self->static_strings[s]->b);
+        gen_str(self, "`");
+        gen_newline(self);
+    }
+}
+
 void gen_code_for_ast(CodeGenerator* self, Ast* ast, const char* fpath) {
     self->ast = ast;
     self->enclosed_function = null;
     self->code = null;
+    self->indent = 0;
     self->next_local_var_offset = 8;
     self->next_param_stack_offset = 0;
+    self->static_strings = null;
+    self->next_free_string_label = 0;
 
     gen_prelude(self);
     buf_loop(self->ast->stmts, s) {
         gen_stmt(self, self->ast->stmts[s]);
     }
+    gen_rodata(self);
     buf_push(self->code, '\0');
 
     FILE* file = fopen(fpath, "w");
