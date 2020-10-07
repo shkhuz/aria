@@ -32,7 +32,7 @@ debug: $(BIN_FILE)
 
 $(BIN_FILE): $(OBJ_FILES)
 	@mkdir -p $(dir $@)
-	$(LD) -o $@ $(OBJ_FILES) $(LIBS_LIB_DIR_CMD) $(LIBS_LIB_CMD)
+	$(LD) -o $@ $(OBJ_FILES) $(LIBS_LIB_DIR_CMD) $(LIBS_LIB_CMD) $(LDFLAGS)
 
 $(OBJ_DIR)/%.c.o: %.c
 	@mkdir -p $(OBJ_DIR)/$(dir $^)

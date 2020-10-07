@@ -274,6 +274,16 @@ static Expr* expr_binary_new(Expr* left, Expr* right, Token* op) {
     return expr;
 }
 
+static Expr* expr_unary_new(Token* op, Expr* right) {
+    Expr* expr = expr_new_alloc();
+    expr->type = E_UNARY;
+    expr->head = op;
+    expr->tail = right->tail;
+    expr->unary.op = op;
+    expr->unary.right = right;
+    return expr;
+}
+
 static Expr* expr_func_call_new(Expr* left, Expr** args, Token* r_paren) {
     Expr* expr = expr_new_alloc();
     expr->type = E_FUNC_CALL;
@@ -401,12 +411,31 @@ static Expr* expr_postfix(Parser* self) {
     return left;
 }
 
+static Expr* expr_unary(Parser* self) {
+    if (match(self, T_AMPERSAND)) {
+        Token* op = prev(self);
+        EXPR_CI(right, expr_unary, self);
+        if (right->type == E_VARIABLE_REF) {
+            return expr_unary_new(op, right);
+        }
+        else {
+            error_expr_with_sync(
+                    self,
+                    right,
+                    "invalid operand to `&`: lvalue required"
+            );
+            return null;
+        }
+    }
+    return expr_postfix(self);
+}
+
 static Expr* expr_binary_add_sub(Parser* self) {
-    EXPR_CI(left, expr_postfix, self);
+    EXPR_CI(left, expr_unary, self);
     while (match(self, T_PLUS) ||
            match(self, T_MINUS)) {
         Token* op = prev(self);
-        EXPR_CI(right, expr_postfix, self);
+        EXPR_CI(right, expr_unary, self);
         left = expr_binary_new(left, right, op);
     }
     return left;
@@ -421,9 +450,10 @@ static Expr* expr_assign(Parser* self) {
             return expr_binary_new(left, right, op);
         }
         else {
-            error_expr(
+            error_expr_with_sync(
+                    self,
                     left,
-                    "invalid assignment target"
+                    "invalid assignment target: lvalue required"
             );
             return null;
         }

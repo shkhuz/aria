@@ -50,6 +50,11 @@ static void dbg_binary_expr(AstDebugger* self, Expr* expr) {
     dbg_expr(self, expr->binary.right);
 }
 
+static void dbg_unary_expr(AstDebugger* self, Expr* expr) {
+    print_token(self, expr->unary.op);
+    dbg_expr(self, expr->unary.right);
+}
+
 static void dbg_func_call_expr(AstDebugger* self, Expr* expr) {
     print_str(self, "call ");
     dbg_expr(self, expr->func_call.left);
@@ -93,6 +98,7 @@ static void dbg_expr(AstDebugger* self, Expr* expr) {
     print_l_paren(self);
     switch (expr->type) {
     case E_BINARY: dbg_binary_expr(self, expr); break;
+    case E_UNARY: dbg_unary_expr(self, expr); break;
     case E_FUNC_CALL: dbg_func_call_expr(self, expr); break;
     case E_INTEGER: dbg_integer_expr(self, expr); break;
     case E_VARIABLE_REF: dbg_variable_ref(self, expr); break;

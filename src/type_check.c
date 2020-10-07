@@ -51,30 +51,32 @@ static DataType* typeck_add_sub_expr(TypeChecker* self, Expr* check) {
 
     bool pre_error = false;
     const char* int_operand_err_msg =
-        "`%s` operator requires integer operand";
+        "`%s` operator requires integer or pointer operand";
 
-    if (!is_dt_integer(left_type)) {
+    if (!is_dt_add_sub_compat(left_type)) {
         error_expr(
                 check->binary.left,
                 int_operand_err_msg,
                 check->binary.op->lexeme
         );
+        error_info_got_type(left_type);
         pre_error = true;
     }
 
-    if (!is_dt_integer(right_type)) {
+    if (!is_dt_add_sub_compat(right_type)) {
         error_expr(
                 check->binary.right,
                 int_operand_err_msg,
                 check->binary.op->lexeme
         );
+        error_info_got_type(right_type);
         pre_error = true;
     }
 
     if (!pre_error) {
         if (!is_dt_eq(left_type, right_type)) {
-            error_token(
-                    check->binary.op,
+            error_expr(
+                    check->binary.right,
                     "`%s` operator requires similar types",
                     check->binary.op->lexeme
             );
@@ -93,7 +95,18 @@ static DataType* typeck_binary_expr(TypeChecker* self, Expr* check) {
     case T_PLUS:
     case T_MINUS: return typeck_add_sub_expr(self, check); break;
     case T_EQUAL: return typeck_assign_expr(self, check); break;
-    default: assert(0); break;
+    }
+}
+
+static DataType* typeck_ref_expr(TypeChecker* self, Expr* check) {
+    DataType* right_type = null;
+    chk(right_type = typeck_expr(self, check->unary.right));
+    return data_type_inc_ptr(right_type);
+}
+
+static DataType* typeck_unary_expr(TypeChecker* self, Expr* check) {
+    switch (check->unary.op->type) {
+    case T_AMPERSAND: return typeck_ref_expr(self, check); break;
     }
 }
 
@@ -147,6 +160,7 @@ static DataType* typeck_block_expr(TypeChecker* self, Expr* check) {
 static DataType* typeck_expr(TypeChecker* self, Expr* check) {
     switch (check->type) {
     case E_BINARY: return typeck_binary_expr(self, check); break;
+    case E_UNARY: return typeck_unary_expr(self, check); break;
     case E_FUNC_CALL: return typeck_func_call_expr(self, check); break;
     case E_INTEGER: return builtin_types.e.u64_type; break;
     case E_VARIABLE_REF: return typeck_variable_ref_expr(self, check); break;

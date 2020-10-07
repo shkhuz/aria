@@ -231,6 +231,39 @@ static void move_variable_into_rax(
     }
 }
 
+static void move_variable_addr_into_rax(
+        CodeGenerator* self,
+        Stmt* var) {
+    if (is_dt_eq(var->variable_decl.data_type, builtin_types.e.void_type)) {
+        assert(0);
+        return;
+    }
+
+    if (var->variable_decl.param) {
+        u64 var_offset = var->variable_decl.offset;
+        if (var_offset > 5) {
+            /* on stack */
+            asmp(
+                    self,
+                    "lea rax, [rbp + %lu]",
+                    var_offset
+            );
+        }
+        else {
+            /* in reg */
+            const char* reg_in = param_registers[var_offset];
+            asmp(self, "lea rax, [%s]", reg_in);
+        }
+    }
+    else {
+        asmp(
+                self,
+                "lea rax, [rbp - %lu]",
+                var->variable_decl.offset
+        );
+    }
+}
+
 static char* generate_next_free_string_label(CodeGenerator* self) {
     const char* label_fmt = "__aria_static_str_%lu";
     size_t need_len = snprintf(
@@ -305,6 +338,19 @@ static void gen_binary_expr(CodeGenerator* self, Expr* expr) {
     case T_MINUS: gen_binary_arithmetic_expr(self, expr); break;
     case T_EQUAL: gen_assign_expr(self, expr); break;
     default: break;
+    }
+}
+
+static void gen_ref_expr(CodeGenerator* self, Expr* expr) {
+    move_variable_addr_into_rax(
+            self,
+            expr->unary.right->variable_ref.declaration
+    );
+}
+
+static void gen_unary_expr(CodeGenerator* self, Expr* expr) {
+    switch (expr->unary.op->type) {
+    case T_AMPERSAND: return gen_ref_expr(self, expr); break;
     }
 }
 
@@ -393,6 +439,7 @@ static void gen_block_expr(CodeGenerator* self, Expr* expr) {
 static void gen_expr(CodeGenerator* self, Expr* expr) {
     switch (expr->type) {
     case E_BINARY: gen_binary_expr(self, expr); break;
+    case E_UNARY: gen_unary_expr(self, expr); break;
     case E_FUNC_CALL: gen_func_call_expr(self, expr); break;
     case E_INTEGER: gen_integer_expr(self, expr); break;
     case E_VARIABLE_REF: gen_variable_ref(self, expr); break;

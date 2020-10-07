@@ -238,6 +238,10 @@ static void resolve_binary_expr(Resolver* self, Expr* check) {
     resolve_expr(self, check->binary.right);
 }
 
+static void resolve_unary_expr(Resolver* self, Expr* check) {
+    resolve_expr(self, check->unary.right);
+}
+
 static void resolve_func_call_expr(Resolver* self, Expr* check) {
     if (check->func_call.left->type == E_VARIABLE_REF) {
         buf_loop(self->ast->func_sym_tbl, f) {
@@ -304,6 +308,7 @@ static void resolve_block_expr(Resolver* self, Expr* check) {
 static void resolve_expr(Resolver* self, Expr* check) {
     switch (check->type) {
     case E_BINARY: resolve_binary_expr(self, check); break;
+    case E_UNARY: resolve_unary_expr(self, check); break;
     case E_FUNC_CALL: resolve_func_call_expr(self, check); break;
     case E_VARIABLE_REF: resolve_variable_ref_expr(self, check); break;
     case E_BLOCK: resolve_block_expr(self, check); break;

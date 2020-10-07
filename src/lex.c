@@ -187,6 +187,7 @@ TokenOutput lex(Lexer* self, File* srcfile) {
         case '+': char_token(T_PLUS); break;
         case '-': char_token(T_MINUS); break;
         case '*': char_token(T_STAR); break;
+        case '&': char_token(T_AMPERSAND); break;
         case '{': char_token(T_L_BRACE); break;
         case '}': char_token(T_R_BRACE); break;
         case '(': char_token(T_L_PAREN); break;

@@ -26,6 +26,13 @@ DataType* data_type_from_string_int(const char* identifier, u8 pointer_count) {
     return dt;
 }
 
+DataType* data_type_inc_ptr(DataType* dt) {
+    DataType* new = malloc(sizeof(*new));
+    memcpy(new, dt, sizeof(*new));
+    new->pointer_count++;
+    return new;
+}
+
 bool is_dt_eq(DataType* a, DataType* b) {
     assert(a);
     assert(b);
@@ -52,3 +59,14 @@ bool is_dt_integer(DataType* dt) {
     }
     return false;
 }
+
+bool is_dt_add_sub_compat(DataType* dt) {
+    assert(dt);
+
+    if (is_dt_integer(dt) ||
+        dt->pointer_count > 0) {
+        return true;
+    }
+    return false;
+}
+

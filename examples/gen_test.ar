@@ -1,13 +1,9 @@
 pub fn main() {
-    write_char({
-        puts("Hello!");
-        puts("Welcome to the Aria Programming Language!");
-        getchar()
-    });
+    a :: 70;
+    b :: &a;
+    write_str(b, 1);
 }
 
-pub fn puts(str: char*) {}
-
-fn getchar(): u8;
 fn write_char(c: u8);
+fn write_str(str: u64*, len: u64);
 
