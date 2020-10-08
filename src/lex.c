@@ -3,20 +3,23 @@
 #include "error_msg.h"
 #include "aria.h"
 
-static u64 compute_column_on_start(Lexer* self) {
-	u64 column = (u64)(self->start - self->last_newline);
+#define check_eof_from_offset(offset) \
+    if (*(self->current+offset) == '\0') return
+
+static u64 compute_column_on(Lexer* self, char* c) {
+	u64 column = (u64)(c - self->last_newline);
 	if (self->line == 1) {
 		column++;
 	}
 	return column;
 }
 
+static u64 compute_column_on_start(Lexer* self) {
+    return compute_column_on(self, self->start);
+}
+
 static u64 compute_column_on_current(Lexer* self) {
-	u64 column = (u64)(self->current - self->last_newline);
-	if (self->line == 1) {
-		column++;
-	}
-	return column;
+    return compute_column_on(self, self->current);
 }
 
 /* static bool match(Lexer* self, char c) { */
@@ -29,19 +32,34 @@ static u64 compute_column_on_current(Lexer* self) {
 /*     return false; */
 /* } */
 
-static void addt(Lexer* self, TokenType type) {
+static void addt_from_lexeme_start_end(
+        Lexer* self,
+        char* lexeme,
+        char* start,
+        char* end,
+        TokenType type) {
 	Token* token =
 		token_new_alloc(
-				str_intern_range(self->start, self->current),
-				self->start,
-				self->current,
+                lexeme,
+				start,
+				end,
 				type,
 				self->srcfile,
 				self->line,
-				compute_column_on_start(self),
-				(u64)(self->current - self->start)
+				compute_column_on(self, start),
+				(u64)(end - start)
         );
 	buf_push(self->tokens, token);
+}
+
+static void addt(Lexer* self, TokenType type) {
+    addt_from_lexeme_start_end(
+            self,
+            str_intern_range(self->start, self->current),
+            self->start,
+            self->current,
+            type
+    );
 }
 
 static void error_from_start(Lexer* self, u64 char_count, const char* fmt, ...) {
@@ -103,15 +121,121 @@ static void identifier(Lexer* self) {
 	addt(self, type);
 }
 
+u8 char_to_digit[256] = {
+    ['0'] = 0,
+    ['1'] = 1,
+    ['2'] = 2,
+    ['3'] = 3,
+    ['4'] = 4,
+    ['5'] = 5,
+    ['6'] = 6,
+    ['7'] = 7,
+    ['8'] = 8,
+    ['9'] = 9,
+    ['a'] = 10, ['A'] = 10,
+    ['b'] = 11, ['B'] = 11,
+    ['c'] = 12, ['C'] = 12,
+    ['d'] = 13, ['D'] = 13,
+    ['e'] = 14, ['E'] = 14,
+    ['f'] = 15, ['F'] = 15,
+};
+
+typedef struct {
+    u64 limit;
+    TokenType type;
+} IntTypeLimit;
+
+static IntTypeLimit parse_integer_limit_suffix(char* str) {
+    while (isdigit(*str)) str++;
+    IntTypeLimit deflt = (IntTypeLimit){ UINT64_MAX, T_INTEGER_U64 };
+
+    bool unsignd = true;
+    switch (*str++) {
+    case 'U':
+    case 'u': goto parse_limit_size; break;
+    case 'I':
+    case 'i': unsignd = false; goto parse_limit_size; break;
+    default: return deflt;
+    }
+
+parse_limit_size:
+    switch (*str++) {
+    case '8':
+        if (unsignd) return (IntTypeLimit){ UINT8_MAX, T_INTEGER_U8 };
+        else return (IntTypeLimit){ llabs(INT8_MAX), T_INTEGER_I8 };
+        break;
+    case '1':
+        if (*str == '6') {
+            if (unsignd) return (IntTypeLimit){ UINT16_MAX, T_INTEGER_U16 };
+            else return (IntTypeLimit){ llabs(INT16_MAX), T_INTEGER_I16 };
+        }
+        break;
+    case '3':
+        if (*str == '2') {
+            if (unsignd) return (IntTypeLimit){ UINT32_MAX, T_INTEGER_U32 };
+            else return (IntTypeLimit){ llabs(INT32_MAX), T_INTEGER_I32 };
+        }
+        break;
+    case '6':
+        if (*str == '4') {
+            if (unsignd) return (IntTypeLimit){ UINT64_MAX, T_INTEGER_U64 };
+            else return (IntTypeLimit){ llabs(INT64_MAX), T_INTEGER_I64 };
+        }
+        break;
+    }
+
+    return deflt;
+}
+
+static void skip_integer_suffix(Lexer* self) {
+    check_eof_from_offset(0);
+    switch (*self->current) {
+    case 'U':
+    case 'u':
+    case 'I':
+    case 'i': goto limit_size; break;
+    default: return;
+    }
+
+limit_size:
+    check_eof_from_offset(1);
+    switch (*(self->current+1)) {
+    case '8': self->current += 2; break;
+
+    case '1': {
+        check_eof_from_offset(2);
+        if (*(self->current+2) == '6') self->current += 3;
+    } break;
+
+    case '3': {
+        check_eof_from_offset(2);
+        if (*(self->current+2) == '2') self->current += 3;
+    } break;
+
+    case '6': {
+        check_eof_from_offset(2);
+        if (*(self->current+2) == '4') self->current += 3;
+    } break;
+    }
+}
+
 static void number(Lexer* self) {
-	TokenType type = T_INTEGER;
-	while (isdigit(*self->current)) self->current++;
+    u64 to_int = 0;
+    bool integer_overflow = false;
+    IntTypeLimit int_type = parse_integer_limit_suffix(self->current);
+	while (isdigit(*self->current)) {
+        u8 digit = char_to_digit[*self->current];
+        if (to_int > (int_type.limit-digit)/10) {
+            integer_overflow = true;
+        }
+        to_int = to_int*10 + digit;
+        self->current++;
+    }
+
 	if (*self->current == '.') {
 		self->current++;
 		// TODO: add support for float64
-		// TODO: check integer and float constant overflow
-		type = T_FLOAT32;
-
+		// TODO: check float constant overflow
 		if (!isdigit(*self->current)) {
 			error_from_start(
 				self,
@@ -122,8 +246,28 @@ static void number(Lexer* self) {
 			return;
 		}
 		while (isdigit(*self->current)) self->current++;
+        addt(self, T_FLOAT32);
 	}
-	addt(self, type);
+    else {
+        char* lexeme = str_intern_range(self->start, self->current);
+        /* suffix is already parsed by `parse_integer_limit_suffix`,
+         * skip it */
+        skip_integer_suffix(self);
+        addt_from_lexeme_start_end(
+                self,
+                lexeme,
+                self->start,
+                self->current,
+                int_type.type
+        );
+        if (integer_overflow) {
+            error_from_start(
+                    self,
+                    (u64)(self->current - self->start),
+                    "integer overflow"
+            );
+        }
+    }
 }
 
 static void string(Lexer* self) {

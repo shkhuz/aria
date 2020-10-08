@@ -339,7 +339,14 @@ static Expr* expr_block_new(
 static Expr* expr_assign(Parser* self);
 
 static Expr* expr_atom(Parser* self) {
-    if (match(self, T_INTEGER)) {
+    if (match(self, T_INTEGER_U8) ||
+        match(self, T_INTEGER_U16) ||
+        match(self, T_INTEGER_U32) ||
+        match(self, T_INTEGER_U64) ||
+        match(self, T_INTEGER_I8) ||
+        match(self, T_INTEGER_I16) ||
+        match(self, T_INTEGER_I32) ||
+        match(self, T_INTEGER_I64)) {
         return expr_integer_new(prev(self));
     }
     else if (match(self, T_IDENTIFIER)) {

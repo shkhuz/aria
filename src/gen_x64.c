@@ -78,16 +78,20 @@ static void gen_prelude(CodeGenerator* self) {
 #define push_rax(self) asmw(self, "push rax")
 #define pop_rbx(self) asmw(self, "pop rbx")
 
-#define DT_SIZE_POINTER 8
-#define DT_SIZE_CHAR    1
-#define DT_SIZE_U8      1
-#define DT_SIZE_U16     2
-#define DT_SIZE_U32     4
-#define DT_SIZE_U64     8
-#define DT_SIZE_I8      1
-#define DT_SIZE_I16     2
-#define DT_SIZE_I32     4
-#define DT_SIZE_I64     8
+#define DT_SIZE_8  1
+#define DT_SIZE_16 2
+#define DT_SIZE_32 4
+#define DT_SIZE_64 8
+#define DT_SIZE_POINTER DT_SIZE_64
+#define DT_SIZE_CHAR    DT_SIZE_8
+#define DT_SIZE_U8      DT_SIZE_8
+#define DT_SIZE_U16     DT_SIZE_16
+#define DT_SIZE_U32     DT_SIZE_32
+#define DT_SIZE_U64     DT_SIZE_64
+#define DT_SIZE_I8      DT_SIZE_8
+#define DT_SIZE_I16     DT_SIZE_16
+#define DT_SIZE_I32     DT_SIZE_32
+#define DT_SIZE_I64     DT_SIZE_64
 
 static u64 get_data_type_size(CodeGenerator* self, DataType* dt) {
     if (dt->pointer_count) {
@@ -170,15 +174,31 @@ static void move_rax_into_variable(
         return;
     }
 
+    u64 var_offset = var->variable_decl.offset;
+    char* acc_reg = "rax";
+    DataType* dt = var->variable_decl.data_type;
+    if (is_dt_eq(dt, builtin_types.e.u8_type) ||
+        is_dt_eq(dt, builtin_types.e.i8_type)) {
+        acc_reg = "al";
+    }
+    else if (is_dt_eq(dt, builtin_types.e.u16_type) ||
+             is_dt_eq(dt, builtin_types.e.i16_type)) {
+        acc_reg = "ax";
+    }
+    else if (is_dt_eq(dt, builtin_types.e.u32_type) ||
+             is_dt_eq(dt, builtin_types.e.i32_type)) {
+        acc_reg = "eax";
+    }
+
     if (var->variable_decl.param) {
-        u64 var_offset = var->variable_decl.offset;
         if (var_offset > 5) {
             /* on stack */
             asmp(
                     self,
-                    "mov %s [rbp + %lu], rax",
+                    "mov %s [rbp + %lu], %s",
                     get_nasm_type_specifier(self, var->variable_decl.data_type),
-                    var_offset
+                    var_offset,
+                    acc_reg
             );
         }
         else {
@@ -190,9 +210,11 @@ static void move_rax_into_variable(
     else {
         asmp(
                 self,
-                "mov %s [rbp - %lu], rax",
+                "mov %s [rbp - %lu], %s  ; %s",
                 get_nasm_type_specifier(self, var->variable_decl.data_type),
-                var->variable_decl.offset
+                var_offset,
+                acc_reg,
+                var->variable_decl.identifier->lexeme
         );
     }
 }
@@ -204,13 +226,36 @@ static void move_variable_into_rax(
         return;
     }
 
+    u64 var_offset = var->variable_decl.offset;
+    char* inst_opcode = "mov";
+    char* acc_reg = "rax";
+    bool cdqe = false;
+    DataType* dt = var->variable_decl.data_type;
+    if (is_dt_eq(dt, builtin_types.e.u8_type) ||
+        is_dt_eq(dt, builtin_types.e.u16_type)) {
+        inst_opcode = "movzx";
+    }
+    else if (is_dt_eq(dt, builtin_types.e.u32_type)) {
+        acc_reg = "eax";
+    }
+    else if (is_dt_eq(dt, builtin_types.e.i8_type) ||
+        is_dt_eq(dt, builtin_types.e.i16_type)) {
+        inst_opcode = "movzx";
+    }
+    else if (is_dt_eq(dt, builtin_types.e.i32_type)) {
+        /* sign-extend dword to qword */
+        cdqe = true;
+    }
+    /* no computation for qwords */
+
     if (var->variable_decl.param) {
-        u64 var_offset = var->variable_decl.offset;
         if (var_offset > 5) {
             /* on stack */
             asmp(
                     self,
-                    "mov rax, %s [rbp + %lu]",
+                    "%s %s, %s [rbp + %lu]",
+                    inst_opcode,
+                    acc_reg,
                     get_nasm_type_specifier(self, var->variable_decl.data_type),
                     var_offset
             );
@@ -224,10 +269,16 @@ static void move_variable_into_rax(
     else {
         asmp(
                 self,
-                "mov rax, %s [rbp - %lu]",
+                "%s %s, %s [rbp - %lu]  ; %s",
+                inst_opcode,
+                acc_reg,
                 get_nasm_type_specifier(self, var->variable_decl.data_type),
-                var->variable_decl.offset
+                var_offset,
+                var->variable_decl.identifier->lexeme
         );
+    }
+    if (cdqe) {
+        asmw(self, "cdqe");
     }
 }
 
@@ -351,6 +402,7 @@ static void gen_ref_expr(CodeGenerator* self, Expr* expr) {
 static void gen_unary_expr(CodeGenerator* self, Expr* expr) {
     switch (expr->unary.op->type) {
     case T_AMPERSAND: return gen_ref_expr(self, expr); break;
+    default: assert(0); break;
     }
 }
 
@@ -462,8 +514,28 @@ static void gen_function_param(CodeGenerator* self, Stmt* param, u64 idx) {
     }
 }
 
+static void set_var_offsets_from_rbp(CodeGenerator* self, Stmt** vars) {
+    static u64 type_sz_idx_tbl[4] = {
+        DT_SIZE_64,
+        DT_SIZE_32,
+        DT_SIZE_16,
+        DT_SIZE_8
+    };
+
+    for (u8 i = 0; i < 4; i++) {
+        buf_loop(vars, v) {
+            u64 sz = get_data_type_size(self, vars[v]->variable_decl.data_type);
+            if (sz == type_sz_idx_tbl[i]) {
+                vars[v]->variable_decl.offset = self->next_local_var_offset + sz;
+                self->next_local_var_offset += sz;
+            }
+        }
+    }
+}
+
 static void gen_function(CodeGenerator* self, Stmt* stmt) {
     if (stmt->function.decl) return;
+    set_var_offsets_from_rbp(self, stmt->function.variable_decls);
 
     self->enclosed_function = stmt;
     if (stmt->function.pub) {
@@ -511,10 +583,6 @@ static void gen_function(CodeGenerator* self, Stmt* stmt) {
 }
 
 static void gen_variable_decl(CodeGenerator* self, Stmt* stmt) {
-    stmt->variable_decl.offset = self->next_local_var_offset;
-    self->next_local_var_offset +=
-        get_data_type_size(self, stmt->variable_decl.data_type);
-
     if (stmt->variable_decl.initializer) {
         gen_expr(self, stmt->variable_decl.initializer);
         move_rax_into_variable(self, stmt);
@@ -556,7 +624,7 @@ void gen_code_for_ast(CodeGenerator* self, Ast* ast, const char* fpath) {
     self->enclosed_function = null;
     self->code = null;
     self->indent = 0;
-    self->next_local_var_offset = 8;
+    self->next_local_var_offset = 0;
     self->next_param_stack_offset = 0;
     self->static_strings = null;
     self->next_free_string_label = 0;

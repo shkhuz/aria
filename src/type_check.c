@@ -95,6 +95,7 @@ static DataType* typeck_binary_expr(TypeChecker* self, Expr* check) {
     case T_PLUS:
     case T_MINUS: return typeck_add_sub_expr(self, check); break;
     case T_EQUAL: return typeck_assign_expr(self, check); break;
+    default: assert(0); break;
     }
 }
 
@@ -135,6 +136,20 @@ static DataType* typeck_func_call_expr(TypeChecker* self, Expr* check) {
     return check->func_call.callee->function.return_type;
 }
 
+static DataType* typeck_integer_expr(TypeChecker* self, Expr* check) {
+    switch (check->integer->type) {
+    case T_INTEGER_U8: return builtin_types.e.u8_type;
+    case T_INTEGER_U16: return builtin_types.e.u16_type;
+    case T_INTEGER_U32: return builtin_types.e.u32_type;
+    case T_INTEGER_U64: return builtin_types.e.u64_type;
+    case T_INTEGER_I8: return builtin_types.e.i8_type;
+    case T_INTEGER_I16: return builtin_types.e.i16_type;
+    case T_INTEGER_I32: return builtin_types.e.i32_type;
+    case T_INTEGER_I64: return builtin_types.e.i64_type;
+    default: assert(0); return null;
+    }
+}
+
 static DataType* typeck_variable_ref_expr(TypeChecker* self, Expr* check) {
     if (check->variable_ref.declaration->variable_decl.data_type) {
         return check->variable_ref.declaration->variable_decl.data_type;
@@ -162,7 +177,7 @@ static DataType* typeck_expr(TypeChecker* self, Expr* check) {
     case E_BINARY: return typeck_binary_expr(self, check); break;
     case E_UNARY: return typeck_unary_expr(self, check); break;
     case E_FUNC_CALL: return typeck_func_call_expr(self, check); break;
-    case E_INTEGER: return builtin_types.e.u64_type; break;
+    case E_INTEGER: return typeck_integer_expr(self, check); break;
     case E_VARIABLE_REF: return typeck_variable_ref_expr(self, check); break;
     case E_STRING: typeck_string_expr(self, check); break;
     case E_BLOCK: return typeck_block_expr(self, check); break;

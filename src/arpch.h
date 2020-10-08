@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include <assert.h>
+#include <limits.h>
 #include <stddef.h>
 #include <stdarg.h>
 #include <stdint.h>
