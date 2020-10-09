@@ -28,6 +28,21 @@ If _Aria_ suits you, you are more than welcome to use it for your needs. If
 not, well, there are languages and toolchains way better than _Aria_ out
 there.
 
+## Sample Code
+```
+#import "std";
+
+pub fn main(): u8 {
+    std.writeln({
+        input :: std.read_prompt(">>> ");
+        if stri(input) == stri("") {
+            input = "null";
+        }
+        input
+    })
+}
+```
+
 ## Building and Installing
 Building _Aria_ requires `make` as a dependency.
 ```sh
