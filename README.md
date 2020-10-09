@@ -38,7 +38,7 @@ pub fn main(): u8 {
             input = "null";
         }
         input
-    })[1]
+    })._1
 }
 ```
 
