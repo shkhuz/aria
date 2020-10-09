@@ -20,8 +20,7 @@
 ## Preface
 _Aria_ is not meant to be _the_ perfect language, not is it meant
 to compete with other programming languages. I solely developed it because I
-found quirks in other languages, and I wanted to program in a style that
-I personally like. After all, _Aria_ is a personal project to cater my
+found other languages somewhat peculiar. After all, _Aria_ is a personal project to cater my
 requirements.
 
 If _Aria_ suits you, you are more than welcome to use it for your needs. If
@@ -39,7 +38,7 @@ pub fn main(): u8 {
             input = "null";
         }
         input
-    })
+    })[1]
 }
 ```
 
@@ -56,6 +55,6 @@ other users. If you're just testing out _Aria_, I'd suggest keeping the binary
 in the _Download_ folder of your user directory. That way, you can symlink
 the compiler and remove _Aria_ from the system easily later on.
 ```sh
-<compiler_path> hello_world.ar
+<compiler_path> <source_file>
 ```
 
