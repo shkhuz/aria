@@ -2,7 +2,7 @@
     <img src="docs/assets/aria-banner-dark-white-optimized.png?raw=true" alt="aria-banner-dark-white-optimized.png">
     <br/>
     <br/>
-    <b>An open-source high-performance programming language & toolkit.</b>
+    <b>An experimental Aria language compiler.</b>
     <br/>
     <br/>
     <a href="https://github.com/huzaifash/aria/actions">
