@@ -17,4 +17,4 @@
     </a>
 </p>
 
-Check the `syn.ar` file for example syntax.
+Check the `src/syn.ar` file for example syntax.
