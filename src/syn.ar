@@ -1,0 +1,104 @@
+import! "file.ar";
+
+# try an expression
+# if the expression returns an error
+# return the error to the caller
+# else continue executing
+macro try {
+	$e:expr => {
+		if $e != error_t::NONE {
+			return $e;
+		}
+	}
+}
+
+# used in return types of functions
+# to be used with `no_error` and
+# `error` macros
+macro error_or {
+	$t:type => {
+		[$t, error_t]
+	}
+
+	_ => {
+		error_t
+	}
+}
+
+# returns a tuple denoting no error
+# to the caller
+macro no_error {
+	$e:expr => {
+		{ $e, error_t::NONE }
+	}
+
+	_ => {
+		error_t::NONE
+	}
+}
+
+# returns a tuple denoting error
+# occured to the caller
+# includes type of error
+macro error {
+	$e:expr => {
+		{ undefined, $e }
+	}
+
+	_ => {
+		$e
+	}
+}
+
+namespace std {
+
+	struct vector_t<T> {
+		items: T[],
+		cap: usize,
+
+		decl new(): self_t {
+			return self_t {
+				null,
+				0,
+			}
+		}
+
+		decl push(self, item: T): error_or!() {
+			try! self.realloc_items();
+			self.items[self.items.len] = item;
+			self.items.lem += 1;
+			return no_error!;
+		}
+
+		decl pop(self): error_or!(T) {
+			if self.items.len > 0 {
+				self.items.len -= 1;
+				return no_error! self.items[self.items.len];
+			}
+			else {
+				return error! error_t::EMPTY_VEC;
+			}
+		}
+
+		enum error_t {
+			NONE,
+			OUT_OF_MEM,
+		}		
+	}
+	
+}
+
+decl main(): u8 {
+	vec := std::vector<usize>::new();
+	vec.push(1); # same as std::vector<usize>::push(&vec, 1)
+	for item in vec.items {
+		printf!("item: %", tup![ item ]);
+	}
+
+	tuple := tup![ 1, "hello", 'r' ];
+	array := [ 2, 4, 6, 8 ];
+	slice := undefined;
+	slice = array[..];
+
+	return 0;
+}
