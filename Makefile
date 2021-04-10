@@ -7,17 +7,17 @@ OBJ_DIR := $(BUILD_DIR)/obj
 DEPS_DIR := deps
 DOCS_DIR := docs
 
-C_FILES := $(shell find $(SRC_DIR) -name "*.cpp")
+C_FILES := $(shell find $(SRC_DIR) -name "*.c")
 ASM_FILES := $(shell find $(SRC_DIR) -name "*.asm")
 OBJ_FILES := $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(C_FILES)))
 OBJ_FILES += $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(ASM_FILES)))
 BIN_FILE := $(BIN_DIR)/$(PROJECT)
 
-CC := g++
-LD := g++
+CC := gcc
+LD := gcc
 
 PREPROCESSOR_DEFINES := -DTAB_COUNT=4 -DAST_TAB_COUNT=2
-CFLAGS := $(PREPROCESSOR_DEFINES) -I$(SRC_DIR) -Wall -Wextra -Wshadow -std=c++11 -m64 -g -O0
+CFLAGS := $(PREPROCESSOR_DEFINES) -I$(SRC_DIR) -Wall -Wextra -Wshadow -std=c99 -m64 -g -O0
 ASMFLAGS := -felf64
 LDFLAGS :=
 LIBS_INC_DIR_CMD :=
@@ -36,7 +36,7 @@ $(BIN_FILE): $(OBJ_FILES)
 	@mkdir -p $(dir $@)
 	$(LD) -o $@ $(OBJ_FILES) $(LIBS_LIB_DIR_CMD) $(LIBS_LIB_CMD) $(LDFLAGS)
 
-$(OBJ_DIR)/%.cpp.o: %.cpp
+$(OBJ_DIR)/%.c.o: %.c
 	@mkdir -p $(OBJ_DIR)/$(dir $^)
 	$(CC) -c $(CFLAGS) $(LIBS_INC_DIR_CMD) -o $@ $^
 
