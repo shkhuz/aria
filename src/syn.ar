@@ -1,5 +1,34 @@
 import! "file.ar";
 
+union result<T, E> {
+	ok: T,
+	err: E,
+	
+	is_ok: bool,
+}
+
+decl malloc(size: usize): result<void*, u8> {
+	res: void*;
+	if res = __get_mem_ok(usize) {
+		return ok!(res);
+	}
+	else {
+		return err!(128);
+	}
+}
+
+macro ok {
+	($e:expr) => {
+		result { ok: $e, is_ok: true }
+	}
+}
+
+macro err {
+	($e:expr) => {
+		result { err: $e, is_ok: false }
+	}
+}
+
 # try an expression
 # if the expression returns an error
 # return the error to the caller
