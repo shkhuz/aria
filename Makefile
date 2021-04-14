@@ -23,11 +23,11 @@ LDFLAGS :=
 LIBS_INC_DIR_CMD :=
 LIBS_LIB_DIR_CMD :=
 LIBS_LIB_CMD :=
-CMD_ARGS := examples/gen_test.ar
+CMD_ARGS := examples/gen.ar
 
 all: $(BIN_FILE) #docs
 	mkdir -p .dev
-	cd .dev; ../$(BIN_FILE) ../$(CMD_ARGS)
+	$(BIN_FILE) $(CMD_ARGS)
 
 debug: $(BIN_FILE)
 	gdb --args $(BIN_FILE) $(CMD_ARGS)
