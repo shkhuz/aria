@@ -1,6 +1,14 @@
 #include <aria_core.h>
 #include <aria.h>
 
+void parse_srcfiles(SrcFile** srcfiles) {
+	buf_loop(srcfiles, i) {
+		Lexer lexer;
+		lexer_init(&lexer, srcfiles[i]); 
+		//lexer_next(&lexer);
+	}
+}
+
 int main(int argc, char* argv[]) {
 	///// TESTS /////
 	{
@@ -61,4 +69,6 @@ int main(int argc, char* argv[]) {
 	if (srcfile_error) {
 		aria_terminate();
 	}	
+
+	parse_srcfiles(srcfiles);
 }
