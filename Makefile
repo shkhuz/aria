@@ -23,7 +23,7 @@ LDFLAGS :=
 LIBS_INC_DIR_CMD :=
 LIBS_LIB_DIR_CMD :=
 LIBS_LIB_CMD :=
-CMD_ARGS := examples/gen.ar
+CMD_ARGS := examples/syn.ar
 
 all: $(BIN_FILE) #docs
 	mkdir -p .dev
