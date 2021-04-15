@@ -1,20 +1,22 @@
 import! "file.ar";
 
-union result<T, E> {
-	ok: T,
-	err: E,
-	
-	is_ok: bool,
+enum Result<T, E> {
+	Ok(T),
+	Err(E),
 }
 
-decl malloc(size: usize): result<void*, u8> {
+decl malloc(size: usize): Result<void*, u8> {
 	res: void*;
 	if res = __get_mem_ok(usize) {
-		return ok!(res);
+		return Result::Ok(res);
 	}
 	else {
-		return err!(128);
+		return Result::Err(128);
 	}
+}
+
+decl main(): u8 {
+	
 }
 
 macro ok {

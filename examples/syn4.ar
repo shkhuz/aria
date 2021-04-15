@@ -1,0 +1,21 @@
+pub fn main() {
+	mut s := 10;
+	if (s) |x| {
+		
+	}
+}
+
+fn read_buffer(): void! {
+	mut s: string;
+	std::io::read_to_string(&s)!.read_string()!;
+}
+
+fn pop(): usize {
+	val := real_pop()!;
+	val := real_pop() or 0;
+	
+	b: u8! = error::Mem;
+	b = 12;
+	
+	c := b * b 
+}

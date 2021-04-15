@@ -1,0 +1,32 @@
+fn main() {
+	vec := Vec<u8>::new();
+	vec.push(1) catch |err| printf("not enough memory");
+}
+
+struct Vec<T> {
+	items: u8[],
+	cap: usize,
+
+	fn new(): Self {
+		Self {
+			null,
+			0,
+		}
+	}
+
+	fn push(self, item: T): void! {
+		try self.shrink_to_fit();
+		self.items[self.items.len] = item;
+	}
+
+	fn pop(self): T? {
+		if self.items.len == 0 {
+			null
+		} else {
+			self.items.len -= 1;
+			self.items[self.items.len]
+		}
+	}
+}
+
+
