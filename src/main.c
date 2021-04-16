@@ -3,13 +3,18 @@
 
 char* executable_path_from_argv;
 
+char* keywords[KEYWORDS_LEN] = {
+	KEYWORD_FN,
+	KEYWORD_UNDERSCORE,
+};
+
 void parse_srcfiles(SrcFile** srcfiles) {
 	buf_loop(srcfiles, i) {
 		Lexer lexer;
 		lexer_init(&lexer, srcfiles[i]); 
 		lexer_lex(&lexer);
 
-		// Lexer test
+		// Lexer tokens check
 		Token** tokens = srcfiles[i]->tokens;
 		buf_loop(tokens, j) {
 			printf("[%u] ", tokens[j]->ty);
@@ -18,11 +23,15 @@ void parse_srcfiles(SrcFile** srcfiles) {
 			}
 			printf("\n");
 		}
-		assert(strni(tokens[0]->start, tokens[0]->end) == stri("hello"));
-		assert(strni(tokens[1]->start, tokens[1]->end) == stri("_hello"));
-		assert(strni(tokens[2]->start, tokens[2]->end) == stri("_"));
-		assert(strni(tokens[3]->start, tokens[3]->end) == stri("_123"));
-		assert(buf_len(tokens) == 4);
+
+		/* #define assert_token_is_valid(__n, __str, __ty) assert(strni(tokens[__n]->start, tokens[__n]->end) == stri(__str) && tokens[__n]->ty == __ty); */
+/* 		assert_token_is_valid(0, "hello", TT_IDENT); */
+/* 		assert_token_is_valid(1, "_hello", TT_IDENT); */
+/* 		assert_token_is_valid(2, "_", TT_KEYWORD); */
+/* 		assert_token_is_valid(3, "_123", TT_IDENT); */
+/* 		assert_token_is_valid(4, "fn", TT_KEYWORD); */
+/* 		assert_token_is_valid(5, "main", TT_IDENT); */
+/* 		assert(buf_len(tokens) == 6); */
 	}
 }
 

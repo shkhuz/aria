@@ -8,6 +8,13 @@ void lexer_init(Lexer* self, SrcFile* srcfile) {
 	self->current = self->start;
 }
 
+static void push_tok_by_type(Lexer* self, TokenType ty) {
+	buf_push(
+			self->srcfile->tokens,
+			token_alloc(ty, self->start, self->current)
+	);
+}
+
 void lexer_lex(Lexer* self) {
 	for (; (u64)(self->current - self->srcfile->contents->contents) < self->srcfile->contents->len;) {
 		self->start = self->current;
@@ -29,11 +36,34 @@ void lexer_lex(Lexer* self) {
 				while (isalnum(*self->current) || *self->current == '_') {
 					self->current++;
 				}
-				
-				buf_push(self->srcfile->tokens,
-						 token_alloc(ty, self->start, self->current)
-				);
+
+				for (uint i = 0; i < stack_arr_len(keywords); i++) {
+					if (stri(keywords[i]) == strni(self->start, self->current)) {
+						ty = TT_KEYWORD;
+					}
+				}
+				push_tok_by_type(self, ty);
+
 			} break;
+
+			case '\n': 
+				self->current++;
+				self->line++; 
+				break;
+
+			case '\r':
+			case '\t': 
+				self->current++;
+				break;
+
+			#define push_tok_by_type_for_char(self, ty) \
+				self->current++; \
+				push_tok_by_type(self, ty);
+
+			case '(': push_tok_by_type_for_char(self, TT_LPAREN); break;
+			case ')': push_tok_by_type_for_char(self, TT_RPAREN); break;
+			case '{': push_tok_by_type_for_char(self, TT_LBRACE); break;
+			case '}': push_tok_by_type_for_char(self, TT_RBRACE); break;
 
 			default:
 			{

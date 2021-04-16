@@ -7,6 +7,10 @@
 typedef enum {
 	TT_IDENT,
 	TT_KEYWORD,
+	TT_LPAREN,
+	TT_RPAREN,
+	TT_LBRACE,
+	TT_RBRACE,
 	TT_NONE,
 } TokenType;
 
@@ -14,6 +18,10 @@ typedef struct {
 	TokenType ty;
 	char* start, *end;
 } Token;
+
+#define KEYWORD_FN "fn"
+#define KEYWORD_UNDERSCORE "_"
+#define KEYWORDS_LEN 2
 
 typedef struct {
 	File* contents;
@@ -27,6 +35,7 @@ typedef enum {
 	MSG_TY_ROOT, 
 	MSG_TY_ERR,
 } MsgType;
+
 void msg_user(MsgType ty, u32 code, char* fmt, ...);
 void terminate_compilation();
 
@@ -44,5 +53,6 @@ void lexer_lex(Lexer* self);
 
 ///// MISC /////
 extern char* executable_path_from_argv;
+extern char* keywords[KEYWORDS_LEN];
 
 #endif	/* __ARIA_H */

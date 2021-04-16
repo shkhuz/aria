@@ -97,5 +97,6 @@ bool file_exists(const char* fpath);
 
 ///// MEMORY /////
 #define alloc_with_type(name, type) type* name = malloc(sizeof(type));
+#define stack_arr_len(arr) (sizeof(arr) / sizeof(*arr))
 
 #endif	/* __ARIA_CORE_H */
