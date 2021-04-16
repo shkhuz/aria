@@ -9,6 +9,7 @@
 #include <stddef.h>
 #include <assert.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 ///// TYPES /////
 typedef unsigned int uint;
@@ -32,6 +33,16 @@ typedef int64_t i64;
 #define MAX(x, y) ((x) >= (y) ? (x) : (y))
 #define CLAMP_MAX(x, max) MIN(x, max)
 #define CLAMP_MIN(x, min) MAX(x, min)
+
+///// ANSI COLORS /////
+#define ANSI_FBOLD	  "\x1B[1m"
+#define ANSI_FRED	  "\x1B[1;31m"
+#define ANSI_FGREEN   "\x1B[1;32m"
+#define ANSI_FYELLOW  "\x1B[33m"
+#define ANSI_FBLUE	  "\x1B[34m"
+#define ANSI_FMAGENTA "\x1B[35m"
+#define ANSI_FCYAN	  "\x1B[36m"
+#define ANSI_RESET	  "\x1B[0m"
 
 ///// STRETCHY BUFFER /////
 typedef struct {
@@ -85,13 +96,6 @@ File* file_read(const char* fpath);
 bool file_exists(const char* fpath);
 
 ///// MEMORY /////
-#define alloc_with_type(name, type) type name = malloc(sizeof(type));
-
-///// COMPILE ERROR/WARNING OUTPUT HANDLING /////
-void aria_error(char* fmt, ...);
-void aria_terminate();
-
-///// COMPILE ERROR/WARNING STRINGS /////
-#define ERROR_CANNOT_READ_SOURCE_FILE "error[0001]: cannot read source file '%s'"
+#define alloc_with_type(name, type) type* name = malloc(sizeof(type));
 
 #endif	/* __ARIA_CORE_H */

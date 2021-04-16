@@ -1,11 +1,28 @@
 #include <aria_core.h>
 #include <aria.h>
 
+char* executable_path_from_argv;
+
 void parse_srcfiles(SrcFile** srcfiles) {
 	buf_loop(srcfiles, i) {
 		Lexer lexer;
 		lexer_init(&lexer, srcfiles[i]); 
-		//lexer_next(&lexer);
+		lexer_lex(&lexer);
+
+		// Lexer test
+		Token** tokens = srcfiles[i]->tokens;
+		buf_loop(tokens, j) {
+			printf("[%u] ", tokens[j]->ty);
+			for (char* start = tokens[j]->start; start != tokens[j]->end; start++) {
+				printf("%c", *start);
+			}
+			printf("\n");
+		}
+		assert(strni(tokens[0]->start, tokens[0]->end) == stri("hello"));
+		assert(strni(tokens[1]->start, tokens[1]->end) == stri("_hello"));
+		assert(strni(tokens[2]->start, tokens[2]->end) == stri("_"));
+		assert(strni(tokens[3]->start, tokens[3]->end) == stri("_123"));
+		assert(buf_len(tokens) == 4);
 	}
 }
 
@@ -42,11 +59,17 @@ int main(int argc, char* argv[]) {
 		char* empty = "";
 		assert(stri("") == stri(empty));
 	}
+
+	{
+		alloc_with_type(i, u8);
+		free(i);	
+	}
 	///// TESTS END /////	
+	executable_path_from_argv = argv[0];
 
 	if (argc < 2) {
-		aria_error("aria: one or more input files needed");
-		aria_terminate();
+		msg_user(MSG_TY_ROOT, 0, "one or more input files needed");
+		terminate_compilation();
 	}
 
 	// `File` is a regular I/O file
@@ -57,17 +80,17 @@ int main(int argc, char* argv[]) {
 	for (int i = 1; i < argc; i++) {
 		File* file = file_read(argv[i]);
 		if (file) {
-			alloc_with_type(srcfile, SrcFile*);
+			alloc_with_type(srcfile, SrcFile);
 			srcfile->contents = file;
 			buf_push(srcfiles, srcfile);
 		} else {
-			aria_error(ERROR_CANNOT_READ_SOURCE_FILE, argv[i]);
+			msg_user(MSG_TY_ERR, ERROR_CANNOT_READ_SOURCE_FILE, argv[i]);
 			srcfile_error = true;
 		}
 	}
 
 	if (srcfile_error) {
-		aria_terminate();
+		terminate_compilation();
 	}	
 
 	parse_srcfiles(srcfiles);
