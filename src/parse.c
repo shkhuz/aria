@@ -49,13 +49,6 @@ static bool match_keyword(Parser* self, char* keyword) {
 	return false;
 }
 
-void parser_init(Parser* self, SrcFile* srcfile) {
-	self->srcfile = srcfile;
-	self->token_idx = 0;
-	self->error = false;
-	self->error_count = 0;
-}
-
 ///// ERROR HANDLING /////
 static void sync_to_next_stmt(Parser* self) {
 	while (!match_ty(self, TT_SEMICOLON) && current(self)->ty != TT_LBRACE) {
@@ -207,8 +200,17 @@ static Stmt* top_level_stmt(Parser* self) {
 	return null;
 }
 
+void parser_init(Parser* self, SrcFile* srcfile) {
+	self->srcfile = srcfile;
+	self->token_idx = 0;
+	self->srcfile->stmts = null;
+	self->error = false;
+	self->error_count = 0;
+}
+
 void parser_parse(Parser* self) {
 	while (current(self)->ty != TT_EOF) {
 		Stmt* s = top_level_stmt(self);
+		if (s) buf_push(self->srcfile->stmts, s);
 	}
 }

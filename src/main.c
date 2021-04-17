@@ -34,6 +34,10 @@ bool parse_srcfiles(SrcFile** srcfiles) {
 		if (!error) {
 			error = parser.error;
 		}
+
+		AstPrinter ast_printer;
+		ast_printer_init(&ast_printer, srcfiles[i]);
+		ast_printer_print(&ast_printer);
 	}
 	return error;
 }

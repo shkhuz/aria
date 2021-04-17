@@ -4,12 +4,7 @@
 #include <aria_core.h>
 
 ///// TYPES /////
-typedef struct Token Token; 
-
-typedef struct {
-	File* contents;
-	struct Token** tokens;
-} SrcFile;
+typedef struct SrcFile SrcFile; 
 
 typedef enum {
 	TT_IDENT,
@@ -25,12 +20,12 @@ typedef enum {
 	TT_NONE,
 } TokenType;
 
-struct Token {
+typedef struct {
 	TokenType ty;
 	char* lexeme, *start, *end;
 	SrcFile* srcfile;
 	u64 line, column, char_count;
-};
+} Token;
 
 Token* token_alloc(
 		TokenType ty, 
@@ -45,6 +40,7 @@ Token* token_alloc(
 typedef enum {
 	ET_BINARY,
 	ET_IDENT,
+	ET_NONE,
 } ExprType;
 
 typedef struct Expr Expr;
@@ -62,7 +58,6 @@ struct Expr {
 };
 
 typedef enum {
-	ST_FUNCTION,
 	ST_EXPR,
 	ST_NONE,
 } StmtType;
@@ -74,11 +69,11 @@ typedef struct {
 	};
 } Stmt;
 
-Stmt* stmt_function_alloc();
-
-#define KEYWORD_FN "fn"
-#define KEYWORD_UNDERSCORE "_"
-#define KEYWORDS_LEN 2
+struct SrcFile {
+	File* contents;
+	Token** tokens;
+	Stmt** stmts;
+};
 
 ///// COMPILE ERROR/WARNING /////
 typedef enum {
@@ -152,7 +147,19 @@ typedef struct {
 void parser_init(Parser* self, SrcFile* srcfile);
 void parser_parse(Parser* self);
 
+///// AST PRINTER /////
+typedef struct {
+	SrcFile* srcfile;
+} AstPrinter;
+
+void ast_printer_init(AstPrinter* self, SrcFile* srcfile);
+void ast_printer_print(AstPrinter* self);
+
 ///// MISC /////
+#define KEYWORD_FN "fn"
+#define KEYWORD_UNDERSCORE "_"
+#define KEYWORDS_LEN 2
+
 extern char* executable_path_from_argv;
 extern char* keywords[KEYWORDS_LEN];
 

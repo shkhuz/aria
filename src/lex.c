@@ -1,16 +1,6 @@
 #include <aria_core.h>
 #include <aria.h>
 
-void lexer_init(Lexer* self, SrcFile* srcfile) {
-	self->srcfile = srcfile;
-	self->srcfile->tokens = null;
-	self->start = srcfile->contents->contents;
-	self->current = self->start;
-	self->line = 1;
-	self->last_newline = self->srcfile->contents->contents;
-	self->error = false;
-}
-
 static u64 compute_column_from(Lexer* self, char* c) {
 	u64 column = (u64)(c - self->last_newline);
 	if (self->line == 1) {
@@ -54,6 +44,16 @@ static void error_from_start_to_current(Lexer* self, u32 code, char* fmt, ...) {
 			ap
 	);
 	va_end(ap);
+}
+
+void lexer_init(Lexer* self, SrcFile* srcfile) {
+	self->srcfile = srcfile;
+	self->srcfile->tokens = null;
+	self->start = srcfile->contents->contents;
+	self->current = self->start;
+	self->line = 1;
+	self->last_newline = self->srcfile->contents->contents;
+	self->error = false;
 }
 
 void lexer_lex(Lexer* self) {

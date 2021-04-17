@@ -1,0 +1,4 @@
+foo + baz;
+foo + bar;
+foo + q;
+foo - foo + bar - baz;
