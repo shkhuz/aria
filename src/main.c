@@ -8,11 +8,15 @@ char* keywords[KEYWORDS_LEN] = {
 	KEYWORD_UNDERSCORE,
 };
 
-void parse_srcfiles(SrcFile** srcfiles) {
+bool parse_srcfiles(SrcFile** srcfiles) {
+	bool error = false;
 	buf_loop(srcfiles, i) {
 		Lexer lexer;
 		lexer_init(&lexer, srcfiles[i]); 
 		lexer_lex(&lexer);
+		if (!error) {
+			error = lexer.error;
+		}
 
 		// Lexer tokens check
 		Token** tokens = srcfiles[i]->tokens;
@@ -23,16 +27,8 @@ void parse_srcfiles(SrcFile** srcfiles) {
 			}
 			printf("\n");
 		}
-
-		/* #define assert_token_is_valid(__n, __str, __ty) assert(strni(tokens[__n]->start, tokens[__n]->end) == stri(__str) && tokens[__n]->ty == __ty); */
-/* 		assert_token_is_valid(0, "hello", TT_IDENT); */
-/* 		assert_token_is_valid(1, "_hello", TT_IDENT); */
-/* 		assert_token_is_valid(2, "_", TT_KEYWORD); */
-/* 		assert_token_is_valid(3, "_123", TT_IDENT); */
-/* 		assert_token_is_valid(4, "fn", TT_KEYWORD); */
-/* 		assert_token_is_valid(5, "main", TT_IDENT); */
-/* 		assert(buf_len(tokens) == 6); */
 	}
+	return error;
 }
 
 int main(int argc, char* argv[]) {
@@ -77,7 +73,7 @@ int main(int argc, char* argv[]) {
 	executable_path_from_argv = argv[0];
 
 	if (argc < 2) {
-		msg_user(MSG_TY_ROOT, 0, "one or more input files needed");
+		msg_user(MSG_TY_ROOT_ERR, null, 0, 0, 0, ERROR_NO_SOURCE_FILES_PASSED_IN_CMD_ARGS);
 		terminate_compilation();
 	}
 
@@ -93,7 +89,7 @@ int main(int argc, char* argv[]) {
 			srcfile->contents = file;
 			buf_push(srcfiles, srcfile);
 		} else {
-			msg_user(MSG_TY_ERR, ERROR_CANNOT_READ_SOURCE_FILE, argv[i]);
+			msg_user(MSG_TY_ROOT_ERR, null, 0, 0, 0, ERROR_CANNOT_READ_SOURCE_FILE, argv[i]);
 			srcfile_error = true;
 		}
 	}
@@ -102,5 +98,7 @@ int main(int argc, char* argv[]) {
 		terminate_compilation();
 	}	
 
-	parse_srcfiles(srcfiles);
+	if (parse_srcfiles(srcfiles) == true) {
+		terminate_compilation();
+	}
 }

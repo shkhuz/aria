@@ -6,6 +6,9 @@ void lexer_init(Lexer* self, SrcFile* srcfile) {
 	self->srcfile->tokens = null;
 	self->start = srcfile->contents->contents;
 	self->current = self->start;
+	self->line = 1;
+	self->last_newline = self->srcfile->contents->contents;
+	self->error = false;
 }
 
 static void push_tok_by_type(Lexer* self, TokenType ty) {
@@ -13,6 +16,35 @@ static void push_tok_by_type(Lexer* self, TokenType ty) {
 			self->srcfile->tokens,
 			token_alloc(ty, self->start, self->current)
 	);
+}
+
+static u64 compute_column_from(Lexer* self, char* c) {
+	u64 column = (u64)(c - self->last_newline);
+	if (self->line == 1) {
+		column++;
+	}
+	return column;
+}
+
+static u64 compute_column_from_start(Lexer* self) {
+	return compute_column_from(self, self->start);
+}
+
+static void error_from_start_to_current(Lexer* self, u32 code, char* fmt, ...) {
+	self->error = true;
+	va_list ap;
+	va_start(ap, fmt);
+	vmsg_user(
+			MSG_TY_ERR,
+			self->srcfile,
+			self->line,
+			compute_column_from_start(self),
+			(u64)(self->current - self->start),
+			code,
+			fmt, 
+			ap
+	);
+	va_end(ap);
 }
 
 void lexer_lex(Lexer* self) {
@@ -47,10 +79,12 @@ void lexer_lex(Lexer* self) {
 			} break;
 
 			case '\n': 
-				self->current++;
+				self->last_newline = self->current;
 				self->line++; 
+				self->current++;
 				break;
 
+			case ' ':
 			case '\r':
 			case '\t': 
 				self->current++;
@@ -68,6 +102,7 @@ void lexer_lex(Lexer* self) {
 			default:
 			{
 				self->current++;
+				error_from_start_to_current(self, ERROR_INVALID_CHAR);
 			} break;
 		}
 	}
