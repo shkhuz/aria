@@ -27,6 +27,13 @@ bool parse_srcfiles(SrcFile** srcfiles) {
 			}
 			printf("\n");
 		}
+
+		Parser parser;
+		parser_init(&parser, srcfiles[i]);
+		parser_parse(&parser);
+		if (!error) {
+			error = parser.error;
+		}
 	}
 	return error;
 }

@@ -11,13 +11,6 @@ void lexer_init(Lexer* self, SrcFile* srcfile) {
 	self->error = false;
 }
 
-static void push_tok_by_type(Lexer* self, TokenType ty) {
-	buf_push(
-			self->srcfile->tokens,
-			token_alloc(ty, self->start, self->current)
-	);
-}
-
 static u64 compute_column_from(Lexer* self, char* c) {
 	u64 column = (u64)(c - self->last_newline);
 	if (self->line == 1) {
@@ -28,6 +21,22 @@ static u64 compute_column_from(Lexer* self, char* c) {
 
 static u64 compute_column_from_start(Lexer* self) {
 	return compute_column_from(self, self->start);
+}
+
+static void push_tok_by_type(Lexer* self, TokenType ty) {
+	buf_push(
+			self->srcfile->tokens,
+			token_alloc(
+				ty, 
+				strni(self->start, self->current),
+				self->start, 
+				self->current,
+				self->srcfile,
+				self->line,
+				compute_column_from_start(self),
+				(u64)(self->current - self->start)
+			)
+	);
 }
 
 static void error_from_start_to_current(Lexer* self, u32 code, char* fmt, ...) {
@@ -106,4 +115,5 @@ void lexer_lex(Lexer* self) {
 			} break;
 		}
 	}
+	push_tok_by_type(self, TT_EOF);
 }
