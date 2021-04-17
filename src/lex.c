@@ -107,6 +107,9 @@ void lexer_lex(Lexer* self) {
 			case ')': push_tok_by_type_for_char(self, TT_RPAREN); break;
 			case '{': push_tok_by_type_for_char(self, TT_LBRACE); break;
 			case '}': push_tok_by_type_for_char(self, TT_RBRACE); break;
+			case ';': push_tok_by_type_for_char(self, TT_SEMICOLON); break;
+			case '+': push_tok_by_type_for_char(self, TT_PLUS); break;
+			case '-': push_tok_by_type_for_char(self, TT_MINUS); break;
 
 			default:
 			{

@@ -18,6 +18,9 @@ typedef enum {
 	TT_RPAREN,
 	TT_LBRACE,
 	TT_RBRACE,
+	TT_SEMICOLON,
+	TT_PLUS,
+	TT_MINUS,
 	TT_EOF,
 	TT_NONE,
 } TokenType;
@@ -40,12 +43,35 @@ Token* token_alloc(
 		u64 char_count);
 
 typedef enum {
+	ET_BINARY,
+	ET_IDENT,
+} ExprType;
+
+typedef struct Expr Expr;
+
+struct Expr {
+	ExprType ty;
+	union {
+		Token* ident;	
+
+		struct {
+			Expr* left, *right;
+			Token* op;
+		} binary;
+	};
+};
+
+typedef enum {
 	ST_FUNCTION,
+	ST_EXPR,
 	ST_NONE,
 } StmtType;
 
 typedef struct {
 	StmtType ty;
+	union {
+		Expr* expr;
+	};
 } Stmt;
 
 Stmt* stmt_function_alloc();
@@ -100,6 +126,8 @@ void terminate_compilation();
 #define ERROR_ABORTING_DUE_TO_PREV_ERRORS 				2, "aborting due to previous error(s)"
 #define ERROR_INVALID_CHAR 								3, "invalid character"
 #define ERROR_NO_SOURCE_FILES_PASSED_IN_CMD_ARGS 		4, "one or more input files needed"
+#define ERROR_EXPECT_SEMICOLON							5, "expect semicolon"
+#define ERROR_UNEXPECTED_TOKEN							6, "unexpected token"
 
 ///// LEXER /////
 typedef struct {
@@ -118,6 +146,7 @@ typedef struct {
 	SrcFile* srcfile;
 	u64 token_idx;
 	bool error;
+	u64 error_count;
 } Parser;
 
 void parser_init(Parser* self, SrcFile* srcfile);

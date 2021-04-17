@@ -99,4 +99,8 @@ bool file_exists(const char* fpath);
 #define alloc_with_type(name, type) type* name = malloc(sizeof(type));
 #define stack_arr_len(arr) (sizeof(arr) / sizeof(*arr))
 
+///// MISC /////
+#define COMBINE1(X, Y) X##Y
+#define COMBINE(X,Y) COMBINE1(X,Y)
+
 #endif	/* __ARIA_CORE_H */
