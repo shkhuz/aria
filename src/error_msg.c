@@ -96,7 +96,7 @@ void vmsg_user(
 		// Source line print
 		while (*src_line_to_print != '\n' && *src_line_to_print != '\0') {
 			if ((u64)(src_line_to_print - beg_of_src_line) == (column - 1)) {
-				fprintf(stderr, color);
+				fprintf(stderr, "%s", color);
 			} 
 			
 			if (*src_line_to_print == '\t') {
@@ -121,7 +121,7 @@ void vmsg_user(
 		for (u64 c = 0; c < column_new - 1; c++) {
 			fprintf(stderr, " ");
 		}
-		fprintf(stderr, color);
+		fprintf(stderr, "%s", color);
 		for (u64 c = 0; c < char_count; c++) {
 			fprintf(stderr, "^");
 		}
