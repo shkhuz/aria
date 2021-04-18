@@ -28,7 +28,10 @@ static void expr(AstPrinter* self, Expr* e) {
 		case ET_IDENT: 
 			expr_ident(self, e);
 			break;
-		case ET_BINARY:
+		case ET_BINARY_ADD:
+		case ET_BINARY_SUBTRACT:
+		case ET_BINARY_MULTIPLY:
+		case ET_BINARY_DIVIDE:
 			expr_binary(self, e);
 			break;
 		case ET_NONE: 

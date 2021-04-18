@@ -16,6 +16,8 @@ typedef enum {
 	TT_SEMICOLON,
 	TT_PLUS,
 	TT_MINUS,
+	TT_STAR,
+	TT_FSLASH,
 	TT_EOF,
 	TT_NONE,
 } TokenType;
@@ -38,7 +40,10 @@ Token* token_alloc(
 		u64 char_count);
 
 typedef enum {
-	ET_BINARY,
+	ET_BINARY_ADD,
+	ET_BINARY_SUBTRACT,
+	ET_BINARY_MULTIPLY,
+	ET_BINARY_DIVIDE,
 	ET_IDENT,
 	ET_NONE,
 } ExprType;

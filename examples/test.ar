@@ -2,3 +2,9 @@ foo + baz;
 foo + bar;
 foo + q;
 foo - foo + bar - baz;
+
+foo * lol;
+foo * foo / bar;
+hahha / hah;
+
+foo + bar * baz;

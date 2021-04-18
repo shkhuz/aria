@@ -143,11 +143,22 @@ static void expect(Parser* self, TokenType ty, u32 code, char* fmt, ...) {
 #define EXPR(name) \
     EXPR_CI(name, expr, self)
 
-static Expr* expr_atom(Parser* self) {
+#define alloc_expr_ident(__name, __ident) \
+	alloc_with_type(__name, Expr); \
+	__name->ty = ET_IDENT; \
+	__name->ident = __ident;
+
+
+#define alloc_expr_binary(__name, __ty, __left, __right, __op) \
+	alloc_with_type(__name, Expr); \
+	__name->ty = __ty; \
+	__name->binary.left = __left; \
+	__name->binary.right = __right; \
+	__name->binary.op = __op;
+
+static Expr* expr_precedence_1(Parser* self) {
 	if (match_ty(self, TT_IDENT)) {	
-		alloc_with_type(ident, Expr);
-		ident->ty = ET_IDENT;
-		ident->ident = previous(self);
+		alloc_expr_ident(ident, previous(self));
 		return ident;
 	} else {
 		error_token_with_sync(
@@ -159,24 +170,54 @@ static Expr* expr_atom(Parser* self) {
 	}
 }
 
-static Expr* expr_binary(Parser* self) {
-	EXPR_CI(left, expr_atom, self);	
+static Expr* expr_precedence_2(Parser* self) {
+	EXPR_CI(left, expr_precedence_1, self);	
+	while (match_ty(self, TT_STAR) || match_ty(self, TT_FSLASH)) {
+		Token* op = previous(self);
+		ExprType ty;
+		switch (op->ty) {
+			case TT_STAR:
+				ty = ET_BINARY_MULTIPLY;
+				break;
+			case TT_FSLASH: 
+				ty = ET_BINARY_DIVIDE;
+				break;
+			default:
+				break;
+		}
+		EXPR_CI(right, expr_precedence_1, self);
+
+		alloc_expr_binary(binary, ty, left, right, op);
+		left = binary;
+	}
+	return left;
+}
+
+static Expr* expr_precedence_3(Parser* self) {
+	EXPR_CI(left, expr_precedence_2, self);	
 	while (match_ty(self, TT_PLUS) || match_ty(self, TT_MINUS)) {
 		Token* op = previous(self);
-		EXPR_CI(right, expr_atom, self);
+		ExprType ty;
+		switch (op->ty) {
+			case TT_PLUS:
+				ty = ET_BINARY_ADD;
+				break;
+			case TT_MINUS: 
+				ty = ET_BINARY_SUBTRACT;
+				break;
+			default:
+				break;
+		}
+		EXPR_CI(right, expr_precedence_2, self);
 
-		alloc_with_type(binary, Expr);
-		binary->ty = ET_BINARY;
-		binary->binary.left = left;
-		binary->binary.right = right;
-		binary->binary.op = op;
+		alloc_expr_binary(binary, ty, left, right, op);
 		left = binary;
 	}
 	return left;
 }
 
 static Expr* expr(Parser* self) {
-	return expr_binary(self);
+	return expr_precedence_3(self);
 }	
 
 static Stmt* stmt_expr(Parser* self) {

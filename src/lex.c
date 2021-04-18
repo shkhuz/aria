@@ -57,7 +57,7 @@ void lexer_init(Lexer* self, SrcFile* srcfile) {
 }
 
 void lexer_lex(Lexer* self) {
-	for (; (u64)(self->current - self->srcfile->contents->contents) < self->srcfile->contents->len;) {
+	for (;;) {
 		self->start = self->current;
 
 		switch (*self->current) {
@@ -88,10 +88,11 @@ void lexer_lex(Lexer* self) {
 			} break;
 
 			case '\n': 
+			{
 				self->last_newline = self->current;
 				self->line++; 
 				self->current++;
-				break;
+			} break;
 
 			case ' ':
 			case '\r':
@@ -110,6 +111,10 @@ void lexer_lex(Lexer* self) {
 			case ';': push_tok_by_type_for_char(self, TT_SEMICOLON); break;
 			case '+': push_tok_by_type_for_char(self, TT_PLUS); break;
 			case '-': push_tok_by_type_for_char(self, TT_MINUS); break;
+			case '*': push_tok_by_type_for_char(self, TT_STAR); break;
+			case '/': push_tok_by_type_for_char(self, TT_FSLASH); break;
+
+			case '\0': push_tok_by_type_for_char(self, TT_EOF); return;
 
 			default:
 			{
@@ -118,5 +123,4 @@ void lexer_lex(Lexer* self) {
 			} break;
 		}
 	}
-	push_tok_by_type(self, TT_EOF);
 }
