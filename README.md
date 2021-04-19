@@ -2,7 +2,7 @@
     <img src="docs/assets/aria-banner-dark-white-optimized.png?raw=true" alt="aria-banner-dark-white-optimized.png">
     <br/>
     <br/>
-    <b>An experimental low-level compiler &amp; toolkit.</b>
+    <b>An experimental low-level compiler &amp; toolchain.</b>
     <br/>
     <br/>
     <a href="https://github.com/huzaifash/aria/actions">
