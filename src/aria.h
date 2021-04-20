@@ -40,6 +40,25 @@ Token* token_alloc(
 		u64 char_count);
 
 typedef enum {
+	DT_NAMED,
+	DT_STRUCT,
+} DataTypeType;
+
+typedef struct {
+	DataTypeType ty;
+	union {
+		struct {
+			Token* ident;
+		} named_data_type;
+
+		struct {
+			Token* struct_keyword;
+			Token* ident;
+		} struct_;
+	};
+} DataType;
+
+typedef enum {
 	ET_BINARY_ADD,
 	ET_BINARY_SUBTRACT,
 	ET_BINARY_MULTIPLY,
@@ -55,7 +74,7 @@ struct Expr {
 	union {
 		Token* ident;	
 
-		struct {
+		struct bin {
 			Expr* left, *right;
 			Token* op;
 		} binary;
@@ -63,6 +82,7 @@ struct Expr {
 };
 
 typedef enum {
+	ST_STRUCT,
 	ST_EXPR,
 	ST_NONE,
 } StmtType;
@@ -70,6 +90,7 @@ typedef enum {
 typedef struct {
 	StmtType ty;
 	union {
+		DataType* struct_;
 		Expr* expr;
 	};
 } Stmt;
@@ -126,8 +147,11 @@ void terminate_compilation();
 #define ERROR_ABORTING_DUE_TO_PREV_ERRORS 				2, "aborting due to previous error(s)"
 #define ERROR_INVALID_CHAR 								3, "invalid character"
 #define ERROR_NO_SOURCE_FILES_PASSED_IN_CMD_ARGS 		4, "one or more input files needed"
-#define ERROR_EXPECT_SEMICOLON							5, "expect semicolon"
-#define ERROR_UNEXPECTED_TOKEN							6, "unexpected token"
+#define ERROR_UNEXPECTED_TOKEN							5, "unexpected token"
+#define ERROR_EXPECT_SEMICOLON							6, "expect semicolon"
+#define ERROR_EXPECT_IDENT								7, "expect identifier"
+#define ERROR_EXPECT_LBRACE								8, "expect '{'"
+#define ERROR_EXPECT_RBRACE								9, "expect '}'"
 
 ///// LEXER /////
 typedef struct {
@@ -161,9 +185,7 @@ void ast_printer_init(AstPrinter* self, SrcFile* srcfile);
 void ast_printer_print(AstPrinter* self);
 
 ///// MISC /////
-#define KEYWORD_FN "fn"
-#define KEYWORD_UNDERSCORE "_"
-#define KEYWORDS_LEN 2
+#define KEYWORDS_LEN 3
 
 extern char* executable_path_from_argv;
 extern char* keywords[KEYWORDS_LEN];

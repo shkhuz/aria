@@ -3,9 +3,11 @@
 
 char* executable_path_from_argv;
 
+// --- NOTE: update KEYWORDS_LEN after adding to keywords ---
 char* keywords[KEYWORDS_LEN] = {
-	KEYWORD_FN,
-	KEYWORD_UNDERSCORE,
+	"fn",
+	"struct",
+	"_",
 };
 
 bool parse_srcfiles(SrcFile** srcfiles) {

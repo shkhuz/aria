@@ -39,23 +39,49 @@ static bool match_ty(Parser* self, TokenType ty) {
 
 static bool match_keyword(Parser* self, char* keyword) {
 	if (current(self)->ty == TT_KEYWORD) {
-		for (uint i = 0; i < stack_arr_len(keywords); i++) {
-			if (stri(keywords[i]) == stri(keyword)) {
-				goto_next_token(self);
-				return true;
-			}
+		if (stri(current(self)->lexeme) == stri(keyword)) {
+			goto_next_token(self);
+			return true;
 		}
 	}
 	return false;
 }
 
 ///// ERROR HANDLING /////
+#define check_eof if (current(self)->ty == TT_EOF) return
+
 static void sync_to_next_stmt(Parser* self) {
 	while (!match_ty(self, TT_SEMICOLON) && current(self)->ty != TT_LBRACE) {
-		if (current(self)->ty == TT_EOF) return;
+		check_eof;
 		goto_next_token(self);
 	}
-	// TODO: implement brace skipping
+
+	if (current(self)->ty == TT_LBRACE) {
+		int brace_count = 0;
+		while (!match_ty(self, TT_LBRACE)) {
+			check_eof;
+			goto_next_token(self);
+		}
+		brace_count++;
+
+		while (brace_count != 0) {
+			check_eof;
+			if (match_ty(self, TT_LBRACE)) {
+				brace_count++;
+				continue;
+			}
+
+			check_eof;
+			else if (match_ty(self, TT_RBRACE)) {
+				brace_count--;
+				continue;
+			}
+
+			check_eof; 
+			goto_next_token(self);
+		}
+		while (match_ty(self, TT_SEMICOLON));
+	}
 }
 
 static void error_token_with_sync(
@@ -92,6 +118,15 @@ static void expect(Parser* self, TokenType ty, u32 code, char* fmt, ...) {
 
 #define expect_semicolon(self) \
 	chk(expect(self, TT_SEMICOLON, ERROR_EXPECT_SEMICOLON))
+
+#define expect_ident(self) \
+	chk(expect(self, TT_IDENT, ERROR_EXPECT_IDENT))
+
+#define expect_lbrace(self) \
+	chk(expect(self, TT_LBRACE, ERROR_EXPECT_LBRACE))
+
+#define expect_rbrace(self) \
+	chk(expect(self, TT_RBRACE, ERROR_EXPECT_RBRACE))
 
 #define es \
     u64 COMBINE(_error_store,__LINE__) = self->error_count
@@ -220,19 +255,42 @@ static Expr* expr(Parser* self) {
 	return expr_precedence_3(self);
 }	
 
+#define alloc_stmt_expr(__name, __expr) \
+	alloc_with_type(__name, Stmt); \
+	__name->ty = ST_EXPR; \
+	__name->expr = __expr;
+
 static Stmt* stmt_expr(Parser* self) {
 	EXPR(e);
 	expect_semicolon(self);
-
-	alloc_with_type(stmt, Stmt);
-	stmt->ty = ST_EXPR;
-	stmt->expr = e;
-	return stmt;
+	alloc_stmt_expr(s, e);
+	return s;
 }
+
+#define alloc_data_type_struct(__name, __struct_keyword, __ident) \
+	alloc_with_type(__name, DataType); \
+	__name->ty = DT_STRUCT; \
+	__name->struct_.struct_keyword = __struct_keyword; \
+	__name->struct_.ident = __ident;
+
+#define alloc_stmt_struct(__name, __struct_dt) \
+	alloc_with_type(__name, Stmt); \
+	__name->ty = ST_STRUCT; \
+	__name->struct_ = __struct_dt;
 
 static Stmt* top_level_stmt(Parser* self) {
 	if (match_keyword(self, "fn")) {
-		
+		return null;
+	} else if (match_keyword(self, "struct")) {
+		Token* struct_keyword = previous(self);
+		expect_ident(self);
+		Token* ident = previous(self);
+		expect_lbrace(self);
+		expect_rbrace(self);
+
+		alloc_data_type_struct(struct_dt, struct_keyword, ident);
+		alloc_stmt_struct(s, struct_dt);
+		return s;
 	} else {
 		/* error_token_with_sync(self, current(self), 10, "invalid top-level token"); */
 		return stmt_expr(self);

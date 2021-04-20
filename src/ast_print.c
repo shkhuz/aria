@@ -9,6 +9,35 @@
 
 static void expr(AstPrinter* self, Expr* e);
 
+static void data_type_named(AstPrinter* self, DataType* dt) {
+
+}
+
+static void data_type_struct(AstPrinter* self, DataType* dt) {
+	print_lparen();
+	printf("data-type-struct ");
+	if (dt->struct_.ident) {
+		print_tok(dt->struct_.ident);
+	} else {
+		printf("<null>");
+	}
+	print_space();
+
+	print_rparen();
+	print_newline();
+}
+
+static void data_type(AstPrinter* self, DataType* dt) {
+	switch (dt->ty) {
+		case DT_NAMED:
+			data_type_named(self, dt);
+			break;
+		case DT_STRUCT:
+			data_type_struct(self, dt);
+			break;
+	}
+}
+
 static void expr_ident(AstPrinter* self, Expr* e) {
 	print_tok(e->ident);
 }
@@ -39,6 +68,10 @@ static void expr(AstPrinter* self, Expr* e) {
 	}
 }
 
+static void stmt_struct(AstPrinter* self, Stmt* s) {
+	data_type(self, s->struct_);
+}
+
 static void stmt_expr(AstPrinter* self, Stmt* s) {
 	print_lparen();
 	printf("stmt-expr ");
@@ -49,6 +82,9 @@ static void stmt_expr(AstPrinter* self, Stmt* s) {
 
 static void stmt(AstPrinter* self, Stmt* s) {
 	switch (s->ty) {
+		case ST_STRUCT:
+			stmt_struct(self, s);
+			break;
 		case ST_EXPR:
 			stmt_expr(self, s);
 			break;
