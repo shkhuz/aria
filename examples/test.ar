@@ -23,6 +23,10 @@ fn start(): noreturn {
 fn nested_fn() {
 	fn _1() {
 		fn _2() {
+			var := get_function();
+			var();
+
+			get_function(a, b)(a, b, c);
 		}
 	}
 }
@@ -30,6 +34,6 @@ fn nested_fn() {
 foo;
 foo + bar;
 
-game: Game = get_game;
+game: Game = get_game();
 game: Game;
-game := get_game;
+game := get_game() + game;

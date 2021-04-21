@@ -255,6 +255,12 @@ static bool match_data_type(Parser* self) {
 	__name->ty = ET_BLOCK; \
 	__name->block = __block;
 
+#define alloc_expr_function_call(__name, __left, __args) \
+	alloc_with_type(__name, Expr); \
+	__name->ty = ET_FUNCTION_CALL; \
+	__name->function_call.left = __left; \
+	__name->function_call.args = __args;
+
 #define alloc_expr_binary(__name, __ty, __left, __right, __op) \
 	alloc_with_type(__name, Expr); \
 	__name->ty = __ty; \
@@ -263,8 +269,9 @@ static bool match_data_type(Parser* self) {
 	__name->binary.op = __op;
 
 static Stmt* top_level_stmt(Parser* self);
+static Expr* expr(Parser* self);
 
-static Expr* expr_precedence_1(Parser* self) {
+static Expr* expr_atom(Parser* self) {
 	if (match_ident(self)) {	
 		alloc_expr_ident(ident, previous(self));
 		return ident;
@@ -289,8 +296,26 @@ static Expr* expr_precedence_1(Parser* self) {
 	}
 }
 
-static Expr* expr_precedence_2(Parser* self) {
-	EXPR_CI(left, expr_precedence_1, self);	
+static Expr* expr_postfix(Parser* self) {
+	EXPR_CI(left, expr_atom, self);
+	while (match_token_type(self, TT_LPAREN)) {
+		Expr** args = null;
+		while (!match_token_type(self, TT_RPAREN)) {
+			EXPR(arg);
+			buf_push(args, arg);
+			if (current(self)->ty != TT_RPAREN) {
+				expect_comma(self);
+			}
+		}
+
+		alloc_expr_function_call(e, left, args);
+		left = e;
+	}
+	return left;
+}
+
+static Expr* expr_binary_mul_div(Parser* self) {
+	EXPR_CI(left, expr_postfix, self);	
 	while (match_token_type(self, TT_STAR) || match_token_type(self, TT_FSLASH)) {
 		Token* op = previous(self);
 		ExprType ty;
@@ -304,7 +329,7 @@ static Expr* expr_precedence_2(Parser* self) {
 			default:
 				break;
 		}
-		EXPR_CI(right, expr_precedence_1, self);
+		EXPR_CI(right, expr_postfix, self);
 
 		alloc_expr_binary(binary, ty, left, right, op);
 		left = binary;
@@ -312,8 +337,8 @@ static Expr* expr_precedence_2(Parser* self) {
 	return left;
 }
 
-static Expr* expr_precedence_3(Parser* self) {
-	EXPR_CI(left, expr_precedence_2, self);	
+static Expr* expr_binary_add_sub(Parser* self) {
+	EXPR_CI(left, expr_binary_mul_div, self);	
 	while (match_token_type(self, TT_PLUS) || match_token_type(self, TT_MINUS)) {
 		Token* op = previous(self);
 		ExprType ty;
@@ -327,7 +352,7 @@ static Expr* expr_precedence_3(Parser* self) {
 			default:
 				break;
 		}
-		EXPR_CI(right, expr_precedence_2, self);
+		EXPR_CI(right, expr_binary_mul_div, self);
 
 		alloc_expr_binary(binary, ty, left, right, op);
 		left = binary;
@@ -336,7 +361,7 @@ static Expr* expr_precedence_3(Parser* self) {
 }
 
 static Expr* expr(Parser* self) {
-	return expr_precedence_3(self);
+	return expr_binary_add_sub(self);
 }	
 
 #define alloc_stmt_expr(__name, __expr) \
@@ -474,6 +499,6 @@ void parser_parse(Parser* self) {
 	while (current(self)->ty != TT_EOF) {
 		Stmt* s = top_level_stmt(self);
 		if (self->error) return;
-		if (s) buf_push(self->srcfile->stmts, s);
+		if (s) buf_push(self->srcfile->stmts, s); // TODO: is this necessary?
 	}
 }

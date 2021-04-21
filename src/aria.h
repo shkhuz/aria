@@ -81,6 +81,7 @@ typedef enum {
 	ET_BINARY_DIVIDE,
 	ET_IDENT,
 	ET_BLOCK,
+	ET_FUNCTION_CALL,
 	ET_NONE,
 } ExprType;
 
@@ -93,7 +94,11 @@ struct Expr {
 	ExprType ty;
 	union {
 		Token* ident;	
-		Block* block;
+		Block* block; // TODO: maybe remove the pointer (anonymous struct)
+		struct {
+			Expr* left;
+			Expr** args;
+		} function_call;
 		struct {
 			Expr* left, *right;
 			Token* op;

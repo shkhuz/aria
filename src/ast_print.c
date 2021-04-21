@@ -81,6 +81,18 @@ static void expr_block(AstPrinter* self, Expr* e) {
 	self->indent--;
 }
 
+static void expr_function_call(AstPrinter* self, Expr* e) {
+	expr(self, e->function_call.left);
+	print_lparen();
+	buf_loop(e->function_call.args, a) {
+		expr(self, e->function_call.args[a]);
+		if (a < buf_len(e->function_call.args) - 1) {
+			printf(", ");
+		}
+	}
+	print_rparen();
+}
+
 static void expr_binary(AstPrinter* self, Expr* e) {
 	print_lparen();
 	print_tok(e->binary.op);
@@ -98,6 +110,9 @@ static void expr(AstPrinter* self, Expr* e) {
 			break;
 		case ET_BLOCK: 
 			expr_block(self, e);
+			break;
+		case ET_FUNCTION_CALL:
+			expr_function_call(self, e);
 			break;
 		case ET_BINARY_ADD:
 		case ET_BINARY_SUBTRACT:
