@@ -20,14 +20,14 @@ bool parse_srcfiles(SrcFile** srcfiles) {
 		}
 
 		// Lexer tokens check
-		Token** tokens = srcfiles[i]->tokens;
-		buf_loop(tokens, j) {
-			printf("[%u, %lu:%lu] ", tokens[j]->ty, tokens[j]->line, tokens[j]->column);
-			for (char* start = tokens[j]->start; start != tokens[j]->end; start++) {
-				printf("%c", *start);
-			}
-			printf("\n");
-		}
+		/* Token** tokens = srcfiles[i]->tokens; */
+		/* buf_loop(tokens, j) { */
+		/* 	printf("[%u, %lu:%lu] ", tokens[j]->ty, tokens[j]->line, tokens[j]->column); */
+		/* 	for (char* start = tokens[j]->start; start != tokens[j]->end; start++) { */
+		/* 		printf("%c", *start); */
+		/* 	} */
+		/* 	printf("\n"); */
+		/* } */
 
 		Parser parser;
 		parser_init(&parser, srcfiles[i]);

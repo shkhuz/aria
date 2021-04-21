@@ -22,29 +22,43 @@ static void data_type_named(AstPrinter* self, DataType* dt) {
 	print_tok(dt->named.ident);
 }
 
+static void variable(AstPrinter* self, Variable* v) {
+	print_lparen();
+
+	print_tok(v->ident);
+	printf(": ");
+	if (v->dt) {
+		data_type(self, v->dt);
+	}
+
+	if (v->initializer) {
+		printf(" = ");
+		expr(self, v->initializer);
+	}
+
+	print_rparen();
+}
+
 static void data_type_struct(AstPrinter* self, DataType* dt) {
 	print_lparen();
-	printf("data-type-struct ");
+	printf("struct ");
 	if (dt->struct_.ident) {
 		print_tok(dt->struct_.ident);
 	} else {
 		printf("<null>");
 	}
+	print_newline();
 
 	self->indent++;
 	buf_loop(dt->struct_.fields, f) {
-		print_newline();
 		print_indent(self);
-		print_lparen();
-		print_tok(dt->struct_.fields[f]->ident);
-		printf(": ");
-		data_type(self, dt->struct_.fields[f]->dt);
-		print_rparen();
+		variable(self, dt->struct_.fields[f]);
+		print_newline();
 	}
 	self->indent--;
 
+	print_indent(self);
 	print_rparen();
-	print_newline();
 }
 
 static void data_type(AstPrinter* self, DataType* dt) {
@@ -92,12 +106,15 @@ static void stmt_struct(AstPrinter* self, Stmt* s) {
 	data_type(self, s->struct_);
 }
 
+static void stmt_variable(AstPrinter* self, Stmt* s) {
+	variable(self, &s->variable);
+}
+
 static void stmt_expr(AstPrinter* self, Stmt* s) {
 	print_lparen();
 	printf("stmt-expr ");
 	expr(self, s->expr);
 	print_rparen();
-	print_newline();
 }
 
 static void stmt(AstPrinter* self, Stmt* s) {
@@ -105,12 +122,16 @@ static void stmt(AstPrinter* self, Stmt* s) {
 		case ST_STRUCT:
 			stmt_struct(self, s);
 			break;
+		case ST_VARIABLE:
+			stmt_variable(self, s);
+			break;
 		case ST_EXPR:
 			stmt_expr(self, s);
 			break;
 		case ST_NONE: 
 			break;
 	}
+	print_newline();
 }
 
 void ast_printer_init(AstPrinter* self, SrcFile* srcfile) {

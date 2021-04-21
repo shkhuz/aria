@@ -26,7 +26,7 @@ LIBS_LIB_CMD :=
 CMD_ARGS := examples/test.ar
 
 all: $(BIN_FILE) #docs
-	mkdir -p .dev
+	# mkdir -p .dev
 	$(BIN_FILE) $(CMD_ARGS)
 
 debug: $(BIN_FILE)

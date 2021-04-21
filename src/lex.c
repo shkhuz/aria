@@ -115,6 +115,7 @@ void lexer_lex(Lexer* self) {
 			case '-': push_tok_by_type_for_char(self, TT_MINUS); break;
 			case '*': push_tok_by_type_for_char(self, TT_STAR); break;
 			case '/': push_tok_by_type_for_char(self, TT_FSLASH); break;
+			case '=': push_tok_by_type_for_char(self, TT_EQUAL); break;
 
 			case '\0': push_tok_by_type_for_char(self, TT_EOF); return;
 

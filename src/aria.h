@@ -22,6 +22,7 @@ typedef enum {
 	TT_MINUS,
 	TT_STAR,
 	TT_FSLASH,
+	TT_EQUAL,
 	TT_EOF,
 	TT_NONE,
 } TokenType;
@@ -51,7 +52,8 @@ typedef enum {
 typedef struct {
 	Token* ident;
 	DataType* dt;
-} StructField;
+	Expr* initializer;
+} Variable;
 
 struct DataType {
 	DataTypeType ty;
@@ -63,7 +65,7 @@ struct DataType {
 		struct {
 			Token* struct_keyword;
 			Token* ident;
-			StructField** fields;
+			Variable** fields;
 		} struct_;
 	};
 };
@@ -91,6 +93,7 @@ struct Expr {
 
 typedef enum {
 	ST_STRUCT,
+	ST_VARIABLE,
 	ST_EXPR,
 	ST_NONE,
 } StmtType;
@@ -99,6 +102,7 @@ typedef struct {
 	StmtType ty;
 	union {
 		DataType* struct_;
+		Variable variable;
 		Expr* expr;
 	};
 } Stmt;
@@ -163,12 +167,14 @@ void terminate_compilation();
 #define ERROR_EXPECT_COLON								10, "expect colon"
 #define ERROR_EXPECT_COMMA								11, "expect comma"
 #define ERROR_EXPECT_DATA_TYPE							12, "expect data type"
+#define ERROR_EXPECT_INITIALIZER_IF_NO_TYPE_SPECIFIED	13, "expect initializer when no type specified"
 
 ///// LEXER /////
 typedef struct {
 	SrcFile* srcfile;
 	char* start, *current;
 	u64 line;
+
 	char* last_newline;
 	bool error;
 } Lexer;

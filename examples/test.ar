@@ -6,3 +6,10 @@ struct baz {
 		cap: usize,
 	},
 }
+
+foo;
+foo + bar;
+
+game: Game = get_game;
+game: Game;
+game := get_game;

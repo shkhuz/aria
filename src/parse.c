@@ -31,13 +31,16 @@ static void goto_previous_token(Parser* self) {
 	}
 }
 
-static bool match_ty(Parser* self, TokenType ty) {
+static bool match_token_type(Parser* self, TokenType ty) {
 	if (current(self)->ty == ty) {
 		goto_next_token(self);
 		return true;
 	}
 	return false;
 }
+
+#define match_ident(self) \
+	match_token_type(self, TT_IDENT)
 
 static bool match_keyword(Parser* self, char* keyword) {
 	if (current(self)->ty == TT_KEYWORD) {
@@ -72,7 +75,7 @@ static void error_token_with_sync(
 }
 
 static void expect(Parser* self, TokenType ty, u32 code, char* fmt, ...) {
-	if (!match_ty(self, ty)) {
+	if (!match_token_type(self, ty)) {
 		va_list ap;
 		va_start(ap, fmt);
 		error_token_with_sync(self, current(self), code, fmt, ap);
@@ -150,9 +153,16 @@ static void expect(Parser* self, TokenType ty, u32 code, char* fmt, ...) {
 #define expect_rbrace(self) \
 	chk(expect(self, TT_RBRACE, ERROR_EXPECT_RBRACE))
 
+#define chkv_match_data_type(self, __matched) \
+	bool __matched = false; \
+	chkv(__matched = match_data_type(self));
+
+#define chk_match_data_type(self, __matched) \
+	bool __matched = false; \
+	chk(__matched = match_data_type(self));
+
 static void __expect_data_type(Parser* self) {
-	bool matched = false;
-	chkv(matched = match_data_type(self));
+	chkv_match_data_type(self, matched);
 	if (!matched) {
 		error_token_with_sync(self, current(self), ERROR_EXPECT_DATA_TYPE);
 	}
@@ -172,8 +182,8 @@ static void __expect_data_type(Parser* self) {
 	__name->struct_.ident = __ident; \
 	__name->struct_.fields = __fields;
 
-#define alloc_struct_field(__name, __ident, __dt) \
-	alloc_with_type(__name, StructField); \
+#define alloc_variable(__name, __ident, __dt) \
+	alloc_with_type(__name, Variable); \
 	__name->ident = __ident; \
 	__name->dt = __dt;
 
@@ -184,13 +194,13 @@ static DataType* parse_struct(Parser* self, bool is_stmt) {
 	if (is_stmt) {
 		expect_ident(self);
 		ident = previous(self);
-	} else {
-		match_ty(self, TT_IDENT);
+	} else if (match_ident(self)) {
+		ident = previous(self);
 	}
 	expect_lbrace(self);
 
-	StructField** fields = null;
-	while (!match_ty(self, TT_RBRACE)) {
+	Variable** fields = null;
+	while (!match_token_type(self, TT_RBRACE)) {
 		expect_ident(self);
 		Token* field_ident = previous(self);
 		expect_colon(self);
@@ -201,7 +211,7 @@ static DataType* parse_struct(Parser* self, bool is_stmt) {
 			expect_comma(self);
 		} //else match(self, T_COMMA);
 
-		alloc_struct_field(field, field_ident, field_dt);
+		alloc_variable(field, field_ident, field_dt);
 		buf_push(fields, field);
 	}
 
@@ -210,7 +220,7 @@ static DataType* parse_struct(Parser* self, bool is_stmt) {
 }
 
 static bool match_data_type(Parser* self) {
-	if (match_ty(self, TT_IDENT)) {
+	if (match_ident(self)) {
 		alloc_data_type_named(dt, previous(self));
 		self->matched_dt = dt;
 		return true;
@@ -237,7 +247,7 @@ static bool match_data_type(Parser* self) {
 	__name->binary.op = __op;
 
 static Expr* expr_precedence_1(Parser* self) {
-	if (match_ty(self, TT_IDENT)) {	
+	if (match_ident(self)) {	
 		alloc_expr_ident(ident, previous(self));
 		return ident;
 	} else {
@@ -252,7 +262,7 @@ static Expr* expr_precedence_1(Parser* self) {
 
 static Expr* expr_precedence_2(Parser* self) {
 	EXPR_CI(left, expr_precedence_1, self);	
-	while (match_ty(self, TT_STAR) || match_ty(self, TT_FSLASH)) {
+	while (match_token_type(self, TT_STAR) || match_token_type(self, TT_FSLASH)) {
 		Token* op = previous(self);
 		ExprType ty;
 		switch (op->ty) {
@@ -275,7 +285,7 @@ static Expr* expr_precedence_2(Parser* self) {
 
 static Expr* expr_precedence_3(Parser* self) {
 	EXPR_CI(left, expr_precedence_2, self);	
-	while (match_ty(self, TT_PLUS) || match_ty(self, TT_MINUS)) {
+	while (match_token_type(self, TT_PLUS) || match_token_type(self, TT_MINUS)) {
 		Token* op = previous(self);
 		ExprType ty;
 		switch (op->ty) {
@@ -317,11 +327,37 @@ static Stmt* stmt_expr(Parser* self) {
 	__name->ty = ST_STRUCT; \
 	__name->struct_ = __struct_dt;
 
+#define alloc_stmt_variable(__name, __ident, __dt, __initializer) \
+	alloc_with_type(__name, Stmt); \
+	__name->ty = ST_VARIABLE; \
+	__name->variable.ident = __ident; \
+	__name->variable.dt = __dt; \
+	__name->variable.initializer = __initializer;
+
 static Stmt* top_level_stmt(Parser* self) {
 	if (match_keyword(self, "fn")) {
 		return null;
 	} else if (match_keyword(self, "struct")) {
 		alloc_stmt_struct(s, parse_struct(self, true));
+		return s;
+	} else if (current(self)->ty == TT_IDENT && self->srcfile->tokens[self->token_idx + 1]->ty == TT_COLON) {
+		Token* ident = current(self);
+		goto_next_token(self);
+		expect_colon(self);
+
+		chk_match_data_type(self, matched);
+		DataType* dt = (matched ? self->matched_dt : null);
+
+		Expr* initializer = null;
+		if (match_token_type(self, TT_EQUAL)) {
+			EXPR_ND(initializer, expr, self);
+		} else if (!matched) {
+			error_token_with_sync(self, current(self), ERROR_EXPECT_INITIALIZER_IF_NO_TYPE_SPECIFIED);
+			return null;
+		}
+
+		expect_semicolon(self);
+		alloc_stmt_variable(s, ident, dt, initializer);
 		return s;
 	} else {
 		/* error_token_with_sync(self, current(self), 10, "invalid top-level token"); */
