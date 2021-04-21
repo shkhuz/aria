@@ -5,6 +5,8 @@
 
 ///// TYPES /////
 typedef struct SrcFile SrcFile; 
+typedef struct DataType DataType;
+typedef struct Expr Expr;
 
 typedef enum {
 	TT_IDENT,
@@ -14,6 +16,8 @@ typedef enum {
 	TT_LBRACE,
 	TT_RBRACE,
 	TT_SEMICOLON,
+	TT_COLON,
+	TT_COMMA,
 	TT_PLUS,
 	TT_MINUS,
 	TT_STAR,
@@ -45,18 +49,24 @@ typedef enum {
 } DataTypeType;
 
 typedef struct {
+	Token* ident;
+	DataType* dt;
+} StructField;
+
+struct DataType {
 	DataTypeType ty;
 	union {
 		struct {
 			Token* ident;
-		} named_data_type;
+		} named;
 
 		struct {
 			Token* struct_keyword;
 			Token* ident;
+			StructField** fields;
 		} struct_;
 	};
-} DataType;
+};
 
 typedef enum {
 	ET_BINARY_ADD,
@@ -67,14 +77,12 @@ typedef enum {
 	ET_NONE,
 } ExprType;
 
-typedef struct Expr Expr;
-
 struct Expr {
 	ExprType ty;
 	union {
 		Token* ident;	
 
-		struct bin {
+		struct {
 			Expr* left, *right;
 			Token* op;
 		} binary;
@@ -143,15 +151,18 @@ void msg_user_token(
 
 void terminate_compilation();
 
-#define ERROR_CANNOT_READ_SOURCE_FILE 					1, "cannot read source file '%s'"
+#define ERROR_CANNOT_READ_SOURCE_FILE 					1, "cannot read source file `%s`"
 #define ERROR_ABORTING_DUE_TO_PREV_ERRORS 				2, "aborting due to previous error(s)"
 #define ERROR_INVALID_CHAR 								3, "invalid character"
 #define ERROR_NO_SOURCE_FILES_PASSED_IN_CMD_ARGS 		4, "one or more input files needed"
 #define ERROR_UNEXPECTED_TOKEN							5, "unexpected token"
 #define ERROR_EXPECT_SEMICOLON							6, "expect semicolon"
 #define ERROR_EXPECT_IDENT								7, "expect identifier"
-#define ERROR_EXPECT_LBRACE								8, "expect '{'"
-#define ERROR_EXPECT_RBRACE								9, "expect '}'"
+#define ERROR_EXPECT_LBRACE								8, "expect `{`"
+#define ERROR_EXPECT_RBRACE								9, "expect `}`"
+#define ERROR_EXPECT_COLON								10, "expect colon"
+#define ERROR_EXPECT_COMMA								11, "expect comma"
+#define ERROR_EXPECT_DATA_TYPE							12, "expect data type"
 
 ///// LEXER /////
 typedef struct {
@@ -169,6 +180,8 @@ void lexer_lex(Lexer* self);
 typedef struct {
 	SrcFile* srcfile;
 	u64 token_idx;
+	DataType* matched_dt;
+
 	bool error;
 	u64 error_count;
 } Parser;
@@ -179,6 +192,7 @@ void parser_parse(Parser* self);
 ///// AST PRINTER /////
 typedef struct {
 	SrcFile* srcfile;
+	int indent;
 } AstPrinter;
 
 void ast_printer_init(AstPrinter* self, SrcFile* srcfile);

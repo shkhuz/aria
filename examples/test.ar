@@ -1,12 +1,8 @@
-struct baz {}
-
-foo + baz;
-foo + bar;
-foo + q;
-foo - foo + bar - baz;
-
-foo * lol;
-foo * foo / bar;
-hahha / hah;
-
-foo + bar * baz;
+struct baz {
+	foo: struct { c: char },
+	baz: int, 
+	bar: struct Vec {
+		items: array,
+		cap: usize,
+	},
+}

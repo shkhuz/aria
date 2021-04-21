@@ -1,10 +1,10 @@
 #include <aria_core.h>
 
 void* _buf_grow(const void* buf, u64 new_len, u64 elem_size) {
-	assert(buf_cap(buf) <= (__SIZE_MAX__ - 1) / 2);
+	/* assert(buf_cap(buf) <= (__SIZE_MAX__ - 1) / 2); */
 	u64 new_cap = CLAMP_MIN(2 * buf_cap(buf), MAX(new_len, 16));
 	assert(new_len <= new_cap);
-	assert(new_cap <= (__SIZE_MAX__ - offsetof(BufHdr, buf)) / elem_size);
+	/* assert(new_cap <= (__SIZE_MAX__ - offsetof(BufHdr, buf)) / elem_size); */
 	u64 new_size = offsetof(BufHdr, buf) + (new_cap * elem_size);
 	BufHdr* new_hdr;
 

@@ -11,13 +11,12 @@ char* keywords[KEYWORDS_LEN] = {
 };
 
 bool parse_srcfiles(SrcFile** srcfiles) {
-	bool error = false;
 	buf_loop(srcfiles, i) {
 		Lexer lexer;
 		lexer_init(&lexer, srcfiles[i]); 
 		lexer_lex(&lexer);
-		if (!error) {
-			error = lexer.error;
+		if (lexer.error) {
+			return true;
 		}
 
 		// Lexer tokens check
@@ -33,15 +32,15 @@ bool parse_srcfiles(SrcFile** srcfiles) {
 		Parser parser;
 		parser_init(&parser, srcfiles[i]);
 		parser_parse(&parser);
-		if (!error) {
-			error = parser.error;
+		if (parser.error) {
+			return true;
 		}
 
 		AstPrinter ast_printer;
 		ast_printer_init(&ast_printer, srcfiles[i]);
 		ast_printer_print(&ast_printer);
 	}
-	return error;
+	return false;
 }
 
 int main(int argc, char* argv[]) {

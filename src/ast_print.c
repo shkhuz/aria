@@ -7,10 +7,19 @@
 #define print_newline() printf("\n")
 #define print_tok(tok) printf("%s", tok->lexeme)
 
+static void data_type(AstPrinter* self, DataType* dt);
 static void expr(AstPrinter* self, Expr* e);
 
-static void data_type_named(AstPrinter* self, DataType* dt) {
+static void print_indent(AstPrinter* self) {
+	for (int i = 0; i < self->indent; i++) {
+		for (int t = 0; t < AST_TAB_COUNT; t++) {
+			print_space();
+		}
+	}
+}
 
+static void data_type_named(AstPrinter* self, DataType* dt) {
+	print_tok(dt->named.ident);
 }
 
 static void data_type_struct(AstPrinter* self, DataType* dt) {
@@ -21,7 +30,18 @@ static void data_type_struct(AstPrinter* self, DataType* dt) {
 	} else {
 		printf("<null>");
 	}
-	print_space();
+
+	self->indent++;
+	buf_loop(dt->struct_.fields, f) {
+		print_newline();
+		print_indent(self);
+		print_lparen();
+		print_tok(dt->struct_.fields[f]->ident);
+		printf(": ");
+		data_type(self, dt->struct_.fields[f]->dt);
+		print_rparen();
+	}
+	self->indent--;
 
 	print_rparen();
 	print_newline();
@@ -95,6 +115,7 @@ static void stmt(AstPrinter* self, Stmt* s) {
 
 void ast_printer_init(AstPrinter* self, SrcFile* srcfile) {
 	self->srcfile = srcfile;
+	self->indent = 0;
 }
 
 void ast_printer_print(AstPrinter* self) {

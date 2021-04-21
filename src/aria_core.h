@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <limits.h>
 
 ///// TYPES /////
 typedef unsigned int uint;

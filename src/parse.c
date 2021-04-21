@@ -1,6 +1,8 @@
 #include <aria_core.h>
 #include <aria.h>
 
+static bool match_data_type(Parser* self);
+
 static Token* current(Parser* self) {
 	if (self->token_idx < buf_len(self->srcfile->tokens)) {
 		return self->srcfile->tokens[self->token_idx];
@@ -47,43 +49,6 @@ static bool match_keyword(Parser* self, char* keyword) {
 	return false;
 }
 
-///// ERROR HANDLING /////
-#define check_eof if (current(self)->ty == TT_EOF) return
-
-static void sync_to_next_stmt(Parser* self) {
-	while (!match_ty(self, TT_SEMICOLON) && current(self)->ty != TT_LBRACE) {
-		check_eof;
-		goto_next_token(self);
-	}
-
-	if (current(self)->ty == TT_LBRACE) {
-		int brace_count = 0;
-		while (!match_ty(self, TT_LBRACE)) {
-			check_eof;
-			goto_next_token(self);
-		}
-		brace_count++;
-
-		while (brace_count != 0) {
-			check_eof;
-			if (match_ty(self, TT_LBRACE)) {
-				brace_count++;
-				continue;
-			}
-
-			check_eof;
-			else if (match_ty(self, TT_RBRACE)) {
-				brace_count--;
-				continue;
-			}
-
-			check_eof; 
-			goto_next_token(self);
-		}
-		while (match_ty(self, TT_SEMICOLON));
-	}
-}
-
 static void error_token_with_sync(
 		Parser* self,
 		Token* token,
@@ -103,21 +68,78 @@ static void error_token_with_sync(
 			fmt,
 			ap
 	);
-	sync_to_next_stmt(self);
 	va_end(ap);
 }
 
 static void expect(Parser* self, TokenType ty, u32 code, char* fmt, ...) {
-    if (!match_ty(self, ty)) {
-        va_list ap;
-        va_start(ap, fmt);
-        error_token_with_sync(self, current(self), code, fmt, ap);
-        va_end(ap);
-    }
+	if (!match_ty(self, ty)) {
+		va_list ap;
+		va_start(ap, fmt);
+		error_token_with_sync(self, current(self), code, fmt, ap);
+		va_end(ap);
+	}
 }
+
+#define es \
+	u64 COMBINE(_error_store,__LINE__) = self->error_count
+
+#define er \
+	if (self->error_count > COMBINE(_error_store,__LINE__)) return
+
+#define ec \
+	if (self->error_count > COMBINE(_error_store,__LINE__)) continue
+
+#define ern \
+	er null
+
+#define chk(stmt) \
+	es; stmt; ern;
+
+// void
+#define chkv(stmt) \
+	es; stmt; er;
+
+// loop
+#define chklp(stmt) \
+	es; stmt; ec;
+
+/* custom initialization */
+#define EXPR_CI(name, init_func, ...) \
+	Expr* name = null; \
+	{ \
+		es; \
+		name = init_func(__VA_ARGS__); \
+		ern; \
+	}
+
+/* custom initialization; continue if error */
+#define EXPR_CI_LP(name, init_func, ...) \
+	Expr* name = null; \
+	{ \
+		es; \
+		name = init_func(__VA_ARGS__); \
+		ec; \
+	}
+
+/* no declaration */
+#define EXPR_ND(name, init_func, ...) \
+	{ \
+		es; \
+		name = init_func(__VA_ARGS__); \
+		ern; \
+	}
+
+#define EXPR(name) \
+	EXPR_CI(name, expr, self)
 
 #define expect_semicolon(self) \
 	chk(expect(self, TT_SEMICOLON, ERROR_EXPECT_SEMICOLON))
+
+#define expect_colon(self) \
+	chk(expect(self, TT_COLON, ERROR_EXPECT_COLON))
+
+#define expect_comma(self) \
+	chk(expect(self, TT_COMMA, ERROR_EXPECT_COMMA))
 
 #define expect_ident(self) \
 	chk(expect(self, TT_IDENT, ERROR_EXPECT_IDENT))
@@ -128,55 +150,78 @@ static void expect(Parser* self, TokenType ty, u32 code, char* fmt, ...) {
 #define expect_rbrace(self) \
 	chk(expect(self, TT_RBRACE, ERROR_EXPECT_RBRACE))
 
-#define es \
-    u64 COMBINE(_error_store,__LINE__) = self->error_count
+static void __expect_data_type(Parser* self) {
+	bool matched = false;
+	chkv(matched = match_data_type(self));
+	if (!matched) {
+		error_token_with_sync(self, current(self), ERROR_EXPECT_DATA_TYPE);
+	}
+}
 
-#define er \
-    if (self->error_count > COMBINE(_error_store,__LINE__)) return
+#define expect_data_type(self) \
+	chk(__expect_data_type(self))
 
-#define ec \
-    if (self->error_count > COMBINE(_error_store,__LINE__)) continue
+#define alloc_data_type_named(__name, __ident) \
+	alloc_with_type(__name, DataType); \
+	__name->named.ident = __ident;
 
-#define ern \
-    er null
+#define alloc_data_type_struct(__name, __struct_keyword, __ident, __fields) \
+	alloc_with_type(__name, DataType); \
+	__name->ty = DT_STRUCT; \
+	__name->struct_.struct_keyword = __struct_keyword; \
+	__name->struct_.ident = __ident; \
+	__name->struct_.fields = __fields;
 
-#define chk(stmt) \
-    es; stmt; ern;
+#define alloc_struct_field(__name, __ident, __dt) \
+	alloc_with_type(__name, StructField); \
+	__name->ident = __ident; \
+	__name->dt = __dt;
 
-#define chkv(stmt) \
-    es; stmt; er;
+static DataType* parse_struct(Parser* self, bool is_stmt) {
+	Token* struct_keyword = previous(self);
 
-#define chklp(stmt) \
-    es; stmt; ec;
+	Token* ident = null;
+	if (is_stmt) {
+		expect_ident(self);
+		ident = previous(self);
+	} else {
+		match_ty(self, TT_IDENT);
+	}
+	expect_lbrace(self);
 
-/* custom initialization */
-#define EXPR_CI(name, init_func, ...) \
-    Expr* name = null; \
-    { \
-        es; \
-        name = init_func(__VA_ARGS__); \
-        ern; \
-    }
+	StructField** fields = null;
+	while (!match_ty(self, TT_RBRACE)) {
+		expect_ident(self);
+		Token* field_ident = previous(self);
+		expect_colon(self);
 
-/* custom initialization; continue if error */
-#define EXPR_CI_LP(name, init_func, ...) \
-    Expr* name = null; \
-    { \
-        es; \
-        name = init_func(__VA_ARGS__); \
-        ec; \
-    }
+		expect_data_type(self);
+		DataType* field_dt = self->matched_dt;
+		if (current(self)->ty != TT_RBRACE) {
+			expect_comma(self);
+		} //else match(self, T_COMMA);
 
-/* no declaration */
-#define EXPR_ND(name, init_func, ...) \
-    { \
-        es; \
-        name = init_func(__VA_ARGS__); \
-        ern; \
-    }
+		alloc_struct_field(field, field_ident, field_dt);
+		buf_push(fields, field);
+	}
 
-#define EXPR(name) \
-    EXPR_CI(name, expr, self)
+	alloc_data_type_struct(struct_dt, struct_keyword, ident, fields);
+	return struct_dt;
+}
+
+static bool match_data_type(Parser* self) {
+	if (match_ty(self, TT_IDENT)) {
+		alloc_data_type_named(dt, previous(self));
+		self->matched_dt = dt;
+		return true;
+	} else if (match_keyword(self, "struct")) {
+		self->matched_dt = parse_struct(self, false);
+		if (self->matched_dt) {
+			return true;
+		}
+	}
+	return false;
+}
 
 #define alloc_expr_ident(__name, __ident) \
 	alloc_with_type(__name, Expr); \
@@ -267,12 +312,6 @@ static Stmt* stmt_expr(Parser* self) {
 	return s;
 }
 
-#define alloc_data_type_struct(__name, __struct_keyword, __ident) \
-	alloc_with_type(__name, DataType); \
-	__name->ty = DT_STRUCT; \
-	__name->struct_.struct_keyword = __struct_keyword; \
-	__name->struct_.ident = __ident;
-
 #define alloc_stmt_struct(__name, __struct_dt) \
 	alloc_with_type(__name, Stmt); \
 	__name->ty = ST_STRUCT; \
@@ -282,14 +321,7 @@ static Stmt* top_level_stmt(Parser* self) {
 	if (match_keyword(self, "fn")) {
 		return null;
 	} else if (match_keyword(self, "struct")) {
-		Token* struct_keyword = previous(self);
-		expect_ident(self);
-		Token* ident = previous(self);
-		expect_lbrace(self);
-		expect_rbrace(self);
-
-		alloc_data_type_struct(struct_dt, struct_keyword, ident);
-		alloc_stmt_struct(s, struct_dt);
+		alloc_stmt_struct(s, parse_struct(self, true));
 		return s;
 	} else {
 		/* error_token_with_sync(self, current(self), 10, "invalid top-level token"); */
@@ -302,6 +334,7 @@ static Stmt* top_level_stmt(Parser* self) {
 void parser_init(Parser* self, SrcFile* srcfile) {
 	self->srcfile = srcfile;
 	self->token_idx = 0;
+	self->matched_dt = null;
 	self->srcfile->stmts = null;
 	self->error = false;
 	self->error_count = 0;
@@ -311,5 +344,6 @@ void parser_parse(Parser* self) {
 	while (current(self)->ty != TT_EOF) {
 		Stmt* s = top_level_stmt(self);
 		if (s) buf_push(self->srcfile->stmts, s);
+		if (self->error) return;
 	}
 }
