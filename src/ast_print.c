@@ -9,6 +9,7 @@
 
 static void data_type(AstPrinter* self, DataType* dt);
 static void expr(AstPrinter* self, Expr* e);
+static void stmt(AstPrinter* self, Stmt* s);
 
 static void print_indent(AstPrinter* self) {
 	for (int i = 0; i < self->indent; i++) {
@@ -23,8 +24,6 @@ static void data_type_named(AstPrinter* self, DataType* dt) {
 }
 
 static void variable(AstPrinter* self, Variable* v) {
-	print_lparen();
-
 	print_tok(v->ident);
 	printf(": ");
 	if (v->dt) {
@@ -35,12 +34,9 @@ static void variable(AstPrinter* self, Variable* v) {
 		printf(" = ");
 		expr(self, v->initializer);
 	}
-
-	print_rparen();
 }
 
 static void data_type_struct(AstPrinter* self, DataType* dt) {
-	print_lparen();
 	printf("struct ");
 	if (dt->struct_.ident) {
 		print_tok(dt->struct_.ident);
@@ -53,12 +49,11 @@ static void data_type_struct(AstPrinter* self, DataType* dt) {
 	buf_loop(dt->struct_.fields, f) {
 		print_indent(self);
 		variable(self, dt->struct_.fields[f]);
-		print_newline();
+		if (f < buf_len(dt->struct_.fields) - 1) {
+			print_newline();
+		}
 	}
 	self->indent--;
-
-	print_indent(self);
-	print_rparen();
 }
 
 static void data_type(AstPrinter* self, DataType* dt) {
@@ -76,6 +71,16 @@ static void expr_ident(AstPrinter* self, Expr* e) {
 	print_tok(e->ident);
 }
 
+static void expr_block(AstPrinter* self, Expr* e) {
+	/* printf("block "); */
+	print_newline();
+	self->indent++;
+	buf_loop(e->block->stmts, s) {
+		stmt(self, e->block->stmts[s]);
+	}
+	self->indent--;
+}
+
 static void expr_binary(AstPrinter* self, Expr* e) {
 	print_lparen();
 	print_tok(e->binary.op);
@@ -90,6 +95,9 @@ static void expr(AstPrinter* self, Expr* e) {
 	switch (e->ty) {
 		case ET_IDENT: 
 			expr_ident(self, e);
+			break;
+		case ET_BLOCK: 
+			expr_block(self, e);
 			break;
 		case ET_BINARY_ADD:
 		case ET_BINARY_SUBTRACT:
@@ -106,21 +114,59 @@ static void stmt_struct(AstPrinter* self, Stmt* s) {
 	data_type(self, s->struct_);
 }
 
+static void function_header(AstPrinter* self, FunctionHeader* h) {
+	print_tok(h->ident);
+	print_space();
+
+	print_lparen();
+	buf_loop(h->params, p) {
+		print_tok(h->params[p]->ident);
+		printf(": ");
+		data_type(self, h->params[p]->dt);
+		if (p < buf_len(h->params) - 1) {
+			printf(", ");
+		}
+	}
+	print_rparen();
+
+	if (h->return_data_type) {
+		printf(": ");
+		data_type(self, h->return_data_type);
+	}
+}
+
+static void stmt_function(AstPrinter* self, Stmt* s) {
+	printf("fn ");
+	function_header(self, s->function.header);
+	print_space();
+	expr(self, s->function.body);
+}
+
+static void stmt_function_prototype(AstPrinter* self, Stmt* s) {
+	printf("fn-prototype ");
+	function_header(self, s->function_prototype);
+}
+
 static void stmt_variable(AstPrinter* self, Stmt* s) {
-	variable(self, &s->variable);
+	variable(self, s->variable);
 }
 
 static void stmt_expr(AstPrinter* self, Stmt* s) {
-	print_lparen();
-	printf("stmt-expr ");
 	expr(self, s->expr);
-	print_rparen();
+	printf(";");
 }
 
 static void stmt(AstPrinter* self, Stmt* s) {
+	print_indent(self);
 	switch (s->ty) {
 		case ST_STRUCT:
 			stmt_struct(self, s);
+			break;
+		case ST_FUNCTION: 
+			stmt_function(self, s);
+			break;
+		case ST_FUNCTION_PROTOTYPE:
+			stmt_function_prototype(self, s);
 			break;
 		case ST_VARIABLE:
 			stmt_variable(self, s);
@@ -131,7 +177,10 @@ static void stmt(AstPrinter* self, Stmt* s) {
 		case ST_NONE: 
 			break;
 	}
-	print_newline();
+
+	if (s->ty != ST_FUNCTION) {
+		print_newline();
+	}
 }
 
 void ast_printer_init(AstPrinter* self, SrcFile* srcfile) {

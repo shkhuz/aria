@@ -7,6 +7,26 @@ struct baz {
 	},
 }
 
+fn main(argc: int, argv: char_ptr_ptr): u8;
+
+fn cool(): struct { } {
+	hmm;
+}
+
+fn start(): noreturn {
+	val := get_val;
+	struct Game { 
+		name: string,
+	} 
+}
+
+fn nested_fn() {
+	fn _1() {
+		fn _2() {
+		}
+	}
+}
+
 foo;
 foo + bar;
 

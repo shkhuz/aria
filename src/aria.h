@@ -7,6 +7,7 @@
 typedef struct SrcFile SrcFile; 
 typedef struct DataType DataType;
 typedef struct Expr Expr;
+typedef struct Stmt Stmt;
 
 typedef enum {
 	TT_IDENT,
@@ -62,6 +63,9 @@ struct DataType {
 			Token* ident;
 		} named;
 
+		// TODO: make it so that we can
+		// add a pointer `*` after an anonymous struct
+		// type.
 		struct {
 			Token* struct_keyword;
 			Token* ident;
@@ -76,14 +80,20 @@ typedef enum {
 	ET_BINARY_MULTIPLY,
 	ET_BINARY_DIVIDE,
 	ET_IDENT,
+	ET_BLOCK,
 	ET_NONE,
 } ExprType;
+
+typedef struct {
+	Stmt** stmts;
+	Expr* value;
+} Block;
 
 struct Expr {
 	ExprType ty;
 	union {
 		Token* ident;	
-
+		Block* block;
 		struct {
 			Expr* left, *right;
 			Token* op;
@@ -93,19 +103,33 @@ struct Expr {
 
 typedef enum {
 	ST_STRUCT,
+	ST_FUNCTION,
+	ST_FUNCTION_PROTOTYPE,
 	ST_VARIABLE,
 	ST_EXPR,
 	ST_NONE,
 } StmtType;
 
 typedef struct {
+	Token* fn_keyword;
+	Token* ident;
+	Variable** params;
+	DataType* return_data_type;
+} FunctionHeader;
+
+struct Stmt {
 	StmtType ty;
 	union {
 		DataType* struct_;
-		Variable variable;
+		struct {
+			FunctionHeader* header;
+			Expr* body;
+		} function;
+		FunctionHeader* function_prototype;
+		Variable* variable;
 		Expr* expr;
 	};
-} Stmt;
+};
 
 struct SrcFile {
 	File* contents;
@@ -168,6 +192,8 @@ void terminate_compilation();
 #define ERROR_EXPECT_COMMA								11, "expect comma"
 #define ERROR_EXPECT_DATA_TYPE							12, "expect data type"
 #define ERROR_EXPECT_INITIALIZER_IF_NO_TYPE_SPECIFIED	13, "expect initializer when no type specified"
+#define ERROR_EXPECT_LPAREN								14, "expect `(`"
+#define ERROR_EXPECT_RPAREN								15, "expect `)`"
 
 ///// LEXER /////
 typedef struct {
