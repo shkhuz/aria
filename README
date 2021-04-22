@@ -1,0 +1,39 @@
+Aria
+====
+
+This repository houses the Aria compiler/toolchain and the language specification. Please do not
+use the compiler for non-trivial projects, or anything for that matter. The language is too buggy
+and not very stable at the moment. 
+
+Sample Code 
+===========
+
+namespace math {
+	struct Vector2 {
+		x, y: f32,
+	
+		fn add(self, other: Vector2) {
+			Self {
+				x: self.x + other.x,
+				y: self.y + other.y,
+			}
+		}
+	}
+}
+
+fn allocate_memory(n: usize): u8[]! {
+	let mem = gp_allocator_mem(n)?;
+	{ mem, n }
+}
+
+Installing
+==========
+
+git clone https://github.com/huzaifash/aria.git
+cd aria/
+make
+
+License
+=======
+
+This project is MIT licensed. See the `License` file for more details.
