@@ -1,12 +1,12 @@
 Aria
 ====
 
-This repository houses the Aria compiler/toolchain and the language specification. Please do not
-use the compiler for non-trivial projects, or anything for that matter. The language is too buggy
-and not very stable at the moment. 
+This repository houses the Aria compiler/toolchain and the language specification. Please do not use the compiler for non-trivial projects, or anything for that matter. The language is too buggy and not very stable at the moment. 
 
 Sample Code 
 ===========
+
+// Code shown below is only written to show the various language constructs. 
 
 namespace math {
 	struct Vector2 {
@@ -24,6 +24,17 @@ namespace math {
 fn allocate_memory(n: usize): u8[]! {
 	let mem = gp_allocator_mem(n)?;
 	{ mem, n }
+}
+
+fn open_file(fpath: string): std::File? {
+	// os-specific file handling ...
+	if got_handle {
+		std::File {
+			// ...
+		}
+	} else {
+		none
+	}
 }
 
 Installing
