@@ -19,7 +19,15 @@ static void print_indent(AstPrinter* self) {
 	}
 }
 
+static void static_accessor(StaticAccessor sa) {
+	buf_loop(sa.accessors, a) {
+		print_tok(sa.accessors[a]);
+		printf("::");
+	}
+}
+
 static void data_type_named(AstPrinter* self, DataType* dt) {
+	static_accessor(dt->named.static_accessor);
 	print_tok(dt->named.ident);
 }
 
@@ -68,7 +76,8 @@ static void data_type(AstPrinter* self, DataType* dt) {
 }
 
 static void expr_ident(AstPrinter* self, Expr* e) {
-	print_tok(e->ident);
+	static_accessor(e->ident.static_accessor);
+	print_tok(e->ident.ident);
 }
 
 static void expr_block(AstPrinter* self, Expr* e) {

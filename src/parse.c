@@ -11,6 +11,14 @@ static Token* current(Parser* self) {
 	return null;
 }
 
+static Token* next(Parser* self) {
+	if ((self->token_idx + 1) < buf_len(self->srcfile->tokens)) {
+		return self->srcfile->tokens[self->token_idx + 1];
+	}
+	assert(0);
+	return null;
+}
+
 static Token* previous(Parser* self) {
 	if (self->token_idx > 0) {
 		return self->srcfile->tokens[self->token_idx - 1];
@@ -102,6 +110,9 @@ static void expect(Parser* self, TokenType ty, u32 code, char* fmt, ...) {
 #define chkv(stmt) \
 	es; stmt; er;
 
+#define chkf(stmt) \
+	es; stmt; er false;
+
 // loop
 #define chklp(stmt) \
 	es; stmt; ec;
@@ -177,8 +188,9 @@ static void __expect_data_type(Parser* self) {
 #define expect_data_type(self) \
 	chk(__expect_data_type(self))
 
-#define alloc_data_type_named(__name, __ident) \
+#define alloc_data_type_named(__name, __static_accessor, __ident) \
 	alloc_with_type(__name, DataType); \
+	__name->named.static_accessor = __static_accessor; \
 	__name->named.ident = __ident;
 
 #define alloc_data_type_struct(__name, __struct_keyword, __ident, __fields) \
@@ -226,9 +238,32 @@ static DataType* parse_struct(Parser* self, bool is_stmt) {
 	return struct_dt;
 }
 
+static StaticAccessor parse_static_accessor(Parser* self) {
+	StaticAccessor sa;
+	sa.accessors = null;
+	while (true) {
+		if (current(self)->ty == TT_IDENT && next(self)->ty == TT_DOUBLE_COLON) {
+			buf_push(sa.accessors, current(self));
+			goto_next_token(self);
+			goto_next_token(self);
+		} else {
+			break;
+		}
+	}
+	return sa;
+}
+
 static bool match_data_type(Parser* self) {
-	if (match_ident(self)) {
-		alloc_data_type_named(dt, previous(self));
+	if (current(self)->ty == TT_IDENT) {
+		StaticAccessor sa = parse_static_accessor(self);
+
+		if (sa.accessors == null) {
+			goto_next_token(self);
+		} else {
+			chkf(expect(self, TT_IDENT, ERROR_EXPECT_IDENT));
+		}
+
+		alloc_data_type_named(dt, sa, previous(self));
 		self->matched_dt = dt;
 		return true;
 	} else if (match_keyword(self, "struct")) {
@@ -240,10 +275,11 @@ static bool match_data_type(Parser* self) {
 	return false;
 }
 
-#define alloc_expr_ident(__name, __ident) \
+#define alloc_expr_ident(__name, __static_accessor, __ident) \
 	alloc_with_type(__name, Expr); \
 	__name->ty = ET_IDENT; \
-	__name->ident = __ident;
+	__name->ident.static_accessor = __static_accessor; \
+	__name->ident.ident = __ident;
 
 #define alloc_block(__name, __stmts, __value) \
 	alloc_with_type(__name, Block); \
@@ -272,8 +308,16 @@ static Stmt* top_level_stmt(Parser* self);
 static Expr* expr(Parser* self);
 
 static Expr* expr_atom(Parser* self) {
-	if (match_ident(self)) {	
-		alloc_expr_ident(ident, previous(self));
+	if (current(self)->ty == TT_IDENT) {	
+		StaticAccessor sa = parse_static_accessor(self);
+
+		if (sa.accessors == null) {
+			goto_next_token(self);
+		} else {
+			expect_ident(self);
+		}
+
+		alloc_expr_ident(ident, sa, previous(self));
 		return ident;
 	} else if (match_token_type(self, TT_LBRACE)) {
 		Stmt** stmts = null;
@@ -480,7 +524,7 @@ static Stmt* top_level_stmt(Parser* self) {
 
 		assert(0);
 		return null;
-	} else if (current(self)->ty == TT_IDENT && self->srcfile->tokens[self->token_idx + 1]->ty == TT_COLON) {
+	} else if (current(self)->ty == TT_IDENT && next(self)->ty == TT_COLON) {
 		Token* ident = current(self);
 		goto_next_token(self);
 		expect_colon(self);

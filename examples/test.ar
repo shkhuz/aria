@@ -1,7 +1,9 @@
 namespace std {
 	namespace cool {
+		variable := cool();
+
 		struct string {
-			len: usize,
+			len: std::ty::x64::usize,
 		}
 
 		fn nested_fn() {
@@ -40,16 +42,18 @@ fn start(): noreturn {
 		name: string,
 	} 
 
-	//std::cool::nested_fn();
+	std::fjdk::dkfj::cool::nested_fn();
 	//str: std::cool::string;
 
 	// get colors
 	// print colors
 	//string: std::string;
+
+	printf(std::cool::variable);
 }
 
 foo;
-foo + bar;
+foo + fd::bar;
 
 game: Game = get_game();
 game: Game;

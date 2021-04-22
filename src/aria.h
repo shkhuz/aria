@@ -18,6 +18,7 @@ typedef enum {
 	TT_RBRACE,
 	TT_SEMICOLON,
 	TT_COLON,
+	TT_DOUBLE_COLON,
 	TT_COMMA,
 	TT_PLUS,
 	TT_MINUS,
@@ -56,10 +57,16 @@ typedef struct {
 	Expr* initializer;
 } Variable;
 
+// `::`
+typedef struct {
+	Token** accessors;
+} StaticAccessor;
+
 struct DataType {
 	DataTypeType ty;
 	union {
 		struct {
+			StaticAccessor static_accessor;
 			Token* ident;
 		} named;
 
@@ -93,7 +100,10 @@ typedef struct {
 struct Expr {
 	ExprType ty;
 	union {
-		Token* ident;	
+		struct {
+			StaticAccessor static_accessor;
+			Token* ident;	
+		} ident;
 		Block* block; // TODO: maybe remove the pointer (anonymous struct)
 		struct {
 			Expr* left;

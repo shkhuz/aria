@@ -46,6 +46,14 @@ static void error_from_start_to_current(Lexer* self, u32 code, char* fmt, ...) {
 	va_end(ap);
 }
 
+static bool match(Lexer* self, char c) {
+	if (*(self->current + 1) == c) {
+		self->current++;
+		return true;
+	}
+	return false;
+}
+
 void lexer_init(Lexer* self, SrcFile* srcfile) {
 	self->srcfile = srcfile;
 	self->srcfile->tokens = null;
@@ -104,12 +112,18 @@ void lexer_lex(Lexer* self) {
 				self->current++; \
 				push_tok_by_type(self, ty);
 
+			#define push_tok_by_char_if_match(self, c, if_matched_ty, else_ty) \
+			{ \
+				if (match(self, c)) { push_tok_by_type_for_char(self, if_matched_ty); } \
+				else { push_tok_by_type_for_char(self, else_ty); } \
+			}
+
 			case '(': push_tok_by_type_for_char(self, TT_LPAREN); break;
 			case ')': push_tok_by_type_for_char(self, TT_RPAREN); break;
 			case '{': push_tok_by_type_for_char(self, TT_LBRACE); break;
 			case '}': push_tok_by_type_for_char(self, TT_RBRACE); break;
 			case ';': push_tok_by_type_for_char(self, TT_SEMICOLON); break;
-			case ':': push_tok_by_type_for_char(self, TT_COLON); break;
+			case ':': push_tok_by_char_if_match(self, ':', TT_DOUBLE_COLON, TT_COLON); break;
 			case ',': push_tok_by_type_for_char(self, TT_COMMA); break;
 			case '+': push_tok_by_type_for_char(self, TT_PLUS); break;
 			case '-': push_tok_by_type_for_char(self, TT_MINUS); break;
