@@ -1,6 +1,6 @@
 namespace std {
 	namespace cool {
-		variable := cool();
+		let variable = cool();
 
 		struct string {
 			len: std::ty::x64::usize,
@@ -9,9 +9,7 @@ namespace std {
 		fn nested_fn() {
 			fn _1() {
 				fn _2() {
-					var := get_function();
 					var();
-
 					get_function(a, b)(a, b, c);
 				}
 			}
@@ -37,7 +35,7 @@ fn cool(): struct { } {
 }
 
 fn start(): noreturn {
-	val := get_val;
+	let val = get_val;
 	struct Game { 
 		name: string,
 	} 
@@ -55,6 +53,10 @@ fn start(): noreturn {
 foo;
 foo + fd::bar;
 
-game: Game = get_game();
-game: Game;
-game := get_game() + game;
+//game: Game = get_game();
+//game: Game;
+//game := get_game() + game;
+
+let game: Game = get_game();
+let game: Game;
+let game = get_game() + game;

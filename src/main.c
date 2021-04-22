@@ -8,6 +8,7 @@ char* keywords[KEYWORDS_LEN] = {
 	"namespace",
 	"struct",
 	"fn",
+	"let",
 	"_",
 };
 

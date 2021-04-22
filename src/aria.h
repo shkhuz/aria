@@ -255,7 +255,7 @@ void ast_printer_init(AstPrinter* self, SrcFile* srcfile);
 void ast_printer_print(AstPrinter* self);
 
 ///// MISC /////
-#define KEYWORDS_LEN 4
+#define KEYWORDS_LEN 5
 
 extern char* executable_path_from_argv;
 extern char* keywords[KEYWORDS_LEN];

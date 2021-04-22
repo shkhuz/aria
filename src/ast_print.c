@@ -34,14 +34,7 @@ static void data_type_named(AstPrinter* self, DataType* dt) {
 static void variable(AstPrinter* self, Variable* v) {
 	print_tok(v->ident);
 	printf(": ");
-	if (v->dt) {
-		data_type(self, v->dt);
-	}
-
-	if (v->initializer) {
-		printf(" = ");
-		expr(self, v->initializer);
-	}
+	data_type(self, v->dt);
 }
 
 static void data_type_struct(AstPrinter* self, DataType* dt) {
@@ -156,9 +149,7 @@ static void function_header(AstPrinter* self, FunctionHeader* h) {
 
 	print_lparen();
 	buf_loop(h->params, p) {
-		print_tok(h->params[p]->ident);
-		printf(": ");
-		data_type(self, h->params[p]->dt);
+		variable(self, h->params[p]);
 		if (p < buf_len(h->params) - 1) {
 			printf(", ");
 		}
@@ -184,7 +175,17 @@ static void stmt_function_prototype(AstPrinter* self, Stmt* s) {
 }
 
 static void stmt_variable(AstPrinter* self, Stmt* s) {
-	variable(self, s->variable);
+	printf("let ");
+	print_tok(s->variable->ident);
+	if (s->variable->dt) {
+		printf(": ");
+		data_type(self, s->variable->dt);
+	}
+
+	if (s->variable->initializer) {
+		printf(" = ");
+		expr(self, s->variable->initializer);
+	}
 }
 
 static void stmt_expr(AstPrinter* self, Stmt* s) {

@@ -524,18 +524,20 @@ static Stmt* top_level_stmt(Parser* self) {
 
 		assert(0);
 		return null;
-	} else if (current(self)->ty == TT_IDENT && next(self)->ty == TT_COLON) {
-		Token* ident = current(self);
-		goto_next_token(self);
-		expect_colon(self);
+	} else if (match_keyword(self, "let")) {
+		expect_ident(self);
+		Token* ident = previous(self);
 
-		chk_match_data_type(self, matched);
-		DataType* dt = (matched ? self->matched_dt : null);
+		DataType* dt = null;
+		if (match_token_type(self, TT_COLON)) {
+			expect_data_type(self);
+			dt = self->matched_dt;
+		}
 
 		Expr* initializer = null;
 		if (match_token_type(self, TT_EQUAL)) {
 			EXPR_ND(initializer, expr, self);
-		} else if (!matched) {
+		} else if (!dt) {
 			error_token_with_sync(self, current(self), ERROR_EXPECT_INITIALIZER_IF_NO_TYPE_SPECIFIED);
 			return null;
 		}
