@@ -5,8 +5,9 @@ char* executable_path_from_argv;
 
 // --- NOTE: update KEYWORDS_LEN after adding to keywords ---
 char* keywords[KEYWORDS_LEN] = {
-	"fn",
+	"namespace",
 	"struct",
+	"fn",
 	"_",
 };
 

@@ -376,6 +376,13 @@ static Stmt* stmt_expr(Parser* self) {
 	return s;
 }
 
+#define alloc_stmt_namespace(__name, __namespace_keyword, __ident, __stmts) \
+	alloc_with_type(__name, Stmt); \
+	__name->ty = ST_NAMESPACE; \
+	__name->namespace_.namespace_keyword = __namespace_keyword; \
+	__name->namespace_.ident = __ident; \
+	__name->namespace_.stmts = __stmts;
+
 #define alloc_stmt_struct(__name, __struct_dt) \
 	alloc_with_type(__name, Stmt); \
 	__name->ty = ST_STRUCT; \
@@ -438,7 +445,25 @@ static FunctionHeader* parse_function_header(Parser* self) {
 }
 
 static Stmt* top_level_stmt(Parser* self) {
-	if (match_keyword(self, "fn")) {
+	if (match_keyword(self, "struct")) {
+		alloc_stmt_struct(s, parse_struct(self, true));
+		return s;
+	} else if (match_keyword(self, "namespace")) {
+		Token* namespace_keyword = previous(self);
+		expect_ident(self);
+		Token* ident = previous(self);
+
+		Stmt** stmts = null;
+		expect_lbrace(self);
+		while (!match_token_type(self, TT_RBRACE)) {
+			Stmt* s = top_level_stmt(self);
+			if (self->error) return null;
+			if (s) buf_push(stmts, s);
+		}
+
+		alloc_stmt_namespace(s, namespace_keyword, ident, stmts);
+		return s;
+	} else if (match_keyword(self, "fn")) {
 		FunctionHeader* h = null;
 		chk(h = parse_function_header(self));
 
@@ -455,9 +480,6 @@ static Stmt* top_level_stmt(Parser* self) {
 
 		assert(0);
 		return null;
-	} else if (match_keyword(self, "struct")) {
-		alloc_stmt_struct(s, parse_struct(self, true));
-		return s;
 	} else if (current(self)->ty == TT_IDENT && self->srcfile->tokens[self->token_idx + 1]->ty == TT_COLON) {
 		Token* ident = current(self);
 		goto_next_token(self);

@@ -107,6 +107,7 @@ struct Expr {
 };
 
 typedef enum {
+	ST_NAMESPACE,
 	ST_STRUCT,
 	ST_FUNCTION,
 	ST_FUNCTION_PROTOTYPE,
@@ -125,6 +126,14 @@ typedef struct {
 struct Stmt {
 	StmtType ty;
 	union {
+		struct {
+			Token* namespace_keyword;
+			Token* ident;
+
+			// A `Block` isn't used because namespaces don't
+			// return anything, and blocks have value.
+			Stmt** stmts;
+		} namespace_;
 		DataType* struct_;
 		struct {
 			FunctionHeader* header;
@@ -236,7 +245,7 @@ void ast_printer_init(AstPrinter* self, SrcFile* srcfile);
 void ast_printer_print(AstPrinter* self);
 
 ///// MISC /////
-#define KEYWORDS_LEN 3
+#define KEYWORDS_LEN 4
 
 extern char* executable_path_from_argv;
 extern char* keywords[KEYWORDS_LEN];

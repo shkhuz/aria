@@ -1,3 +1,24 @@
+namespace std {
+	namespace cool {
+		struct string {
+			len: usize,
+		}
+
+		fn nested_fn() {
+			fn _1() {
+				fn _2() {
+					var := get_function();
+					var();
+
+					get_function(a, b)(a, b, c);
+				}
+			}
+		}
+	}
+}
+
+struct foo {}
+
 struct baz {
 	foo: struct { c: char },
 	baz: int, 
@@ -18,17 +39,13 @@ fn start(): noreturn {
 	struct Game { 
 		name: string,
 	} 
-}
 
-fn nested_fn() {
-	fn _1() {
-		fn _2() {
-			var := get_function();
-			var();
+	//std::cool::nested_fn();
+	//str: std::cool::string;
 
-			get_function(a, b)(a, b, c);
-		}
-	}
+	// get colors
+	// print colors
+	//string: std::string;
 }
 
 foo;

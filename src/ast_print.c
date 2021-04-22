@@ -125,6 +125,18 @@ static void expr(AstPrinter* self, Expr* e) {
 	}
 }
 
+static void stmt_namespace(AstPrinter* self, Stmt* s) {
+	printf("namespace ");
+	print_tok(s->namespace_.ident);
+	print_newline();
+
+	self->indent++;
+	buf_loop(s->namespace_.stmts, i) {
+		stmt(self, s->namespace_.stmts[i]);
+	}
+	self->indent--;
+}
+
 static void stmt_struct(AstPrinter* self, Stmt* s) {
 	data_type(self, s->struct_);
 }
@@ -174,6 +186,9 @@ static void stmt_expr(AstPrinter* self, Stmt* s) {
 static void stmt(AstPrinter* self, Stmt* s) {
 	print_indent(self);
 	switch (s->ty) {
+		case ST_NAMESPACE:
+			stmt_namespace(self, s);
+			break;
 		case ST_STRUCT:
 			stmt_struct(self, s);
 			break;
