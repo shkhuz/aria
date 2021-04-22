@@ -1,11 +1,12 @@
-Aria
-====
+# Aria
 
-This repository houses the Aria compiler/toolchain and the language specification. Please do not use the compiler for non-trivial projects, or anything for that matter. The language is too buggy and not very stable at the moment. 
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/huzaifash/aria/build?style=plastic)
 
-Sample Code 
-===========
+This repository houses the Aria compiler/toolchain and the language specification. 
 
+# Sample Code 
+
+```rust
 // Code shown below is only written to show the various language constructs. 
 
 namespace math {
@@ -36,15 +37,18 @@ fn open_file(fpath: string): std::File? {
 		none
 	}
 }
+```
 
-Installing
-==========
+# Building
 
+```sh
 git clone https://github.com/huzaifash/aria.git
 cd aria/
 make
+```
 
 License
 =======
 
-This project is MIT licensed. See the `License` file for more details.
+This project is MIT licensed. See the `License` file 
+for more details.
