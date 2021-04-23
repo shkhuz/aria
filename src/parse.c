@@ -281,15 +281,11 @@ static bool match_data_type(Parser* self) {
 	__name->ident.static_accessor = __static_accessor; \
 	__name->ident.ident = __ident;
 
-#define alloc_block(__name, __stmts, __value) \
-	alloc_with_type(__name, Block); \
-	__name->stmts = __stmts; \
-	__name->value = __value;
-
-#define alloc_expr_block(__name, __block) \
+#define alloc_expr_block(__name, __stmts, __value) \
 	alloc_with_type(__name, Expr); \
 	__name->ty = ET_BLOCK; \
-	__name->block = __block;
+	__name->block.stmts = __stmts; \
+	__name->block.value = __value;
 
 #define alloc_expr_function_call(__name, __left, __args) \
 	alloc_with_type(__name, Expr); \
@@ -327,8 +323,7 @@ static Expr* expr_atom(Parser* self) {
 			if (s) buf_push(stmts, s);
 		}
 
-		alloc_block(b, stmts, null);
-		alloc_expr_block(e, b);
+		alloc_expr_block(e, stmts, null);
 		return e;
 	} else {
 		error_token_with_sync(
