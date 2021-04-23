@@ -92,6 +92,11 @@ typedef enum {
 	ET_NONE,
 } ExprType;
 
+typedef struct {
+	Stmt** stmts;
+	Expr* value;
+} Block;
+
 struct Expr {
 	ExprType ty;
 	union {
@@ -99,17 +104,11 @@ struct Expr {
 			StaticAccessor static_accessor;
 			Token* ident;	
 		} ident;
-
-		struct {
-			Stmt** stmts;
-			Expr* value;
-		} block;
-
+		Block* block; // TODO: maybe remove the pointer (anonymous struct)
 		struct {
 			Expr* left;
 			Expr** args;
 		} function_call;
-
 		struct {
 			Expr* left, *right;
 			Token* op;
