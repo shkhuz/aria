@@ -445,10 +445,11 @@ static Stmt* stmt_expr(Parser* self) {
 	__name->params = __params; \
 	__name->return_data_type = __return_data_type;
 
-#define alloc_stmt_variable(__name, __variable) \
+#define alloc_stmt_variable(__name, __variable, __mut) \
 	alloc_with_type(__name, Stmt); \
 	__name->ty = ST_VARIABLE; \
-	__name->variable = __variable;
+	__name->variable.variable = __variable; \
+	__name->variable.mut = __mut;
 
 static FunctionHeader* parse_function_header(Parser* self) {
 	Token* fn_keyword = previous(self);
@@ -520,6 +521,11 @@ static Stmt* top_level_stmt(Parser* self) {
 		assert(0);
 		return null;
 	} else if (match_keyword(self, "let")) {
+		bool mut = false;
+		if (match_keyword(self, "mut")) {
+			mut = true;
+		}
+
 		expect_ident(self);
 		Token* ident = previous(self);
 
@@ -539,7 +545,7 @@ static Stmt* top_level_stmt(Parser* self) {
 
 		expect_semicolon(self);
 		alloc_variable(s_variable, ident, dt, initializer);
-		alloc_stmt_variable(s, s_variable);
+		alloc_stmt_variable(s, s_variable, mut);
 		return s;
 	} else {
 		/* error_token_with_sync(self, current(self), 10, "invalid top-level token"); */

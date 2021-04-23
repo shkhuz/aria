@@ -176,15 +176,19 @@ static void stmt_function_prototype(AstPrinter* self, Stmt* s) {
 
 static void stmt_variable(AstPrinter* self, Stmt* s) {
 	printf("let ");
-	print_tok(s->variable->ident);
-	if (s->variable->dt) {
-		printf(": ");
-		data_type(self, s->variable->dt);
+	if (s->variable.mut) {
+		printf("mut ");
 	}
 
-	if (s->variable->initializer) {
+	print_tok(s->variable.variable->ident);
+	if (s->variable.variable->dt) {
+		printf(": ");
+		data_type(self, s->variable.variable->dt);
+	}
+
+	if (s->variable.variable->initializer) {
 		printf(" = ");
-		expr(self, s->variable->initializer);
+		expr(self, s->variable.variable->initializer);
 	}
 }
 
