@@ -7,8 +7,6 @@ This repository houses the Aria compiler/toolchain and the language specificatio
 # Sample Code 
 
 ```rust
-// Code shown below is only written to show the various language constructs. 
-
 namespace math {
 	struct Vector2 {
 		x, y: f32,
@@ -21,12 +19,20 @@ namespace math {
 		}
 	}
 }
+```
 
+## Errors
+
+```rust
 fn allocate_memory(n: usize): u8[]! {
 	let mem = gp_allocator_mem(n)?;
 	{ mem, n }
 }
+```
 
+## Optionals
+
+```rust
 fn open_file(fpath: string): std::File? {
 	// os-specific file handling ...
 	if got_handle {
