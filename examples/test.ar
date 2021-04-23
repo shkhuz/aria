@@ -46,6 +46,7 @@ fn start(): noreturn {
 	// get colors
 	// print colors
 	let mut string: std::string;
+	str = string = get_string();
 
 	printf(std::cool::variable);
 

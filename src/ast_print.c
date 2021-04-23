@@ -105,6 +105,16 @@ static void expr_binary(AstPrinter* self, Expr* e) {
 	print_rparen();
 }
 
+static void expr_assign(AstPrinter* self, Expr* e) {
+	print_lparen();
+	print_tok(e->assign.op);
+	print_space();
+	expr(self, e->assign.left);
+	print_space();
+	expr(self, e->assign.right);
+	print_rparen();
+}
+
 static void expr(AstPrinter* self, Expr* e) {
 	switch (e->ty) {
 		case ET_IDENT: 
@@ -122,6 +132,8 @@ static void expr(AstPrinter* self, Expr* e) {
 		case ET_BINARY_DIVIDE:
 			expr_binary(self, e);
 			break;
+		case ET_ASSIGN:
+			expr_assign(self, e);
 		case ET_NONE: 
 			break;
 	}

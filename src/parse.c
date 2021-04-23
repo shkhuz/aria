@@ -300,6 +300,13 @@ static bool match_data_type(Parser* self) {
 	__name->binary.right = __right; \
 	__name->binary.op = __op;
 
+#define alloc_expr_assign(__name, __left, __right, __op) \
+	alloc_with_type(__name, Expr); \
+	__name->ty = ET_ASSIGN; \
+	__name->assign.left = __left; \
+	__name->assign.right = __right; \
+	__name->assign.op = __op;
+
 static Stmt* top_level_stmt(Parser* self);
 static Expr* expr(Parser* self);
 
@@ -399,8 +406,24 @@ static Expr* expr_binary_add_sub(Parser* self) {
 	return left;
 }
 
+static Expr* expr_assign(Parser* self) {
+	EXPR_CI(left, expr_binary_add_sub, self);
+	// TODO: should this be recursive?
+	// Or an if statement 
+	// Then this would not be possible:
+	// `a = b = value;`
+	while (match_token_type(self, TT_EQUAL)) {
+		Token* op = previous(self);
+		EXPR_CI(right, expr_assign, self);
+
+		alloc_expr_assign(assign, left, right, op);
+		left = assign;
+	}
+	return left;
+}
+
 static Expr* expr(Parser* self) {
-	return expr_binary_add_sub(self);
+	return expr_assign(self);
 }	
 
 #define alloc_stmt_expr(__name, __expr) \

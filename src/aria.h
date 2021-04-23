@@ -89,6 +89,7 @@ typedef enum {
 	ET_IDENT,
 	ET_BLOCK,
 	ET_FUNCTION_CALL,
+	ET_ASSIGN,
 	ET_NONE,
 } ExprType;
 
@@ -114,6 +115,11 @@ struct Expr {
 			Expr* left, *right;
 			Token* op;
 		} binary;
+
+		struct {
+			Expr* left, *right;
+			Token* op;
+		} assign;
 	};
 };
 
