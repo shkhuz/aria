@@ -41,22 +41,35 @@ fn start(): noreturn {
 	} 
 
 	std::fjdk::dkfj::cool::nested_fn();
-	//str: std::cool::string;
+	let str: std::cool::string;
 
 	// get colors
 	// print colors
-	//string: std::string;
+	let mut string: std::string;
 
 	printf(std::cool::variable);
+
+    // let i = 10;
+    // take_ptr(&i);
 }
+
+// fn take_ptr(ptr: const usize*) {}
 
 foo;
 foo + fd::bar;
 
-//game: Game = get_game();
-//game: Game;
-//game := get_game() + game;
+// game: Game = get_game();
+// game: Game;
+// game := get_game() + game;
 
 let game: Game = get_game();
 let game: Game;
 let game = get_game() + game;
+
+// ---------------------------
+
+fn main() {
+    // let mut i = 12;
+    // let ptr = &i;
+    // *ptr += 1;
+}

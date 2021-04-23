@@ -145,14 +145,20 @@ struct Stmt {
 			// return anything, and blocks have value.
 			Stmt** stmts;
 		} namespace_;
-		DataType* struct_;
+
 		struct {
 			FunctionHeader* header;
 			Expr* body;
 		} function;
+
+		struct {
+			Variable* variable;
+			bool mut;
+		} variable;
+
 		FunctionHeader* function_prototype;
-		Variable* variable;
 		Expr* expr;
+		DataType* struct_;
 	};
 };
 
@@ -256,7 +262,7 @@ void ast_printer_init(AstPrinter* self, SrcFile* srcfile);
 void ast_printer_print(AstPrinter* self);
 
 ///// MISC /////
-#define KEYWORDS_LEN 5
+#define KEYWORDS_LEN 6
 
 extern char* executable_path_from_argv;
 extern char* keywords[KEYWORDS_LEN];
