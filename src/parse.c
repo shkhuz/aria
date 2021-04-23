@@ -332,6 +332,10 @@ static Expr* expr_atom(Parser* self) {
 
 		alloc_expr_block(e, stmts, null);
 		return e;
+	} else if (match_token_type(self, TT_LPAREN)) {
+		EXPR(e);
+		expect_rparen(self);
+		return e;
 	} else {
 		error_token_with_sync(
 				self,

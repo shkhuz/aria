@@ -52,6 +52,8 @@ fn start(): noreturn {
 
     // let i = 10;
     // take_ptr(&i);
+
+	let i = (a + (b - d)) * c;
 }
 
 // fn take_ptr(ptr: const usize*) {}
