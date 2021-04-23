@@ -77,8 +77,8 @@ static void expr_block(AstPrinter* self, Expr* e) {
 	/* printf("block "); */
 	print_newline();
 	self->indent++;
-	buf_loop(e->block->stmts, s) {
-		stmt(self, e->block->stmts[s]);
+	buf_loop(e->block.stmts, s) {
+		stmt(self, e->block.stmts[s]);
 	}
 	self->indent--;
 }
