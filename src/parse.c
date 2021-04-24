@@ -381,11 +381,22 @@ static Expr* expr_postfix(Parser* self) {
 }
 
 static Expr* expr_unary(Parser* self) {
-	if (match_token_type(self, TT_AMPERSAND)) {
+	if (match_token_type(self, TT_AMPERSAND) || match_token_type(self, TT_STAR)) {
 		Token* op = previous(self);
+		ExprType ty;
+		switch (op->ty) {
+			case TT_AMPERSAND:
+				ty = ET_UNARY_DEREF;
+				break;
+			case TT_STAR:
+				ty = ET_UNARY_REF;
+				break;
+			default:
+				break;
+		}
 		EXPR_CI(right, expr_unary, self);
 
-		alloc_expr_unary(e, ET_UNARY_DEREF, op, right);
+		alloc_expr_unary(e, ty, op, right);
 		return e;
 	}
 	return expr_postfix(self);

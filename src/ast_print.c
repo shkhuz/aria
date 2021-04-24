@@ -141,6 +141,7 @@ static void expr(AstPrinter* self, Expr* e) {
 			expr_function_call(self, e);
 			break;
 		case ET_UNARY_DEREF:
+		case ET_UNARY_REF:
 			expr_unary(self, e); 
 			break;
 		case ET_BINARY_ADD:
