@@ -25,6 +25,7 @@ typedef enum {
 	TT_STAR,
 	TT_FSLASH,
 	TT_EQUAL,
+	TT_AMPERSAND,
 	TT_EOF,
 	TT_NONE,
 } TokenType;
@@ -91,6 +92,7 @@ typedef enum {
 	ET_BINARY_SUBTRACT,
 	ET_BINARY_MULTIPLY,
 	ET_BINARY_DIVIDE,
+	ET_UNARY_DEREF,
 	ET_IDENT,
 	ET_BLOCK,
 	ET_FUNCTION_CALL,
@@ -115,6 +117,11 @@ struct Expr {
 			Expr* left;
 			Expr** args;
 		} function_call;
+
+		struct {
+			Token* op;
+			Expr* right;
+		} unary;
 
 		struct {
 			Expr* left, *right;

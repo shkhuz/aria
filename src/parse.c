@@ -303,6 +303,12 @@ static bool match_data_type(Parser* self) {
 	__name->function_call.left = __left; \
 	__name->function_call.args = __args;
 
+#define alloc_expr_unary(__name, __ty, __op, __right) \
+	alloc_with_type(__name, Expr); \
+	__name->ty = __ty; \
+	__name->unary.op = __op; \
+	__name->unary.right = __right;
+
 #define alloc_expr_binary(__name, __ty, __left, __right, __op) \
 	alloc_with_type(__name, Expr); \
 	__name->ty = __ty; \
@@ -374,8 +380,19 @@ static Expr* expr_postfix(Parser* self) {
 	return left;
 }
 
+static Expr* expr_unary(Parser* self) {
+	if (match_token_type(self, TT_AMPERSAND)) {
+		Token* op = previous(self);
+		EXPR_CI(right, expr_unary, self);
+
+		alloc_expr_unary(e, ET_UNARY_DEREF, op, right);
+		return e;
+	}
+	return expr_postfix(self);
+}
+
 static Expr* expr_binary_mul_div(Parser* self) {
-	EXPR_CI(left, expr_postfix, self);	
+	EXPR_CI(left, expr_unary, self);	
 	while (match_token_type(self, TT_STAR) || match_token_type(self, TT_FSLASH)) {
 		Token* op = previous(self);
 		ExprType ty;
@@ -389,7 +406,7 @@ static Expr* expr_binary_mul_div(Parser* self) {
 			default:
 				break;
 		}
-		EXPR_CI(right, expr_postfix, self);
+		EXPR_CI(right, expr_unary, self);
 
 		alloc_expr_binary(binary, ty, left, right, op);
 		left = binary;

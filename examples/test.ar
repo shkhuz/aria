@@ -63,10 +63,18 @@ fn start(): noreturn {
     let ptr: *const u8;
     let ptr: *const *const u8;
     let ptr: *const *const *const u8;
-    let ptr: *u8;
-    let ptr: **u8;
-    let ptr: *const **u8;
-    let ptr: ****const ****u8;
+    let mut ptr: *u8;
+    let mut ptr: **u8;
+    let mut ptr: *const **u8;
+    let mut ptr: ****const ****u8;
+
+    let a: u8;
+    let p = &a;
+
+    // let arr: [u8; 5];
+    // let slice: [u8];
+    // let const_slice: [const u8];
+
 }
 
 // fn take_ptr(ptr: const usize*) {}

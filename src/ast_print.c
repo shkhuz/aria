@@ -101,6 +101,14 @@ static void expr_function_call(AstPrinter* self, Expr* e) {
 	print_rparen();
 }
 
+static void expr_unary(AstPrinter* self, Expr* e) {
+	print_lparen();
+	print_tok(e->unary.op);
+	print_space();
+	expr(self, e->unary.right);
+	print_rparen();
+}
+
 static void expr_binary(AstPrinter* self, Expr* e) {
 	print_lparen();
 	print_tok(e->binary.op);
@@ -131,6 +139,9 @@ static void expr(AstPrinter* self, Expr* e) {
 			break;
 		case ET_FUNCTION_CALL:
 			expr_function_call(self, e);
+			break;
+		case ET_UNARY_DEREF:
+			expr_unary(self, e); 
 			break;
 		case ET_BINARY_ADD:
 		case ET_BINARY_SUBTRACT:
