@@ -27,6 +27,12 @@ static void static_accessor(StaticAccessor sa) {
 }
 
 static void data_type_named(AstPrinter* self, DataType* dt) {
+	buf_loop(dt->named.pointers, p) {
+		printf("*");
+		if (dt->named.pointers[p].is_const) {
+			printf("const ");
+		}
+	}
 	static_accessor(dt->named.static_accessor);
 	print_tok(dt->named.ident);
 }
@@ -188,7 +194,7 @@ static void stmt_function_prototype(AstPrinter* self, Stmt* s) {
 
 static void stmt_variable(AstPrinter* self, Stmt* s) {
 	printf("let ");
-	if (s->variable.mut) {
+	if (s->variable.is_mut) {
 		printf("mut ");
 	}
 

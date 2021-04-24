@@ -10,6 +10,7 @@ char* keywords[KEYWORDS_LEN] = {
 	"fn",
 	"let",
 	"mut",
+	"const",
 	"_",
 };
 

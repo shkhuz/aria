@@ -188,8 +188,9 @@ static void __expect_data_type(Parser* self) {
 #define expect_data_type(self) \
 	chk(__expect_data_type(self))
 
-#define alloc_data_type_named(__name, __static_accessor, __ident) \
+#define alloc_data_type_named(__name, __pointers, __static_accessor, __ident) \
 	alloc_with_type(__name, DataType); \
+	__name->named.pointers = __pointers; \
 	__name->named.static_accessor = __static_accessor; \
 	__name->named.ident = __ident;
 
@@ -254,7 +255,16 @@ static StaticAccessor parse_static_accessor(Parser* self) {
 }
 
 static bool match_data_type(Parser* self) {
-	if (current(self)->ty == TT_IDENT) {
+	if (current(self)->ty == TT_IDENT || current(self)->ty == TT_STAR) {
+		Pointer* pointers = null;
+		while (match_token_type(self, TT_STAR)) {
+			bool is_const = false;
+			if (match_keyword(self, "const")) {
+				is_const = true;
+			}
+			buf_push(pointers, (Pointer){ is_const });
+		}
+
 		StaticAccessor sa = parse_static_accessor(self);
 
 		if (sa.accessors == null) {
@@ -263,7 +273,7 @@ static bool match_data_type(Parser* self) {
 			chkf(expect(self, TT_IDENT, ERROR_EXPECT_IDENT));
 		}
 
-		alloc_data_type_named(dt, sa, previous(self));
+		alloc_data_type_named(dt, pointers, sa, previous(self));
 		self->matched_dt = dt;
 		return true;
 	} else if (match_keyword(self, "struct")) {
@@ -472,11 +482,11 @@ static Stmt* stmt_expr(Parser* self) {
 	__name->params = __params; \
 	__name->return_data_type = __return_data_type;
 
-#define alloc_stmt_variable(__name, __variable, __mut) \
+#define alloc_stmt_variable(__name, __variable, __is_mut) \
 	alloc_with_type(__name, Stmt); \
 	__name->ty = ST_VARIABLE; \
 	__name->variable.variable = __variable; \
-	__name->variable.mut = __mut;
+	__name->variable.is_mut = __is_mut;
 
 static FunctionHeader* parse_function_header(Parser* self) {
 	Token* fn_keyword = previous(self);
@@ -548,9 +558,9 @@ static Stmt* top_level_stmt(Parser* self) {
 		assert(0);
 		return null;
 	} else if (match_keyword(self, "let")) {
-		bool mut = false;
+		bool is_mut = false;
 		if (match_keyword(self, "mut")) {
-			mut = true;
+			is_mut = true;
 		}
 
 		expect_ident(self);
@@ -572,7 +582,7 @@ static Stmt* top_level_stmt(Parser* self) {
 
 		expect_semicolon(self);
 		alloc_variable(s_variable, ident, dt, initializer);
-		alloc_stmt_variable(s, s_variable, mut);
+		alloc_stmt_variable(s, s_variable, is_mut);
 		return s;
 	} else {
 		/* error_token_with_sync(self, current(self), 10, "invalid top-level token"); */

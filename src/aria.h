@@ -57,6 +57,10 @@ typedef struct {
 	Expr* initializer;
 } Variable;
 
+typedef struct {
+	bool is_const;
+} Pointer;
+
 // `::`
 typedef struct {
 	Token** accessors;
@@ -66,6 +70,7 @@ struct DataType {
 	DataTypeType ty;
 	union {
 		struct {
+			Pointer* pointers;
 			StaticAccessor static_accessor;
 			Token* ident;
 		} named;
@@ -159,7 +164,7 @@ struct Stmt {
 
 		struct {
 			Variable* variable;
-			bool mut;
+			bool is_mut;
 		} variable;
 
 		FunctionHeader* function_prototype;
@@ -268,7 +273,7 @@ void ast_printer_init(AstPrinter* self, SrcFile* srcfile);
 void ast_printer_print(AstPrinter* self);
 
 ///// MISC /////
-#define KEYWORDS_LEN 6
+#define KEYWORDS_LEN 7
 
 extern char* executable_path_from_argv;
 extern char* keywords[KEYWORDS_LEN];

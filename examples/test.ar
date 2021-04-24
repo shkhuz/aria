@@ -55,10 +55,18 @@ fn start(): noreturn {
 
     let i = (a + (b - d)) * c;
 
-    let c: u8 = 'a';
-    let ptr_to_c: const u8* = &c;
-    let list: const u8** = &ptr_to_c;
-    *list = "hello";
+    // let c: u8 = 'a';
+    // let ptr_to_c: const u8* = &c;
+    // let list: const u8** = &ptr_to_c;
+    // *list = "hello";
+    
+    let ptr: *const u8;
+    let ptr: *const *const u8;
+    let ptr: *const *const *const u8;
+    let ptr: *u8;
+    let ptr: **u8;
+    let ptr: *const **u8;
+    let ptr: ****const ****u8;
 }
 
 // fn take_ptr(ptr: const usize*) {}
