@@ -1,59 +1,64 @@
 namespace std {
-	namespace cool {
-		let variable = cool();
+    namespace cool {
+        let variable = cool();
 
-		struct string {
-			len: std::ty::x64::usize,
-		}
+        struct string {
+            len: std::ty::x64::usize,
+        }
 
-		fn nested_fn() {
-			fn _1() {
-				fn _2() {
-					var();
-					get_function(a, b)(a, b, c);
-				}
-			}
-		}
-	}
+        fn nested_fn() {
+            fn _1() {
+                fn _2() {
+                    var();
+                    get_function(a, b)(a, b, c);
+                }
+            }
+        }
+    }
 }
 
 struct foo {}
 
 struct baz {
-	foo: struct { c: char },
-	baz: int, 
-	bar: struct Vec {
-		items: array,
-		cap: usize,
-	},
+    foo: struct { c: char },
+    baz: int, 
+    bar: struct Vec {
+        items: array,
+        cap: usize,
+    },
 }
 
 fn main(argc: int, argv: char_ptr_ptr): u8;
 
 fn cool(): struct { } {
-	hmm;
+    hmm;
 }
 
 fn start(): noreturn {
-	let val = get_val;
-	struct Game { 
-		name: string,
-	} 
+    let val = get_val;
+    struct Game { 
+        name: string,
+    } 
 
-	std::fjdk::dkfj::cool::nested_fn();
-	let str: std::cool::string;
+    std::fjdk::dkfj::cool::nested_fn();
+    let str: std::cool::string;
 
-	// get colors
-	// print colors
-	let mut string: std::string;
-	str = string = get_string();
+    // get colors
+    // print colors
+    let mut string: std::string;
+    str = string = get_string();
 
-	printf(std::cool::variable);
+    printf(std::cool::variable);
 
     // let i = 10;
     // take_ptr(&i);
 
-	let i = (a + (b - d)) * c;
+    let i = (a + (b - d)) * c;
+
+    let c: u8 = 'a';
+    let ptr_to_c: const u8* = &c;
+    let list: const u8** = &ptr_to_c;
+    *list = "hello";
 }
 
 // fn take_ptr(ptr: const usize*) {}
