@@ -8,20 +8,31 @@ This repository houses the Aria compiler/toolchain and the language specificatio
 
 ```rust
 namespace math {
-	struct Vector2 {
-		x, y: f32,
-	
-		fn add(self, other: Vector2) {
-			Self {
-				x: self.x + other.x,
-				y: self.y + other.y,
-			}
+
+struct Vector2 {
+	x, y: f32,
+
+	fn add(self, other: Vector2) {
+		Self {
+			x: self.x + other.x,
+			y: self.y + other.y,
 		}
 	}
 }
+
+}
 ```
 
-## Errors
+## _Generics_
+
+```rust
+fn max<T>(a: T, b: T) T {
+	if a > b { a }
+	else { b }
+}
+```
+
+## _Errors_
 
 ```rust
 fn allocate_memory(n: usize): u8[]! {
@@ -30,18 +41,36 @@ fn allocate_memory(n: usize): u8[]! {
 }
 ```
 
-## Optionals
+## _Optionals_
 
 ```rust
-fn open_file(fpath: string): std::File? {
-	// os-specific file handling ...
-	if got_handle {
-		std::File {
-			// ...
-		}
+fn main() {
+	std::printf(if open_file("test.txt") |file| {
+		"file successfully opened"
 	} else {
+		"file cannot be opened"
+	});
+}
+
+fn open_file(fpath: string): std::File? {
+	if std::os::openf(fpath, std::io::rb) |file| {
+		file
+	} else |_| {
 		none
 	}
+}
+```
+
+## _Read User Input_
+
+```rust
+#import "std";
+
+fn main() void! {
+	let input: u8[];
+	std::io::read_to_string(&input)?;
+	defer free(input);
+	let input = input as const u8[];
 }
 ```
 
@@ -53,8 +82,7 @@ cd aria/
 make
 ```
 
-License
-=======
+# License
 
 This project is MIT licensed. See the `License` file 
 for more details.
