@@ -70,6 +70,7 @@ fn start(): noreturn {
 
     let a: u8;
     let p = &a;
+    **p = some_other; // WRONG CODE: FOR DEMONSTRATION
 
     // let arr: [u8; 5];
     // let slice: [u8];
