@@ -79,6 +79,10 @@ static void expr_ident(AstPrinter* self, Expr* e) {
 	print_tok(e->ident.ident);
 }
 
+static void expr_string(AstPrinter* self, Expr* e) {
+	print_tok(e->string.string);
+}
+
 static void expr_block(AstPrinter* self, Expr* e) {
 	/* printf("block "); */
 	print_newline();
@@ -133,6 +137,9 @@ static void expr(AstPrinter* self, Expr* e) {
 	switch (e->ty) {
 		case ET_IDENT: 
 			expr_ident(self, e);
+			break;
+		case ET_STRING: 
+			expr_string(self, e);
 			break;
 		case ET_BLOCK: 
 			expr_block(self, e);
