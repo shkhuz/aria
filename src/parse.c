@@ -291,6 +291,11 @@ static bool match_data_type(Parser* self) {
 	__name->ident.static_accessor = __static_accessor; \
 	__name->ident.ident = __ident;
 
+#define alloc_expr_string(__name, __string) \
+	alloc_with_type(__name, Expr); \
+	__name->ty = ET_STRING; \
+	__name->string.string = __string;
+
 #define alloc_expr_block(__name, __stmts, __value) \
 	alloc_with_type(__name, Expr); \
 	__name->ty = ET_BLOCK; \
@@ -338,6 +343,9 @@ static Expr* expr_atom(Parser* self) {
 
 		alloc_expr_ident(ident, sa, previous(self));
 		return ident;
+	} else if (match_token_type(self, TT_STRING)) {
+		alloc_expr_string(e, previous(self));
+		return e;
 	} else if (match_token_type(self, TT_LBRACE)) {
 		Stmt** stmts = null;
 		while (!match_token_type(self, TT_RBRACE)) {

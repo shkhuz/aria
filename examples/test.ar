@@ -72,10 +72,12 @@ fn start(): noreturn {
     let p = &a;
     **p = some_other; // WRONG CODE: FOR DEMONSTRATION
 
+	let str = "string";
+	let str: string = "dfjs dskfjsd fdsf dskfjdk \n \n\n\n";
+
     // let arr: [u8; 5];
     // let slice: [u8];
     // let const_slice: [const u8];
-
 }
 
 // fn take_ptr(ptr: const usize*) {}

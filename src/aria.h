@@ -12,6 +12,7 @@ typedef struct Stmt Stmt;
 typedef enum {
 	TT_IDENT,
 	TT_KEYWORD,
+	TT_STRING,		// start-end and lexeme are different
 	TT_LPAREN,
 	TT_RPAREN,
 	TT_LBRACE,
@@ -95,6 +96,7 @@ typedef enum {
 	ET_UNARY_DEREF,
 	ET_UNARY_REF,
 	ET_IDENT,
+	ET_STRING,
 	ET_BLOCK,
 	ET_FUNCTION_CALL,
 	ET_ASSIGN,
@@ -108,6 +110,10 @@ struct Expr {
 			StaticAccessor static_accessor;
 			Token* ident;	
 		} ident;
+
+		struct {
+			Token* string;
+		} string;
 
 		struct {
 			Stmt** stmts;
@@ -244,6 +250,7 @@ void terminate_compilation();
 #define ERROR_EXPECT_INITIALIZER_IF_NO_TYPE_SPECIFIED	13, "expect initializer when no type specified"
 #define ERROR_EXPECT_LPAREN								14, "expect `(`"
 #define ERROR_EXPECT_RPAREN								15, "expect `)`"
+#define ERROR_UNTERMINATED_STRING						16, "unterminated string literal"
 
 ///// LEXER /////
 typedef struct {

@@ -95,6 +95,19 @@ void lexer_lex(Lexer* self) {
 
 			} break;
 
+			case '"':
+			{
+				self->current++;
+				while (*self->current != '"') {
+					self->current++;
+					if (*self->current == '\n' || *self->current == '\0') {
+						error_from_start_to_current(self, ERROR_UNTERMINATED_STRING);
+					}
+				}
+				self->current++;
+				push_tok_by_type(self, TT_STRING);
+			} break;
+
 			case '\n': 
 			{
 				self->last_newline = self->current;
