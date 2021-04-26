@@ -12,7 +12,8 @@ typedef struct Stmt Stmt;
 typedef enum {
 	TT_IDENT,
 	TT_KEYWORD,
-	TT_STRING,		// start-end and lexeme are different
+	TT_STRING,
+	TT_DIRECTIVE,	// `#...`
 	TT_LPAREN,
 	TT_RPAREN,
 	TT_LBRACE,
@@ -187,10 +188,16 @@ struct Stmt {
 	};
 };
 
+typedef struct {
+	char* namespace_;
+	SrcFile* srcfile;
+} ImportMap;
+
 struct SrcFile {
 	File* contents;
 	Token** tokens;
 	Stmt** stmts;
+	ImportMap* imports;
 };
 
 ///// COMPILE ERROR/WARNING /////
@@ -235,7 +242,7 @@ void msg_user_token(
 
 void terminate_compilation();
 
-#define ERROR_CANNOT_READ_SOURCE_FILE 					1, "cannot read source file `%s`"
+#define ERROR_CANNOT_READ_SOURCE_FILE 					1, "cannot read source file `%s`"	// TODO: more specific kind of error
 #define ERROR_ABORTING_DUE_TO_PREV_ERRORS 				2, "aborting due to previous error(s)"
 #define ERROR_INVALID_CHAR 								3, "invalid character"
 #define ERROR_NO_SOURCE_FILES_PASSED_IN_CMD_ARGS 		4, "one or more input files needed"
@@ -251,6 +258,8 @@ void terminate_compilation();
 #define ERROR_EXPECT_LPAREN								14, "expect `(`"
 #define ERROR_EXPECT_RPAREN								15, "expect `)`"
 #define ERROR_UNTERMINATED_STRING						16, "unterminated string literal"
+#define ERROR_UNDEFINED_DIRECTIVE						17, "undefined directive"
+#define ERROR_IMPORT_DIRECTIVE_MUST_BE_STRING_LITERAL	18, "import directive must be a compile-time string literal"
 
 ///// LEXER /////
 typedef struct {
@@ -272,6 +281,7 @@ typedef struct {
 	DataType* matched_dt;
 
 	bool error;
+	bool not_parsing_error;
 	u64 error_count;
 } Parser;
 
@@ -288,9 +298,15 @@ void ast_printer_init(AstPrinter* self, SrcFile* srcfile);
 void ast_printer_print(AstPrinter* self);
 
 ///// MISC /////
+char* aria_strsub(char* str, uint start, uint len);
+char* aria_strapp(char* to, char* from);
+char* aria_basename(char* fpath);
+
 #define KEYWORDS_LEN 7
+#define DIRECTIVES_LEN 1
 
 extern char* executable_path_from_argv;
 extern char* keywords[KEYWORDS_LEN];
+extern char* directives[DIRECTIVES_LEN];
 
 #endif	/* __ARIA_H */

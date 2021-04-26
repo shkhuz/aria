@@ -270,7 +270,14 @@ void ast_printer_init(AstPrinter* self, SrcFile* srcfile) {
 }
 
 void ast_printer_print(AstPrinter* self) {
+	printf("***** %s *****\n", self->srcfile->contents->fpath);
 	buf_loop(self->srcfile->stmts, s) {
 		stmt(self, self->srcfile->stmts[s]);
 	}
+
+	printf("----- imports -----\n");
+	buf_loop(self->srcfile->imports, i) {
+		printf("%s => %s\n", self->srcfile->imports[i].namespace_, self->srcfile->imports[i].srcfile->contents->fpath);
+	}
+	printf("-------------------\n\n");
 }

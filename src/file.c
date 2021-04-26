@@ -21,7 +21,9 @@ File* file_read(const char* fpath) {
 
 bool file_exists(const char* fpath) {
 	FILE* fp = fopen(fpath, "r");
-	if (fp) return true;
-	fclose(fp);
+	if (fp) {
+		fclose(fp);
+		return true;
+	}
 	return false;
 }

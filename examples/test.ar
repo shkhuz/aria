@@ -1,3 +1,5 @@
+#import "file.ar";
+
 namespace std {
     namespace cool {
         let variable = cool();

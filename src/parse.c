@@ -60,6 +60,35 @@ static bool match_keyword(Parser* self, char* keyword) {
 	return false;
 }
 
+static bool match_directive(Parser* self, char* directive) {
+	if (current(self)->ty == TT_DIRECTIVE) {
+		if (strni(current(self)->start + 1, current(self)->end) == stri(directive)) {
+			goto_next_token(self);
+			return true;
+		}
+	}
+	return false;
+}
+
+static void __verror_token(
+		Parser* self,
+		Token* token,
+		u32 code,
+		char* fmt,
+		va_list ap) {
+
+	va_list aq;
+	va_copy(aq, ap);
+	vmsg_user_token(
+			MSG_TY_ERR,
+			token,
+			code,
+			fmt,
+			ap
+	);
+	va_end(aq);
+}
+
 static void error_token_with_sync(
 		Parser* self,
 		Token* token,
@@ -72,13 +101,22 @@ static void error_token_with_sync(
 
 	va_list ap;
 	va_start(ap, fmt);
-	vmsg_user_token(
-			MSG_TY_ERR,
-			token,
-			code,
-			fmt,
-			ap
-	);
+	__verror_token(self, token, code, fmt, ap);
+	va_end(ap);
+}
+
+static void error_token(
+		Parser* self,
+		Token* token,
+		u32 code,
+		char* fmt,
+		...) {
+
+	self->not_parsing_error = true;
+
+	va_list ap;
+	va_start(ap, fmt);
+	__verror_token(self, token, code, fmt, ap);
 	va_end(ap);
 }
 
@@ -558,7 +596,47 @@ static FunctionHeader* parse_function_header(Parser* self) {
 }
 
 static Stmt* top_level_stmt(Parser* self) {
-	if (match_keyword(self, "struct")) {
+	if (match_directive(self, "import")) {
+		if (!match_token_type(self, TT_STRING)) {
+			error_token_with_sync(
+					self, 
+					current(self), 
+					ERROR_IMPORT_DIRECTIVE_MUST_BE_STRING_LITERAL);
+			return null;
+		}
+		Token* fpath_token = previous(self);
+		expect_semicolon(self);
+
+		char* import_fpath_rel_current_file = strni(fpath_token->start + 1, fpath_token->end - 1);
+		char* current_file_fpath = stri(self->srcfile->contents->fpath);
+		char* last_slash_ptr = strchr(current_file_fpath, '/');
+		uint last_slash_idx = 0;
+		if (last_slash_ptr) {
+			last_slash_idx = last_slash_ptr - current_file_fpath;
+		}
+
+		char* current_dir_fpath = 
+			aria_strsub(
+					current_file_fpath, 
+					0,
+					(last_slash_idx == 0 ? 0 : last_slash_idx + 1));
+		char* import_fpath = 
+			aria_strapp(
+					(current_dir_fpath == null ? "" : current_dir_fpath), 
+					import_fpath_rel_current_file);
+
+		File* import_file = file_read(import_fpath);
+		if (import_file) {
+			alloc_with_type(import_srcfile, SrcFile);
+			import_srcfile->contents = import_file;
+			char* basename = aria_basename(import_fpath_rel_current_file);
+			buf_push(self->srcfile->imports, (ImportMap){ basename, import_srcfile });
+		} else {
+			error_token(self, fpath_token, ERROR_CANNOT_READ_SOURCE_FILE, import_fpath_rel_current_file); // TODO: also print filename relative to compiler
+		}
+
+		return null;
+	} else if (match_keyword(self, "struct")) {
 		alloc_stmt_struct(s, parse_struct(self, true));
 		return s;
 	} else if (match_keyword(self, "namespace")) {
@@ -630,10 +708,12 @@ static Stmt* top_level_stmt(Parser* self) {
 
 void parser_init(Parser* self, SrcFile* srcfile) {
 	self->srcfile = srcfile;
+	self->srcfile->imports = null;
 	self->token_idx = 0;
 	self->matched_dt = null;
 	self->srcfile->stmts = null;
 	self->error = false;
+	self->not_parsing_error = false;
 	self->error_count = 0;
 }
 
@@ -642,5 +722,9 @@ void parser_parse(Parser* self) {
 		Stmt* s = top_level_stmt(self);
 		if (self->error) return;
 		if (s) buf_push(self->srcfile->stmts, s); // TODO: is this necessary?
+	}
+
+	if (self->not_parsing_error) {
+		self->error = true;
 	}
 }

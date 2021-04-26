@@ -91,8 +91,31 @@ void lexer_lex(Lexer* self) {
 						ty = TT_KEYWORD;
 					}
 				}
-				push_tok_by_type(self, ty);
 
+				push_tok_by_type(self, ty);
+			} break;
+
+			case '#':
+			{
+				self->current++;
+				if (isalpha(*self->current) || *self->current == '_') {
+					while (isalnum(*self->current) || *self->current == '_') {
+						self->current++;
+					}
+
+					bool is_valid = false;
+					for (uint i = 0; i < stack_arr_len(directives); i++) {
+						if (stri(directives[i]) == strni(self->start + 1, self->current)) {
+							is_valid = true;
+						}
+					}
+
+					if (!is_valid) {
+						error_from_start_to_current(self, ERROR_UNDEFINED_DIRECTIVE);
+					}
+
+					push_tok_by_type(self, TT_DIRECTIVE);
+				}
 			} break;
 
 			case '"':
@@ -104,6 +127,7 @@ void lexer_lex(Lexer* self) {
 						error_from_start_to_current(self, ERROR_UNTERMINATED_STRING);
 					}
 				}
+
 				self->current++;
 				push_tok_by_type(self, TT_STRING);
 			} break;
