@@ -260,6 +260,8 @@ void terminate_compilation();
 #define ERROR_UNTERMINATED_STRING						16, "unterminated string literal"
 #define ERROR_UNDEFINED_DIRECTIVE						17, "undefined directive"
 #define ERROR_IMPORT_DIRECTIVE_MUST_BE_STRING_LITERAL	18, "import directive must be a compile-time string literal"
+#define ERROR_SOURCE_FILE_IS_DIRECTORY					19, "`%s` is a directory"
+#define ERROR_IMPORT_DIRECTIVE_IS_EMPTY					20, "empty file name to `#import`"
 
 ///// LEXER /////
 typedef struct {
@@ -301,6 +303,7 @@ void ast_printer_print(AstPrinter* self);
 char* aria_strsub(char* str, uint start, uint len);
 char* aria_strapp(char* to, char* from);
 char* aria_basename(char* fpath);
+char* aria_notdir(char* fpath);
 
 #define KEYWORDS_LEN 7
 #define DIRECTIVES_LEN 1

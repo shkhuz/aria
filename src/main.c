@@ -59,13 +59,27 @@ char* aria_basename(char* fpath) {
 		return null;
 	} 
 
-	char* last_dot_idx = strchr(fpath, '.');
-	if (last_dot_idx == null) {
+	char* last_dot_ptr = strrchr(fpath, '.');
+	if (last_dot_ptr == null) {
 		return fpath;
 	}
 
-	return aria_strsub(fpath, 0, last_dot_idx - fpath);
+	return aria_strsub(fpath, 0, last_dot_ptr - fpath);
 }
+
+char* aria_notdir(char* fpath) {
+	if (!fpath) {
+		return null;
+	} 
+
+	uint fpath_len = strlen(fpath);
+	char* last_slash_ptr = strrchr(fpath, '/');
+	if (last_slash_ptr == null) {
+		return fpath;
+	}
+
+	return aria_strsub(fpath, last_slash_ptr - fpath + 1, fpath_len);
+}	
 
 bool parse_srcfile(SrcFile* srcfile) {
 	Lexer lexer;
@@ -162,13 +176,16 @@ int main(int argc, char* argv[]) {
 	SrcFile** srcfiles = null;
 	bool srcfile_error = false;
 	for (int i = 1; i < argc; i++) {
-		File* file = file_read(argv[i]);
-		if (file) {
+		FileOrError file = file_read(argv[i]);
+		if (file.status == FILE_ERROR_SUCCESS) {
 			alloc_with_type(srcfile, SrcFile);
-			srcfile->contents = file;
+			srcfile->contents = file.file;
 			buf_push(srcfiles, srcfile);
-		} else {
+		} else if (file.status == FILE_ERROR_ERROR) {
 			msg_user(MSG_TY_ROOT_ERR, null, 0, 0, 0, ERROR_CANNOT_READ_SOURCE_FILE, argv[i]);
+			srcfile_error = true;
+		} else if (file.status == FILE_ERROR_DIR) {
+			msg_user(MSG_TY_ROOT_ERR, null, 0, 0, 0, ERROR_SOURCE_FILE_IS_DIRECTORY, argv[i]);
 			srcfile_error = true;
 		}
 	}
@@ -186,7 +203,7 @@ int main(int argc, char* argv[]) {
 		buf_loop(srcfiles[s]->imports, i) {
 			bool parsed = false;
 			buf_loop(srcfiles, ss) {
-				if (stri(srcfiles[s]->imports[i].srcfile->contents->fpath) == stri(srcfiles[ss]->contents->fpath)) {
+				if (stri(srcfiles[s]->imports[i].srcfile->contents->abs_fpath) == stri(srcfiles[ss]->contents->abs_fpath)) {
 					parsed = true;
 				}
 			}

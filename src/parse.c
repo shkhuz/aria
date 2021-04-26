@@ -608,8 +608,13 @@ static Stmt* top_level_stmt(Parser* self) {
 		expect_semicolon(self);
 
 		char* import_fpath_rel_current_file = strni(fpath_token->start + 1, fpath_token->end - 1);
+		if (stri(import_fpath_rel_current_file) == stri("")) {
+			error_token(self, fpath_token, ERROR_IMPORT_DIRECTIVE_IS_EMPTY);
+			return null;
+		}
+
 		char* current_file_fpath = stri(self->srcfile->contents->fpath);
-		char* last_slash_ptr = strchr(current_file_fpath, '/');
+		char* last_slash_ptr = strrchr(current_file_fpath, '/');
 		uint last_slash_idx = 0;
 		if (last_slash_ptr) {
 			last_slash_idx = last_slash_ptr - current_file_fpath;
@@ -625,14 +630,16 @@ static Stmt* top_level_stmt(Parser* self) {
 					(current_dir_fpath == null ? "" : current_dir_fpath), 
 					import_fpath_rel_current_file);
 
-		File* import_file = file_read(import_fpath);
-		if (import_file) {
+		FileOrError import_file = file_read(import_fpath);
+		if (import_file.status == FILE_ERROR_SUCCESS) {
 			alloc_with_type(import_srcfile, SrcFile);
-			import_srcfile->contents = import_file;
-			char* basename = aria_basename(import_fpath_rel_current_file);
+			import_srcfile->contents = import_file.file;
+			char* basename = aria_notdir(aria_basename(import_fpath_rel_current_file));
 			buf_push(self->srcfile->imports, (ImportMap){ basename, import_srcfile });
-		} else {
+		} else if (import_file.status == FILE_ERROR_ERROR) {
 			error_token(self, fpath_token, ERROR_CANNOT_READ_SOURCE_FILE, import_fpath_rel_current_file); // TODO: also print filename relative to compiler
+		} else if (import_file.status == FILE_ERROR_DIR) {
+			error_token(self, fpath_token, ERROR_SOURCE_FILE_IS_DIRECTORY, import_fpath_rel_current_file);
 		}
 
 		return null;

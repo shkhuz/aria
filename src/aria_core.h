@@ -1,6 +1,8 @@
 #ifndef __ARIA_CORE_H
 #define __ARIA_CORE_H
 
+#define _GNU_SOURCE 1
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -11,6 +13,10 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <limits.h>
+
+#ifdef __linux__
+#include <linux/limits.h>
+#endif
 
 ///// TYPES /////
 typedef unsigned int uint;
@@ -89,11 +95,21 @@ char* stri(char* str);
 ///// FILE I/O /////
 typedef struct {
 	char* fpath;
+	char* abs_fpath;
 	char* contents;
 	u64 len;
 } File;
 
-File* file_read(const char* fpath);
+typedef struct {
+	File* file;
+	enum {
+		FILE_ERROR_SUCCESS,
+		FILE_ERROR_ERROR,
+		FILE_ERROR_DIR,
+	} status;
+} FileOrError;
+
+FileOrError file_read(const char* fpath);
 bool file_exists(const char* fpath);
 
 ///// MEMORY /////

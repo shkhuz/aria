@@ -1,4 +1,6 @@
 #import "file.ar";
+#import "test.ar";
+#import "test/test.ar";
 
 namespace std {
     namespace cool {

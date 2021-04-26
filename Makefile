@@ -17,7 +17,7 @@ CC := gcc
 LD := gcc
 
 PREPROCESSOR_DEFINES := -DTAB_COUNT=4 -DAST_TAB_COUNT=4
-CFLAGS := $(PREPROCESSOR_DEFINES) -I$(SRC_DIR) -Wall -Wextra -Wshadow -std=c99 -m64 -g -O0
+CFLAGS := $(PREPROCESSOR_DEFINES) -I$(SRC_DIR) -Wall -Wextra -Wshadow -std=gnu99 -m64 -g -O0
 ASMFLAGS := -felf64
 LDFLAGS :=
 LIBS_INC_DIR_CMD :=
