@@ -48,7 +48,7 @@ typedef int64_t i64;
 #define ANSI_FYELLOW  "\x1B[33m"
 #define ANSI_FBLUE	  "\x1B[34m"
 #define ANSI_FMAGENTA "\x1B[35m"
-#define ANSI_FCYAN	  "\x1B[36m"
+#define ANSI_FCYAN	  "\x1B[1;36m"
 #define ANSI_RESET	  "\x1B[0m"
 
 ///// STRETCHY BUFFER /////

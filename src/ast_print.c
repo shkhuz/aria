@@ -166,7 +166,7 @@ static void expr(AstPrinter* self, Expr* e) {
 
 static void stmt_namespace(AstPrinter* self, Stmt* s) {
 	printf("namespace ");
-	print_tok(s->namespace_.ident);
+	print_tok(s->ident);
 	print_newline();
 
 	self->indent++;
@@ -217,7 +217,7 @@ static void stmt_variable(AstPrinter* self, Stmt* s) {
 		printf("mut ");
 	}
 
-	print_tok(s->variable.variable->ident);
+	print_tok(s->ident);
 	if (s->variable.variable->dt) {
 		printf(": ");
 		data_type(self, s->variable.variable->dt);

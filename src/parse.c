@@ -367,6 +367,7 @@ static bool match_data_type(Parser* self) {
 	__name->assign.op = __op;
 
 static Stmt* top_level_stmt(Parser* self);
+static Stmt* stmt(Parser* self);
 static Expr* expr(Parser* self);
 
 static Expr* expr_atom(Parser* self) {
@@ -387,7 +388,7 @@ static Expr* expr_atom(Parser* self) {
 	} else if (match_token_type(self, TT_LBRACE)) {
 		Stmt** stmts = null;
 		while (!match_token_type(self, TT_RBRACE)) {
-			Stmt* s = top_level_stmt(self);
+			Stmt* s = stmt(self);
 			if (self->error) return null;
 			if (s) buf_push(stmts, s);
 		}
@@ -530,24 +531,27 @@ static Stmt* stmt_expr(Parser* self) {
 	alloc_with_type(__name, Stmt); \
 	__name->ty = ST_NAMESPACE; \
 	__name->namespace_.namespace_keyword = __namespace_keyword; \
-	__name->namespace_.ident = __ident; \
+	__name->ident = __ident; \
 	__name->namespace_.stmts = __stmts;
 
 #define alloc_stmt_struct(__name, __struct_dt) \
 	alloc_with_type(__name, Stmt); \
 	__name->ty = ST_STRUCT; \
-	__name->struct_ = __struct_dt;
+	__name->struct_ = __struct_dt; \
+	if (__struct_dt) __name->ident = __struct_dt->struct_.ident;
 
 #define alloc_stmt_function(__name, __header, __body) \
 	alloc_with_type(__name, Stmt); \
 	__name->ty = ST_FUNCTION; \
 	__name->function.header = __header; \
-	__name->function.body = __body;
+	__name->function.body = __body; \
+	if (__header) __name->ident = __header->ident;
 
 #define alloc_stmt_function_prototype(__name, __header) \
 	alloc_with_type(__name, Stmt); \
 	__name->ty = ST_FUNCTION_PROTOTYPE; \
-	__name->function_prototype = __header;
+	__name->function_prototype = __header; \
+	if (__header) __name->ident = __header->ident;
 
 #define alloc_function_header(__name, __fn_keyword, __ident, __params, __return_data_type) \
 	alloc_with_type(__name, FunctionHeader); \
@@ -560,7 +564,8 @@ static Stmt* stmt_expr(Parser* self) {
 	alloc_with_type(__name, Stmt); \
 	__name->ty = ST_VARIABLE; \
 	__name->variable.variable = __variable; \
-	__name->variable.is_mut = __is_mut;
+	__name->variable.is_mut = __is_mut; \
+	if (__variable) __name->ident = __variable->ident;
 
 static FunctionHeader* parse_function_header(Parser* self) {
 	Token* fn_keyword = previous(self);
@@ -593,6 +598,93 @@ static FunctionHeader* parse_function_header(Parser* self) {
 
 	alloc_function_header(h, fn_keyword, ident, params, return_data_type);
 	return h;
+}
+
+static Stmt* stmt_namespace(Parser* self) {
+	Token* namespace_keyword = previous(self);
+	expect_ident(self);
+	Token* ident = previous(self);
+
+	Stmt** stmts = null;
+	expect_lbrace(self);
+	while (!match_token_type(self, TT_RBRACE)) {
+		Stmt* s = top_level_stmt(self); // TODO: exclude `import` directive in parsing here
+		if (self->error) return null;
+		if (s) buf_push(stmts, s);
+	}
+
+	alloc_stmt_namespace(s, namespace_keyword, ident, stmts);
+	return s;
+}
+
+static Stmt* stmt_struct(Parser* self) {
+	DataType* dt = parse_struct(self, true);
+	alloc_stmt_struct(s, dt);
+	return s;
+}
+
+static Stmt* stmt_function(Parser* self) {
+	FunctionHeader* h = null;
+	chk(h = parse_function_header(self));
+
+	if (match_token_type(self, TT_SEMICOLON)) {
+		alloc_stmt_function_prototype(s, h);
+		return s;
+	} else {
+		expect_lbrace(self);
+		goto_previous_token(self);
+		EXPR(e);
+		alloc_stmt_function(s, h, e);
+		return s;
+	}
+
+	assert(0);
+	return null;
+}
+
+static Stmt* stmt_variable(Parser* self) {
+	bool is_mut = false;
+	if (match_keyword(self, "mut")) {
+		is_mut = true;
+	}
+
+	expect_ident(self);
+	Token* ident = previous(self);
+
+	DataType* dt = null;
+	if (match_token_type(self, TT_COLON)) {
+		expect_data_type(self);
+		dt = self->matched_dt;
+	}
+
+	Expr* initializer = null;
+	if (match_token_type(self, TT_EQUAL)) {
+		EXPR_ND(initializer, expr, self);
+	} else if (!dt) {
+		error_token_with_sync(self, current(self), ERROR_EXPECT_INITIALIZER_IF_NO_TYPE_SPECIFIED);
+		return null;
+	}
+
+	expect_semicolon(self);
+	alloc_variable(s_variable, ident, dt, initializer);
+	alloc_stmt_variable(s, s_variable, is_mut);
+	return s;
+}
+
+static Stmt* stmt(Parser* self) {
+	if (match_keyword(self, "struct")) {
+		return stmt_struct(self);
+	} else if (match_keyword(self, "namespace")) {
+		return stmt_namespace(self);
+	} else if (match_keyword(self, "fn")) {
+		return stmt_function(self);
+	} else if (match_keyword(self, "let")) {
+		return stmt_variable(self);
+	} else {
+		return stmt_expr(self);
+	}
+	assert(0);
+	return null;
 }
 
 static Stmt* top_level_stmt(Parser* self) {
@@ -644,70 +736,16 @@ static Stmt* top_level_stmt(Parser* self) {
 
 		return null;
 	} else if (match_keyword(self, "struct")) {
-		alloc_stmt_struct(s, parse_struct(self, true));
-		return s;
+		return stmt_struct(self);
 	} else if (match_keyword(self, "namespace")) {
-		Token* namespace_keyword = previous(self);
-		expect_ident(self);
-		Token* ident = previous(self);
-
-		Stmt** stmts = null;
-		expect_lbrace(self);
-		while (!match_token_type(self, TT_RBRACE)) {
-			Stmt* s = top_level_stmt(self);
-			if (self->error) return null;
-			if (s) buf_push(stmts, s);
-		}
-
-		alloc_stmt_namespace(s, namespace_keyword, ident, stmts);
-		return s;
+		return stmt_namespace(self);
 	} else if (match_keyword(self, "fn")) {
-		FunctionHeader* h = null;
-		chk(h = parse_function_header(self));
-
-		if (match_token_type(self, TT_SEMICOLON)) {
-			alloc_stmt_function_prototype(s, h);
-			return s;
-		} else {
-			expect_lbrace(self);
-			goto_previous_token(self);
-			EXPR(e);
-			alloc_stmt_function(s, h, e);
-			return s;
-		}
-
-		assert(0);
-		return null;
+		return stmt_function(self);
 	} else if (match_keyword(self, "let")) {
-		bool is_mut = false;
-		if (match_keyword(self, "mut")) {
-			is_mut = true;
-		}
-
-		expect_ident(self);
-		Token* ident = previous(self);
-
-		DataType* dt = null;
-		if (match_token_type(self, TT_COLON)) {
-			expect_data_type(self);
-			dt = self->matched_dt;
-		}
-
-		Expr* initializer = null;
-		if (match_token_type(self, TT_EQUAL)) {
-			EXPR_ND(initializer, expr, self);
-		} else if (!dt) {
-			error_token_with_sync(self, current(self), ERROR_EXPECT_INITIALIZER_IF_NO_TYPE_SPECIFIED);
-			return null;
-		}
-
-		expect_semicolon(self);
-		alloc_variable(s_variable, ident, dt, initializer);
-		alloc_stmt_variable(s, s_variable, is_mut);
-		return s;
+		return stmt_variable(self);
 	} else {
-		/* error_token_with_sync(self, current(self), 10, "invalid top-level token"); */
-		return stmt_expr(self);
+		error_token_with_sync(self, current(self), ERROR_INVALID_TOP_LEVEL_TOKEN);
+		return null;
 	}
 	assert(0);
 	return null;

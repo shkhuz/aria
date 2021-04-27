@@ -49,6 +49,8 @@ Token* token_alloc(
 		u64 column, 
 		u64 char_count);
 
+bool token_lexeme_eql(Token* a, Token* b);
+
 typedef enum {
 	DT_NAMED,
 	DT_STRUCT,
@@ -162,10 +164,10 @@ typedef struct {
 
 struct Stmt {
 	StmtType ty;
+	Token* ident;
 	union {
 		struct {
 			Token* namespace_keyword;
-			Token* ident;
 
 			// A `Block` isn't used because namespaces don't
 			// return anything, and blocks have value.
@@ -204,6 +206,7 @@ struct SrcFile {
 typedef enum {
 	MSG_TY_ROOT_ERR, 
 	MSG_TY_ERR,
+	MSG_TY_NOTE,
 } MsgType;
 
 void vmsg_user(
@@ -262,6 +265,10 @@ void terminate_compilation();
 #define ERROR_IMPORT_DIRECTIVE_MUST_BE_STRING_LITERAL	18, "import directive must be a compile-time string literal"
 #define ERROR_SOURCE_FILE_IS_DIRECTORY					19, "`%s` is a directory"
 #define ERROR_IMPORT_DIRECTIVE_IS_EMPTY					20, "empty file name to `#import`"
+#define ERROR_INVALID_TOP_LEVEL_TOKEN					21, "invalid top-level token"
+#define ERROR_REDECLARATION_OF_SYMBOL					22, "redeclaration of symbol `%s`"
+
+#define NOTE_PREVIOUS_SYMBOL_DEFINITION					"previously defined here"
 
 ///// LEXER /////
 typedef struct {
@@ -298,6 +305,23 @@ typedef struct {
 
 void ast_printer_init(AstPrinter* self, SrcFile* srcfile);
 void ast_printer_print(AstPrinter* self);
+
+///// RESOLVER /////
+typedef struct Scope {
+	struct Scope* parent;
+	Stmt** sym_tbl;
+} Scope;
+
+typedef struct {
+	SrcFile* srcfile;
+	Scope* global_scope;
+	Scope* current_scope;
+
+	bool error;
+} Resolver;
+
+void resolver_init(Resolver* self, SrcFile* srcfile);
+void resolver_resolve(Resolver* self);
 
 ///// MISC /////
 char* aria_strsub(char* str, uint start, uint len);

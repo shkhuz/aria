@@ -86,16 +86,18 @@ fn start(): noreturn {
 
 // fn take_ptr(ptr: const usize*) {}
 
-foo;
-foo + fd::bar;
+fn ___() {
+	foo;
+	foo + fd::bar;
 
-// game: Game = get_game();
-// game: Game;
-// game := get_game() + game;
+	// game: Game = get_game();
+	// game: Game;
+	// game := get_game() + game;
 
-let game: Game = get_game();
-let game: Game;
-let game = get_game() + game;
+	let game: Game = get_game();
+	let game: Game;
+	let game = get_game() + game;
+}
 
 // ---------------------------
 
@@ -104,3 +106,5 @@ fn main() {
     // let ptr = &i;
     // *ptr += 1;
 }
+
+namespace cool {}

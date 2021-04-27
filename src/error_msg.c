@@ -74,6 +74,9 @@ void vmsg_user(
 		case MSG_TY_ERR:	
 			fprintf(stderr, ANSI_FRED "error[%04u]: " ANSI_RESET, code); 
 			break;
+		case MSG_TY_NOTE:
+			fprintf(stderr, ANSI_FCYAN "note: " ANSI_RESET);
+			break;
 	}
 
 	vfprintf(stderr, fmt, aq);
@@ -88,6 +91,9 @@ void vmsg_user(
 		switch (ty) {
 			case MSG_TY_ERR:
 				color = ANSI_FRED;
+				break;
+			case MSG_TY_NOTE:
+				color = ANSI_FCYAN;
 				break;
 			default:
 				assert(0);
@@ -181,7 +187,9 @@ void msg_user_token(
 void terminate_compilation() {
 	msg_user(MSG_TY_ROOT_ERR, null, 0, 0, 0, ERROR_ABORTING_DUE_TO_PREV_ERRORS);
 	// TODO: for CI build, this is changed to
-	// always return 0
+	// always return 0.
+	// Uncomment next line.
+	// And remove the next-to-next line.
 	/* exit(EXIT_FAILURE); */
 	exit(0);
 }
