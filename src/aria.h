@@ -267,6 +267,7 @@ void terminate_compilation();
 #define ERROR_IMPORT_DIRECTIVE_IS_EMPTY					20, "empty file name to `#import`"
 #define ERROR_INVALID_TOP_LEVEL_TOKEN					21, "invalid top-level token"
 #define ERROR_REDECLARATION_OF_SYMBOL					22, "redeclaration of symbol `%s`"
+#define ERROR_INVALID_CHAR_AFTER_DIRECTIVE				23, "invalid character after `#`"
 
 #define NOTE_PREVIOUS_SYMBOL_DEFINITION					"previously defined here"
 

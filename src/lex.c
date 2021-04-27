@@ -13,6 +13,10 @@ static u64 compute_column_from_start(Lexer* self) {
 	return compute_column_from(self, self->start);
 }
 
+static u64 compute_column_from_current(Lexer* self) {
+	return compute_column_from(self, self->current);
+}
+
 static void push_tok_by_type(Lexer* self, TokenType ty) {
 	buf_push(
 			self->srcfile->tokens,
@@ -39,6 +43,23 @@ static void error_from_start_to_current(Lexer* self, u32 code, char* fmt, ...) {
 			self->line,
 			compute_column_from_start(self),
 			(u64)(self->current - self->start),
+			code,
+			fmt, 
+			ap
+	);
+	va_end(ap);
+}
+
+static void error_from_current_to_current(Lexer* self, u32 code, char* fmt, ...) {
+	self->error = true;
+	va_list ap;
+	va_start(ap, fmt);
+	vmsg_user(
+			MSG_TY_ERR,
+			self->srcfile,
+			self->line,
+			compute_column_from_current(self),
+			1,
 			code,
 			fmt, 
 			ap
@@ -115,6 +136,9 @@ void lexer_lex(Lexer* self) {
 					}
 
 					push_tok_by_type(self, TT_DIRECTIVE);
+				} else {
+					error_from_current_to_current(self, ERROR_INVALID_CHAR_AFTER_DIRECTIVE);
+					self->current++;
 				}
 			} break;
 
