@@ -19,6 +19,8 @@ namespace std {
             }
         }
     }
+
+	struct cool {}
 }
 
 struct foo {}
@@ -106,5 +108,3 @@ fn main() {
     // let ptr = &i;
     // *ptr += 1;
 }
-
-namespace cool {}

@@ -45,34 +45,110 @@ void resolver_init(Resolver* self, SrcFile* srcfile) {
 	self->error = false;
 } 
 
-static Stmt* check_if_symbol_in_sym_tbl(Resolver* self, Stmt* s) {
+static void stmt(Resolver* self, Stmt* s);
+
+// returns the previous decl is found
+// else null
+static Stmt* check_if_symbol_in_sym_tbl(Resolver* self, char* sym) {
 	buf_loop(self->current_scope->sym_tbl, st) {
-		if (token_lexeme_eql(
-					self->current_scope->sym_tbl[st]->ident, 
-					s->ident)) {
+		char* current_sym = null;
+		if (self->current_scope->sym_tbl[st]->ty == ST_IMPORTED_NAMESPACE) {
+			current_sym = self->current_scope->sym_tbl[st]->imported_namespace.namespace_ident;
+		} else {
+			current_sym = self->current_scope->sym_tbl[st]->ident->lexeme;
+		}
+
+		if (stri(current_sym) == stri(sym)) {
 			return self->current_scope->sym_tbl[st];
 		}
 	}
 	return null;
 }
 
-void resolver_resolve(Resolver* self) {
-	Stmt** stmts = self->srcfile->stmts;
-	buf_loop(stmts, s) {
-		Stmt* prev_decl = check_if_symbol_in_sym_tbl(self, stmts[s]);
-		if (prev_decl) {
-			error_token(
-					self,
-					stmts[s]->ident,
-					ERROR_REDECLARATION_OF_SYMBOL,
-					stmts[s]->ident->lexeme);
-			note_token(
-					self,
-					prev_decl->ident,
-					NOTE_PREVIOUS_SYMBOL_DEFINITION);
+static bool add_in_sym_tbl_or_error(Resolver* self, Stmt* s) {
+	char* sym = null;
+	if (s->ty == ST_IMPORTED_NAMESPACE) {
+		sym = s->imported_namespace.namespace_ident;
+	} else {
+		sym = s->ident->lexeme;
+	}
 
-		} else {
-			buf_push(self->current_scope->sym_tbl, stmts[s]);
+	Stmt* prev_decl = check_if_symbol_in_sym_tbl(self, sym);
+	if (prev_decl) {
+		error_token(
+				self,
+				s->ident,
+				ERROR_REDECLARATION_OF_SYMBOL,
+				sym);
+		note_token(
+				self,
+				prev_decl->ident,
+				NOTE_PREVIOUS_SYMBOL_DEFINITION);
+		return true;
+	} else {
+		buf_push(self->current_scope->sym_tbl, s);
+		return false;
+	}
+}
+
+static void stmt_namespace(Resolver* self, Stmt* s) {
+	change_scope(scope);
+
+	bool error = false;
+	buf_loop(s->namespace_.stmts, i) {
+		bool current_error = add_in_sym_tbl_or_error(self, s->namespace_.stmts[i]);
+		if (!error) {
+			error = current_error;
 		}
+	}
+	
+	if (error) return;
+
+	buf_loop(s->namespace_.stmts, i) {
+		stmt(self, s->namespace_.stmts[i]);
+	}
+
+	revert_scope(scope);
+}	
+
+static void stmt_struct(Resolver* self, Stmt* s) {
+	change_scope(scope);
+
+
+	revert_scope(scope);
+}
+
+static void stmt(Resolver* self, Stmt* s) {
+	switch (s->ty) {
+		case ST_NAMESPACE:
+			stmt_namespace(self, s);
+			break;
+		case ST_STRUCT:
+			stmt_struct(self, s);
+			break;
+	}
+}
+
+void resolver_resolve(Resolver* self) {
+	bool error = false;
+
+	buf_loop(self->srcfile->stmts, s) {
+		bool current_error = add_in_sym_tbl_or_error(self, self->srcfile->stmts[s]);
+		if (!error) {
+			error = current_error;
+		}
+	}
+
+	buf_loop(self->srcfile->imports, i) {
+		bool current_error = add_in_sym_tbl_or_error(self, self->srcfile->imports[i].namespace_);
+		if (!error) {
+			error = current_error;
+		}
+	}
+
+	if (error) return;
+
+	buf_loop(self->srcfile->stmts, s) {
+		stmt(self, self->srcfile->stmts[s]);
 	}
 }

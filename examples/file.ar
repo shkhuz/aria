@@ -1,3 +1,10 @@
 #import "test.ar";
 
-namespace std {}
+namespace std {
+	struct foo {
+	}
+
+	fn foo(a: usize, b: usize) {
+		namespace std {}
+	}
+}

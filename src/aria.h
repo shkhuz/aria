@@ -49,8 +49,6 @@ Token* token_alloc(
 		u64 column, 
 		u64 char_count);
 
-bool token_lexeme_eql(Token* a, Token* b);
-
 typedef enum {
 	DT_NAMED,
 	DT_STRUCT,
@@ -196,14 +194,17 @@ struct Stmt {
 	};
 };
 
+typedef struct {
+	char* fpath;
+	char* fpath_rel_current_file;
+	Stmt* namespace_;
+} Import;
+
 struct SrcFile {
 	File* contents;
 	Token** tokens;
 	Stmt** stmts;
-
-	// Buffer of ST_IMPORTED_NAMESPACE
-	// holding a pointer to a srcfile
-	Stmt** imports;
+	Import* imports;
 };
 
 ///// COMPILE ERROR/WARNING /////

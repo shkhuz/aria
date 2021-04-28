@@ -106,9 +106,9 @@ bool parse_srcfile(SrcFile* srcfile) {
 		return true;
 	}
 
-	AstPrinter ast_printer;
-	ast_printer_init(&ast_printer, srcfile);
-	ast_printer_print(&ast_printer);
+	/* AstPrinter ast_printer; */
+	/* ast_printer_init(&ast_printer, srcfile); */
+	/* ast_printer_print(&ast_printer); */
 	return false;
 }
 
@@ -142,6 +142,22 @@ bool check_srcfiles(SrcFile** srcfiles) {
 		}
 	}
 	return error;
+}
+
+SrcFile* read_srcfile_or_error(char* fpath, MsgType error_ty, SrcFile* error_srcfile, u64 line, u64 column, u64 char_count) {
+	FileOrError file = file_read(fpath);
+	if (file.status == FILE_ERROR_SUCCESS) {
+		alloc_with_type(srcfile, SrcFile);
+		srcfile->contents = file.file;
+		return srcfile;
+	} else if (file.status == FILE_ERROR_ERROR) {
+		msg_user(error_ty, error_srcfile, line, column, char_count, ERROR_CANNOT_READ_SOURCE_FILE, fpath);
+		return null;
+	} else if (file.status == FILE_ERROR_DIR) {
+		msg_user(error_ty, error_srcfile, line, column, char_count, ERROR_SOURCE_FILE_IS_DIRECTORY, fpath);
+		return null;
+	}
+	return null;
 }
 
 int main(int argc, char* argv[]) {
@@ -197,18 +213,13 @@ int main(int argc, char* argv[]) {
 	SrcFile** srcfiles = null;
 	bool srcfile_error = false;
 	for (int i = 1; i < argc; i++) {
-		FileOrError file = file_read(argv[i]);
-		if (file.status == FILE_ERROR_SUCCESS) {
-			alloc_with_type(srcfile, SrcFile);
-			srcfile->contents = file.file;
-			buf_push(srcfiles, srcfile);
-		} else if (file.status == FILE_ERROR_ERROR) {
-			msg_user(MSG_TY_ROOT_ERR, null, 0, 0, 0, ERROR_CANNOT_READ_SOURCE_FILE, argv[i]);
+		SrcFile* srcfile = read_srcfile_or_error(argv[i], MSG_TY_ROOT_ERR, null, 0, 0, 0);
+		if (!srcfile) {
 			srcfile_error = true;
-		} else if (file.status == FILE_ERROR_DIR) {
-			msg_user(MSG_TY_ROOT_ERR, null, 0, 0, 0, ERROR_SOURCE_FILE_IS_DIRECTORY, argv[i]);
-			srcfile_error = true;
+			continue;
 		}
+
+		buf_push(srcfiles, srcfile);
 	}
 
 	if (srcfile_error) {
@@ -225,8 +236,10 @@ int main(int argc, char* argv[]) {
 		buf_loop(srcfiles[s]->imports, i) {
 			bool parsed = false;
 			buf_loop(srcfiles, ss) {
-				if (stri(srcfiles[s]->imports[i]->imported_namespace.srcfile->contents->abs_fpath) == stri(srcfiles[ss]->contents->abs_fpath)) {
+				if (stri(srcfiles[s]->imports[i].fpath) == stri(srcfiles[ss]->contents->fpath)) {
+					srcfiles[s]->imports[i].namespace_->imported_namespace.srcfile = srcfiles[ss];
 					parsed = true;
+					break;
 				}
 			}
 
@@ -234,9 +247,23 @@ int main(int argc, char* argv[]) {
 				continue;
 			}
 
-			bool current_import_file_error = parse_srcfile(srcfiles[s]->imports[i]->imported_namespace.srcfile);
+			Token* import = srcfiles[s]->imports[i].namespace_->ident;
+			SrcFile* srcfile = read_srcfile_or_error(
+					srcfiles[s]->imports[i].fpath,
+					MSG_TY_ERR,
+					import->srcfile,
+					import->line,
+					import->column,
+					import->char_count);
+			if (!srcfile) {
+				import_files_error = true;
+				continue;
+			}
+			srcfiles[s]->imports[i].namespace_->imported_namespace.srcfile = srcfile;
+
+			bool current_import_file_error = parse_srcfile(srcfile);
 			if (!current_import_file_error) {
-				buf_push(srcfiles, srcfiles[s]->imports[i]->imported_namespace.srcfile);
+				buf_push(srcfiles, srcfile);
 			} else {
 				import_files_error = true;
 			}

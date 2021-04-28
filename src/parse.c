@@ -529,7 +529,8 @@ static Stmt* stmt_expr(Parser* self) {
 
 #define alloc_stmt_imported_namespace(__name, __ident, __namespace_ident, __srcfile) \
 	alloc_with_type(__name, Stmt); \
-	__name->ident == __ident; \
+	__name->ty = ST_IMPORTED_NAMESPACE; \
+	__name->ident = __ident; \
 	__name->imported_namespace.namespace_ident = __namespace_ident; \
 	__name->imported_namespace.srcfile = __srcfile; 
 
@@ -728,19 +729,19 @@ static Stmt* top_level_stmt(Parser* self) {
 					(current_dir_fpath == null ? "" : current_dir_fpath), 
 					import_fpath_rel_current_file);
 
-		FileOrError import_file = file_read(import_fpath);
-		if (import_file.status == FILE_ERROR_SUCCESS) {
-			alloc_with_type(import_srcfile, SrcFile);
-			import_srcfile->contents = import_file.file;
+		/* FileOrError import_file = file_read(import_fpath); */
+		/* if (import_file.status == FILE_ERROR_SUCCESS) { */
+			/* alloc_with_type(import_srcfile, SrcFile); */
+			/* import_srcfile->contents = import_file.file; */
 			char* basename = aria_notdir(aria_basename(import_fpath_rel_current_file));
 
-			alloc_stmt_imported_namespace(s, fpath_token, basename, import_srcfile);
-			buf_push(self->srcfile->imports, s);
-		} else if (import_file.status == FILE_ERROR_ERROR) {
-			error_token(self, fpath_token, ERROR_CANNOT_READ_SOURCE_FILE, import_fpath_rel_current_file); // TODO: also print filename relative to compiler
-		} else if (import_file.status == FILE_ERROR_DIR) {
-			error_token(self, fpath_token, ERROR_SOURCE_FILE_IS_DIRECTORY, import_fpath_rel_current_file);
-		}
+			alloc_stmt_imported_namespace(s, fpath_token, basename, null);
+			buf_push(self->srcfile->imports, (Import){ import_fpath, import_fpath_rel_current_file, s });
+		/* } else if (import_file.status == FILE_ERROR_ERROR) { */
+		/* 	error_token(self, fpath_token, ERROR_CANNOT_READ_SOURCE_FILE, import_fpath_rel_current_file); // TODO: also print filename relative to compiler */
+		/* } else if (import_file.status == FILE_ERROR_DIR) { */
+		/* 	error_token(self, fpath_token, ERROR_SOURCE_FILE_IS_DIRECTORY, import_fpath_rel_current_file); */
+		/* } */
 
 		return null;
 	} else if (match_keyword(self, "struct")) {

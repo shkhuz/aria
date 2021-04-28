@@ -277,7 +277,11 @@ void ast_printer_print(AstPrinter* self) {
 
 	printf("----- imports -----\n");
 	buf_loop(self->srcfile->imports, i) {
-		printf("%s => %s\n", self->srcfile->imports[i]->imported_namespace.namespace_ident, self->srcfile->imports[i]->imported_namespace.srcfile->contents->fpath);
+		printf(
+				"%s(%u) => %s\n", 
+				self->srcfile->imports[i].namespace_->imported_namespace.namespace_ident, 
+				self->srcfile->imports[i].namespace_->ty,
+				self->srcfile->imports[i].namespace_->imported_namespace.srcfile->contents->fpath);
 	}
 	printf("-------------------\n\n");
 }

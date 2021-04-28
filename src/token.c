@@ -24,10 +24,3 @@ Token* token_alloc(
 	};
 	return token;
 }
-
-bool token_lexeme_eql(Token* a, Token* b) {
-	if (stri(a->lexeme) == stri(b->lexeme)) {
-		return true;
-	}
-	return false;
-}
