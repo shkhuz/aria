@@ -527,6 +527,12 @@ static Stmt* stmt_expr(Parser* self) {
 	return s;
 }
 
+#define alloc_stmt_imported_namespace(__name, __ident, __namespace_ident, __srcfile) \
+	alloc_with_type(__name, Stmt); \
+	__name->ident == __ident; \
+	__name->imported_namespace.namespace_ident = __namespace_ident; \
+	__name->imported_namespace.srcfile = __srcfile; 
+
 #define alloc_stmt_namespace(__name, __namespace_keyword, __ident, __stmts) \
 	alloc_with_type(__name, Stmt); \
 	__name->ty = ST_NAMESPACE; \
@@ -727,7 +733,9 @@ static Stmt* top_level_stmt(Parser* self) {
 			alloc_with_type(import_srcfile, SrcFile);
 			import_srcfile->contents = import_file.file;
 			char* basename = aria_notdir(aria_basename(import_fpath_rel_current_file));
-			buf_push(self->srcfile->imports, (ImportMap){ basename, import_srcfile });
+
+			alloc_stmt_imported_namespace(s, fpath_token, basename, import_srcfile);
+			buf_push(self->srcfile->imports, s);
 		} else if (import_file.status == FILE_ERROR_ERROR) {
 			error_token(self, fpath_token, ERROR_CANNOT_READ_SOURCE_FILE, import_fpath_rel_current_file); // TODO: also print filename relative to compiler
 		} else if (import_file.status == FILE_ERROR_DIR) {

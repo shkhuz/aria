@@ -192,7 +192,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	// `File` is a regular I/O file
-	// `SrcFile` is a wrapper for the `File`,
+	// `SrcFile` is a wrapper for `File`
 	// and the parsing context (symbol table, imports, etc)
 	SrcFile** srcfiles = null;
 	bool srcfile_error = false;
@@ -225,7 +225,7 @@ int main(int argc, char* argv[]) {
 		buf_loop(srcfiles[s]->imports, i) {
 			bool parsed = false;
 			buf_loop(srcfiles, ss) {
-				if (stri(srcfiles[s]->imports[i].srcfile->contents->abs_fpath) == stri(srcfiles[ss]->contents->abs_fpath)) {
+				if (stri(srcfiles[s]->imports[i]->imported_namespace.srcfile->contents->abs_fpath) == stri(srcfiles[ss]->contents->abs_fpath)) {
 					parsed = true;
 				}
 			}
@@ -234,9 +234,9 @@ int main(int argc, char* argv[]) {
 				continue;
 			}
 
-			bool current_import_file_error = parse_srcfile(srcfiles[s]->imports[i].srcfile);
+			bool current_import_file_error = parse_srcfile(srcfiles[s]->imports[i]->imported_namespace.srcfile);
 			if (!current_import_file_error) {
-				buf_push(srcfiles, srcfiles[s]->imports[i].srcfile);
+				buf_push(srcfiles, srcfiles[s]->imports[i]->imported_namespace.srcfile);
 			} else {
 				import_files_error = true;
 			}

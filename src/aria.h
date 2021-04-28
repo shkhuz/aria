@@ -146,6 +146,7 @@ struct Expr {
 };
 
 typedef enum {
+	ST_IMPORTED_NAMESPACE,
 	ST_NAMESPACE,
 	ST_STRUCT,
 	ST_FUNCTION,
@@ -166,6 +167,11 @@ struct Stmt {
 	StmtType ty;
 	Token* ident;
 	union {
+		struct {
+			char* namespace_ident;
+			SrcFile* srcfile;
+		} imported_namespace;
+
 		struct {
 			Token* namespace_keyword;
 
@@ -190,16 +196,14 @@ struct Stmt {
 	};
 };
 
-typedef struct {
-	char* namespace_;
-	SrcFile* srcfile;
-} ImportMap;
-
 struct SrcFile {
 	File* contents;
 	Token** tokens;
 	Stmt** stmts;
-	ImportMap* imports;
+
+	// Buffer of ST_IMPORTED_NAMESPACE
+	// holding a pointer to a srcfile
+	Stmt** imports;
 };
 
 ///// COMPILE ERROR/WARNING /////
