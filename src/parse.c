@@ -367,6 +367,7 @@ static bool match_data_type(Parser* self) {
 	__name->assign.op = __op;
 
 static Stmt* top_level_stmt(Parser* self);
+static Stmt* namespace_level_stmt(Parser* self);
 static Stmt* stmt(Parser* self);
 static Expr* expr(Parser* self);
 
@@ -615,7 +616,7 @@ static Stmt* stmt_namespace(Parser* self) {
 	Stmt** stmts = null;
 	expect_lbrace(self);
 	while (!match_token_type(self, TT_RBRACE)) {
-		Stmt* s = top_level_stmt(self); // TODO: exclude `import` directive in parsing here
+		Stmt* s = namespace_level_stmt(self); // TODO: exclude `import` directive in parsing here
 		if (self->error) return null;
 		if (s) buf_push(stmts, s);
 	}
@@ -681,6 +682,20 @@ static Stmt* stmt_variable(Parser* self) {
 static Stmt* stmt(Parser* self) {
 	if (match_keyword(self, "struct")) {
 		return stmt_struct(self);
+	} else if (match_keyword(self, "fn")) {
+		return stmt_function(self);
+	} else if (match_keyword(self, "let")) {
+		return stmt_variable(self);
+	} else {
+		return stmt_expr(self);
+	}
+	assert(0);
+	return null;
+}
+
+static Stmt* namespace_level_stmt(Parser* self) {
+	if (match_keyword(self, "struct")) {
+		return stmt_struct(self);
 	} else if (match_keyword(self, "namespace")) {
 		return stmt_namespace(self);
 	} else if (match_keyword(self, "fn")) {
@@ -688,7 +703,8 @@ static Stmt* stmt(Parser* self) {
 	} else if (match_keyword(self, "let")) {
 		return stmt_variable(self);
 	} else {
-		return stmt_expr(self);
+		error_token_with_sync(self, current(self), ERROR_INVALID_NAMESPACE_LEVEL_TOKEN);
+		return null;
 	}
 	assert(0);
 	return null;

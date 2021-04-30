@@ -27,6 +27,7 @@ FileOrError file_read(const char* fpath) {
 
 	char* contents = (char*)malloc(size + 1);
 	fread((void*)contents, sizeof(char), size, fp);
+	contents[size] = '\0';
 	fclose(fp);
 
 	char abs_fpath[PATH_MAX+1];

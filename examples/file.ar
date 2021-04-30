@@ -5,6 +5,5 @@ namespace std {
 	}
 
 	fn foo(a: usize, b: usize) {
-		namespace std {}
 	}
 }

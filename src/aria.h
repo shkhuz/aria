@@ -271,6 +271,7 @@ void terminate_compilation();
 #define ERROR_SOURCE_FILE_IS_DIRECTORY					19, "`%s` is a directory"
 #define ERROR_IMPORT_DIRECTIVE_IS_EMPTY					20, "empty file name to `#import`"
 #define ERROR_INVALID_TOP_LEVEL_TOKEN					21, "invalid top-level token"
+#define ERROR_INVALID_NAMESPACE_LEVEL_TOKEN				24, "invalid token in namespace-level scope"
 #define ERROR_REDECLARATION_OF_SYMBOL					22, "redeclaration of symbol `%s`"
 #define ERROR_INVALID_CHAR_AFTER_DIRECTIVE				23, "invalid character after `#`"
 
