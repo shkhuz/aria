@@ -228,6 +228,7 @@ static void __expect_data_type(Parser* self) {
 
 #define alloc_data_type_named(__name, __pointers, __static_accessor, __ident) \
 	alloc_with_type(__name, DataType); \
+	__name->ty = DT_NAMED; \
 	__name->named.pointers = __pointers; \
 	__name->named.static_accessor = __static_accessor; \
 	__name->named.ident = __ident;
@@ -245,6 +246,13 @@ static void __expect_data_type(Parser* self) {
 	__name->dt = __dt; \
 	__name->initializer = __initializer;
 
+#define alloc_stmt_variable(__name, __variable, __is_mut) \
+	alloc_with_type(__name, Stmt); \
+	__name->ty = ST_VARIABLE; \
+	__name->variable.variable = __variable; \
+	__name->variable.is_mut = __is_mut; \
+	if (__variable) __name->ident = __variable->ident;
+
 static DataType* parse_struct(Parser* self, bool is_stmt) {
 	Token* struct_keyword = previous(self);
 
@@ -257,7 +265,7 @@ static DataType* parse_struct(Parser* self, bool is_stmt) {
 	}
 	expect_lbrace(self);
 
-	Variable** fields = null;
+	Stmt** fields = null;
 	while (!match_token_type(self, TT_RBRACE)) {
 		expect_ident(self);
 		Token* field_ident = previous(self);
@@ -269,7 +277,8 @@ static DataType* parse_struct(Parser* self, bool is_stmt) {
 			expect_comma(self);
 		}
 
-		alloc_variable(field, field_ident, field_dt, null);
+		alloc_variable(field_variable, field_ident, field_dt, null);
+		alloc_stmt_variable(field, field_variable, true); // TODO: false or true?
 		buf_push(fields, field);
 	}
 
@@ -568,20 +577,13 @@ static Stmt* stmt_expr(Parser* self) {
 	__name->params = __params; \
 	__name->return_data_type = __return_data_type;
 
-#define alloc_stmt_variable(__name, __variable, __is_mut) \
-	alloc_with_type(__name, Stmt); \
-	__name->ty = ST_VARIABLE; \
-	__name->variable.variable = __variable; \
-	__name->variable.is_mut = __is_mut; \
-	if (__variable) __name->ident = __variable->ident;
-
 static FunctionHeader* parse_function_header(Parser* self) {
 	Token* fn_keyword = previous(self);
 	expect_ident(self);
 	Token* ident = previous(self);
 	expect_lparen(self);
 
-	Variable** params = null;
+	Stmt** params = null;
 	while (!match_token_type(self, TT_RPAREN)) {
 		expect_ident(self);
 		Token* param_ident = previous(self);
@@ -593,14 +595,15 @@ static FunctionHeader* parse_function_header(Parser* self) {
 			expect_comma(self);
 		}
 
-		alloc_variable(param, param_ident, param_dt, null);
+		alloc_variable(param_variable, param_ident, param_dt, null);
+		alloc_stmt_variable(param, param_variable, false); // TODO: false or true?
 		buf_push(params, param);
 	}
 
 	// TODO: initialize to dt `void`
 	DataType* return_data_type = null;
-	if (match_token_type(self, TT_COLON)) {
-		expect_data_type(self);
+	if (current(self)->ty != TT_RBRACE && current(self)->ty != TT_SEMICOLON) {
+		match_data_type(self);
 		return_data_type = self->matched_dt;
 	}
 

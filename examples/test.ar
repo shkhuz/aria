@@ -34,13 +34,13 @@ struct baz {
     },
 }
 
-fn main(argc: int, argv: char_ptr_ptr): u8;
+fn main(argc: int, argv: char_ptr_ptr) u8;
 
-fn cool(): struct { } {
+fn cool() struct { } {
     hmm;
 }
 
-fn start(): noreturn {
+fn start() noreturn {
     let val = get_val;
     struct Game { 
         name: string,

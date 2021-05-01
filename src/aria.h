@@ -84,7 +84,7 @@ struct DataType {
 		struct {
 			Token* struct_keyword;
 			Token* ident;
-			Variable** fields;
+			Stmt** fields;
 		} struct_;
 	};
 };
@@ -157,7 +157,7 @@ typedef enum {
 typedef struct {
 	Token* fn_keyword;
 	Token* ident;
-	Variable** params;
+	Stmt** params;
 	DataType* return_data_type;
 } FunctionHeader;
 
@@ -274,6 +274,7 @@ void terminate_compilation();
 #define ERROR_INVALID_NAMESPACE_LEVEL_TOKEN				24, "invalid token in namespace-level scope"
 #define ERROR_REDECLARATION_OF_SYMBOL					22, "redeclaration of symbol `%s`"
 #define ERROR_INVALID_CHAR_AFTER_DIRECTIVE				23, "invalid character after `#`"
+#define ERROR_UNDECLARED_SYMBOL 						25, "undeclared symbol `%s`"
 
 #define NOTE_PREVIOUS_SYMBOL_DEFINITION					"previously defined here"
 

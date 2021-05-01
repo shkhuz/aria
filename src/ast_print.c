@@ -55,7 +55,7 @@ static void data_type_struct(AstPrinter* self, DataType* dt) {
 	self->indent++;
 	buf_loop(dt->struct_.fields, f) {
 		print_indent(self);
-		variable(self, dt->struct_.fields[f]);
+		variable(self, dt->struct_.fields[f]->variable.variable);
 		if (f < buf_len(dt->struct_.fields) - 1) {
 			print_newline();
 		}
@@ -186,7 +186,7 @@ static void function_header(AstPrinter* self, FunctionHeader* h) {
 
 	print_lparen();
 	buf_loop(h->params, p) {
-		variable(self, h->params[p]);
+		variable(self, h->params[p]->variable.variable);
 		if (p < buf_len(h->params) - 1) {
 			printf(", ");
 		}

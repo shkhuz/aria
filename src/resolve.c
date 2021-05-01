@@ -91,6 +91,25 @@ static bool add_in_sym_tbl_or_error(Resolver* self, Stmt* s) {
 	}
 }
 
+static bool assert_sym_in_sym_tbl_rec_or_error(Resolver* self, Token* ident) {
+	Scope* scope = self->current_scope;
+	while (scope != null) {
+		buf_loop(scope->sym_tbl, s) {
+			if (stri(scope->sym_tbl[s]->ident->lexeme) == stri(ident->lexeme)) {
+				return true;
+			}
+		}
+		scope = scope->parent;
+	}
+
+	error_token(
+			self,
+			ident,
+			ERROR_UNDECLARED_SYMBOL,
+			ident->lexeme);
+	return false;
+}
+
 static void stmt_namespace(Resolver* self, Stmt* s) {
 	change_scope(scope);
 
@@ -111,9 +130,18 @@ static void stmt_namespace(Resolver* self, Stmt* s) {
 	revert_scope(scope);
 }	
 
-static void stmt_struct(Resolver* self, Stmt* s) {
+static void struct_(Resolver* self, DataType* s) {
 	change_scope(scope);
 
+	buf_loop(s->struct_.fields, f) {
+		add_in_sym_tbl_or_error(self, s->struct_.fields[f]);
+
+		if (s->struct_.fields[f]->variable.variable->dt->ty == DT_NAMED) {
+			assert_sym_in_sym_tbl_rec_or_error(self, s->struct_.fields[f]->variable.variable->dt->named.ident);
+		} else if (s->struct_.fields[f]->variable.variable->dt->ty == DT_STRUCT) {
+			struct_(self, s->struct_.fields[f]->variable.variable->dt);
+		}
+	}
 
 	revert_scope(scope);
 }
@@ -124,7 +152,7 @@ static void stmt(Resolver* self, Stmt* s) {
 			stmt_namespace(self, s);
 			break;
 		case ST_STRUCT:
-			stmt_struct(self, s);
+			struct_(self, s->struct_);
 			break;
 	}
 }

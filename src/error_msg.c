@@ -50,7 +50,9 @@ void vmsg_user(
 		// and updates the column to match real tab width
 		char* c = src_line;
 		while (*c != '\n' && *c != '\0') {
-			if (*c == '\t') {
+			// This checks if the character is a tab
+			// and the tab is before the erroneous column
+			if (*c == '\t' && (u64)(c - src_line) < column) {
 				column_new += TAB_COUNT - 1;
 			}
 			c++;

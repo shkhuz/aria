@@ -2,8 +2,13 @@
 
 namespace std {
 	struct foo {
+		len: usize,
+		len: a,
+		ii: struct {
+			i: struct {
+				i: usize,	
+			},
+		},
 	}
 
-	fn foo(a: usize, b: usize) {
-	}
 }

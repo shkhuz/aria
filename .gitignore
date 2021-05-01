@@ -3,3 +3,4 @@ build/
 .gdb_history
 *.o
 a.out
+gitcommit
