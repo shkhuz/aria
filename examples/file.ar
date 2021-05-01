@@ -6,7 +6,7 @@ namespace std {
 		len: a,
 		ii: struct {
 			i: struct {
-				i: usize,	
+				i: ::usize,	
 			},
 		},
 	}

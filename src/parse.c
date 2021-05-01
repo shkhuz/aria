@@ -289,6 +289,12 @@ static DataType* parse_struct(Parser* self, bool is_stmt) {
 static StaticAccessor parse_static_accessor(Parser* self) {
 	StaticAccessor sa;
 	sa.accessors = null;
+	sa.from_global_scope = false;
+
+	if (match_token_type(self, TT_DOUBLE_COLON)) {
+		sa.from_global_scope = true;
+	}
+
 	while (true) {
 		if (current(self)->ty == TT_IDENT && next(self)->ty == TT_DOUBLE_COLON) {
 			buf_push(sa.accessors, current(self));
@@ -298,11 +304,12 @@ static StaticAccessor parse_static_accessor(Parser* self) {
 			break;
 		}
 	}
+
 	return sa;
 }
 
 static bool match_data_type(Parser* self) {
-	if (current(self)->ty == TT_IDENT || current(self)->ty == TT_STAR) {
+	if (current(self)->ty == TT_IDENT || current(self)->ty == TT_STAR || current(self)->ty == TT_DOUBLE_COLON) {
 		Pointer* pointers = null;
 		while (match_token_type(self, TT_STAR)) {
 			bool is_const = false;

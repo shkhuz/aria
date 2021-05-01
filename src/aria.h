@@ -67,6 +67,7 @@ typedef struct {
 // `::`
 typedef struct {
 	Token** accessors;
+	bool from_global_scope;
 } StaticAccessor;
 
 struct DataType {

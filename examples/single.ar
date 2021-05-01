@@ -1,6 +1,1 @@
-	fn main(argc: mai) {
-		let mut file: File;
-		fn close_file(file: FILE) bool {
-
-		}
-	}
+let i: ::usize;
