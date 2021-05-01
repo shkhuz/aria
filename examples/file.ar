@@ -13,6 +13,9 @@ namespace std {
 
 	fn main(argc: main) {
 		let mut file: File;
+		{
+			let file: usize = file;
+		};
 		fn close_file(file: FILE) bool {
 
 		}

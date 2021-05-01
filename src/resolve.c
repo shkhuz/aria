@@ -184,6 +184,14 @@ static void stmt_function(Resolver* self, Stmt* s) {
 	revert_scope(scope);
 }
 
+static void stmt_variable(Resolver* self, Stmt* s) {
+	add_in_sym_tbl_or_error(self, s);
+	if (s->variable.variable->dt) {
+		data_type(self, s->variable.variable->dt);
+	}
+	// TODO: resolve initializer
+}
+
 static void stmt(Resolver* self, Stmt* s) {
 	switch (s->ty) {
 		case ST_NAMESPACE:
@@ -194,6 +202,9 @@ static void stmt(Resolver* self, Stmt* s) {
 			break;
 		case ST_FUNCTION:
 			stmt_function(self, s); 
+			break;
+		case ST_VARIABLE:
+			stmt_variable(self, s); 
 			break;
 	}
 }
