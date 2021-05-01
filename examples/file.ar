@@ -15,6 +15,7 @@ namespace std {
 		let mut file: File;
 		{
 			let file: usize = file;
+			let file = file;
 		};
 		fn close_file(file: FILE) bool {
 

@@ -111,6 +111,24 @@ static bool assert_sym_in_sym_tbl_rec_or_error(Resolver* self, Token* ident) {
 	return true;
 }
 
+static void expr_block(Resolver* self, Expr* e) {
+	change_scope(scope);
+
+	buf_loop(e->block.stmts, s) {
+		stmt(self, e->block.stmts[s]);
+	}
+
+	revert_scope(scope);
+}
+
+static void expr(Resolver* self, Expr* e) {
+	switch (e->ty) {
+		case ET_BLOCK:
+			expr_block(self, e);
+			break;
+	}
+}
+
 static void stmt_namespace(Resolver* self, Stmt* s) {
 	change_scope(scope);
 
@@ -189,7 +207,13 @@ static void stmt_variable(Resolver* self, Stmt* s) {
 	if (s->variable.variable->dt) {
 		data_type(self, s->variable.variable->dt);
 	}
-	// TODO: resolve initializer
+	if (s->variable.variable->initializer) {
+		expr(self, s->variable.variable->initializer);
+	}
+}
+
+static void stmt_expr(Resolver* self, Stmt* s) {
+	expr(self, s->expr);
 }
 
 static void stmt(Resolver* self, Stmt* s) {
@@ -205,6 +229,9 @@ static void stmt(Resolver* self, Stmt* s) {
 			break;
 		case ST_VARIABLE:
 			stmt_variable(self, s); 
+			break;
+		case ST_EXPR: 
+			stmt_expr(self, s);
 			break;
 	}
 }
