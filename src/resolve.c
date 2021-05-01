@@ -46,6 +46,7 @@ void resolver_init(Resolver* self, SrcFile* srcfile) {
 } 
 
 static void stmt(Resolver* self, Stmt* s);
+static bool struct_(Resolver* self, DataType* s);
 
 // returns the previous decl is found
 // else null
@@ -96,7 +97,7 @@ static bool assert_sym_in_sym_tbl_rec_or_error(Resolver* self, Token* ident) {
 	while (scope != null) {
 		buf_loop(scope->sym_tbl, s) {
 			if (stri(scope->sym_tbl[s]->ident->lexeme) == stri(ident->lexeme)) {
-				return true;
+				return false;
 			}
 		}
 		scope = scope->parent;
@@ -107,7 +108,7 @@ static bool assert_sym_in_sym_tbl_rec_or_error(Resolver* self, Token* ident) {
 			ident,
 			ERROR_UNDECLARED_SYMBOL,
 			ident->lexeme);
-	return false;
+	return true;
 }
 
 static void stmt_namespace(Resolver* self, Stmt* s) {
@@ -116,9 +117,7 @@ static void stmt_namespace(Resolver* self, Stmt* s) {
 	bool error = false;
 	buf_loop(s->namespace_.stmts, i) {
 		bool current_error = add_in_sym_tbl_or_error(self, s->namespace_.stmts[i]);
-		if (!error) {
-			error = current_error;
-		}
+		if (!error) error = current_error;
 	}
 	
 	if (error) return;
@@ -130,17 +129,56 @@ static void stmt_namespace(Resolver* self, Stmt* s) {
 	revert_scope(scope);
 }	
 
-static void struct_(Resolver* self, DataType* s) {
+static bool data_type(Resolver* self, DataType* dt) {
+	if (dt->ty == DT_NAMED) {
+		return assert_sym_in_sym_tbl_rec_or_error(self, dt->named.ident);
+	} else if (dt->ty == DT_STRUCT) {
+		return struct_(self, dt);
+	}
+	assert(0);
+	return false;
+}
+
+static bool struct_(Resolver* self, DataType* s) {
 	change_scope(scope);
 
+	bool error = false;
 	buf_loop(s->struct_.fields, f) {
-		add_in_sym_tbl_or_error(self, s->struct_.fields[f]);
+		bool current_error = add_in_sym_tbl_or_error(self, s->struct_.fields[f]);
+		if (!error) error = current_error;
 
-		if (s->struct_.fields[f]->variable.variable->dt->ty == DT_NAMED) {
-			assert_sym_in_sym_tbl_rec_or_error(self, s->struct_.fields[f]->variable.variable->dt->named.ident);
-		} else if (s->struct_.fields[f]->variable.variable->dt->ty == DT_STRUCT) {
-			struct_(self, s->struct_.fields[f]->variable.variable->dt);
-		}
+		current_error = data_type(self, s->struct_.fields[f]->variable.variable->dt);
+		if (!error) error = current_error;
+	}
+
+	if (error) return true;
+
+	revert_scope(scope);
+	return false;
+}
+
+static void stmt_function(Resolver* self, Stmt* s) {
+	change_scope(scope);
+
+	bool error = false;
+	buf_loop(s->function.header->params, p) {
+		bool current_error = add_in_sym_tbl_or_error(self, s->function.header->params[p]);
+		if (!error) error = current_error;
+
+		current_error = data_type(self, s->function.header->params[p]->variable.variable->dt);
+		if (!error) error = current_error;
+	}
+
+	if (s->function.header->return_data_type) {
+		bool current_error = data_type(self, s->function.header->return_data_type);
+		if (!error) error = current_error;
+	}
+
+
+	if (error) return;
+
+	buf_loop(s->function.body->block.stmts, c) {
+		stmt(self, s->function.body->block.stmts[c]);
 	}
 
 	revert_scope(scope);
@@ -154,6 +192,9 @@ static void stmt(Resolver* self, Stmt* s) {
 		case ST_STRUCT:
 			struct_(self, s->struct_);
 			break;
+		case ST_FUNCTION:
+			stmt_function(self, s); 
+			break;
 	}
 }
 
@@ -162,16 +203,12 @@ void resolver_resolve(Resolver* self) {
 
 	buf_loop(self->srcfile->stmts, s) {
 		bool current_error = add_in_sym_tbl_or_error(self, self->srcfile->stmts[s]);
-		if (!error) {
-			error = current_error;
-		}
+		if (!error) error = current_error;
 	}
 
 	buf_loop(self->srcfile->imports, i) {
 		bool current_error = add_in_sym_tbl_or_error(self, self->srcfile->imports[i].namespace_);
-		if (!error) {
-			error = current_error;
-		}
+		if (!error) error = current_error;
 	}
 
 	if (error) return;

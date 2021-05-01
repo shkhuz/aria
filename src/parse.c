@@ -603,8 +603,9 @@ static FunctionHeader* parse_function_header(Parser* self) {
 	// TODO: initialize to dt `void`
 	DataType* return_data_type = null;
 	if (current(self)->ty != TT_RBRACE && current(self)->ty != TT_SEMICOLON) {
-		match_data_type(self);
-		return_data_type = self->matched_dt;
+		if (match_data_type(self)) {
+			return_data_type = self->matched_dt;
+		}
 	}
 
 	alloc_function_header(h, fn_keyword, ident, params, return_data_type);

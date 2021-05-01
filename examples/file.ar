@@ -11,4 +11,10 @@ namespace std {
 		},
 	}
 
+	fn main(argc: main) {
+		let mut file: File;
+		fn close_file(file: FILE) bool {
+
+		}
+	}
 }

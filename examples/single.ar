@@ -1,3 +1,6 @@
-struct foo {
-	baz: usize,		
-}
+	fn main(argc: mai) {
+		let mut file: File;
+		fn close_file(file: FILE) bool {
+
+		}
+	}
