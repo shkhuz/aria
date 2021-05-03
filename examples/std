@@ -1,4 +1,13 @@
-struct string {
-    data: char*,
-}
+struct usize {}
+struct u8 {}
+struct u16 {}
+struct u32 {}
+struct u64 {}
 
+struct void {}
+
+struct Vec {
+	len: usize,
+	cap: usize,
+	items: *void,
+}

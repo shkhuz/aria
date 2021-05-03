@@ -168,7 +168,9 @@ struct Stmt {
 	bool in_function;
 	union {
 		struct {
-			char* namespace_ident;
+			char* ident;
+			char* fpath;
+			char* fpath_rel_current_file;
 			SrcFile* srcfile;
 		} imported_namespace;
 
@@ -196,17 +198,10 @@ struct Stmt {
 	};
 };
 
-typedef struct {
-	char* fpath;
-	char* fpath_rel_current_file;
-	Stmt* namespace_;
-} Import;
-
 struct SrcFile {
 	File* contents;
 	Token** tokens;
 	Stmt** stmts;
-	Import* imports;
 };
 
 ///// COMPILE ERROR/WARNING /////

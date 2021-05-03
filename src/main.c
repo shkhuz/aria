@@ -233,39 +233,41 @@ int main(int argc, char* argv[]) {
 
 	bool import_files_error = false;
 	buf_loop(srcfiles, s) {
-		buf_loop(srcfiles[s]->imports, i) {
-			bool parsed = false;
-			buf_loop(srcfiles, ss) {
-				if (stri(srcfiles[s]->imports[i].fpath) == stri(srcfiles[ss]->contents->fpath)) {
-					srcfiles[s]->imports[i].namespace_->imported_namespace.srcfile = srcfiles[ss];
-					parsed = true;
-					break;
+		buf_loop(srcfiles[s]->stmts, i) {
+			if (srcfiles[s]->stmts[i]->ty == ST_IMPORTED_NAMESPACE) {
+				bool parsed = false;
+				buf_loop(srcfiles, ss) {
+					if (stri(srcfiles[s]->stmts[i]->imported_namespace.fpath) == stri(srcfiles[ss]->contents->fpath)) {
+						srcfiles[s]->stmts[i]->imported_namespace.srcfile = srcfiles[ss];
+						parsed = true;
+						break;
+					}
 				}
-			}
 
-			if (parsed) {
-				continue;
-			}
+				if (parsed) {
+					continue;
+				}
 
-			Token* import = srcfiles[s]->imports[i].namespace_->ident;
-			SrcFile* srcfile = read_srcfile_or_error(
-					srcfiles[s]->imports[i].fpath,
-					MSG_TY_ERR,
-					import->srcfile,
-					import->line,
-					import->column,
-					import->char_count);
-			if (!srcfile) {
-				import_files_error = true;
-				continue;
-			}
-			srcfiles[s]->imports[i].namespace_->imported_namespace.srcfile = srcfile;
+				Token* import = srcfiles[s]->stmts[i]->ident;
+				SrcFile* srcfile = read_srcfile_or_error(
+						srcfiles[s]->stmts[i]->imported_namespace.fpath,
+						MSG_TY_ERR,
+						import->srcfile,
+						import->line,
+						import->column,
+						import->char_count);
+				if (!srcfile) {
+					import_files_error = true;
+					continue;
+				}
+				srcfiles[s]->stmts[i]->imported_namespace.srcfile = srcfile;
 
-			bool current_import_file_error = parse_srcfile(srcfile);
-			if (!current_import_file_error) {
-				buf_push(srcfiles, srcfile);
-			} else {
-				import_files_error = true;
+				bool current_import_file_error = parse_srcfile(srcfile);
+				if (!current_import_file_error) {
+					buf_push(srcfiles, srcfile);
+				} else {
+					import_files_error = true;
+				}
 			}
 		}
 	}

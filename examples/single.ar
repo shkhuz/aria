@@ -18,6 +18,11 @@ namespace a {
 
 fn main() {
 	a::aa::aaa::hi;
+	coolspace::cool();
+}
+
+namespace coolspace {
+	fn cool() {}
 }
 
 namespace test_global_accessor {

@@ -1,6 +1,5 @@
 #import "test.ar";
 
-
 namespace std {
 	let cool = std;
 	struct foo {
@@ -20,6 +19,7 @@ namespace std {
 		{
 			let file: usize = file;
 			let file2 = std::cool;
+			let d = test::std::cool::variabe;
 			let file = file;
 		};
 		fn close_file(file: FILE) bool {

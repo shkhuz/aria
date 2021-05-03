@@ -1,0 +1,5 @@
+#import "std";
+
+fn main() {
+	let vec = ::std::Vec;
+}

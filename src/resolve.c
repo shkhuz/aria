@@ -48,6 +48,7 @@ void resolver_init(Resolver* self, SrcFile* srcfile) {
 
 static void stmt(Resolver* self, Stmt* s);
 static bool struct_(Resolver* self, DataType* s);
+static void expr(Resolver* self, Expr* e);
 
 // returns the previous decl is found
 // else null
@@ -55,7 +56,7 @@ static Stmt* check_if_symbol_in_sym_tbl(Resolver* self, char* sym) {
 	buf_loop(self->current_scope->sym_tbl, st) {
 		char* current_sym = null;
 		if (self->current_scope->sym_tbl[st]->ty == ST_IMPORTED_NAMESPACE) {
-			current_sym = self->current_scope->sym_tbl[st]->imported_namespace.namespace_ident;
+			current_sym = self->current_scope->sym_tbl[st]->imported_namespace.ident;
 		} else {
 			current_sym = self->current_scope->sym_tbl[st]->ident->lexeme;
 		}
@@ -70,7 +71,7 @@ static Stmt* check_if_symbol_in_sym_tbl(Resolver* self, char* sym) {
 static bool add_in_sym_tbl_or_error(Resolver* self, Stmt* s) {
 	char* sym = null;
 	if (s->ty == ST_IMPORTED_NAMESPACE) {
-		sym = s->imported_namespace.namespace_ident;
+		sym = s->imported_namespace.ident;
 	} else {
 		sym = s->ident->lexeme;
 	}
@@ -128,6 +129,11 @@ static Stmt** get_static_accessor_namespace(Resolver* self, StaticAccessor sa) {
 			buf_loop(scope->sym_tbl, s) {
 				if (scope->sym_tbl[s]->ty == ST_NAMESPACE && stri(scope->sym_tbl[s]->ident->lexeme) == stri(accessors[0]->lexeme)) {
 					namespace_body = scope->sym_tbl[s]->namespace_.stmts;
+					first_accessor_found = true;	// TODO: refactor these two stmts
+					break;
+				}
+				else if (scope->sym_tbl[s]->ty == ST_IMPORTED_NAMESPACE && stri(scope->sym_tbl[s]->imported_namespace.ident) == stri(accessors[0]->lexeme)) {
+					namespace_body = scope->sym_tbl[s]->imported_namespace.srcfile->stmts;
 					first_accessor_found = true;
 					break;
 				}
@@ -147,7 +153,6 @@ static Stmt** get_static_accessor_namespace(Resolver* self, StaticAccessor sa) {
 		}
 	}
 
-
 	// TODO: u64??
 	u64 start_idx = (sa.from_global_scope ? 0 : 1);
 	for (u64 a = start_idx; a < buf_len(accessors); a++) {
@@ -155,9 +160,13 @@ static Stmt** get_static_accessor_namespace(Resolver* self, StaticAccessor sa) {
 		buf_loop(namespace_body, s) {
 			if (namespace_body[s]->ty == ST_NAMESPACE && 
 				stri(namespace_body[s]->ident->lexeme) == stri(accessors[a]->lexeme)) {
-
-				found = true;
+				found = true;	// TODO: refactor these three stmts
 				namespace_body = namespace_body[s]->namespace_.stmts;
+				break;
+			} else if (namespace_body[s]->ty == ST_IMPORTED_NAMESPACE &&
+					   stri(namespace_body[s]->imported_namespace.ident) == stri(accessors[a]->lexeme)) {
+				found = true;
+				namespace_body = namespace_body[s]->imported_namespace.srcfile->stmts;
 				break;
 			}
 		}
@@ -230,6 +239,13 @@ static void expr_ident(Resolver* self, Expr* e) {
 	assert_static_accessor_ident_in_scope(self, e->ident.static_accessor, e->ident.ident);
 }
 
+static void expr_function_call(Resolver* self, Expr* e) {
+	expr(self, e->function_call.left);
+	buf_loop(e->function_call.args, a) {
+		expr(self, e->function_call.args[a]);
+	}
+}
+
 static void expr(Resolver* self, Expr* e) {
 	switch (e->ty) {
 		case ET_BLOCK:
@@ -237,6 +253,9 @@ static void expr(Resolver* self, Expr* e) {
 			break;
 		case ET_IDENT:
 			expr_ident(self, e);
+			break;
+		case ET_FUNCTION_CALL:
+			expr_function_call(self, e);
 			break;
 	}
 }
@@ -354,11 +373,6 @@ void resolver_resolve(Resolver* self) {
 
 	buf_loop(self->srcfile->stmts, s) {
 		bool current_error = add_in_sym_tbl_or_error(self, self->srcfile->stmts[s]);
-		if (!error) error = current_error;
-	}
-
-	buf_loop(self->srcfile->imports, i) {
-		bool current_error = add_in_sym_tbl_or_error(self, self->srcfile->imports[i].namespace_);
 		if (!error) error = current_error;
 	}
 

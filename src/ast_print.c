@@ -164,6 +164,10 @@ static void expr(AstPrinter* self, Expr* e) {
 	}
 }
 
+static void stmt_imported_namespace(AstPrinter* self, Stmt* s) {
+	printf("imported_namespace %s = %s", s->imported_namespace.ident, s->imported_namespace.fpath);
+}
+
 static void stmt_namespace(AstPrinter* self, Stmt* s) {
 	printf("namespace ");
 	print_tok(s->ident);
@@ -237,6 +241,9 @@ static void stmt_expr(AstPrinter* self, Stmt* s) {
 static void stmt(AstPrinter* self, Stmt* s) {
 	print_indent(self);
 	switch (s->ty) {
+		case ST_IMPORTED_NAMESPACE:
+			stmt_imported_namespace(self, s);
+			break;
 		case ST_NAMESPACE:
 			stmt_namespace(self, s);
 			break;
@@ -274,14 +281,4 @@ void ast_printer_print(AstPrinter* self) {
 	buf_loop(self->srcfile->stmts, s) {
 		stmt(self, self->srcfile->stmts[s]);
 	}
-
-	printf("----- imports -----\n");
-	buf_loop(self->srcfile->imports, i) {
-		printf(
-				"%s(%u) => %s\n", 
-				self->srcfile->imports[i].namespace_->imported_namespace.namespace_ident, 
-				self->srcfile->imports[i].namespace_->ty,
-				self->srcfile->imports[i].namespace_->imported_namespace.srcfile->contents->fpath);
-	}
-	printf("-------------------\n\n");
 }
