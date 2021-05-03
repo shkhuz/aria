@@ -1,1 +1,26 @@
-let i: ::usize;
+namespace std {
+	namespace std {
+		fn main() {
+			let var = std::var;
+		}
+
+	}
+	let var: std;
+}
+
+namespace a {
+	namespace aa {
+		namespace aaa {
+			let hi: aaa;
+		}
+	}
+} 
+
+fn main() {
+	a::aa::aaa::hi;
+}
+
+namespace test_global_accessor {
+	let i: ::usize;
+	struct usize {}
+}

@@ -1,6 +1,8 @@
 #include <aria_core.h>
 #include <aria.h>
 
+#include <thirdparty/Defer/defer.h>
+
 static bool match_data_type(Parser* self);
 
 static Token* current(Parser* self) {
@@ -249,6 +251,7 @@ static void __expect_data_type(Parser* self) {
 #define alloc_stmt_variable(__name, __variable, __is_mut) \
 	alloc_with_type(__name, Stmt); \
 	__name->ty = ST_VARIABLE; \
+	__name->in_function = self->in_function; \
 	__name->variable.variable = __variable; \
 	__name->variable.is_mut = __is_mut; \
 	if (__variable) __name->ident = __variable->ident;
@@ -388,7 +391,7 @@ static Stmt* stmt(Parser* self);
 static Expr* expr(Parser* self);
 
 static Expr* expr_atom(Parser* self) {
-	if (current(self)->ty == TT_IDENT) {	
+	if (current(self)->ty == TT_IDENT || current(self)->ty == TT_DOUBLE_COLON) {	
 		StaticAccessor sa = parse_static_accessor(self);
 
 		if (sa.accessors == null) {
@@ -561,12 +564,14 @@ static Stmt* stmt_expr(Parser* self) {
 #define alloc_stmt_struct(__name, __struct_dt) \
 	alloc_with_type(__name, Stmt); \
 	__name->ty = ST_STRUCT; \
+	__name->in_function = self->in_function; \
 	__name->struct_ = __struct_dt; \
 	if (__struct_dt) __name->ident = __struct_dt->struct_.ident;
 
 #define alloc_stmt_function(__name, __header, __body) \
 	alloc_with_type(__name, Stmt); \
 	__name->ty = ST_FUNCTION; \
+	__name->in_function = self->in_function; \
 	__name->function.header = __header; \
 	__name->function.body = __body; \
 	if (__header) __name->ident = __header->ident;
@@ -574,6 +579,7 @@ static Stmt* stmt_expr(Parser* self) {
 #define alloc_stmt_function_prototype(__name, __header) \
 	alloc_with_type(__name, Stmt); \
 	__name->ty = ST_FUNCTION_PROTOTYPE; \
+	__name->in_function = self->in_function; \
 	__name->function_prototype = __header; \
 	if (__header) __name->ident = __header->ident;
 
@@ -642,23 +648,26 @@ static Stmt* stmt_struct(Parser* self) {
 	return s;
 }
 
-static Stmt* stmt_function(Parser* self) {
+static Stmt* stmt_function(Parser* self) {Deferral
+	self->in_function = true;
+	Defer({ self->in_function = false; });
+
 	FunctionHeader* h = null;
 	chk(h = parse_function_header(self));
 
 	if (match_token_type(self, TT_SEMICOLON)) {
 		alloc_stmt_function_prototype(s, h);
-		return s;
+		Return s;
 	} else {
 		expect_lbrace(self);
 		goto_previous_token(self);
 		EXPR(e);
 		alloc_stmt_function(s, h, e);
-		return s;
+		Return s;
 	}
 
 	assert(0);
-	return null;
+	Return null;
 }
 
 static Stmt* stmt_variable(Parser* self) {
@@ -792,6 +801,7 @@ void parser_init(Parser* self, SrcFile* srcfile) {
 	self->srcfile->imports = null;
 	self->token_idx = 0;
 	self->matched_dt = null;
+	self->in_function = false;
 	self->srcfile->stmts = null;
 	self->error = false;
 	self->not_parsing_error = false;

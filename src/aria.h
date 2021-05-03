@@ -165,6 +165,7 @@ typedef struct {
 struct Stmt {
 	StmtType ty;
 	Token* ident;
+	bool in_function;
 	union {
 		struct {
 			char* namespace_ident;
@@ -276,6 +277,7 @@ void terminate_compilation();
 #define ERROR_REDECLARATION_OF_SYMBOL					22, "redeclaration of symbol `%s`"
 #define ERROR_INVALID_CHAR_AFTER_DIRECTIVE				23, "invalid character after `#`"
 #define ERROR_UNDECLARED_SYMBOL 						25, "undeclared symbol `%s`"
+#define ERROR_NAMESPACE_NOT_FOUND						26, "namespace `%s` not found"
 
 #define NOTE_PREVIOUS_SYMBOL_DEFINITION					"previously defined here"
 
@@ -297,6 +299,7 @@ typedef struct {
 	SrcFile* srcfile;
 	u64 token_idx;
 	DataType* matched_dt;
+	bool in_function;
 
 	bool error;
 	bool not_parsing_error;
@@ -325,6 +328,7 @@ typedef struct {
 	SrcFile* srcfile;
 	Scope* global_scope;
 	Scope* current_scope;
+	bool dont_create_block_scope;
 
 	bool error;
 } Resolver;

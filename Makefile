@@ -17,13 +17,13 @@ CC := gcc
 LD := gcc
 
 PREPROCESSOR_DEFINES := -DTAB_COUNT=4 -DAST_TAB_COUNT=4
-CFLAGS := $(PREPROCESSOR_DEFINES) -I$(SRC_DIR) -Wall -Wextra -Wshadow -std=gnu99 -m64 -g -O0
+CFLAGS := $(PREPROCESSOR_DEFINES) -I$(SRC_DIR) -I. -Wall -Wextra -Wshadow -std=gnu99 -m64 -g -O0
 ASMFLAGS := -felf64
 LDFLAGS :=
 LIBS_INC_DIR_CMD :=
 LIBS_LIB_DIR_CMD :=
 LIBS_LIB_CMD :=
-CMD_ARGS := examples/test.ar
+CMD_ARGS := examples/single.ar
 
 all: $(BIN_FILE) #docs
 	# mkdir -p .dev
