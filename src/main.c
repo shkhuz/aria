@@ -123,11 +123,32 @@ bool parse_srcfiles(SrcFile** srcfiles) {
 	return error;
 }
 
-bool check_srcfile(SrcFile* srcfile) {
+bool resolve_srcfile(SrcFile* srcfile) {
 	Resolver resolver;
 	resolver_init(&resolver, srcfile);
 	resolver_resolve(&resolver);
 	if (resolver.error) {
+		return true;
+	}
+	return false;
+}
+
+bool resolve_srcfiles(SrcFile** srcfiles) {
+	bool error = false;
+	buf_loop(srcfiles, i) {
+		bool current_error = resolve_srcfile(srcfiles[i]);
+		if (!error) {
+			error = current_error;
+		}
+	}
+	return error;
+}
+
+bool check_srcfile(SrcFile* srcfile) {
+	Checker checker;
+	checker_init(&checker, srcfile);
+	checker_check(&checker);
+	if (checker.error) {
 		return true;
 	}
 	return false;
@@ -273,6 +294,11 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (import_files_error) {
+		terminate_compilation();
+	}
+
+	bool resolving_error = resolve_srcfiles(srcfiles);
+	if (resolving_error) {
 		terminate_compilation();
 	}
 

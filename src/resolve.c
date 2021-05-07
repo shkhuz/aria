@@ -50,18 +50,23 @@ static void stmt(Resolver* self, Stmt* s);
 static bool struct_(Resolver* self, DataType* s);
 static void expr(Resolver* self, Expr* e);
 
+char* one_word_stmt_ty(Stmt* s) {
+	if (s->ty == ST_NAMESPACE || s->ty == ST_IMPORTED_NAMESPACE) return "namespace";
+	else if (s->ty == ST_STRUCT) return "type";
+	else if (s->ty == ST_FUNCTION) return "function";
+	assert(0);
+}
+
+static char* stmt_get_ident(Stmt* s) {
+	if (s->ty == ST_IMPORTED_NAMESPACE) return s->imported_namespace.ident;
+	else return s->ident->lexeme;
+}
+
 // returns the previous decl is found
 // else null
 static Stmt* check_if_symbol_in_sym_tbl(Resolver* self, char* sym) {
 	buf_loop(self->current_scope->sym_tbl, st) {
-		char* current_sym = null;
-		if (self->current_scope->sym_tbl[st]->ty == ST_IMPORTED_NAMESPACE) {
-			current_sym = self->current_scope->sym_tbl[st]->imported_namespace.ident;
-		} else {
-			current_sym = self->current_scope->sym_tbl[st]->ident->lexeme;
-		}
-
-		if (stri(current_sym) == stri(sym)) {
+		if (stri(stmt_get_ident(self->current_scope->sym_tbl[st])) == stri(sym)) {
 			return self->current_scope->sym_tbl[st];
 		}
 	}
@@ -69,20 +74,13 @@ static Stmt* check_if_symbol_in_sym_tbl(Resolver* self, char* sym) {
 }
 
 static bool add_in_sym_tbl_or_error(Resolver* self, Stmt* s) {
-	char* sym = null;
-	if (s->ty == ST_IMPORTED_NAMESPACE) {
-		sym = s->imported_namespace.ident;
-	} else {
-		sym = s->ident->lexeme;
-	}
-
-	Stmt* prev_decl = check_if_symbol_in_sym_tbl(self, sym);
+	Stmt* prev_decl = check_if_symbol_in_sym_tbl(self, stmt_get_ident(s));
 	if (prev_decl) {
 		error_token(
 				self,
 				s->ident,
 				ERROR_REDECLARATION_OF_SYMBOL,
-				sym);
+				stmt_get_ident(s));
 		note_token(
 				self,
 				prev_decl->ident,
@@ -94,15 +92,15 @@ static bool add_in_sym_tbl_or_error(Resolver* self, Stmt* s) {
 	}
 }
 
-static bool assert_sym_in_sym_tbl_rec_or_error(Resolver* self, Token* ident, bool global_scope) {
+static Stmt* assert_sym_in_sym_tbl_rec_or_error(Resolver* self, Token* ident, bool global_scope) {
 	Scope* scope;
 	if (global_scope) scope = self->global_scope;
 	else scope = self->current_scope;
 
 	while (scope != null) {
 		buf_loop(scope->sym_tbl, s) {
-			if (stri(scope->sym_tbl[s]->ident->lexeme) == stri(ident->lexeme)) {
-				return false;
+			if (stri(stmt_get_ident(scope->sym_tbl[s])) == stri(ident->lexeme)) {
+				return scope->sym_tbl[s];
 			}
 		}
 		scope = scope->parent;
@@ -113,9 +111,10 @@ static bool assert_sym_in_sym_tbl_rec_or_error(Resolver* self, Token* ident, boo
 			ident,
 			ERROR_UNDECLARED_SYMBOL,
 			ident->lexeme);
-	return true;
+	return null;
 }
 
+// TODO: refactor
 static Stmt** get_static_accessor_namespace(Resolver* self, StaticAccessor sa) {
 	Token** accessors = sa.accessors;
 	Scope* scope = self->current_scope;
@@ -183,10 +182,10 @@ static Stmt** get_static_accessor_namespace(Resolver* self, StaticAccessor sa) {
 	return namespace_body;
 }
 
-static bool assert_sym_in_stmt_buffer(Resolver* self, Token* sym, Stmt** stmts) {
+static Stmt* assert_sym_in_stmt_buffer(Resolver* self, Token* sym, Stmt** stmts) {
 	buf_loop(stmts, s) {
-		if (stri(stmts[s]->ident->lexeme) == stri(sym->lexeme)) {
-			return false;
+		if (stri(stmt_get_ident(stmts[s])) == stri(sym->lexeme)) {
+			return stmts[s];
 		}
 	}
 
@@ -195,7 +194,7 @@ static bool assert_sym_in_stmt_buffer(Resolver* self, Token* sym, Stmt** stmts) 
 			sym,
 			ERROR_UNDECLARED_SYMBOL,
 			sym->lexeme);
-	return true;
+	return null;
 }
 
 static void expr_block(Resolver* self, Expr* e) {
@@ -220,29 +219,61 @@ static void expr_block(Resolver* self, Expr* e) {
 	}
 }
 
-static bool assert_static_accessor_ident_in_scope(Resolver* self, StaticAccessor sa, Token* ident) {
+static Stmt* assert_static_accessor_ident_in_scope(Resolver* self, StaticAccessor sa, Token* ident) {
 	if (sa.accessors) {
 		Stmt** namespace_body = get_static_accessor_namespace(self, sa);
 		if (namespace_body) {
 			return assert_sym_in_stmt_buffer(self, ident, namespace_body);
 		} else {
-			return true;
+			return null;
 		}
 	} else {
 		return assert_sym_in_sym_tbl_rec_or_error(self, ident, sa.from_global_scope);
 	}
 	assert(0);
-	return false;
+	return null;
 }
 
 static void expr_ident(Resolver* self, Expr* e) {
-	assert_static_accessor_ident_in_scope(self, e->ident.static_accessor, e->ident.ident);
+	e->ident.ref = assert_static_accessor_ident_in_scope(self, e->ident.static_accessor, e->ident.ident);
 }
 
 static void expr_function_call(Resolver* self, Expr* e) {
 	expr(self, e->function_call.left);
 	buf_loop(e->function_call.args, a) {
 		expr(self, e->function_call.args[a]);
+	}
+}
+
+static void expr_assign(Resolver* self, Expr* e) {
+	if (e->assign.left->ty != ET_IDENT) { // TODO: add pointer ref/deref, ...
+		error_token(
+				self,
+				e->assign.left->head,
+				ERROR_INVALID_LVALUE);
+		return;
+	}
+
+	expr(self, e->assign.left);
+   	expr(self, e->assign.right);
+	if (!e->assign.left->ident.ref) return;
+
+	if (e->assign.left->ident.ref->ty != ST_VARIABLE) {
+		error_token(
+				self,
+				e->assign.left->head,
+				ERROR_CANNOT_ASSIGN_TO,
+				one_word_stmt_ty(e->assign.left->ident.ref));
+		// TODO add note defined here (not done because of pointer ref/deref refactoring
+		return;
+	}
+
+	if (!e->assign.left->ident.ref->variable.is_mut) {
+		error_token(
+				self, 
+				e->assign.left->head,
+				ERROR_CANNOT_ASSIGN_TO_IMMUTABLE);
+		// TODO add note defined here
 	}
 }
 
@@ -256,6 +287,9 @@ static void expr(Resolver* self, Expr* e) {
 			break;
 		case ET_FUNCTION_CALL:
 			expr_function_call(self, e);
+			break;
+		case ET_ASSIGN:
+			expr_assign(self, e);
 			break;
 	}
 }
@@ -280,7 +314,8 @@ static void stmt_namespace(Resolver* self, Stmt* s) {
 
 static bool data_type(Resolver* self, DataType* dt) {
 	if (dt->ty == DT_NAMED) {
-		return assert_static_accessor_ident_in_scope(self, dt->named.static_accessor, dt->named.ident);
+		dt->named.ref = assert_static_accessor_ident_in_scope(self, dt->named.static_accessor, dt->named.ident);
+		return (dt->named.ref ? false : true);
 	} else if (dt->ty == DT_STRUCT) {
 		return struct_(self, dt);
 	}

@@ -77,6 +77,7 @@ struct DataType {
 			Pointer* pointers;
 			StaticAccessor static_accessor;
 			Token* ident;
+			Stmt* ref;
 		} named;
 
 		// TODO: make it so that we can
@@ -107,10 +108,12 @@ typedef enum {
 
 struct Expr {
 	ExprType ty;
+	Token* head;
 	union {
 		struct {
 			StaticAccessor static_accessor;
 			Token* ident;	
+			Stmt* ref;
 		} ident;
 
 		struct {
@@ -273,8 +276,16 @@ void terminate_compilation();
 #define ERROR_INVALID_CHAR_AFTER_DIRECTIVE				23, "invalid character after `#`"
 #define ERROR_UNDECLARED_SYMBOL 						25, "undeclared symbol `%s`"
 #define ERROR_NAMESPACE_NOT_FOUND						26, "namespace `%s` not found"
+#define ERROR_IS_NOT_A_VALID_TYPE						27, "`%s` is not a valid type"
+#define ERROR_IS_A										28, "`%s` is a %s"
+#define ERROR_CANNOT_CONVERT_TO							29, "cannot convert `%s` to `%s`"
+#define ERROR_INVALID_LVALUE							30, "invalid l-value"
+#define ERROR_EXPECTED_TYPE_GOT_TYPE					31, "expected type `%s`, got type `%s`"
+#define ERROR_CANNOT_ASSIGN_TO							32, "cannot assign to %s"
+#define ERROR_CANNOT_ASSIGN_TO_IMMUTABLE				33, "cannot assign to immutable variable"
 
 #define NOTE_PREVIOUS_SYMBOL_DEFINITION					"previously defined here"
+#define NOTE_DEFINED_HERE								"defined here"
 
 ///// LEXER /////
 typedef struct {
@@ -331,6 +342,17 @@ typedef struct {
 void resolver_init(Resolver* self, SrcFile* srcfile);
 void resolver_resolve(Resolver* self);
 
+typedef struct {
+	SrcFile* srcfile;
+	bool error;
+	u64 error_count;
+} Checker;
+
+void checker_init(Checker* self, SrcFile* srcfile);
+void checker_check(Checker* self);
+
+char* one_word_stmt_ty(Stmt* s);
+
 ///// MISC /////
 char* aria_strsub(char* str, uint start, uint len);
 char* aria_strapp(char* to, char* from);
@@ -343,5 +365,31 @@ char* aria_notdir(char* fpath);
 extern char* executable_path_from_argv;
 extern char* keywords[KEYWORDS_LEN];
 extern char* directives[DIRECTIVES_LEN];
+
+#define es \
+	u64 COMBINE(_error_store,__LINE__) = self->error_count
+
+#define er \
+	if (self->error_count > COMBINE(_error_store,__LINE__)) return
+
+#define ec \
+	if (self->error_count > COMBINE(_error_store,__LINE__)) continue
+
+#define ern \
+	er null
+
+#define chk(stmt) \
+	es; stmt; ern;
+
+// void
+#define chkv(stmt) \
+	es; stmt; er;
+
+#define chkf(stmt) \
+	es; stmt; er false;
+
+// loop
+#define chklp(stmt) \
+	es; stmt; ec;
 
 #endif	/* __ARIA_H */

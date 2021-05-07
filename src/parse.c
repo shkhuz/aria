@@ -345,35 +345,42 @@ static bool match_data_type(Parser* self) {
 #define alloc_expr_ident(__name, __static_accessor, __ident) \
 	alloc_with_type(__name, Expr); \
 	__name->ty = ET_IDENT; \
+	__name->head = __ident; \
 	__name->ident.static_accessor = __static_accessor; \
-	__name->ident.ident = __ident;
+	__name->ident.ident = __ident; \
+	__name->ident.ref = null;
 
 #define alloc_expr_string(__name, __string) \
 	alloc_with_type(__name, Expr); \
 	__name->ty = ET_STRING; \
+	__name->head = __string; \
 	__name->string.string = __string;
 
-#define alloc_expr_block(__name, __stmts, __value) \
+#define alloc_expr_block(__name, __stmts, __value, __lbrace) \
 	alloc_with_type(__name, Expr); \
 	__name->ty = ET_BLOCK; \
+	__name->head = __lbrace; \
 	__name->block.stmts = __stmts; \
 	__name->block.value = __value;
 
 #define alloc_expr_function_call(__name, __left, __args) \
 	alloc_with_type(__name, Expr); \
 	__name->ty = ET_FUNCTION_CALL; \
+	__name->head = __left->head; \
 	__name->function_call.left = __left; \
 	__name->function_call.args = __args;
 
 #define alloc_expr_unary(__name, __ty, __op, __right) \
 	alloc_with_type(__name, Expr); \
 	__name->ty = __ty; \
+	__name->head = __op; \
 	__name->unary.op = __op; \
 	__name->unary.right = __right;
 
 #define alloc_expr_binary(__name, __ty, __left, __right, __op) \
 	alloc_with_type(__name, Expr); \
 	__name->ty = __ty; \
+	__name->head = __left->head; \
 	__name->binary.left = __left; \
 	__name->binary.right = __right; \
 	__name->binary.op = __op;
@@ -381,6 +388,7 @@ static bool match_data_type(Parser* self) {
 #define alloc_expr_assign(__name, __left, __right, __op) \
 	alloc_with_type(__name, Expr); \
 	__name->ty = ET_ASSIGN; \
+	__name->head = __left->head; \
 	__name->assign.left = __left; \
 	__name->assign.right = __right; \
 	__name->assign.op = __op;
@@ -406,6 +414,7 @@ static Expr* expr_atom(Parser* self) {
 		alloc_expr_string(e, previous(self));
 		return e;
 	} else if (match_token_type(self, TT_LBRACE)) {
+		Token* lbrace_token = previous(self);
 		Stmt** stmts = null;
 		while (!match_token_type(self, TT_RBRACE)) {
 			Stmt* s = stmt(self);
@@ -413,7 +422,7 @@ static Expr* expr_atom(Parser* self) {
 			if (s) buf_push(stmts, s);
 		}
 
-		alloc_expr_block(e, stmts, null);
+		alloc_expr_block(e, stmts, null, lbrace_token);
 		return e;
 	} else if (match_token_type(self, TT_LPAREN)) {
 		EXPR(e);

@@ -78,6 +78,7 @@ typedef struct {
 #define buf_remove(b, n)   ((b) ? _buf_remove(b, n, sizeof(*(b))) : 0)
 
 #define buf_loop(b, c) for (u64 c = 0; c < buf_len(b); ++c)
+#define buf_write(b, s) for (size_t i = 0; i < strlen(s); i++) { buf_push(b, s[i]); }
 
 void* _buf_grow(const void* buf, u64 new_len, u64 elem_size);
 void _buf_shrink(const void* buf, u64 size);
