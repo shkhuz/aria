@@ -155,6 +155,37 @@ void msg_user(
 	va_end(ap);
 }
 
+void vmsg_user_expr(
+		MsgType ty,
+		Expr* expr,
+		u32 code,
+		char* fmt, 
+		va_list ap) {
+	va_list aq;
+	va_copy(aq, ap);
+	vmsg_user(
+			ty,
+			expr->head->srcfile,
+			expr->head->line,
+			expr->head->column,
+			(expr->tail->column + expr->tail->char_count) - expr->head->column,
+			code,
+			fmt,
+			ap);
+}
+
+void msg_user_expr(
+		MsgType ty,
+		Expr* expr,
+		u32 code,
+		char* fmt, 
+		...) {
+	va_list ap;
+	va_start(ap, fmt);
+	vmsg_user_expr(ty, expr, code, fmt, ap);
+	va_end(ap);
+}
+
 void vmsg_user_token(
 		MsgType ty,
 		Token* token,

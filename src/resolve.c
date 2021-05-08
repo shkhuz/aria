@@ -314,7 +314,7 @@ static void stmt_namespace(Resolver* self, Stmt* s) {
 
 static bool data_type(Resolver* self, DataType* dt) {
 	if (dt->ty == DT_NAMED) {
-		dt->named.ref = assert_static_accessor_ident_in_scope(self, dt->named.static_accessor, dt->named.ident);
+		dt->named.ref = assert_static_accessor_ident_in_scope(self, dt->named.ident->ident.static_accessor, dt->named.ident->ident.ident);
 		return (dt->named.ref ? false : true);
 	} else if (dt->ty == DT_STRUCT) {
 		return struct_(self, dt);

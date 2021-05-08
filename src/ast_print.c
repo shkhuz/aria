@@ -33,8 +33,7 @@ static void data_type_named(AstPrinter* self, DataType* dt) {
 			printf("const ");
 		}
 	}
-	static_accessor(dt->named.static_accessor);
-	print_tok(dt->named.ident);
+	expr(self, dt->named.ident);
 }
 
 static void variable(AstPrinter* self, Variable* v) {

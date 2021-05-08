@@ -1,6 +1,8 @@
 #include <aria_core.h>
 #include <aria.h>
 
+#include <thirdparty/Defer/defer.h>
+
 static void stmt(Checker* self, Stmt* s);
 static DataType* expr(Checker* self, Expr* e);
 
@@ -19,8 +21,21 @@ static void error_token(Checker* self, Token* token, u32 code, char* fmt, ...) {
 			token,
 			code,
 			fmt,
-			ap
-	);
+			ap);
+	va_end(ap);
+}
+
+static void error_expr(Checker* self, Expr* expr, u32 code, char* fmt, ...) {
+	set_error_flags(self);
+
+	va_list ap;
+	va_start(ap, fmt);
+	vmsg_user_expr(
+			MSG_TY_ERR,
+			expr, 
+			code,
+			fmt, 
+			ap);
 	va_end(ap);
 }
 
@@ -31,6 +46,13 @@ static void error_token(Checker* self, Token* token, u32 code, char* fmt, ...) {
 			0, \
 			fmt, \
 			##__VA_ARGS__);
+
+#define write_static_accessor_to_buf(b, sa) \
+	if (sa.from_global_scope) { buf_write(b, "::"); } \
+	buf_loop(sa.accessors, COMBINE(i, __LINE__)) { \
+		buf_write(b, sa.accessors[COMBINE(i, __LINE__)]->lexeme); \
+		buf_write(b, "::"); \
+	}
 
 static char* data_type_to_string(DataType* dt) {
 	char* buf = null;
@@ -44,14 +66,8 @@ static char* data_type_to_string(DataType* dt) {
 			}
 		}
 
-		if (dt->named.static_accessor.from_global_scope) {
-			buf_write(buf, "::");
-		}
-		buf_loop(dt->named.static_accessor.accessors, sa) {
-			buf_write(buf, dt->named.static_accessor.accessors[sa]->lexeme);
-			buf_write(buf, "::");
-		}
-		buf_write(buf, dt->named.ident->lexeme);
+		write_static_accessor_to_buf(buf, dt->named.ident->ident.static_accessor);
+		buf_write(buf, dt->named.ident->ident.ident->lexeme);
 	} else if (dt->ty == DT_STRUCT) {
 		// TODO: do we also want to output fields?
 		buf_write(buf, "<anonymous struct>");
@@ -62,7 +78,7 @@ static char* data_type_to_string(DataType* dt) {
 }
 
 static Token* data_type_get_token(DataType* dt) {
-	if (dt->ty == DT_NAMED) return dt->named.ident;
+	if (dt->ty == DT_NAMED) return dt->named.ident->ident.ident;
 	else if (dt->ty == DT_STRUCT) return dt->struct_.struct_keyword;
 	assert(0);
 }
@@ -84,15 +100,24 @@ static bool can_data_types_coerce(DataType* a, DataType* b) {
 	return false;
 }
 
-static bool data_type(Checker* self, DataType* dt, bool print_err) {
+static char* expr_ident_get_full_lexeme(Expr* e) {
+	char* buf = null;
+	write_static_accessor_to_buf(buf, e->ident.static_accessor);
+	buf_write(buf, e->ident.ident->lexeme);
+	return buf;
+}
+
+static bool data_type(Checker* self, DataType* dt, bool print_err) {Deferral
 	if (dt->ty == DT_NAMED) {
 		if (dt->named.ref->ty != ST_STRUCT) {
 			if (print_err) {
-				error_token(
+				char* full_ident = expr_ident_get_full_lexeme(dt->named.ident);
+				Defer(buf_free(full_ident));
+				error_expr(
 						self,
 						dt->named.ident,
 						ERROR_IS_NOT_A_VALID_TYPE,
-						dt->named.ident->lexeme);
+						full_ident);
 				note_token(
 						self, 
 						dt->named.ref->ident,
@@ -111,13 +136,15 @@ static bool data_type(Checker* self, DataType* dt, bool print_err) {
 	return false;
 }
 
-static DataType* expr_ident(Checker* self, Expr* e) {
+static DataType* expr_ident(Checker* self, Expr* e) {Deferral
 	if (e->ident.ref->ty != ST_VARIABLE && e->ident.ref->ty != ST_FUNCTION) {	// TODO: print static accessor with identifier name
-		error_token(
+		char* full_ident = expr_ident_get_full_lexeme(e);
+		Defer(buf_free(full_ident));
+		error_expr(
 				self, 
-				e->ident.ident,
+				e,
 				ERROR_IS_A,
-				e->ident.ident->lexeme,
+				full_ident,
 				one_word_stmt_ty(e->ident.ref));
 		note_token(
 				self, 
@@ -142,23 +169,34 @@ static DataType* expr_ident(Checker* self, Expr* e) {
 	return null;
 }
 
+static DataType* expr_block(Checker* self, Expr* e) {
+	buf_loop(e->block.stmts, s) {
+		stmt(self, e->block.stmts[s]);
+	}
+	return null;
+}
+
 static DataType* expr_function_call(Checker* self, Expr* e) {
 	return expr_ident(self, e->function_call.left);
 }
 
-static DataType* expr_assign(Checker* self, Expr* e) {
+static DataType* expr_assign(Checker* self, Expr* e) {Deferral
 	DataType* left_type = null;
 	DataType* right_type = null;
 	chk((
 			left_type = expr(self, e->assign.left),
 			right_type = expr(self, e->assign.right)));
 	if (!can_data_types_coerce(left_type, right_type)) {
+		char* left_type_str = data_type_to_string(left_type);
+		Defer(buf_free(left_type_str));
+		char* right_type_str = data_type_to_string(right_type);
+		Defer(buf_free(right_type_str));
 		error_token(
 				self, 
 				e->assign.right->head,
-				ERROR_EXPECTED_TYPE_GOT_TYPE,
-				data_type_to_string(left_type),
-				data_type_to_string(right_type));
+				ERROR_CANNOT_ASSIGN_VARIABLE_OF_TYPE,
+				left_type_str,
+				right_type_str);
 		return null;
 	}
 	return left_type;
@@ -168,6 +206,8 @@ static DataType* expr(Checker* self, Expr* e) {
 	switch (e->ty) {
 		case ET_IDENT:
 			return expr_ident(self, e);
+		case ET_BLOCK: 
+			return expr_block(self, e);
 		case ET_FUNCTION_CALL:
 			return expr_function_call(self, e);
 		case ET_ASSIGN: 
@@ -183,7 +223,11 @@ static void stmt_namespace(Checker* self, Stmt* s) {
 	}
 }
 
-static void stmt_variable(Checker* self, Stmt* s) {
+static void stmt_function(Checker* self, Stmt* s) {
+	expr(self, s->function.body);
+}
+
+static void stmt_variable(Checker* self, Stmt* s) {Deferral
 	if (s->variable.variable->dt) {
 		if (data_type(self, s->variable.variable->dt, true)) {
 			return;
@@ -196,15 +240,26 @@ static void stmt_variable(Checker* self, Stmt* s) {
 		DataType* initializer_type = null;
 	   	chkv(initializer_type = expr(self, s->variable.variable->initializer));
 		if (!can_data_types_coerce(s->variable.variable->dt, initializer_type)) {
-			error_token(
-					self,
-					data_type_get_token(s->variable.variable->dt),
-					ERROR_CANNOT_CONVERT_TO,
-					data_type_to_string(s->variable.variable->dt),
-					data_type_to_string(initializer_type));
+			char* dt_str = data_type_to_string(s->variable.variable->dt);
+			Defer(buf_free(dt_str));
+			char* initializer_type_str = data_type_to_string(initializer_type);
+			Defer(buf_free(initializer_type_str));
+			// TODO: if DT_STRUCT then error_token else if DT_NAMED error_expr
+			if (s->variable.variable->dt->ty == DT_NAMED) {
+				error_expr(
+						self,
+						s->variable.variable->dt->named.ident,
+						ERROR_ANNOTATED_INFERRED_INITIALIZER_MISMATCH,
+						dt_str,
+						initializer_type_str);
+			}
 			return;
 		}
 	}
+}
+
+static void stmt_expr(Checker* self, Stmt* s) {
+	expr(self, s->expr);
 }
 
 static void stmt(Checker* self, Stmt* s) {
@@ -212,8 +267,14 @@ static void stmt(Checker* self, Stmt* s) {
 		case ST_NAMESPACE: 
 			stmt_namespace(self, s);
 			break;
+		case ST_FUNCTION:
+			stmt_function(self, s);
+			break;
 		case ST_VARIABLE: 
 			stmt_variable(self, s);
+			break;
+		case ST_EXPR:
+			stmt_expr(self, s);
 			break;
 	}
 }

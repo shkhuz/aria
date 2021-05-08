@@ -228,12 +228,22 @@ static void __expect_data_type(Parser* self) {
 #define expect_data_type(self) \
 	chk(__expect_data_type(self))
 
+#define alloc_expr_ident(__name, __static_accessor, __ident) \
+	alloc_with_type(__name, Expr); \
+	__name->ty = ET_IDENT; \
+	__name->head = (__static_accessor.head ? __static_accessor.head : __ident); \
+	__name->tail = __ident; \
+	__name->ident.static_accessor = __static_accessor; \
+	__name->ident.ident = __ident; \
+	__name->ident.ref = null;
+
 #define alloc_data_type_named(__name, __pointers, __static_accessor, __ident) \
 	alloc_with_type(__name, DataType); \
 	__name->ty = DT_NAMED; \
 	__name->named.pointers = __pointers; \
-	__name->named.static_accessor = __static_accessor; \
-	__name->named.ident = __ident;
+	alloc_expr_ident(__expr_ident, __static_accessor, __ident); \
+	__name->named.ident = __expr_ident; \
+	__name->named.ref = null;
 
 #define alloc_data_type_struct(__name, __struct_keyword, __ident, __fields) \
 	alloc_with_type(__name, DataType); \
@@ -293,13 +303,16 @@ static StaticAccessor parse_static_accessor(Parser* self) {
 	StaticAccessor sa;
 	sa.accessors = null;
 	sa.from_global_scope = false;
+	sa.head = null;
 
 	if (match_token_type(self, TT_DOUBLE_COLON)) {
+		sa.head = previous(self);
 		sa.from_global_scope = true;
 	}
 
 	while (true) {
 		if (current(self)->ty == TT_IDENT && next(self)->ty == TT_DOUBLE_COLON) {
+			if (!sa.head) sa.head = current(self);
 			buf_push(sa.accessors, current(self));
 			goto_next_token(self);
 			goto_next_token(self);
@@ -342,31 +355,26 @@ static bool match_data_type(Parser* self) {
 	return false;
 }
 
-#define alloc_expr_ident(__name, __static_accessor, __ident) \
-	alloc_with_type(__name, Expr); \
-	__name->ty = ET_IDENT; \
-	__name->head = __ident; \
-	__name->ident.static_accessor = __static_accessor; \
-	__name->ident.ident = __ident; \
-	__name->ident.ref = null;
-
 #define alloc_expr_string(__name, __string) \
 	alloc_with_type(__name, Expr); \
 	__name->ty = ET_STRING; \
 	__name->head = __string; \
+	__name->tail = __string; \
 	__name->string.string = __string;
 
-#define alloc_expr_block(__name, __stmts, __value, __lbrace) \
+#define alloc_expr_block(__name, __stmts, __value, __lbrace, __rbrace) \
 	alloc_with_type(__name, Expr); \
 	__name->ty = ET_BLOCK; \
 	__name->head = __lbrace; \
+	__name->tail = __rbrace; \
 	__name->block.stmts = __stmts; \
 	__name->block.value = __value;
 
-#define alloc_expr_function_call(__name, __left, __args) \
+#define alloc_expr_function_call(__name, __left, __args, __rparen) \
 	alloc_with_type(__name, Expr); \
 	__name->ty = ET_FUNCTION_CALL; \
 	__name->head = __left->head; \
+	__name->tail = __rparen; \
 	__name->function_call.left = __left; \
 	__name->function_call.args = __args;
 
@@ -374,6 +382,7 @@ static bool match_data_type(Parser* self) {
 	alloc_with_type(__name, Expr); \
 	__name->ty = __ty; \
 	__name->head = __op; \
+	__name->tail = __right->tail; \
 	__name->unary.op = __op; \
 	__name->unary.right = __right;
 
@@ -381,6 +390,7 @@ static bool match_data_type(Parser* self) {
 	alloc_with_type(__name, Expr); \
 	__name->ty = __ty; \
 	__name->head = __left->head; \
+	__name->tail = __right->tail; \
 	__name->binary.left = __left; \
 	__name->binary.right = __right; \
 	__name->binary.op = __op;
@@ -389,6 +399,7 @@ static bool match_data_type(Parser* self) {
 	alloc_with_type(__name, Expr); \
 	__name->ty = ET_ASSIGN; \
 	__name->head = __left->head; \
+	__name->tail = __right->tail; \
 	__name->assign.left = __left; \
 	__name->assign.right = __right; \
 	__name->assign.op = __op;
@@ -421,8 +432,9 @@ static Expr* expr_atom(Parser* self) {
 			if (self->error) return null;
 			if (s) buf_push(stmts, s);
 		}
+		Token* rbrace_token = previous(self);
 
-		alloc_expr_block(e, stmts, null, lbrace_token);
+		alloc_expr_block(e, stmts, null, lbrace_token, rbrace_token);
 		return e;
 	} else if (match_token_type(self, TT_LPAREN)) {
 		EXPR(e);
@@ -449,8 +461,9 @@ static Expr* expr_postfix(Parser* self) {
 				expect_comma(self);
 			}
 		}
+		Token* rparen_token = previous(self);
 
-		alloc_expr_function_call(e, left, args);
+		alloc_expr_function_call(e, left, args, rparen_token);
 		left = e;
 	}
 	return left;

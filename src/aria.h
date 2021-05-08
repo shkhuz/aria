@@ -68,6 +68,7 @@ typedef struct {
 typedef struct {
 	Token** accessors;
 	bool from_global_scope;
+	Token* head;
 } StaticAccessor;
 
 struct DataType {
@@ -75,8 +76,7 @@ struct DataType {
 	union {
 		struct {
 			Pointer* pointers;
-			StaticAccessor static_accessor;
-			Token* ident;
+			Expr* ident;
 			Stmt* ref;
 		} named;
 
@@ -109,6 +109,7 @@ typedef enum {
 struct Expr {
 	ExprType ty;
 	Token* head;
+	Token* tail;
 	union {
 		struct {
 			StaticAccessor static_accessor;
@@ -234,6 +235,20 @@ void msg_user(
 		char* fmt, 
 		...);
 
+void vmsg_user_expr(
+		MsgType ty,
+		Expr* expr,
+		u32 code,
+		char* fmt, 
+		va_list ap);
+
+void msg_user_expr(
+		MsgType ty,
+		Expr* expr,
+		u32 code,
+		char* fmt, 
+		...);
+
 void vmsg_user_token(
 		MsgType ty,
 		Token* token,
@@ -278,9 +293,9 @@ void terminate_compilation();
 #define ERROR_NAMESPACE_NOT_FOUND						26, "namespace `%s` not found"
 #define ERROR_IS_NOT_A_VALID_TYPE						27, "`%s` is not a valid type"
 #define ERROR_IS_A										28, "`%s` is a %s"
-#define ERROR_CANNOT_CONVERT_TO							29, "cannot convert `%s` to `%s`"
+#define ERROR_ANNOTATED_INFERRED_INITIALIZER_MISMATCH	29, "annotated type is `%s` but initializer's inferred type is `%s`"
 #define ERROR_INVALID_LVALUE							30, "invalid l-value"
-#define ERROR_EXPECTED_TYPE_GOT_TYPE					31, "expected type `%s`, got type `%s`"
+#define ERROR_CANNOT_ASSIGN_VARIABLE_OF_TYPE			31, "cannot assign variable of type `%s` to type `%s`"
 #define ERROR_CANNOT_ASSIGN_TO							32, "cannot assign to %s"
 #define ERROR_CANNOT_ASSIGN_TO_IMMUTABLE				33, "cannot assign to immutable variable"
 

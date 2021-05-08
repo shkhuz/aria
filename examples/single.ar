@@ -37,12 +37,15 @@ namespace one {
 	let mut i: std::u8 = d;
 }
 namespace foo {
+	let right_u8: std::u8;
+	let right_u16: std::u16;
 	namespace two {
 		let d = std::usize;
 		let mut e: std::u8 = std::get_cmd_args();
 		fn cool() {
 			e = e;
+			let mut f = right_u16;
+			f = right_u8;
 		}
-		let f = ::foo::two;
 	}
 }
