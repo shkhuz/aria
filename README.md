@@ -7,7 +7,7 @@ This repository houses the Aria compiler/toolchain and the language specificatio
 
 # Sample Code 
 
-```rust
+```aria
 namespace math {
 
 struct Vector2 {
@@ -26,7 +26,7 @@ struct Vector2 {
 
 ## _Generics_
 
-```rust
+```aria
 fn max<T>(a: T, b: T) T {
 	if a > b { a }
 	else { b }
@@ -35,25 +35,29 @@ fn max<T>(a: T, b: T) T {
 
 ## _Errors_
 
-```rust
-fn allocate_memory(n: usize): u8[]! {
-	let mem = gp_allocator_mem(n)?;
+```aria
+#import "std";
+
+fn allocate_memory(n: usize): ![]u8 {
+	let mem = std::gp_allocator_mem(n)?;
 	{ mem, n }
 }
 ```
 
 ## _Optionals_
 
-```rust
+```aria
+#import "std";
+
 fn main() {
-	std::printf(if open_file("test.txt") |file| {
+	std::printf(if open_file("test.txt") |_| {
 		"file successfully opened"
 	} else {
 		"file cannot be opened"
 	});
 }
 
-fn open_file(fpath: string): std::File? {
+fn open_file(fpath: string): ?std::File {
 	if std::os::openf(fpath, std::io::rb) |file| {
 		file
 	} else |_| {
@@ -64,14 +68,29 @@ fn open_file(fpath: string): std::File? {
 
 ## _Read User Input_
 
-```rust
+```aria
 #import "std";
 
-fn main() void! {
-	let input: u8[];
-	std::io::read_to_string(&input)?;
+fn main() !void {
+	let input = std::io::read_to_string()?;
 	defer free(input);
-	let input = input as const u8[];
+	let input_const = input as const u8[];
+}
+```
+
+## _Conditional Compilation_
+
+```aria
+#import "std";
+
+fn main() !void {
+	std::writeln(#if std::os::host_os == std::os::OsType::UNIX {
+		"we are on *NIX"
+	} else if std::os::host_os == std::os::OsType::Windows {
+		"windows."
+	} else {
+		"something else. hmm..."
+	});
 }
 ```
 
