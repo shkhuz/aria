@@ -58,6 +58,7 @@ typedef struct {
 	Token* ident;
 	DataType* dt;
 	Expr* initializer;
+	bool check_error;
 } Variable;
 
 typedef struct {
@@ -113,7 +114,7 @@ struct Expr {
 	union {
 		struct {
 			StaticAccessor static_accessor;
-			Token* ident;	
+			Token* ident;
 			Stmt* ref;
 		} ident;
 
@@ -164,11 +165,13 @@ typedef struct {
 	Token* ident;
 	Stmt** params;
 	DataType* return_data_type;
+	bool check_error;	// TODO: check if this should be in stmt struct shared
 } FunctionHeader;
 
 struct Stmt {
 	StmtType ty;
 	Token* ident;
+	bool pub;
 	bool in_function;
 	union {
 		struct {
@@ -183,6 +186,7 @@ struct Stmt {
 
 			// A `Block` isn't used because namespaces don't
 			// return anything, and blocks have value.
+			// May change.
 			Stmt** stmts;
 		} namespace_;
 
@@ -289,7 +293,7 @@ void terminate_compilation();
 #define ERROR_INVALID_NAMESPACE_LEVEL_TOKEN				24, "invalid token in namespace-level scope"
 #define ERROR_REDECLARATION_OF_SYMBOL					22, "redeclaration of symbol `%s`"
 #define ERROR_INVALID_CHAR_AFTER_DIRECTIVE				23, "invalid character after `#`"
-#define ERROR_UNDECLARED_SYMBOL 						25, "undeclared symbol `%s`"
+#define ERROR_UNDECLARED_SYMBOL 						25, "unresolved symbol `%s`"
 #define ERROR_NAMESPACE_NOT_FOUND						26, "namespace `%s` not found"
 #define ERROR_IS_NOT_A_VALID_TYPE						27, "`%s` is not a valid type"
 #define ERROR_IS_A										28, "`%s` is a %s"
@@ -298,6 +302,9 @@ void terminate_compilation();
 #define ERROR_CANNOT_ASSIGN_VARIABLE_OF_TYPE			31, "cannot assign variable of type `%s` to type `%s`"
 #define ERROR_CANNOT_ASSIGN_TO							32, "cannot assign to %s"
 #define ERROR_CANNOT_ASSIGN_TO_IMMUTABLE				33, "cannot assign to immutable variable"
+#define ERROR_WRONG_PUB_KEYWORD_USAGE					34, "unexpected `pub`: only used with declarative statements"
+#define ERROR_CANNOT_USE_PUB_IN_FUNCTION_SCOPE			35, "`pub` cannot be used in function scope"
+#define ERROR_SYMBOL_IS_PRIVATE							36, "`%s` is private"
 
 #define NOTE_PREVIOUS_SYMBOL_DEFINITION					"previously defined here"
 #define NOTE_DEFINED_HERE								"defined here"
@@ -349,8 +356,6 @@ typedef struct {
 	SrcFile* srcfile;
 	Scope* global_scope;
 	Scope* current_scope;
-	bool dont_create_block_scope;
-
 	bool error;
 } Resolver;
 
@@ -367,6 +372,7 @@ void checker_init(Checker* self, SrcFile* srcfile);
 void checker_check(Checker* self);
 
 char* one_word_stmt_ty(Stmt* s);
+char* expr_ident_get_full_lexeme(Expr* e);
 
 ///// MISC /////
 char* aria_strsub(char* str, uint start, uint len);
@@ -374,7 +380,7 @@ char* aria_strapp(char* to, char* from);
 char* aria_basename(char* fpath);
 char* aria_notdir(char* fpath);
 
-#define KEYWORDS_LEN 7
+#define KEYWORDS_LEN 8
 #define DIRECTIVES_LEN 1
 
 extern char* executable_path_from_argv;

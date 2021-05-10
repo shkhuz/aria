@@ -100,40 +100,37 @@ static bool can_data_types_coerce(DataType* a, DataType* b) {
 	return false;
 }
 
-static char* expr_ident_get_full_lexeme(Expr* e) {
+char* expr_ident_get_full_lexeme(Expr* e) {
 	char* buf = null;
 	write_static_accessor_to_buf(buf, e->ident.static_accessor);
 	buf_write(buf, e->ident.ident->lexeme);
+	buf_push(buf, '\0');
 	return buf;
 }
 
-static bool data_type(Checker* self, DataType* dt, bool print_err) {Deferral
+static bool data_type(Checker* self, DataType* dt) {Deferral
 	if (dt->ty == DT_NAMED) {
 		if (dt->named.ref->ty != ST_STRUCT) {
-			if (print_err) {
-				char* full_ident = expr_ident_get_full_lexeme(dt->named.ident);
-				Defer(buf_free(full_ident));
-				error_expr(
-						self,
-						dt->named.ident,
-						ERROR_IS_NOT_A_VALID_TYPE,
-						full_ident);
-				note_token(
-						self, 
-						dt->named.ref->ident,
-						NOTE_DEFINED_HERE);
-			} else {
-				set_error_flags(self);
-			}
-			return true;
+			char* full_ident = expr_ident_get_full_lexeme(dt->named.ident);
+			Defer(buf_free(full_ident));
+			error_expr(
+					self,
+					dt->named.ident,
+					ERROR_IS_NOT_A_VALID_TYPE,
+					full_ident);
+			note_token(
+					self, 
+					dt->named.ref->ident,
+					NOTE_DEFINED_HERE);
+			Return true;
 		}
-		return false;
+		Return false;
 	} else if (dt->ty == DT_STRUCT) {
 		// TODO
-		return false;
+		Return false;
 	}
 	assert(0);
-	return false;
+	Return false;
 }
 
 static DataType* expr_ident(Checker* self, Expr* e) {Deferral
@@ -150,23 +147,23 @@ static DataType* expr_ident(Checker* self, Expr* e) {Deferral
 				self, 
 				e->ident.ref->ident,
 				NOTE_DEFINED_HERE);
-		return null;
+		Return null;
 	}
 	else if (e->ident.ref->ty == ST_VARIABLE) {
-		if (e->ident.ref->variable.variable->dt && !data_type(self, e->ident.ref->variable.variable->dt, false)) {
-			return e->ident.ref->variable.variable->dt;
+		if (e->ident.ref->variable.variable->dt && !e->ident.ref->variable.variable->check_error) {
+			Return e->ident.ref->variable.variable->dt;
 		} else {
 			set_error_flags(self);
 		}
 	}
 	else if (e->ident.ref->ty == ST_FUNCTION) {
-		if (e->ident.ref->function.header->return_data_type && !data_type(self, e->ident.ref->function.header->return_data_type, false)) {
-			return e->ident.ref->function.header->return_data_type;
+		if (e->ident.ref->function.header->return_data_type && !e->ident.ref->function.header->check_error) {
+			Return e->ident.ref->function.header->return_data_type;
 		} else {
 			set_error_flags(self);
 		}
 	}
-	return null;
+	Return null;
 }
 
 static DataType* expr_block(Checker* self, Expr* e) {
@@ -197,9 +194,9 @@ static DataType* expr_assign(Checker* self, Expr* e) {Deferral
 				ERROR_CANNOT_ASSIGN_VARIABLE_OF_TYPE,
 				left_type_str,
 				right_type_str);
-		return null;
+		Return null;
 	}
-	return left_type;
+	Return left_type;
 }
 
 static DataType* expr(Checker* self, Expr* e) {
@@ -224,13 +221,15 @@ static void stmt_namespace(Checker* self, Stmt* s) {
 }
 
 static void stmt_function(Checker* self, Stmt* s) {
+	// TODO: check
 	expr(self, s->function.body);
 }
 
 static void stmt_variable(Checker* self, Stmt* s) {Deferral
 	if (s->variable.variable->dt) {
-		if (data_type(self, s->variable.variable->dt, true)) {
-			return;
+		if (data_type(self, s->variable.variable->dt)) {
+			s->variable.variable->check_error = true;
+			Return;
 		}
 	}
 
@@ -253,7 +252,7 @@ static void stmt_variable(Checker* self, Stmt* s) {Deferral
 						dt_str,
 						initializer_type_str);
 			}
-			return;
+			Return;
 		}
 	}
 }

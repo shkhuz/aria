@@ -48,4 +48,9 @@ namespace foo {
 			f = right_u8;
 		}
 	}
+
+	fn duh() {
+		let mut v: ::foo;
+		v = ::one;
+	}
 }

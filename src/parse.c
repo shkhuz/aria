@@ -256,7 +256,8 @@ static void __expect_data_type(Parser* self) {
 	alloc_with_type(__name, Variable); \
 	__name->ident = __ident; \
 	__name->dt = __dt; \
-	__name->initializer = __initializer;
+	__name->initializer = __initializer; \
+	__name->check_error = false;
 
 #define alloc_stmt_variable(__name, __variable, __is_mut) \
 	alloc_with_type(__name, Stmt); \
@@ -592,12 +593,13 @@ static Stmt* stmt_expr(Parser* self) {
 	__name->struct_ = __struct_dt; \
 	if (__struct_dt) __name->ident = __struct_dt->struct_.ident;
 
-#define alloc_stmt_function(__name, __header, __body) \
+#define alloc_stmt_function(__name, __header, __body, __pub) \
 	alloc_with_type(__name, Stmt); \
 	__name->ty = ST_FUNCTION; \
 	__name->in_function = self->in_function; \
 	__name->function.header = __header; \
 	__name->function.body = __body; \
+	__name->pub = __pub; \
 	if (__header) __name->ident = __header->ident;
 
 #define alloc_stmt_function_prototype(__name, __header) \
@@ -612,7 +614,8 @@ static Stmt* stmt_expr(Parser* self) {
 	__name->fn_keyword = __fn_keyword; \
 	__name->ident = __ident; \
 	__name->params = __params; \
-	__name->return_data_type = __return_data_type;
+	__name->return_data_type = __return_data_type; \
+	__name->check_error = false;
 
 static FunctionHeader* parse_function_header(Parser* self) {
 	Token* fn_keyword = previous(self);
@@ -672,26 +675,23 @@ static Stmt* stmt_struct(Parser* self) {
 	return s;
 }
 
-static Stmt* stmt_function(Parser* self) {Deferral
-	self->in_function = true;
-	Defer({ self->in_function = false; });
-
+static Stmt* stmt_function(Parser* self, bool pub) {
 	FunctionHeader* h = null;
 	chk(h = parse_function_header(self));
 
 	if (match_token_type(self, TT_SEMICOLON)) {
 		alloc_stmt_function_prototype(s, h);
-		Return s;
+		return s;
 	} else {
 		expect_lbrace(self);
 		goto_previous_token(self);
 		EXPR(e);
-		alloc_stmt_function(s, h, e);
-		Return s;
+		alloc_stmt_function(s, h, e, pub);
+		return s;
 	}
 
 	assert(0);
-	Return null;
+	return null;
 }
 
 static Stmt* stmt_variable(Parser* self) {
@@ -723,13 +723,24 @@ static Stmt* stmt_variable(Parser* self) {
 	return s;
 }
 
+#define return_stmt_function(self, pub) \
+	{ \
+		self->in_function = true; \
+		Stmt* _s = stmt_function(self, pub); \
+		self->in_function = false; \
+		return _s; \
+	}
+
 static Stmt* stmt(Parser* self) {
 	if (match_keyword(self, "struct")) {
 		return stmt_struct(self);
 	} else if (match_keyword(self, "fn")) {
-		return stmt_function(self);
+		return_stmt_function(self, false);
 	} else if (match_keyword(self, "let")) {
 		return stmt_variable(self);
+	} else if (match_keyword(self, "pub")) {
+		error_token_with_sync(self, previous(self), ERROR_CANNOT_USE_PUB_IN_FUNCTION_SCOPE);
+		return null;
 	} else {
 		return stmt_expr(self);
 	}
@@ -743,9 +754,16 @@ static Stmt* namespace_level_stmt(Parser* self) {
 	} else if (match_keyword(self, "namespace")) {
 		return stmt_namespace(self);
 	} else if (match_keyword(self, "fn")) {
-		return stmt_function(self);
+		return_stmt_function(self, false);
 	} else if (match_keyword(self, "let")) {
 		return stmt_variable(self);
+	} else if (match_keyword(self, "pub")) {
+		if (match_keyword(self, "fn")) {
+			return_stmt_function(self, true);
+		} else {
+			error_token_with_sync(self, previous(self), ERROR_WRONG_PUB_KEYWORD_USAGE);
+			return null;
+		}
 	} else {
 		error_token_with_sync(self, current(self), ERROR_INVALID_NAMESPACE_LEVEL_TOKEN);
 		return null;
@@ -797,9 +815,16 @@ static Stmt* top_level_stmt(Parser* self) {
 	} else if (match_keyword(self, "namespace")) {
 		return stmt_namespace(self);
 	} else if (match_keyword(self, "fn")) {
-		return stmt_function(self);
+		return_stmt_function(self, false);
 	} else if (match_keyword(self, "let")) {
 		return stmt_variable(self);
+	} else if (match_keyword(self, "pub")) {
+		if (match_keyword(self, "fn")) {
+			return_stmt_function(self, true);
+		} else {
+			error_token_with_sync(self, previous(self), ERROR_WRONG_PUB_KEYWORD_USAGE);
+			return null;
+		}
 	} else {
 		error_token_with_sync(self, current(self), ERROR_INVALID_TOP_LEVEL_TOKEN);
 		return null;

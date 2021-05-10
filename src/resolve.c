@@ -1,6 +1,8 @@
 #include <aria_core.h>
 #include <aria.h>
 
+#include <thirdparty/Defer/defer.h>
+
 static Scope* scope_new(Scope* parent, Stmt** sym_tbl) {
 	alloc_with_type(scope, Scope);
 	scope->parent = parent;
@@ -30,6 +32,21 @@ static void error_token(Resolver* self, Token* token, u32 code, char* fmt, ...) 
 	va_end(ap);
 }
 
+static void error_expr(Resolver* self, Expr* expr, u32 code, char* fmt, ...) {
+	self->error = true;
+
+	va_list ap;
+	va_start(ap, fmt);
+	vmsg_user_expr(
+			MSG_TY_ERR,
+			expr,
+			code,
+			fmt,
+			ap
+	);
+	va_end(ap);
+}
+
 #define note_token(self, token, fmt, ...) \
 	msg_user_token( \
 			MSG_TY_NOTE, \
@@ -42,7 +59,6 @@ void resolver_init(Resolver* self, SrcFile* srcfile) {
 	self->srcfile = srcfile;
 	self->global_scope = scope_new(null, null);
 	self->current_scope = self->global_scope;
-	self->dont_create_block_scope = false;
 	self->error = false;
 } 
 
@@ -197,13 +213,7 @@ static Stmt* assert_sym_in_stmt_buffer(Resolver* self, Token* sym, Stmt** stmts)
 	return null;
 }
 
-static void expr_block(Resolver* self, Expr* e) {
-	Scope* scope = null;
-	if (!self->dont_create_block_scope) {
-		scope = scope_new(self->current_scope, null);
-		self->current_scope = scope;
-	}
-
+static void resolve_block(Resolver* self, Expr* e) {
 	buf_loop(e->block.stmts, s) {
 		if (e->block.stmts[s]->ty == ST_STRUCT || e->block.stmts[s]->ty == ST_FUNCTION) {
 			add_in_sym_tbl_or_error(self, e->block.stmts[s]);
@@ -213,29 +223,34 @@ static void expr_block(Resolver* self, Expr* e) {
 	buf_loop(e->block.stmts, s) {
 		stmt(self, e->block.stmts[s]);
 	}
-
-	if (!self->dont_create_block_scope) {
-		self->current_scope = scope->parent;
-	}
 }
 
-static Stmt* assert_static_accessor_ident_in_scope(Resolver* self, StaticAccessor sa, Token* ident) {
-	if (sa.accessors) {
-		Stmt** namespace_body = get_static_accessor_namespace(self, sa);
+static void expr_block(Resolver* self, Expr* e) {
+	// NOTE: don't add code in this function.
+	// Add code in resolve_block() if its shared
+	// with function blocks.
+	change_scope(scope);
+	resolve_block(self, e);
+	revert_scope(scope);
+}
+
+static Stmt* assert_static_accessor_ident_in_scope(Resolver* self, Expr* ident) {
+	if (ident->ident.static_accessor.accessors) {
+		Stmt** namespace_body = get_static_accessor_namespace(self, ident->ident.static_accessor);
 		if (namespace_body) {
-			return assert_sym_in_stmt_buffer(self, ident, namespace_body);
+			return assert_sym_in_stmt_buffer(self, ident->ident.ident, namespace_body);
 		} else {
 			return null;
 		}
 	} else {
-		return assert_sym_in_sym_tbl_rec_or_error(self, ident, sa.from_global_scope);
+		return assert_sym_in_sym_tbl_rec_or_error(self, ident->ident.ident, ident->ident.static_accessor.from_global_scope);
 	}
 	assert(0);
 	return null;
 }
 
 static void expr_ident(Resolver* self, Expr* e) {
-	e->ident.ref = assert_static_accessor_ident_in_scope(self, e->ident.static_accessor, e->ident.ident);
+	e->ident.ref = assert_static_accessor_ident_in_scope(self, e);
 }
 
 static void expr_function_call(Resolver* self, Expr* e) {
@@ -314,7 +329,7 @@ static void stmt_namespace(Resolver* self, Stmt* s) {
 
 static bool data_type(Resolver* self, DataType* dt) {
 	if (dt->ty == DT_NAMED) {
-		dt->named.ref = assert_static_accessor_ident_in_scope(self, dt->named.ident->ident.static_accessor, dt->named.ident->ident.ident);
+		dt->named.ref = assert_static_accessor_ident_in_scope(self, dt->named.ident);
 		return (dt->named.ref ? false : true);
 	} else if (dt->ty == DT_STRUCT) {
 		return struct_(self, dt);
@@ -360,9 +375,7 @@ static void stmt_function(Resolver* self, Stmt* s) {
 
 	if (error) return;
 
-	self->dont_create_block_scope = true;
-	expr(self, s->function.body);
-	self->dont_create_block_scope = false;
+	resolve_block(self, s->function.body);
 
 	revert_scope(scope);
 }

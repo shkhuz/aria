@@ -15,3 +15,11 @@ struct Vec {
 struct Args {}
 
 fn get_cmd_args() *const Args {}
+
+namespace game {
+	fn make() {}
+}
+
+fn main() {
+	game::make();
+}
