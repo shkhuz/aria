@@ -152,16 +152,16 @@ static DataType* expr_ident(Checker* self, Expr* e) {Deferral
 	else if (e->ident.ref->ty == ST_VARIABLE) {
 		if (e->ident.ref->variable.variable->dt && !e->ident.ref->variable.variable->check_error) {
 			Return e->ident.ref->variable.variable->dt;
-		} else {
+		} /*else {
 			set_error_flags(self);
-		}
+		}*/
 	}
 	else if (e->ident.ref->ty == ST_FUNCTION) {
 		if (e->ident.ref->function.header->return_data_type && !e->ident.ref->function.header->check_error) {
 			Return e->ident.ref->function.header->return_data_type;
-		} else {
+		} /*else {
 			set_error_flags(self);
-		}
+		}*/
 	}
 	Return null;
 }

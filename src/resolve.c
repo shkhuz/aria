@@ -249,12 +249,34 @@ static Stmt* assert_static_accessor_ident_in_scope(Resolver* self, Expr* ident) 
 	return null;
 }
 
-static void expr_ident(Resolver* self, Expr* e) {
+static void expr_ident(Resolver* self, Expr* e) {Deferral
 	e->ident.ref = assert_static_accessor_ident_in_scope(self, e);
+	if (e->ident.ref->ty != ST_VARIABLE) {
+		char* full_lexeme = expr_ident_get_full_lexeme(e);
+		Defer(buf_free(full_lexeme));
+		error_expr(
+				self,
+				e,
+				ERROR_IS_A,
+				full_lexeme,
+				one_word_stmt_ty(e->ident.ref));
+	}
 }
 
-static void expr_function_call(Resolver* self, Expr* e) {
-	expr(self, e->function_call.left);
+static void expr_function_call(Resolver* self, Expr* e) {Deferral
+	// TODO: left type assert
+	e->function_call.left->ident.ref = assert_static_accessor_ident_in_scope(self, e->function_call.left);
+	if (e->function_call.left->ident.ref->ty != ST_FUNCTION) {
+		char* full_lexeme = expr_ident_get_full_lexeme(e->function_call.left);
+		Defer(buf_free(full_lexeme));
+		error_expr(
+				self,
+				e,
+				ERROR_IS_A,
+				full_lexeme,
+				one_word_stmt_ty(e->function_call.left->ident.ref));
+
+	}
 	buf_loop(e->function_call.args, a) {
 		expr(self, e->function_call.args[a]);
 	}

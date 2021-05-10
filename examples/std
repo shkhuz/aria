@@ -12,14 +12,8 @@ struct Vec {
 	items: *void,
 }
 
+struct string {}
+
 struct Args {}
 
 fn get_cmd_args() *const Args {}
-
-namespace game {
-	fn make() {}
-}
-
-fn main() {
-	game::make();
-}
