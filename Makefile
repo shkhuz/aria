@@ -7,7 +7,7 @@ OBJ_DIR := $(BUILD_DIR)/obj
 DEPS_DIR := deps
 DOCS_DIR := docs
 
-C_FILES := $(shell find $(SRC_DIR) -name "*.c")
+C_FILES := src/main.c
 ASM_FILES := $(shell find $(SRC_DIR) -name "*.asm")
 OBJ_FILES := $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(C_FILES)))
 OBJ_FILES += $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(ASM_FILES)))
@@ -33,7 +33,6 @@ LIBS_LIB_CMD :=
 CMD_ARGS := examples/pub_test.ar 
 
 all: $(BIN_FILE) #docs
-	# mkdir -p .dev
 	$(BIN_FILE) $(CMD_ARGS)
 
 debug: $(BIN_FILE)

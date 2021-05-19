@@ -1,5 +1,8 @@
-#include <aria_core.h>
-#include <aria.h>
+typedef enum {
+	MSG_TY_ROOT_ERR, 
+	MSG_TY_ERR,
+	MSG_TY_NOTE,
+} MsgType;
 
 static char* get_line_from_file(File* file, u64 line) {
 	char* current_char_in_line = file->contents;
@@ -28,7 +31,6 @@ void vmsg_user(
 		u64 line, 
 		u64 column, 
 		u64 char_count, 
-		u32 code, 
 		char* fmt, 
 		va_list ap) {
 
@@ -74,7 +76,7 @@ void vmsg_user(
 	switch (ty) {
 		case MSG_TY_ROOT_ERR:
 		case MSG_TY_ERR:	
-			fprintf(stderr, ANSI_FRED "error[%04u]: " ANSI_RESET, code); 
+			fprintf(stderr, ANSI_FRED "error: " ANSI_RESET); 
 			break;
 		case MSG_TY_NOTE:
 			fprintf(stderr, ANSI_FCYAN "note: " ANSI_RESET);
@@ -145,51 +147,46 @@ void msg_user(
 		u64 line, 
 		u64 column, 
 		u64 char_count, 
-		u32 code, 
 		char* fmt, 
 		...) {
 
 	va_list ap;
 	va_start(ap, fmt);
-	vmsg_user(ty, srcfile, line, column, char_count, code, fmt, ap);
+	vmsg_user(ty, srcfile, line, column, char_count, fmt, ap);
 	va_end(ap);
 }
 
-void vmsg_user_expr(
+void vmsg_user_node(
 		MsgType ty,
-		Expr* expr,
-		u32 code,
+		Node* node,
 		char* fmt, 
 		va_list ap) {
 	va_list aq;
 	va_copy(aq, ap);
 	vmsg_user(
 			ty,
-			expr->head->srcfile,
-			expr->head->line,
-			expr->head->column,
-			(expr->tail->column + expr->tail->char_count) - expr->head->column,
-			code,
+			node->head->srcfile,
+			node->head->line,
+			node->head->column,
+			(node->tail->column + node->tail->char_count) - node->head->column,
 			fmt,
 			ap);
 }
 
-void msg_user_expr(
+void msg_user_node(
 		MsgType ty,
-		Expr* expr,
-		u32 code,
+		Node* node,
 		char* fmt, 
 		...) {
 	va_list ap;
 	va_start(ap, fmt);
-	vmsg_user_expr(ty, expr, code, fmt, ap);
+	vmsg_user_node(ty, node, fmt, ap);
 	va_end(ap);
 }
 
 void vmsg_user_token(
 		MsgType ty,
 		Token* token,
-		u32 code,
 		char* fmt, 
 		va_list ap) {
 	va_list aq;
@@ -200,7 +197,6 @@ void vmsg_user_token(
 			token->line,
 			token->column,
 			token->char_count, 
-			code,
 			fmt,
 			ap);
 }
@@ -208,17 +204,16 @@ void vmsg_user_token(
 void msg_user_token(
 		MsgType ty,
 		Token* token,
-		u32 code,
 		char* fmt, 
 		...) {
 	va_list ap;
 	va_start(ap, fmt);
-	vmsg_user_token(ty, token, code, fmt, ap);
+	vmsg_user_token(ty, token, fmt, ap);
 	va_end(ap);
 }
 
 void terminate_compilation() {
-	msg_user(MSG_TY_ROOT_ERR, null, 0, 0, 0, ERROR_ABORTING_DUE_TO_PREV_ERRORS);
+	msg_user(MSG_TY_ROOT_ERR, null, 0, 0, 0, "aborting due to previous errors");
 	// TODO: for CI build, this is changed to
 	// always return 0.
 	// Uncomment next line.
@@ -226,3 +221,9 @@ void terminate_compilation() {
 	/* exit(EXIT_FAILURE); */
 	exit(0);
 }
+
+#define vmsg_user_node(...) self->error = true; vmsg_user_node(__VA_ARGS__)
+#define msg_user_node(...) self->error = true; msg_user_node(__VA_ARGS__)
+#define vmsg_user_token(...) self->error = true; vmsg_user_token(__VA_ARGS__)
+#define msg_user_token(...) self->error = true; msg_user_token(__VA_ARGS__)
+

@@ -1,7 +1,12 @@
-#include <aria_core.h>
-#include <aria.h>
+typedef struct {
+	SrcFile* srcfile;
+	char* start, *current;
+	u64 line;
+	char* last_newline;
+	bool error;
+} Lexer;
 
-static u64 compute_column_from(Lexer* self, char* c) {
+u64 lexer_compute_column_from(Lexer* self, char* c) {
 	u64 column = (u64)(c - self->last_newline);
 	if (self->line == 1) {
 		column++;
@@ -9,31 +14,36 @@ static u64 compute_column_from(Lexer* self, char* c) {
 	return column;
 }
 
-static u64 compute_column_from_start(Lexer* self) {
-	return compute_column_from(self, self->start);
+u64 lexer_compute_column_from_start(Lexer* self) {
+	return lexer_compute_column_from(self, self->start);
 }
 
-static u64 compute_column_from_current(Lexer* self) {
-	return compute_column_from(self, self->current);
+u64 lexer_compute_column_from_current(Lexer* self) {
+	return lexer_compute_column_from(self, self->current);
 }
 
-static void push_tok_by_type(Lexer* self, TokenType ty) {
+void lexer_push_tok_by_type(
+		Lexer* self, 
+		TokenKind kind) {
 	buf_push(
 			self->srcfile->tokens,
 			token_alloc(
-				ty, 
+				kind, 
 				strni(self->start, self->current),
 				self->start, 
 				self->current,
 				self->srcfile,
 				self->line,
-				compute_column_from_start(self),
+				lexer_compute_column_from_start(self),
 				(u64)(self->current - self->start)
 			)
 	);
 }
 
-static void error_from_start_to_current(Lexer* self, u32 code, char* fmt, ...) {
+void lexer_error_from_start_to_current(
+		Lexer* self, 
+		char* fmt, 
+		...) {
 	self->error = true;
 	va_list ap;
 	va_start(ap, fmt);
@@ -41,16 +51,18 @@ static void error_from_start_to_current(Lexer* self, u32 code, char* fmt, ...) {
 			MSG_TY_ERR,
 			self->srcfile,
 			self->line,
-			compute_column_from_start(self),
+			lexer_compute_column_from_start(self),
 			(u64)(self->current - self->start),
-			code,
 			fmt, 
 			ap
 	);
 	va_end(ap);
 }
 
-static void error_from_current_to_current(Lexer* self, u32 code, char* fmt, ...) {
+void lexer_error_from_current_to_current(
+		Lexer* self, 
+		char* fmt, 
+		...) {
 	self->error = true;
 	va_list ap;
 	va_start(ap, fmt);
@@ -58,16 +70,15 @@ static void error_from_current_to_current(Lexer* self, u32 code, char* fmt, ...)
 			MSG_TY_ERR,
 			self->srcfile,
 			self->line,
-			compute_column_from_current(self),
+			lexer_compute_column_from_current(self),
 			1,
-			code,
 			fmt, 
 			ap
 	);
 	va_end(ap);
 }
 
-static bool match(Lexer* self, char c) {
+bool lexer_match(Lexer* self, char c) {
 	if (*(self->current + 1) == c) {
 		self->current++;
 		return true;
@@ -102,21 +113,23 @@ void lexer_lex(Lexer* self) {
 			case 'T': case 'U': case 'V': case 'W': case 'X':
 			case 'Y': case 'Z': case '_':
 			{
-				TokenType ty = TT_IDENT;
+				TokenKind kind = TK_IDENT;
 				while (isalnum(*self->current) || *self->current == '_') {
 					self->current++;
 				}
 
 				for (uint i = 0; i < stack_arr_len(keywords); i++) {
-					if (stri(keywords[i]) == strni(self->start, self->current)) {
-						ty = TT_KEYWORD;
+					if (
+							stri(keywords[i]) == 
+							strni(self->start, self->current)) {
+						kind = TK_KEYWORD;
 					}
 				}
 
-				push_tok_by_type(self, ty);
+				lexer_push_tok_by_type(self, kind);
 			} break;
 
-			case '#':
+			case '@':
 			{
 				self->current++;
 				if (isalpha(*self->current) || *self->current == '_') {
@@ -126,18 +139,24 @@ void lexer_lex(Lexer* self) {
 
 					bool is_valid = false;
 					for (uint i = 0; i < stack_arr_len(directives); i++) {
-						if (stri(directives[i]) == strni(self->start + 1, self->current)) {
+						if (
+								stri(directives[i]) == 
+								strni(self->start, self->current)) {
 							is_valid = true;
 						}
 					}
 
 					if (!is_valid) {
-						error_from_start_to_current(self, ERROR_UNDEFINED_DIRECTIVE);
+						lexer_error_from_start_to_current(
+								self, 
+								"undefined directive");
 					}
 
-					push_tok_by_type(self, TT_DIRECTIVE);
+					lexer_push_tok_by_type(self, TK_DIRECTIVE);
 				} else {
-					error_from_current_to_current(self, ERROR_INVALID_CHAR_AFTER_DIRECTIVE);
+					lexer_error_from_current_to_current(
+							self, 
+							"invalid character after `@`");
 					self->current++;
 				}
 			} break;
@@ -148,12 +167,14 @@ void lexer_lex(Lexer* self) {
 				while (*self->current != '"') {
 					self->current++;
 					if (*self->current == '\n' || *self->current == '\0') {
-						error_from_start_to_current(self, ERROR_UNTERMINATED_STRING);
+						lexer_error_from_start_to_current(
+								self, 
+								"unterminated string");
 					}
 				}
 
 				self->current++;
-				push_tok_by_type(self, TT_STRING);
+				lexer_push_tok_by_type(self, TK_STRING);
 			} break;
 
 			case '\n': 
@@ -169,28 +190,30 @@ void lexer_lex(Lexer* self) {
 				self->current++;
 				break;
 
-			#define push_tok_by_type_for_char(self, ty) \
-				self->current++; \
-				push_tok_by_type(self, ty);
+#define push_tok_by_type_for_char(self, kind) \
+	self->current++; \
+	lexer_push_tok_by_type(self, kind);
 
-			#define push_tok_by_char_if_match(self, c, if_matched_ty, else_ty) \
-			{ \
-				if (match(self, c)) { push_tok_by_type_for_char(self, if_matched_ty); } \
-				else { push_tok_by_type_for_char(self, else_ty); } \
-			}
+#define push_tok_by_char_if_match(self, c, if_matched_ty, else_ty) \
+{ \
+	if (lexer_match(self, c)) { push_tok_by_type_for_char(self, if_matched_ty); } \
+	else { push_tok_by_type_for_char(self, else_ty); } \
+}
 
-			case '(': push_tok_by_type_for_char(self, TT_LPAREN); break;
-			case ')': push_tok_by_type_for_char(self, TT_RPAREN); break;
-			case '{': push_tok_by_type_for_char(self, TT_LBRACE); break;
-			case '}': push_tok_by_type_for_char(self, TT_RBRACE); break;
-			case ';': push_tok_by_type_for_char(self, TT_SEMICOLON); break;
-			case ':': push_tok_by_char_if_match(self, ':', TT_DOUBLE_COLON, TT_COLON); break;
-			case ',': push_tok_by_type_for_char(self, TT_COMMA); break;
-			case '+': push_tok_by_type_for_char(self, TT_PLUS); break;
-			case '-': push_tok_by_type_for_char(self, TT_MINUS); break;
-			case '*': push_tok_by_type_for_char(self, TT_STAR); break;
-			case '=': push_tok_by_type_for_char(self, TT_EQUAL); break;
-			case '&': push_tok_by_type_for_char(self, TT_AMPERSAND); break;
+			case '(': push_tok_by_type_for_char(self, TK_LPAREN); break;
+			case ')': push_tok_by_type_for_char(self, TK_RPAREN); break;
+			case '{': push_tok_by_type_for_char(self, TK_LBRACE); break;
+			case '}': push_tok_by_type_for_char(self, TK_RBRACE); break;
+			case ';': push_tok_by_type_for_char(self, TK_SEMICOLON); break;
+			case ':': 
+				push_tok_by_char_if_match(self, ':', TK_DOUBLE_COLON, TK_COLON); 
+				break;
+			case ',': push_tok_by_type_for_char(self, TK_COMMA); break;
+			case '+': push_tok_by_type_for_char(self, TK_PLUS); break;
+			case '-': push_tok_by_type_for_char(self, TK_MINUS); break;
+			case '*': push_tok_by_type_for_char(self, TK_STAR); break;
+			case '=': push_tok_by_type_for_char(self, TK_EQUAL); break;
+			case '&': push_tok_by_type_for_char(self, TK_AMPERSAND); break;
 			case '/': 
 			{
 				if (*(self->current + 1) == '/') {
@@ -198,17 +221,20 @@ void lexer_lex(Lexer* self) {
 						self->current++;
 					}
 				} else {
-					push_tok_by_type_for_char(self, TT_FSLASH);
+					push_tok_by_type_for_char(self, TK_FSLASH);
 				}
 			} break;
 
-			case '\0': push_tok_by_type_for_char(self, TT_EOF); return;
+			case '\0': push_tok_by_type_for_char(self, TK_EOF); return;
 
 			default:
 			{
 				self->current++;
-				error_from_start_to_current(self, ERROR_INVALID_CHAR);
+				lexer_error_from_start_to_current(self, "invalid character");
 			} break;
 		}
 	}
 }
+
+#undef push_tok_by_type_for_char
+#undef push_tok_by_char_if_match

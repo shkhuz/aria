@@ -1,11 +1,13 @@
-#import "std";
+@import("std.ar");
 
-fn main() {
-	let mut args = std::get_cmd_args;
-	args = cool();
+proc main() {
+	let mut args = std::get_cmd_args();
+	args = game::cool();
 }
 
-fn cool() std::usize {}
+module game {
+	proc cool() {}
+}
 
 //namespace math {
 //	fn pow(a: std::usize, b: std::usize) {

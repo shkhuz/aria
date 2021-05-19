@@ -1,0 +1,40 @@
+@import("std");
+
+error {
+	FileNotFound([]u8),
+}
+
+// Uses Zig's error system
+proc main() !void {
+	let file = std::file::open("file.txt")?;
+	defer file.drop();
+
+	let text = file.read()?;
+	defer free(text);
+
+	std::printf("text is: %", text);
+
+	max<u8>(2, 4);
+}
+
+module std {
+	struct file {
+		proc open(path: []u8) !Self {
+			if self.err {
+				error::FileNotFound(path)
+			} else {
+				Self {
+					path,
+				}
+			}
+		}
+	}
+}
+
+proc max<T>(a: T, b: T) T {
+	// works because a and b are known at compile time
+	// no extra syntax needed
+	if a > b {
+		@compile_error("a is bigger!!!");
+	}
+}

@@ -16,4 +16,4 @@ struct string {}
 
 struct Args {}
 
-fn get_cmd_args() *const Args {}
+proc get_cmd_args() *const Args {}

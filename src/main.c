@@ -1,86 +1,10 @@
-#include <aria_core.h>
-#include <aria.h>
+#include <aria_core.c>
+#include <aria.c>
+#include <error_msg.c>
+#include <lex.c>
+#include <parse.c>
 
-char* executable_path_from_argv;
-
-// --- NOTE: update KEYWORDS_LEN after adding to keywords ---
-char* keywords[KEYWORDS_LEN] = {
-	"namespace",
-	"struct",
-	"fn",
-	"let",
-	"mut",
-	"const",
-	"pub",
-	"_",
-};
-
-// --- NOTE: update DIRECTIVES_LEN after adding to directives ---
-char* directives[DIRECTIVES_LEN] = {
-	"import",
-};
-
-char* aria_strsub(char* str, uint start, uint len) {
-	if (!str) {
-		return null;
-	}
-
-	if (len == 0) {
-		return null;
-	}
-
-	char* res = null;
-	for (uint i = start; i < start + len; i++) {
-		buf_push(res, str[i]);
-	}
-	buf_push(res, '\0');
-	return res;
-}
-
-char* aria_strapp(char* to, char* from) {
-	if (!to || !from) {
-		return null;
-	}
-
-	char* res = null;
-	uint to_len = strlen(to);
-	uint from_len = strlen(from);
-	for (uint i = 0; i < to_len; i++) {
-		buf_push(res, to[i]);
-	}
-	for (uint i = 0; i < from_len; i++) {
-		buf_push(res, from[i]);
-	}
-	buf_push(res, '\0');
-	return res;
-}
-
-char* aria_basename(char* fpath) {
-	if (!fpath) {
-		return null;
-	} 
-
-	char* last_dot_ptr = strrchr(fpath, '.');
-	if (last_dot_ptr == null) {
-		return fpath;
-	}
-
-	return aria_strsub(fpath, 0, last_dot_ptr - fpath);
-}
-
-char* aria_notdir(char* fpath) {
-	if (!fpath) {
-		return null;
-	} 
-
-	uint fpath_len = strlen(fpath);
-	char* last_slash_ptr = strrchr(fpath, '/');
-	if (last_slash_ptr == null) {
-		return fpath;
-	}
-
-	return aria_strsub(fpath, last_slash_ptr - fpath + 1, fpath_len);
-}	
+char* g_executable_path;
 
 bool parse_srcfile(SrcFile* srcfile) {
 	Lexer lexer;
@@ -90,26 +14,27 @@ bool parse_srcfile(SrcFile* srcfile) {
 		return true;
 	}
 
-	// Lexer tokens check
 	Token** tokens = srcfile->tokens;
-	/* buf_loop(tokens, j) { */
-	/* 	printf("[%u, %lu:%lu:%lu] ", tokens[j]->ty, tokens[j]->line, tokens[j]->column, tokens[j]->char_count); */
-	/* 	for (char* start = tokens[j]->start; start != tokens[j]->end; start++) { */
-	/* 		printf("%c", *start); */
-	/* 	} */
-	/* 	printf("\n"); */
-	/* } */
-
-	Parser parser;
-	parser_init(&parser, srcfile);
-	parser_parse(&parser);
-	if (parser.error) {
-		return true;
+	buf_loop(tokens, j) {
+		printf(
+				"[%u, %lu:%lu:%lu] ", 
+				tokens[j]->kind, 
+				tokens[j]->line, 
+				tokens[j]->column, 
+				tokens[j]->char_count);
+		for (char* start = tokens[j]->start; start != tokens[j]->end; start++) {
+			printf("%c", *start);
+		}
+		printf("\n");
 	}
 
-	/* AstPrinter ast_printer; */
-	/* ast_printer_init(&ast_printer, srcfile); */
-	/* ast_printer_print(&ast_printer); */
+	/* Parser parser; */
+	/* parser_init(&parser, srcfile); */
+	/* parser_parse(&parser); */
+	/* if (parser.error) { */
+	/* 	return true; */
+	/* } */
+
 	return false;
 }
 
@@ -124,59 +49,79 @@ bool parse_srcfiles(SrcFile** srcfiles) {
 	return error;
 }
 
-bool resolve_srcfile(SrcFile* srcfile) {
-	Resolver resolver;
-	resolver_init(&resolver, srcfile);
-	resolver_resolve(&resolver);
-	if (resolver.error) {
-		return true;
-	}
-	return false;
-}
+/* bool resolve_srcfile(SrcFile* srcfile) { */
+/* 	Resolver resolver; */
+/* 	resolver_init(&resolver, srcfile); */
+/* 	resolver_resolve(&resolver); */
+/* 	if (resolver.error) { */
+/* 		return true; */
+/* 	} */
+/* 	return false; */
+/* } */
 
-bool resolve_srcfiles(SrcFile** srcfiles) {
-	bool error = false;
-	buf_loop(srcfiles, i) {
-		bool current_error = resolve_srcfile(srcfiles[i]);
-		if (!error) {
-			error = current_error;
-		}
-	}
-	return error;
-}
+/* bool resolve_srcfiles(SrcFile** srcfiles) { */
+/* 	bool error = false; */
+/* 	buf_loop(srcfiles, i) { */
+/* 		bool current_error = resolve_srcfile(srcfiles[i]); */
+/* 		if (!error) { */
+/* 			error = current_error; */
+/* 		} */
+/* 	} */
+/* 	return error; */
+/* } */
 
-bool check_srcfile(SrcFile* srcfile) {
-	Checker checker;
-	checker_init(&checker, srcfile);
-	checker_check(&checker);
-	if (checker.error) {
-		return true;
-	}
-	return false;
-}
+/* bool check_srcfile(SrcFile* srcfile) { */
+/* 	Checker checker; */
+/* 	checker_init(&checker, srcfile); */
+/* 	checker_check(&checker); */
+/* 	if (checker.error) { */
+/* 		return true; */
+/* 	} */
+/* 	return false; */
+/* } */
 
-bool check_srcfiles(SrcFile** srcfiles) {
-	bool error = false;
-	buf_loop(srcfiles, i) {
-		bool current_error = check_srcfile(srcfiles[i]);
-		if (!error) {
-			error = current_error;
-		}
-	}
-	return error;
-}
+/* bool check_srcfiles(SrcFile** srcfiles) { */
+/* 	bool error = false; */
+/* 	buf_loop(srcfiles, i) { */
+/* 		bool current_error = check_srcfile(srcfiles[i]); */
+/* 		if (!error) { */
+/* 			error = current_error; */
+/* 		} */
+/* 	} */
+/* 	return error; */
+/* } */
 
-SrcFile* read_srcfile_or_error(char* fpath, MsgType error_ty, SrcFile* error_srcfile, u64 line, u64 column, u64 char_count) {
+SrcFile* read_srcfile_or_error(
+		char* fpath, 
+		MsgType error_ty, 
+		SrcFile* error_srcfile, 
+		u64 line, 
+		u64 column, 
+		u64 char_count) {
 	FileOrError file = file_read(fpath);
 	if (file.status == FILE_ERROR_SUCCESS) {
 		alloc_with_type(srcfile, SrcFile);
 		srcfile->contents = file.file;
 		return srcfile;
 	} else if (file.status == FILE_ERROR_ERROR) {
-		msg_user(error_ty, error_srcfile, line, column, char_count, ERROR_CANNOT_READ_SOURCE_FILE, fpath);
+		msg_user(
+				error_ty, 
+				error_srcfile, 
+				line, 
+				column, 
+				char_count, 
+				"cannot read source file `%s`", 
+				fpath);
 		return null;
 	} else if (file.status == FILE_ERROR_DIR) {
-		msg_user(error_ty, error_srcfile, line, column, char_count, ERROR_SOURCE_FILE_IS_DIRECTORY, fpath);
+		msg_user(
+				error_ty, 
+				error_srcfile, 
+				line, 
+				column, 
+				char_count, 
+				"`%s`: is a directory", 
+				fpath);
 		return null;
 	}
 	return null;
@@ -222,10 +167,16 @@ int main(int argc, char* argv[]) {
 	}
 	///// TESTS END /////	
 
-	executable_path_from_argv = argv[0];
+	g_executable_path = argv[0];
 
 	if (argc < 2) {
-		msg_user(MSG_TY_ROOT_ERR, null, 0, 0, 0, ERROR_NO_SOURCE_FILES_PASSED_IN_CMD_ARGS);
+		msg_user(
+				MSG_TY_ROOT_ERR, 
+				null, 
+				0, 
+				0, 
+				0, 
+				"no input files");
 		terminate_compilation();
 	}
 
@@ -235,7 +186,13 @@ int main(int argc, char* argv[]) {
 	SrcFile** srcfiles = null;
 	bool srcfile_error = false;
 	for (int i = 1; i < argc; i++) {
-		SrcFile* srcfile = read_srcfile_or_error(argv[i], MSG_TY_ROOT_ERR, null, 0, 0, 0);
+		SrcFile* srcfile = read_srcfile_or_error(
+				argv[i], 
+				MSG_TY_ROOT_ERR, 
+				null, 
+				0, 
+				0, 
+				0);
 		if (!srcfile) {
 			srcfile_error = true;
 			continue;
@@ -253,58 +210,58 @@ int main(int argc, char* argv[]) {
 		terminate_compilation();
 	}
 
-	bool import_files_error = false;
-	buf_loop(srcfiles, s) {
-		buf_loop(srcfiles[s]->stmts, i) {
-			if (srcfiles[s]->stmts[i]->ty == ST_IMPORTED_NAMESPACE) {
-				bool parsed = false;
-				buf_loop(srcfiles, ss) {
-					if (stri(srcfiles[s]->stmts[i]->imported_namespace.fpath) == stri(srcfiles[ss]->contents->fpath)) {
-						srcfiles[s]->stmts[i]->imported_namespace.srcfile = srcfiles[ss];
-						parsed = true;
-						break;
-					}
-				}
+	/* bool import_files_error = false; */
+	/* buf_loop(srcfiles, s) { */
+	/* 	buf_loop(srcfiles[s]->stmts, i) { */
+	/* 		if (srcfiles[s]->stmts[i]->ty == ST_IMPORTED_NAMESPACE) { */
+	/* 			bool parsed = false; */
+	/* 			buf_loop(srcfiles, ss) { */
+	/* 				if (stri(srcfiles[s]->stmts[i]->imported_namespace.fpath) == stri(srcfiles[ss]->contents->fpath)) { */
+	/* 					srcfiles[s]->stmts[i]->imported_namespace.srcfile = srcfiles[ss]; */
+	/* 					parsed = true; */
+	/* 					break; */
+	/* 				} */
+	/* 			} */
 
-				if (parsed) {
-					continue;
-				}
+	/* 			if (parsed) { */
+	/* 				continue; */
+	/* 			} */
 
-				Token* import = srcfiles[s]->stmts[i]->ident;
-				SrcFile* srcfile = read_srcfile_or_error(
-						srcfiles[s]->stmts[i]->imported_namespace.fpath,
-						MSG_TY_ERR,
-						import->srcfile,
-						import->line,
-						import->column,
-						import->char_count);
-				if (!srcfile) {
-					import_files_error = true;
-					continue;
-				}
-				srcfiles[s]->stmts[i]->imported_namespace.srcfile = srcfile;
+	/* 			Token* import = srcfiles[s]->stmts[i]->ident; */
+	/* 			SrcFile* srcfile = read_srcfile_or_error( */
+	/* 					srcfiles[s]->stmts[i]->imported_namespace.fpath, */
+	/* 					MSG_TY_ERR, */
+	/* 					import->srcfile, */
+	/* 					import->line, */
+	/* 					import->column, */
+	/* 					import->char_count); */
+	/* 			if (!srcfile) { */
+	/* 				import_files_error = true; */
+	/* 				continue; */
+	/* 			} */
+	/* 			srcfiles[s]->stmts[i]->imported_namespace.srcfile = srcfile; */
 
-				bool current_import_file_error = parse_srcfile(srcfile);
-				if (!current_import_file_error) {
-					buf_push(srcfiles, srcfile);
-				} else {
-					import_files_error = true;
-				}
-			}
-		}
-	}
+	/* 			bool current_import_file_error = parse_srcfile(srcfile); */
+	/* 			if (!current_import_file_error) { */
+	/* 				buf_push(srcfiles, srcfile); */
+	/* 			} else { */
+	/* 				import_files_error = true; */
+	/* 			} */
+	/* 		} */
+	/* 	} */
+	/* } */
 
-	if (import_files_error) {
-		terminate_compilation();
-	}
+	/* if (import_files_error) { */
+	/* 	terminate_compilation(); */
+	/* } */
 
-	bool resolving_error = resolve_srcfiles(srcfiles);
-	if (resolving_error) {
-		terminate_compilation();
-	}
+	/* bool resolving_error = resolve_srcfiles(srcfiles); */
+	/* if (resolving_error) { */
+	/* 	terminate_compilation(); */
+	/* } */
 
-	bool checking_error = check_srcfiles(srcfiles);
-	if (checking_error) {
-		terminate_compilation();
-	}
+	/* bool checking_error = check_srcfiles(srcfiles); */
+	/* if (checking_error) { */
+	/* 	terminate_compilation(); */
+	/* } */
 }
