@@ -93,7 +93,7 @@ bool parse_srcfiles(SrcFile** srcfiles) {
 
 SrcFile* read_srcfile_or_error(
 		char* fpath, 
-		MsgType error_ty, 
+		MsgKind error_kind, 
 		SrcFile* error_srcfile, 
 		u64 line, 
 		u64 column, 
@@ -105,7 +105,7 @@ SrcFile* read_srcfile_or_error(
 		return srcfile;
 	} else if (file.status == FILE_ERROR_ERROR) {
 		msg_user(
-				error_ty, 
+				error_kind, 
 				error_srcfile, 
 				line, 
 				column, 
@@ -115,7 +115,7 @@ SrcFile* read_srcfile_or_error(
 		return null;
 	} else if (file.status == FILE_ERROR_DIR) {
 		msg_user(
-				error_ty, 
+				error_kind, 
 				error_srcfile, 
 				line, 
 				column, 
@@ -171,7 +171,7 @@ int main(int argc, char* argv[]) {
 
 	if (argc < 2) {
 		msg_user(
-				MSG_TY_ROOT_ERR, 
+				MSG_KN_ROOT_ERR, 
 				null, 
 				0, 
 				0, 
@@ -188,7 +188,7 @@ int main(int argc, char* argv[]) {
 	for (int i = 1; i < argc; i++) {
 		SrcFile* srcfile = read_srcfile_or_error(
 				argv[i], 
-				MSG_TY_ROOT_ERR, 
+				MSG_KN_ROOT_ERR, 
 				null, 
 				0, 
 				0, 
@@ -230,7 +230,7 @@ int main(int argc, char* argv[]) {
 	/* 			Token* import = srcfiles[s]->stmts[i]->ident; */
 	/* 			SrcFile* srcfile = read_srcfile_or_error( */
 	/* 					srcfiles[s]->stmts[i]->imported_namespace.fpath, */
-	/* 					MSG_TY_ERR, */
+	/* 					MSG_KN_ERR, */
 	/* 					import->srcfile, */
 	/* 					import->line, */
 	/* 					import->column, */

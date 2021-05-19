@@ -48,7 +48,7 @@ void lexer_error_from_start_to_current(
 	va_list ap;
 	va_start(ap, fmt);
 	vmsg_user(
-			MSG_TY_ERR,
+			MSG_KN_ERR,
 			self->srcfile,
 			self->line,
 			lexer_compute_column_from_start(self),
@@ -67,7 +67,7 @@ void lexer_error_from_current_to_current(
 	va_list ap;
 	va_start(ap, fmt);
 	vmsg_user(
-			MSG_TY_ERR,
+			MSG_KN_ERR,
 			self->srcfile,
 			self->line,
 			lexer_compute_column_from_current(self),

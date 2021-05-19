@@ -1,8 +1,8 @@
 typedef enum {
-	MSG_TY_ROOT_ERR, 
-	MSG_TY_ERR,
-	MSG_TY_NOTE,
-} MsgType;
+	MSG_KN_ROOT_ERR, 
+	MSG_KN_ERR,
+	MSG_KN_NOTE,
+} MsgKind;
 
 static char* get_line_from_file(File* file, u64 line) {
 	char* current_char_in_line = file->contents;
@@ -26,7 +26,7 @@ static void stderr_print_tab() {
 }
 
 void vmsg_user(
-		MsgType ty, 
+		MsgKind kind, 
 		SrcFile* srcfile, 
 		u64 line, 
 		u64 column, 
@@ -37,7 +37,7 @@ void vmsg_user(
 	va_list aq;
 	va_copy(aq, ap);
 
-	if (ty != MSG_TY_ROOT_ERR) {
+	if (kind != MSG_KN_ROOT_ERR) {
 		assert(char_count > 0);
 		assert(line > 0);
 		assert(column > 0);
@@ -46,7 +46,7 @@ void vmsg_user(
 	char* src_line = null; 
 	u64 column_new = column;
 
-	if (ty != MSG_TY_ROOT_ERR) {
+	if (kind != MSG_KN_ROOT_ERR) {
 		src_line = get_line_from_file(srcfile->contents, line);
 		// Checks for tab characters in line
 		// and updates the column to match real tab width
@@ -61,7 +61,7 @@ void vmsg_user(
 		}
 	}
 
-	if (ty != MSG_TY_ROOT_ERR) {
+	if (kind != MSG_KN_ROOT_ERR) {
 		fprintf(
 				stderr,
 				ANSI_FBOLD
@@ -73,12 +73,12 @@ void vmsg_user(
 		);
 	}
 
-	switch (ty) {
-		case MSG_TY_ROOT_ERR:
-		case MSG_TY_ERR:	
+	switch (kind) {
+		case MSG_KN_ROOT_ERR:
+		case MSG_KN_ERR:	
 			fprintf(stderr, ANSI_FRED "error: " ANSI_RESET); 
 			break;
-		case MSG_TY_NOTE:
+		case MSG_KN_NOTE:
 			fprintf(stderr, ANSI_FCYAN "note: " ANSI_RESET);
 			break;
 	}
@@ -86,17 +86,17 @@ void vmsg_user(
 	vfprintf(stderr, fmt, aq);
 	fprintf(stderr, "\n");
 
-	if (ty != MSG_TY_ROOT_ERR) {
+	if (kind != MSG_KN_ROOT_ERR) {
 		char* src_line_to_print = src_line;
 		char* beg_of_src_line = src_line;
 		int indent = fprintf(stderr, "%6lu | ", line) - 2;
 
 		char* color = ANSI_RESET;
-		switch (ty) {
-			case MSG_TY_ERR:
+		switch (kind) {
+			case MSG_KN_ERR:
 				color = ANSI_FRED;
 				break;
-			case MSG_TY_NOTE:
+			case MSG_KN_NOTE:
 				color = ANSI_FCYAN;
 				break;
 			default:
@@ -142,7 +142,7 @@ void vmsg_user(
 }
 
 void msg_user(
-		MsgType ty, 
+		MsgKind kind, 
 		SrcFile* srcfile, 
 		u64 line, 
 		u64 column, 
@@ -152,19 +152,19 @@ void msg_user(
 
 	va_list ap;
 	va_start(ap, fmt);
-	vmsg_user(ty, srcfile, line, column, char_count, fmt, ap);
+	vmsg_user(kind, srcfile, line, column, char_count, fmt, ap);
 	va_end(ap);
 }
 
 void vmsg_user_node(
-		MsgType ty,
+		MsgKind kind,
 		Node* node,
 		char* fmt, 
 		va_list ap) {
 	va_list aq;
 	va_copy(aq, ap);
 	vmsg_user(
-			ty,
+			kind,
 			node->head->srcfile,
 			node->head->line,
 			node->head->column,
@@ -174,25 +174,25 @@ void vmsg_user_node(
 }
 
 void msg_user_node(
-		MsgType ty,
+		MsgKind kind,
 		Node* node,
 		char* fmt, 
 		...) {
 	va_list ap;
 	va_start(ap, fmt);
-	vmsg_user_node(ty, node, fmt, ap);
+	vmsg_user_node(kind, node, fmt, ap);
 	va_end(ap);
 }
 
 void vmsg_user_token(
-		MsgType ty,
+		MsgKind kind,
 		Token* token,
 		char* fmt, 
 		va_list ap) {
 	va_list aq;
 	va_copy(aq, ap);
 	vmsg_user(
-			ty,
+			kind,
 			token->srcfile,
 			token->line,
 			token->column,
@@ -202,18 +202,18 @@ void vmsg_user_token(
 }
 
 void msg_user_token(
-		MsgType ty,
+		MsgKind kind,
 		Token* token,
 		char* fmt, 
 		...) {
 	va_list ap;
 	va_start(ap, fmt);
-	vmsg_user_token(ty, token, fmt, ap);
+	vmsg_user_token(kind, token, fmt, ap);
 	va_end(ap);
 }
 
 void terminate_compilation() {
-	msg_user(MSG_TY_ROOT_ERR, null, 0, 0, 0, "aborting due to previous errors");
+	msg_user(MSG_KN_ROOT_ERR, null, 0, 0, 0, "aborting due to previou(s) errors");
 	// TODO: for CI build, this is changed to
 	// always return 0.
 	// Uncomment next line.

@@ -38,7 +38,7 @@ all: $(BIN_FILE) #docs
 debug: $(BIN_FILE)
 	gdb --args $(BIN_FILE) $(CMD_ARGS)
 
-$(BIN_FILE): $(OBJ_FILES)
+$(BIN_FILE): clean $(OBJ_FILES)
 	@mkdir -p $(dir $@)
 	$(LD) -o $@ $(OBJ_FILES) $(LIBS_LIB_DIR_CMD) $(LIBS_LIB_CMD) $(LDFLAGS)
 

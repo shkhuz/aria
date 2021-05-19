@@ -8,18 +8,3 @@ proc main() {
 module game {
 	proc cool() {}
 }
-
-//namespace math {
-//	fn pow(a: std::usize, b: std::usize) {
-//		// ...
-//	}
-//}
-//
-//namespace file {
-//	fn open_file(fpath: std::string) {
-//		// I haven't implemented numbers ...
-//		let one: std::usize;
-//		let two: std::usize;
-//		let node = math::pow(one, two);
-//	}
-//}
