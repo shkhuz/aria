@@ -213,7 +213,7 @@ void msg_user_token(
 }
 
 void terminate_compilation() {
-	msg_user(MSG_KN_ROOT_ERR, null, 0, 0, 0, "aborting due to previou(s) errors");
+	msg_user(MSG_KN_ROOT_ERR, null, 0, 0, 0, "aborting due to previous error(s)");
 	// TODO: for CI build, this is changed to
 	// always return 0.
 	// Uncomment next line.
@@ -222,8 +222,21 @@ void terminate_compilation() {
 	exit(0);
 }
 
-#define vmsg_user_node(...) self->error = true; vmsg_user_node(__VA_ARGS__)
-#define msg_user_node(...) self->error = true; msg_user_node(__VA_ARGS__)
-#define vmsg_user_token(...) self->error = true; vmsg_user_token(__VA_ARGS__)
-#define msg_user_token(...) self->error = true; msg_user_token(__VA_ARGS__)
+#define verror_node(...) \
+	self->error = true; vmsg_user_node(MSG_KN_ERR, __VA_ARGS__)
+#define error_node(...) \
+	self->error = true; msg_user_node(MSG_KN_ERR, __VA_ARGS__)
+#define verror_token(...) \
+	self->error = true; vmsg_user_token(MSG_KN_ERR, __VA_ARGS__)
+#define error_token(...) \
+	self->error = true; msg_user_token(MSG_KN_ERR, __VA_ARGS__)
+
+#define fatal_verror_node(...)  \
+	verror_node(__VA_ARGS__); terminate_compilation()
+#define fatal_error_node(...)   \
+	error_node(__VA_ARGS__); terminate_compilation()
+#define fatal_verror_token(...) \
+	verror_token(__VA_ARGS__); terminate_compilation()
+#define fatal_error_token(...)  \
+	error_token(__VA_ARGS__); terminate_compilation()
 

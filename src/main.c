@@ -28,12 +28,12 @@ bool parse_srcfile(SrcFile* srcfile) {
 		printf("\n");
 	}
 
-	/* Parser parser; */
-	/* parser_init(&parser, srcfile); */
-	/* parser_parse(&parser); */
-	/* if (parser.error) { */
-	/* 	return true; */
-	/* } */
+	Parser parser;
+	parser_init(&parser, srcfile);
+	parser_parse(&parser);
+	if (parser.error) {
+		return true;
+	}
 
 	return false;
 }

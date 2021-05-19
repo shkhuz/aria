@@ -14,7 +14,7 @@ char* directives[] = {
 };
 
 typedef enum {
-	TK_IDENT,
+	TK_IDENTIFIER,
 	TK_KEYWORD,
 	TK_DIRECTIVE,
 	TK_STRING,
@@ -67,14 +67,35 @@ Token* token_alloc(
 }
 
 typedef enum {
-	NK_FUNCTION,
+	NK_VARIABLE,
 } NodeKind;
 
 typedef struct {
 	NodeKind kind;
 	Token* head;
 	Token* tail;
+
+	union {
+		struct {
+			bool mut;
+			Token* identifier;
+		} variable;
+	};
 } Node;
+
+Node* node_variable_new(
+		Token* head,
+		Token* tail,
+		bool mut, 
+		Token* identifier) {
+	alloc_with_type(node, Node);
+	node->kind = NK_VARIABLE;
+	node->head = head;
+	node->tail = tail;
+	node->variable.mut = mut;
+	node->variable.identifier = identifier;
+	return node;
+}
 
 struct SrcFile {
 	File* contents;

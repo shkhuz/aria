@@ -113,7 +113,7 @@ void lexer_lex(Lexer* self) {
 			case 'T': case 'U': case 'V': case 'W': case 'X':
 			case 'Y': case 'Z': case '_':
 			{
-				TokenKind kind = TK_IDENT;
+				TokenKind kind = TK_IDENTIFIER;
 				while (isalnum(*self->current) || *self->current == '_') {
 					self->current++;
 				}
@@ -225,7 +225,11 @@ void lexer_lex(Lexer* self) {
 				}
 			} break;
 
-			case '\0': push_tok_by_type_for_char(self, TK_EOF); return;
+			case '\0': {
+				push_tok_by_type_for_char(self, TK_EOF);
+				self->srcfile->tokens[buf_len(self->srcfile->tokens)-1]->lexeme 
+					= stri("<EOF>");
+			} return;
 
 			default:
 			{
