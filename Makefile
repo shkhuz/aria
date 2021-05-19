@@ -33,13 +33,16 @@ LIBS_LIB_CMD :=
 #CMD_ARGS := examples/pub_test.ar 
 CMD_ARGS := examples/parse_test.ar 
 
-all: $(BIN_FILE) #docs
+all: clean check
+	$(MAKE) all_2
+
+all_2: $(BIN_FILE) #docs
 	$(BIN_FILE) $(CMD_ARGS)
 
 debug: $(BIN_FILE)
 	gdb --args $(BIN_FILE) $(CMD_ARGS)
 
-$(BIN_FILE): clean check $(OBJ_FILES)
+$(BIN_FILE): $(OBJ_FILES)
 	@mkdir -p $(dir $@)
 	$(LD) -o $@ $(OBJ_FILES) $(LIBS_LIB_DIR_CMD) $(LIBS_LIB_CMD) $(LDFLAGS)
 
@@ -60,7 +63,7 @@ clean:
 	rm -f a.out
 	#cd $(DOCS_DIR) && $(MAKE) clean
 
-check:
+check: clean
 	./scripts/check_parse_c_file.sh
 
 docs:
@@ -75,4 +78,4 @@ loc:
 		-name "*.asm" \
 	| xargs cat | wc -l
 
-.PHONY: clean check loc docs
+.PHONY: all debug clean check loc docs
