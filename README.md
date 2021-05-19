@@ -38,7 +38,7 @@ proc max<T>(a: T, b: T) T {
 ```aria
 @import("std");
 
-proc allocate_memory(n: usize): ![]u8 {
+proc allocate_memory(n: usize) ![]u8 {
 	let mem = std::gp_allocator_mem(n)?;
 	{ mem, n }
 }
@@ -57,7 +57,7 @@ proc main() {
 	});
 }
 
-proc open_file(fpath: string): ?std::File {
+proc open_file(fpath: string) ?std::File {
 	if std::os::openf(fpath, std::io::rb) |file| {
 		file
 	} else |_| {
