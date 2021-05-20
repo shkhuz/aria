@@ -1,4 +1,4 @@
-# Aria
+# The Aria project
 
 ![GitHub Workflow Status](https://github.com/huzaifash/aria/actions/workflows/build.yml/badge.svg)
 ![GitHub Workflow Status](https://github.com/huzaifash/aria/actions/workflows/codeql-analysis.yml/badge.svg)
@@ -7,7 +7,7 @@ This repository houses the Aria compiler/toolchain and the language specificatio
 
 # Sample Code 
 
-```aria
+```
 module math {
 
 struct Vector2 {
@@ -26,7 +26,7 @@ struct Vector2 {
 
 ## _Generics_
 
-```aria
+```
 proc max<T>(a: T, b: T) T {
 	if a > b { a }
 	else { b }
@@ -35,7 +35,7 @@ proc max<T>(a: T, b: T) T {
 
 ## _Errors_
 
-```aria
+```
 @import("std");
 
 proc allocate_memory(n: usize) ![]u8 {
@@ -46,7 +46,7 @@ proc allocate_memory(n: usize) ![]u8 {
 
 ## _Optionals_
 
-```aria
+```
 @import("std");
 
 proc main() {
@@ -68,7 +68,7 @@ proc open_file(fpath: string) ?std::File {
 
 ## _Read User Input_
 
-```aria
+```
 @import("std");
 
 proc main() !void {
@@ -80,7 +80,7 @@ proc main() !void {
 
 ## _Conditional Compilation_
 
-```aria
+```
 @import("std");
 
 proc main() !void {
