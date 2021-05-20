@@ -1,5 +1,0 @@
-#import <std>
-
-pub main :: fn u8 {
-    std.println("Hello, {}", "world");
-}
