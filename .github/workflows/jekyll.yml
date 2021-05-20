@@ -10,7 +10,9 @@ on:
 
 jobs:
   jekyll:
+    name: Jekyll
     runs-on: ubuntu-18.04 # ubuntu-latest is now 20.04 and doesn't seem to work
+
     steps:
       # checkout code
       - uses: actions/checkout@v2
