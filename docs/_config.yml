@@ -28,8 +28,6 @@ github_username:  huzaifash
 
 # Build settings
 theme: "just-the-docs"
-plugins:
-  - jekyll-seo-tag
 
 aux_links:
   "Aria Repository":
