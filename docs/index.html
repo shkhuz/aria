@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>The Aria project</title>
+	<link rel="preconnect" href="https://fonts.gstatic.com">
+	<link
+	href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap"
+	rel="stylesheet"> 
+	<link rel="stylesheet" href="style.css" />
+	<!--[if lt IE 9]>
+		<script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+	<![endif]-->
+</head>
+<body>
+<article>
+<header id="title-block-header">
+<h1 class="title">The Aria project</h1>
+<p class="subtitle">An experimental systems programming language.</p>
+<hr>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#sample-code">Sample Code</a>
+<ul>
+<li><a href="#generics">Generics</a></li>
+<li><a href="#errors">Errors</a></li>
+<li><a href="#optionals">Optionals</a></li>
+<li><a href="#read-user-input">Read User Input</a></li>
+<li><a href="#conditional-compilation">Conditional Compilation</a></li>
+</ul></li>
+<li><a href="#building">Building</a></li>
+<li><a href="#license">License</a></li>
+</ul>
+</nav>
+<h2 id="sample-code">Sample Code</h2>
+<pre><code>module math {
+
+struct Vector2 {
+    x, y: f32,
+
+    proc add(self, other: Vector2) {
+        Self {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
+}
+
+}</code></pre>
+<h3 id="generics">Generics</h3>
+<pre><code>proc max&lt;T&gt;(a: T, b: T) T {
+    if a &gt; b { a }
+    else { b }
+}</code></pre>
+<h3 id="errors">Errors</h3>
+<pre><code>@import(&quot;std&quot;);
+
+proc allocate_memory(n: usize) ![]u8 {
+    let mem = std::gp_allocator_mem(n)?;
+    { mem, n }
+}</code></pre>
+<h3 id="optionals">Optionals</h3>
+<pre><code>@import(&quot;std&quot;);
+
+proc main() {
+    std::printf(if open_file(&quot;test.txt&quot;) |_| {
+        &quot;file successfully opened&quot;
+    } else {
+        &quot;file cannot be opened&quot;
+    });
+}
+
+proc open_file(fpath: string) ?std::File {
+    if std::os::openf(fpath, std::io::rb) |file| {
+        file
+    } else |_| {
+        none
+    }
+}</code></pre>
+<h3 id="read-user-input">Read User Input</h3>
+<pre><code>@import(&quot;std&quot;);
+
+proc main() !void {
+    let input = std::io::read_to_string()?;
+    defer free(input);
+    redef input = input as const u8[];
+}</code></pre>
+<h3 id="conditional-compilation">Conditional Compilation</h3>
+<pre><code>@import(&quot;std&quot;);
+
+proc main() !void {
+    std::writeln(static if std::os::host_os == std::os::OsType::UNIX {
+        &quot;we are on *NIX&quot;
+    } else if std::os::host_os == std::os::OsType::Windows {
+        &quot;windows.&quot;
+    } else {
+        &quot;something else. hmm...&quot;
+    });
+}</code></pre>
+<h2 id="building">Building</h2>
+<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/huzaifash/aria.git</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> aria/</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span></span></code></pre></div>
+<h2 id="license">License</h2>
+<p>This project is MIT licensed. See the <code>License</code> file for more details.</p>
+</article>
+</body>
+</html>

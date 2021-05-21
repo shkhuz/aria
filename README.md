@@ -5,7 +5,7 @@
 
 This repository houses the Aria compiler/toolchain and the language specification. 
 
-# Sample Code 
+## Sample Code 
 
 ```
 module math {
@@ -24,7 +24,7 @@ struct Vector2 {
 }
 ```
 
-## _Generics_
+### Generics
 
 ```
 proc max<T>(a: T, b: T) T {
@@ -33,7 +33,7 @@ proc max<T>(a: T, b: T) T {
 }
 ```
 
-## _Errors_
+### Errors
 
 ```
 @import("std");
@@ -44,7 +44,7 @@ proc allocate_memory(n: usize) ![]u8 {
 }
 ```
 
-## _Optionals_
+### Optionals
 
 ```
 @import("std");
@@ -66,7 +66,7 @@ proc open_file(fpath: string) ?std::File {
 }
 ```
 
-## _Read User Input_
+### Read User Input
 
 ```
 @import("std");
@@ -78,7 +78,7 @@ proc main() !void {
 }
 ```
 
-## _Conditional Compilation_
+### Conditional Compilation
 
 ```
 @import("std");
@@ -94,7 +94,7 @@ proc main() !void {
 }
 ```
 
-# Building
+## Building
 
 ```sh
 git clone https://github.com/huzaifash/aria.git
@@ -102,7 +102,8 @@ cd aria/
 make
 ```
 
-# License
+## License
 
 This project is MIT licensed. See the `License` file 
 for more details.
+
