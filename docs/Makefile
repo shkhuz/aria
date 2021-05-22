@@ -7,6 +7,6 @@ all: $(HTML_FILES)
 	pandoc -s $^ -c style.css --template pandoc_template.html --toc --toc-depth=3 -o $@
 
 clean: 
-	rm $(HTML_FILES)
+	rm -f $(HTML_FILES)
 
 .PHONY: clean

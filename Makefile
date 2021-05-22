@@ -36,7 +36,7 @@ CMD_ARGS := examples/parse_test.ar
 all: clean check
 	$(MAKE) all_2
 
-all_2: $(BIN_FILE) #docs
+all_2: $(BIN_FILE) docs
 	$(BIN_FILE) $(CMD_ARGS)
 
 debug: $(BIN_FILE)
@@ -61,7 +61,7 @@ clean:
 	rm -fd $(BIN_DIR)
 	rm -fd $(BUILD_DIR)
 	rm -f a.out
-	#cd $(DOCS_DIR) && $(MAKE) clean
+	cd $(DOCS_DIR) && $(MAKE) clean
 
 check: clean
 	./scripts/check_parse_c_file.sh
