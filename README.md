@@ -1,7 +1,6 @@
 # The Aria project
 
 ![GitHub Workflow Status](https://github.com/huzaifash/aria/actions/workflows/build.yml/badge.svg)
-![GitHub Workflow Status](https://github.com/huzaifash/aria/actions/workflows/codeql-analysis.yml/badge.svg)
 
 This repository houses the Aria compiler/toolchain and the language
 specification. 
