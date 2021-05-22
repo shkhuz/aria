@@ -40,18 +40,16 @@
 </nav>
 <h2 id="sample-code">Sample Code</h2>
 <pre><code>module math {
+    struct Vector2 {
+        x, y: f32,
 
-struct Vector2 {
-    x, y: f32,
-
-    proc add(self, other: Vector2) {
-        Self {
-            x: self.x + other.x,
-            y: self.y + other.y,
+        proc add(self, other: Vector2) {
+            Self {
+                x: self.x + other.x,
+                y: self.y + other.y,
+            }
         }
     }
-}
-
 }</code></pre>
 <h3 id="generics">Generics</h3>
 <pre><code>proc max&lt;T&gt;(a: T, b: T) T {

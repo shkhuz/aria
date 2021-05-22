@@ -8,18 +8,16 @@ subtitle: An experimental systems programming language.
 
 ```
 module math {
+	struct Vector2 {
+		x, y: f32,
 
-struct Vector2 {
-	x, y: f32,
-
-	proc add(self, other: Vector2) {
-		Self {
-			x: self.x + other.x,
-			y: self.y + other.y,
+		proc add(self, other: Vector2) {
+			Self {
+				x: self.x + other.x,
+				y: self.y + other.y,
+			}
 		}
 	}
-}
-
 }
 ```
 
