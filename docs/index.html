@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>The Aria project</title>
+	<title>Home — The Aria project</title>
 	<link rel="preconnect" href="https://fonts.gstatic.com">
 	<link
 	href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap"
@@ -63,13 +63,13 @@ struct Vector2 {
 
 proc allocate_memory(n: usize) ![]u8 {
     let mem = std::gp_allocator_mem(n)?;
-    { mem, n }
+    std::slice::from_raw(mem, n)
 }</code></pre>
 <h3 id="optionals">Optionals</h3>
 <pre><code>@import(&quot;std&quot;);
 
 proc main() {
-    std::printf(if open_file(&quot;test.txt&quot;) |_| {
+    std::printf(if open_file(&quot;test.txt&quot;) {
         &quot;file successfully opened&quot;
     } else {
         &quot;file cannot be opened&quot;
@@ -77,9 +77,9 @@ proc main() {
 }
 
 proc open_file(fpath: string) ?std::File {
-    if std::os::openf(fpath, std::io::rb) |file| {
+    if std::os::openf(fpath, std::io::rb) with file {
         file
-    } else |_| {
+    } else {
         none
     }
 }</code></pre>
@@ -89,18 +89,16 @@ proc open_file(fpath: string) ?std::File {
 proc main() !void {
     let input = std::io::read_to_string()?;
     defer free(input);
-    redef input = input as const u8[];
+    redef input = input as []const u8;
 }</code></pre>
 <h3 id="conditional-compilation">Conditional Compilation</h3>
 <pre><code>@import(&quot;std&quot;);
 
 proc main() !void {
-    std::writeln(static if std::os::host_os == std::os::OsType::UNIX {
-        &quot;we are on *NIX&quot;
-    } else if std::os::host_os == std::os::OsType::Windows {
-        &quot;windows.&quot;
-    } else {
-        &quot;something else. hmm...&quot;
+    std::writeln(static match std::os::host_os {
+        std::os::OsType::UNIX =&gt; &quot;we are on *NIX&quot;,
+        std::os::OsType::Windows =&gt; &quot;windows.&quot;,
+        else =&gt; &quot;something else. hmm...&quot;,
     });
 }</code></pre>
 <h2 id="building">Building</h2>

@@ -5,7 +5,6 @@ BUILD_DIR := build
 BIN_DIR := $(BUILD_DIR)/bin
 OBJ_DIR := $(BUILD_DIR)/obj
 DEPS_DIR := deps
-DOCS_DIR := docs
 
 C_FILES := src/main.c
 ASM_FILES := $(shell find $(SRC_DIR) -name "*.asm")
@@ -36,7 +35,7 @@ CMD_ARGS := examples/parse_test.ar
 all: clean check
 	$(MAKE) all_2
 
-all_2: $(BIN_FILE) docs
+all_2: $(BIN_FILE) 
 	$(BIN_FILE) $(CMD_ARGS)
 
 debug: $(BIN_FILE)
@@ -61,13 +60,9 @@ clean:
 	rm -fd $(BIN_DIR)
 	rm -fd $(BUILD_DIR)
 	rm -f a.out
-	cd $(DOCS_DIR) && $(MAKE) clean
 
 check: clean
 	./scripts/check_parse_c_file.sh
-
-docs:
-	cd $(DOCS_DIR) && $(MAKE)
 
 loc:
 	find $(SRC_DIR) \
@@ -78,4 +73,4 @@ loc:
 		-name "*.asm" \
 	| xargs cat | wc -l
 
-.PHONY: all debug clean check loc docs
+.PHONY: all debug clean check loc

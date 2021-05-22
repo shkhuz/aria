@@ -1,5 +1,6 @@
 ---
 title: The Aria project
+title-prefix: Home
 subtitle: An experimental systems programming language.
 ---
 
@@ -38,7 +39,7 @@ proc max<T>(a: T, b: T) T {
 
 proc allocate_memory(n: usize) ![]u8 {
 	let mem = std::gp_allocator_mem(n)?;
-	{ mem, n }
+	std::slice::from_raw(mem, n)
 }
 ```
 
@@ -48,7 +49,7 @@ proc allocate_memory(n: usize) ![]u8 {
 @import("std");
 
 proc main() {
-	std::printf(if open_file("test.txt") |_| {
+	std::printf(if open_file("test.txt") {
 		"file successfully opened"
 	} else {
 		"file cannot be opened"
@@ -56,9 +57,9 @@ proc main() {
 }
 
 proc open_file(fpath: string) ?std::File {
-	if std::os::openf(fpath, std::io::rb) |file| {
+	if std::os::openf(fpath, std::io::rb) with file {
 		file
-	} else |_| {
+	} else {
 		none
 	}
 }
@@ -72,7 +73,7 @@ proc open_file(fpath: string) ?std::File {
 proc main() !void {
 	let input = std::io::read_to_string()?;
 	defer free(input);
-	redef input = input as const u8[];
+	redef input = input as []const u8;
 }
 ```
 
@@ -82,12 +83,10 @@ proc main() !void {
 @import("std");
 
 proc main() !void {
-	std::writeln(static if std::os::host_os == std::os::OsType::UNIX {
-		"we are on *NIX"
-	} else if std::os::host_os == std::os::OsType::Windows {
-		"windows."
-	} else {
-		"something else. hmm..."
+	std::writeln(static match std::os::host_os {
+		std::os::OsType::UNIX => "we are on *NIX",
+		std::os::OsType::Windows => "windows.",
+		else => "something else. hmm...",
 	});
 }
 ```
