@@ -59,7 +59,7 @@ bool parser_match_keyword(Parser* self, char* keyword) {
 	return false;
 }
 
-Token* expect(Parser* self, TokenKind kind, char* fmt, ...) {
+Token* parser_expect(Parser* self, TokenKind kind, char* fmt, ...) {
 	if (!parser_match_token(self, kind)) {
 		va_list ap;
 		va_start(ap, fmt);
@@ -70,11 +70,11 @@ Token* expect(Parser* self, TokenKind kind, char* fmt, ...) {
 	return parser_previous(self);
 }
 
-#define expect_identifier(self, fmt) \
-	expect(self, TK_IDENTIFIER, fmt, parser_current(self)->lexeme)
+#define parser_expect_identifier(self, fmt) \
+	parser_expect(self, TK_IDENTIFIER, fmt, parser_current(self)->lexeme)
 
-#define expect_semicolon(self, fmt) \
-	expect(self, TK_SEMICOLON, fmt, parser_current(self)->lexeme)
+#define parser_expect_semicolon(self, fmt) \
+	parser_expect(self, TK_SEMICOLON, fmt, parser_current(self)->lexeme)
 
 Node* parser_variable_decl(Parser* self, Token* keyword) {
 	bool mut = false;
@@ -83,9 +83,9 @@ Node* parser_variable_decl(Parser* self, Token* keyword) {
 	}
 	
 	Token* identifier = 
-		expect_identifier(self, "expected variable name, got `%s`");
+		parser_expect_identifier(self, "expected variable name, got `%s`");
 
-	Token* semicolon = expect_semicolon(self, "expected `;`, got `%s`");
+	Token* semicolon = parser_expect_semicolon(self, "expected `;`, got `%s`");
 	return node_variable_new(keyword, semicolon, mut, identifier);
 }
 
