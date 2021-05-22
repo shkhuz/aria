@@ -12,4 +12,4 @@ run:
 clean: 
 	rm -f $(HTML_FILES)
 
-.PHONY: clean
+.PHONY: all run clean
