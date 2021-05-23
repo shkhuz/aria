@@ -189,7 +189,7 @@ void lexer_lex(Lexer* self) {
                 lexer_error_from_current_to_current(
                         self,
                         "aria does not support tab characters");
-                self->current++;
+                terminate_compilation();
             } break;
 
             case ' ':
