@@ -1,127 +1,199 @@
+typedef struct Node Node;
 typedef struct SrcFile SrcFile;
 
+#define PROCEDURE_DECL_KEYWORD "proc"
+#define VARIABLE_DECL_KEYWORD "let"
+
 char* keywords[] = {
-	"module",
-	"struct",
-	"proc",
-	"let",
-	"mut",
-	"const",
+    "module",
+    "struct",
+    PROCEDURE_DECL_KEYWORD,
+    VARIABLE_DECL_KEYWORD,
+    "mut",
+    "const",
 };
 
 char* directives[] = {
-	"@import",
+    "@import",
 };
 
 typedef enum {
-	TK_IDENTIFIER,
-	TK_KEYWORD,
-	TK_DIRECTIVE,
-	TK_STRING,
-	TK_LPAREN,
-	TK_RPAREN,
-	TK_LBRACE,
-	TK_RBRACE,
-	TK_SEMICOLON,
-	TK_COLON,
-	TK_DOUBLE_COLON,
-	TK_COMMA,
-	TK_PLUS,
-	TK_MINUS,
-	TK_STAR,
-	TK_FSLASH,
-	TK_EQUAL,
-	TK_AMPERSAND,
-	TK_EOF,
-	TK_NONE,
+    TOKEN_KIND_IDENTIFIER,
+    TOKEN_KIND_KEYWORD,
+    TOKEN_KIND_DIRECTIVE,
+    TOKEN_KIND_STRING,
+    TOKEN_KIND_LPAREN,
+    TOKEN_KIND_RPAREN,
+    TOKEN_KIND_LBRACE,
+    TOKEN_KIND_RBRACE,
+    TOKEN_KIND_SEMICOLON,
+    TOKEN_KIND_COLON,
+    TOKEN_KIND_DOUBLE_COLON,
+    TOKEN_KIND_COMMA,
+    TOKEN_KIND_PLUS,
+    TOKEN_KIND_MINUS,
+    TOKEN_KIND_STAR,
+    TOKEN_KIND_FSLASH,
+    TOKEN_KIND_EQUAL,
+    TOKEN_KIND_AMPERSAND,
+    TOKEN_KIND_EOF,
+    TOKEN_KIND_NONE,
 } TokenKind;
 
 typedef struct {
-	TokenKind kind;
-	char* lexeme, *start, *end;
-	SrcFile* srcfile;
-	u64 line, column, char_count;
+    TokenKind kind;
+    char* lexeme, *start, *end;
+    SrcFile* srcfile;
+    u64 line, column, char_count;
 } Token;
 
 Token* token_alloc(
-		TokenKind kind,
-		char* lexeme, 
-		char* start,
-		char* end,
-		SrcFile* srcfile,
-		u64 line,
-		u64 column,
-		u64 char_count) {
-	alloc_with_type(token, Token);
-	*token = (Token) {
-		kind,
-		lexeme,
-		start,
-		end,
-		srcfile,
-		line,
-		column,
-		char_count
-	};
-	return token;
+        TokenKind kind,
+        char* lexeme, 
+        char* start,
+        char* end,
+        SrcFile* srcfile,
+        u64 line,
+        u64 column,
+        u64 char_count) {
+    alloc_with_type(token, Token);
+    *token = (Token) {
+        kind,
+        lexeme,
+        start,
+        end,
+        srcfile,
+        line,
+        column,
+        char_count
+    };
+    return token;
 }
 
 typedef enum {
-	NK_VARIABLE,
+    TYPE_KIND_IDENTIFIER,
+} TypeKind;
+
+typedef enum {
+    NODE_KIND_TYPE,
+    NODE_KIND_BLOCK,
+    NODE_KIND_VARIABLE_DECL,
+    NODE_KIND_PROCEDURE_DECL,
 } NodeKind;
 
-typedef struct {
-	NodeKind kind;
-	Token* head;
-	Token* tail;
+struct Node {
+    NodeKind kind;
+    Token* head;
+    Token* tail;
 
-	union {
-		struct {
-			bool mut;
-			Token* identifier;
-		} variable;
-	};
-} Node;
+    union {
+        struct {
+            TypeKind kind;
+            union {
+                Token* identifier;
+            };
+        } type;
 
-Node* node_variable_new(
-		Token* head,
-		Token* tail,
-		bool mut, 
-		Token* identifier) {
-	alloc_with_type(node, Node);
-	node->kind = NK_VARIABLE;
-	node->head = head;
-	node->tail = tail;
-	node->variable.mut = mut;
-	node->variable.identifier = identifier;
-	return node;
+        struct {
+            Node** nodes;
+            // TODO: add node expression 
+        } block;
+
+        struct {
+            bool mut;
+            Token* identifier;
+            Node* type;
+        } variable_decl;
+
+        struct {
+            Token* identifier;
+            Node** params;
+            Node* type;
+            Node* body;
+        } procedure_decl;
+    };
+};
+
+Node* node_type_identifier_new(
+        Token* identifier) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_TYPE;
+    node->head = identifier;
+    node->type.kind = TYPE_KIND_IDENTIFIER;
+    node->type.identifier = identifier;
+    node->tail = identifier;
+    return node;
+}
+
+Node* node_block_new(
+        Token* lbrace,
+        Node** nodes,
+        Token* rbrace) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_BLOCK;
+    node->head = lbrace;
+    node->block.nodes = nodes;
+    node->tail = rbrace;
+    return node;
+}
+
+Node* node_procedure_decl_new(
+        Token* keyword,
+        Token* identifier,
+        Node** params,
+        Node* type,
+        Node* body) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_PROCEDURE_DECL;
+    node->head = keyword;
+    node->procedure_decl.identifier = identifier;
+    node->procedure_decl.params = params;
+    node->procedure_decl.type = type;
+    node->procedure_decl.body = body;
+    return node;
+}
+
+Node* node_variable_decl_new(
+        Token* keyword,
+        bool mut, 
+        Token* identifier,
+        Node* type,
+        Token* semicolon) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_VARIABLE_DECL;
+    node->head = keyword;
+    node->variable_decl.mut = mut;
+    node->variable_decl.identifier = identifier;
+    node->variable_decl.type = type;
+    node->tail = semicolon;
+    return node;
 }
 
 struct SrcFile {
-	File* contents;
-	Token** tokens;
-	Node** nodes;
+    File* contents;
+    Token** tokens;
+    Node** nodes;
 };
 
 /* typedef struct Scope { */
-/* 	struct Scope* parent; */
-/* 	Stmt** sym_tbl; */
+/*  struct Scope* parent; */
+/*  Stmt** sym_tbl; */
 /* } Scope; */
 
 /* typedef struct { */
-/* 	SrcFile* srcfile; */
-/* 	Scope* global_scope; */
-/* 	Scope* current_scope; */
-/* 	bool error; */
+/*  SrcFile* srcfile; */
+/*  Scope* global_scope; */
+/*  Scope* current_scope; */
+/*  bool error; */
 /* } Resolver; */
 
 /* void resolver_init(Resolver* self, SrcFile* srcfile); */
 /* void resolver_resolve(Resolver* self); */
 
 /* typedef struct { */
-/* 	SrcFile* srcfile; */
-/* 	bool error; */
-/* 	u64 error_count; */
+/*  SrcFile* srcfile; */
+/*  bool error; */
+/*  u64 error_count; */
 /* } Checker; */
 
 /* void checker_init(Checker* self, SrcFile* srcfile); */

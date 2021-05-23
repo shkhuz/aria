@@ -1,56 +1,56 @@
 //namespace std {
-//	namespace std {
-//		fn main() {
-//			let var = std::var;
-//		}
+//  namespace std {
+//      fn main() {
+//          let var = std::var;
+//      }
 //
-//	}
-//	let var: std;
+//  }
+//  let var: std;
 //}
 //
 //namespace a {
-//	namespace aa {
-//		namespace aaa {
-//			let hi: aaa;
-//		}
-//	}
+//  namespace aa {
+//      namespace aaa {
+//          let hi: aaa;
+//      }
+//  }
 //} 
 //
 //fn main() {
-//	a::aa::aaa::hi;
-//	coolspace::cool();
+//  a::aa::aaa::hi;
+//  coolspace::cool();
 //}
 //
 //namespace coolspace {
-//	fn cool() {}
+//  fn cool() {}
 //}
 //
 //namespace test_global_accessor {
-//	let i: ::usize;
-//	struct usize {}
+//  let i: ::usize;
+//  struct usize {}
 //}
 
 #import "std";
 fn main() {}
 namespace one {
-	let d: std::get_cmd_args;
-	let mut i: std::u8 = d;
+    let d: std::get_cmd_args;
+    let mut i: std::u8 = d;
 }
 namespace foo {
-	let right_u8: std::u8;
-	let right_u16: std::u16;
-	namespace two {
-		let d = std::usize;
-		let mut e: std::u8 = std::get_cmd_args();
-		fn cool() {
-			e = e;
-			let mut f = right_u16;
-			f = right_u8;
-		}
-	}
+    let right_u8: std::u8;
+    let right_u16: std::u16;
+    namespace two {
+        let d = std::usize;
+        let mut e: std::u8 = std::get_cmd_args();
+        fn cool() {
+            e = e;
+            let mut f = right_u16;
+            f = right_u8;
+        }
+    }
 
-	fn duh() {
-		let mut v: ::foo;
-		v = ::one;
-	}
+    fn duh() {
+        let mut v: ::foo;
+        v = ::one;
+    }
 }

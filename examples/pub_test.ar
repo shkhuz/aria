@@ -1,10 +1,10 @@
 @import("std.ar");
 
 proc main() {
-	let mut args = std::get_cmd_args();
-	args = game::cool();
+    let mut args = std::get_cmd_args();
+    args = game::cool();
 }
 
 module game {
-	proc cool() {}
+    proc cool() {}
 }

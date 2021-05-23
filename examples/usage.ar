@@ -2,6 +2,6 @@
 #import "single.ar";
 
 fn main() {
-	let vec = single::std::Vec;
-	let vec2 = std::Vec;
+    let vec = single::std::Vec;
+    let vec2 = std::Vec;
 }

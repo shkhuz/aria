@@ -1,3 +1,11 @@
 let mut var;
 let var;
-let something;
+let something: u64;
+
+proc main() {
+    let mut args: string;
+
+    proc code() u8 {
+        let input;
+    }
+}

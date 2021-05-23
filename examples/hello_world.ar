@@ -1,41 +1,41 @@
 main :: fn u8 {
-	stdout :: std.get_stdout();
-	stderr :: std.get_stderr();
+    stdout :: std.get_stdout();
+    stderr :: std.get_stderr();
 
-	stdout.write("hello");
-	stderr.write('h');
-	stderr.write("this is an example errorneous string");
-	stderr.write('f');
+    stdout.write("hello");
+    stderr.write('h');
+    stderr.write("this is an example errorneous string");
+    stderr.write('f');
 
-	stderr.write(10);
-	stderr.write(6.);
-	stderr.write(453.55);
+    stderr.write(10);
+    stderr.write(6.);
+    stderr.write(453.55);
 }
 
 std :: mod {
-	writer :: trait {
-		write :: fn (bytes: [u8]) result<u64, error>;
-	}
+    writer :: trait {
+        write :: fn (bytes: [u8]) result<u64, error>;
+    }
 
-	stdout :: struct;
-	impl writer for stdout {
-		write :: fn (bytes: u8[]) result<u64, error> {
-			syscall.write(STDOUT_FILENO, bytes, bytes.len);
-		}
-	}
+    stdout :: struct;
+    impl writer for stdout {
+        write :: fn (bytes: u8[]) result<u64, error> {
+            syscall.write(STDOUT_FILENO, bytes, bytes.len);
+        }
+    }
 
-	stderr :: struct;
-	impl writer for stderr {
-		write :: fn (bytes: u8[]) result<u64, error> {
-			syscall.write(STDERR_FILENO, bytes, bytes.len);
-		}
-	}
+    stderr :: struct;
+    impl writer for stderr {
+        write :: fn (bytes: u8[]) result<u64, error> {
+            syscall.write(STDERR_FILENO, bytes, bytes.len);
+        }
+    }
 
-	syscall :: mod {
-		write :: extern fn (file: FILE*, bytes: u8*, len: u64);
-	}
+    syscall :: mod {
+        write :: extern fn (file: FILE*, bytes: u8*, len: u64);
+    }
 
-	// example "
+    // example "
 
     alloc :: fn<T> (obj: T) [T] {
         memory: [T]: malloc(#sizeof(obj));

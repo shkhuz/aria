@@ -1,0 +1,6 @@
+// If the next statement results in an error message getting printed
+// (whole statement) then the `^^^^` marker goes till newline
+// instead of ignoring whitespace
+        let      
+        mut var;
+

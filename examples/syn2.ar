@@ -1,13 +1,13 @@
 decl printf(fmt: u8[], args: anytype) {
-	comptime {
-		for c in fmt {
-			if c == '%' {
-				if typeof!(args) == ![_]
-			}
-		}
-	}
+    comptime {
+        for c in fmt {
+            if c == '%' {
+                if typeof!(args) == ![_]
+            }
+        }
+    }
 }
 
 decl main(): u8 {
-	
+    
 }

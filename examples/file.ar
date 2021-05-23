@@ -1,29 +1,29 @@
 #import "test.ar";
 
 namespace std {
-	let cool = std;
-	struct foo {
-		len: usize,
-		len: a,
-		ii: struct {
-			i: struct {
-				i: ::usize,	
-			},
-		},
-	}
+    let cool = std;
+    struct foo {
+        len: usize,
+        len: a,
+        ii: struct {
+            i: struct {
+                i: ::usize, 
+            },
+        },
+    }
 
-	struct usize {}
+    struct usize {}
 
-	fn main(argc: main) {
-		let mut file: File;
-		{
-			let file: usize = file;
-			let file2 = std::cool;
-			let d = test::std::cool::variabe;
-			let file = file;
-		};
-		fn close_file(file: FILE) bool {
+    fn main(argc: main) {
+        let mut file: File;
+        {
+            let file: usize = file;
+            let file2 = std::cool;
+            let d = test::std::cool::variabe;
+            let file = file;
+        };
+        fn close_file(file: FILE) bool {
 
-		}
-	}
+        }
+    }
 }

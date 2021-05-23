@@ -7,9 +7,9 @@ struct u64 {}
 struct void {}
 
 struct Vec {
-	len: usize,
-	cap: usize,
-	items: *void,
+    len: usize,
+    cap: usize,
+    items: *void,
 }
 
 struct string {}
