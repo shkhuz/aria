@@ -184,13 +184,15 @@ Node* node_variable_decl_new(
     return node;
 }
 
-Token* node_get_identifier(Node* node) {
+Token* node_get_identifier(Node* node, bool assert_on_erroneous_node) {
     Token* identifier = null;
     switch (node->kind) {
         case NODE_KIND_TYPE:
         case NODE_KIND_BLOCK:
         {
-            assert(0);
+            if (assert_on_erroneous_node) {
+                assert(0);
+            }
         } break;
 
         case NODE_KIND_VARIABLE_DECL:

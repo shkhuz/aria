@@ -11,3 +11,6 @@ proc main() {
 }
 
 let main;
+
+let
+main;

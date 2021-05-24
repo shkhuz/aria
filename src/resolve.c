@@ -22,12 +22,13 @@ typedef struct {
 // If redeclaration occurs, raises an error and 
 // returns.
 void resolver_cpush_scope(Resolver* self, Node* node) {
-    Token* identifier = node_get_identifier(node);
+    Token* identifier = node_get_identifier(node, true);
     assert(identifier);
 
     buf_loop(self->current_scope->nodes, i) {
         Token* scope_identifier = node_get_identifier(
-                self->current_scope->nodes[i]);
+                self->current_scope->nodes[i],
+                true);
         assert(scope_identifier);
 
         if (token_lexeme_eq(identifier, scope_identifier)) {

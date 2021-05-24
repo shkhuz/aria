@@ -194,12 +194,14 @@ void vmsg_user_node(
                 fmt,
                 aq);
     } else {
-        // TODO: should we msg on the identifier
-        // and if the node doesn't have an identifier, then 
-        // msg on the `head`?
+        Token* msg_on = node_get_identifier(node, false);
+        if (!msg_on) {
+            msg_on = node->head;
+        }
+
         vmsg_user_token(
                 kind,
-                node->head,
+                msg_on,
                 fmt,
                 aq);
     }
