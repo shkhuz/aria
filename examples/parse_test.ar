@@ -9,3 +9,5 @@ proc main() {
         let input;
     }
 }
+
+let main;

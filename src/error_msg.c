@@ -146,34 +146,6 @@ void msg_user(
     va_end(ap);
 }
 
-void vmsg_user_node(
-        MsgKind kind,
-        Node* node,
-        char* fmt, 
-        va_list ap) {
-    va_list aq;
-    va_copy(aq, ap);
-    vmsg_user(
-            kind,
-            node->head->srcfile,
-            node->head->line,
-            node->head->column,
-            (node->tail->column + node->tail->char_count) - node->head->column,
-            fmt,
-            ap);
-}
-
-void msg_user_node(
-        MsgKind kind,
-        Node* node,
-        char* fmt, 
-        ...) {
-    va_list ap;
-    va_start(ap, fmt);
-    vmsg_user_node(kind, node, fmt, ap);
-    va_end(ap);
-}
-
 void vmsg_user_token(
         MsgKind kind,
         Token* token,
@@ -188,7 +160,8 @@ void vmsg_user_token(
             token->column,
             token->char_count, 
             fmt,
-            ap);
+            aq);
+    va_end(aq);
 }
 
 void msg_user_token(
@@ -202,8 +175,58 @@ void msg_user_token(
     va_end(ap);
 }
 
+void vmsg_user_node(
+        MsgKind kind,
+        Node* node,
+        char* fmt, 
+        va_list ap) {
+    va_list aq;
+    va_copy(aq, ap);
+
+    if (node->head->line == node->tail->line) {
+        vmsg_user(
+                kind,
+                node->head->srcfile,
+                node->head->line,
+                node->head->column,
+                (node->tail->column + node->tail->char_count) - 
+                    node->head->column,
+                fmt,
+                aq);
+    } else {
+        // TODO: should we msg on the identifier
+        // and if the node doesn't have an identifier, then 
+        // msg on the `head`?
+        vmsg_user_token(
+                kind,
+                node->head,
+                fmt,
+                aq);
+    }
+
+    va_end(aq);
+}
+
+void msg_user_node(
+        MsgKind kind,
+        Node* node,
+        char* fmt, 
+        ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vmsg_user_node(kind, node, fmt, ap);
+    va_end(ap);
+}
+
 void terminate_compilation() {
-    msg_user(MSG_KIND_ROOT_ERR, null, 0, 0, 0, "aborting due to previous error(s)");
+    msg_user(
+            MSG_KIND_ROOT_ERR, 
+            null, 
+            0, 
+            0, 
+            0, 
+            "aborting due to previous error(s)");
+
     // TODO: for CI build, this is changed to
     // always return 0.
     // Uncomment next line.

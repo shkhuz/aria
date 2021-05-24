@@ -43,6 +43,8 @@ void parser_goto_previous_token(Parser* self) {
     }
 }
 
+// Checks EOF.
+// Make sure to call this in a loop.
 void parser_check_eof(Parser* self, Token* pair) {
     if (parser_current(self)->kind == TOKEN_KIND_EOF) {
         note_token(
@@ -205,9 +207,9 @@ Node* parser_top_level_node(Parser* self) {
 
 void parser_init(Parser* self, SrcFile* srcfile) {
     self->srcfile = srcfile;
+    self->srcfile->nodes = null;
     self->token_idx = 0;
     self->in_function = false;
-    self->srcfile->nodes = null;
     self->error = false;
 }
 

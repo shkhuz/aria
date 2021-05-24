@@ -70,6 +70,15 @@ Token* token_alloc(
     return token;
 }
 
+bool token_lexeme_eq(
+        Token* a, 
+        Token* b) {
+    if (stri(a->lexeme) == stri(b->lexeme)) {
+        return true;
+    }
+    return false;
+}
+
 typedef enum {
     TYPE_KIND_IDENTIFIER,
 } TypeKind;
@@ -150,6 +159,9 @@ Node* node_procedure_decl_new(
     node->procedure_decl.params = params;
     node->procedure_decl.type = type;
     node->procedure_decl.body = body;
+    // TODO: should we change the `tail` to
+    // the `tail` of the type (or the parenthesis)?
+    node->tail = body->tail;
     return node;
 }
 
@@ -165,8 +177,33 @@ Node* node_variable_decl_new(
     node->variable_decl.mut = mut;
     node->variable_decl.identifier = identifier;
     node->variable_decl.type = type;
+    // TODO: should we change the `tail` to 
+    // the `tail` of the type (or the identifier 
+    // before the colon)?
     node->tail = semicolon;
     return node;
+}
+
+Token* node_get_identifier(Node* node) {
+    Token* identifier = null;
+    switch (node->kind) {
+        case NODE_KIND_TYPE:
+        case NODE_KIND_BLOCK:
+        {
+            assert(0);
+        } break;
+
+        case NODE_KIND_VARIABLE_DECL:
+        {
+            identifier = node->variable_decl.identifier;
+        } break;
+
+        case NODE_KIND_PROCEDURE_DECL:
+        {
+            identifier = node->procedure_decl.identifier;
+        } break;
+    }
+    return identifier;
 }
 
 struct SrcFile {
@@ -174,21 +211,6 @@ struct SrcFile {
     Token** tokens;
     Node** nodes;
 };
-
-/* typedef struct Scope { */
-/*  struct Scope* parent; */
-/*  Stmt** sym_tbl; */
-/* } Scope; */
-
-/* typedef struct { */
-/*  SrcFile* srcfile; */
-/*  Scope* global_scope; */
-/*  Scope* current_scope; */
-/*  bool error; */
-/* } Resolver; */
-
-/* void resolver_init(Resolver* self, SrcFile* srcfile); */
-/* void resolver_resolve(Resolver* self); */
 
 /* typedef struct { */
 /*  SrcFile* srcfile; */

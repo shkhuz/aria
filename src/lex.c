@@ -194,8 +194,9 @@ void lexer_lex(Lexer* self) {
 
             case ' ':
             case '\r':
+            {
                 self->current++;
-                break;
+            } break;
 
 #define push_tok_by_type_for_char(self, kind) \
     self->current++; \
@@ -212,9 +213,11 @@ void lexer_lex(Lexer* self) {
             case '{': push_tok_by_type_for_char(self, TOKEN_KIND_LBRACE); break;
             case '}': push_tok_by_type_for_char(self, TOKEN_KIND_RBRACE); break;
             case ';': push_tok_by_type_for_char(self, TOKEN_KIND_SEMICOLON); break;
-            case ':': 
-                push_tok_by_char_if_match(self, ':', TOKEN_KIND_DOUBLE_COLON, TOKEN_KIND_COLON); 
-                break;
+            case ':': push_tok_by_char_if_match(
+                        self, 
+                        ':', 
+                        TOKEN_KIND_DOUBLE_COLON, 
+                        TOKEN_KIND_COLON); break;
             case ',': push_tok_by_type_for_char(self, TOKEN_KIND_COMMA); break;
             case '+': push_tok_by_type_for_char(self, TOKEN_KIND_PLUS); break;
             case '-': push_tok_by_type_for_char(self, TOKEN_KIND_MINUS); break;
@@ -245,7 +248,7 @@ void lexer_lex(Lexer* self) {
             } break;
         }
     }
-}
 
 #undef push_tok_by_type_for_char
 #undef push_tok_by_char_if_match
+}
