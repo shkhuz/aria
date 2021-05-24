@@ -16,18 +16,18 @@ bool parse_srcfile(SrcFile* srcfile) {
     }
 
     Token** tokens = srcfile->tokens;
-    buf_loop(tokens, j) {
-        printf(
-                "[%u, %lu:%lu:%lu] ", 
-                tokens[j]->kind, 
-                tokens[j]->line, 
-                tokens[j]->column, 
-                tokens[j]->char_count);
-        for (char* start = tokens[j]->start; start != tokens[j]->end; start++) {
-            printf("%c", *start);
-        }
-        printf("\n");
-    }
+    /* buf_loop(tokens, j) { */
+    /*     printf( */
+    /*             "[%u, %lu:%lu:%lu] ", */ 
+    /*             tokens[j]->kind, */ 
+    /*             tokens[j]->line, */ 
+    /*             tokens[j]->column, */ 
+    /*             tokens[j]->char_count); */
+    /*     for (char* start = tokens[j]->start; start != tokens[j]->end; start++) { */
+    /*         printf("%c", *start); */
+    /*     } */
+    /*     printf("\n"); */
+    /* } */
 
     Parser parser;
     parser_init(&parser, srcfile);

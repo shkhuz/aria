@@ -1,11 +1,13 @@
 typedef struct {
     SrcFile* srcfile;
     u64 token_idx;
-    bool in_function;
+    bool in_procedure;
     bool error;
 } Parser;
 
-Node* parser_top_level_node(Parser* self);
+Node* parser_top_level_node(Parser* self, bool error_on_no_match);
+Node* parser_procedure_level_node(Parser* self);
+Node* parser_expr(Parser* self);
 
 Token* parser_current(Parser* self) {
     if (self->token_idx < buf_len(self->srcfile->tokens)) {
@@ -132,15 +134,72 @@ Token* parser_expect(Parser* self, TokenKind kind, char* fmt, ...) {
             "expected `;`, got `%s`", \
             parser_current(self)->lexeme)
 
+#define parser_expect_comma(self) \
+    parser_expect( \
+            self, \
+            TOKEN_KIND_COMMA, \
+            "expected `,`, got `%s`", \
+            parser_current(self)->lexeme)
+
+Node* parser_symbol(Parser* self) {
+    Token* identifier = parser_expect_identifier(
+            self,
+            "expected identifier");
+    return node_symbol_new(identifier);
+}
+
+Node* parser_procedure_call(
+        Parser* self, 
+        Node* callee, 
+        Token* lparen) {
+    Node** args = null;
+    while (!parser_match_token(self, TOKEN_KIND_RPAREN)) {
+        parser_check_eof(self, lparen);
+        Node* arg = parser_expr(self);
+        buf_push(args, arg);
+        if (parser_current(self)->kind != TOKEN_KIND_RPAREN) {
+            parser_expect_comma(self);
+        }
+    }
+
+    return node_procedure_call_new(
+            callee,
+            args,
+            parser_previous(self));
+}
+
 Node* parser_block(Parser* self, Token* lbrace) {
     Node** nodes = null;
     while (!parser_match_token(self, TOKEN_KIND_RBRACE)) {
         parser_check_eof(self, lbrace);
-        Node* node = parser_top_level_node(self);
+        Node* node = parser_procedure_level_node(self);
         buf_push(nodes, node);
     }
     Token* rbrace = parser_previous(self);
     return node_block_new(lbrace, nodes, rbrace);
+}
+
+Node* parser_expr_atom(Parser* self) {
+    // TODO: add block expression here
+    if (parser_current(self)->kind == TOKEN_KIND_IDENTIFIER) {
+        Node* symbol = parser_symbol(self);
+        if (parser_match_token(self, TOKEN_KIND_LPAREN)) {
+            return parser_procedure_call(self, symbol, parser_previous(self));
+        } else {
+            return symbol;
+        }
+    }
+    return null;
+}
+
+Node* parser_expr(Parser* self) {
+    return parser_expr_atom(self);
+}
+
+Node* parser_expr_stmt(Parser* self) {
+    Node* node = parser_expr(self);
+    Token* semicolon = parser_expect_semicolon(self);
+    return node_expr_stmt_new(node, semicolon);
 }
 
 Node* parser_variable_decl(Parser* self, Token* keyword) {
@@ -163,10 +222,12 @@ Node* parser_variable_decl(Parser* self, Token* keyword) {
             mut, 
             identifier, 
             type, 
+            self->in_procedure,
             semicolon);
 }
 
 Node* parser_procedure_decl(Parser* self, Token* keyword) {
+    self->in_procedure = true;
     Token* identifier = 
         parser_expect_identifier(self, "expected procedure name, got `%s`");
 
@@ -183,6 +244,8 @@ Node* parser_procedure_decl(Parser* self, Token* keyword) {
     }
 
     Node* body = parser_block(self, parser_expect_lbrace(self));
+
+    self->in_procedure = false;
     return node_procedure_decl_new(
             keyword,
             identifier,
@@ -191,31 +254,45 @@ Node* parser_procedure_decl(Parser* self, Token* keyword) {
             body);
 }
 
-Node* parser_top_level_node(Parser* self) {
+Node* parser_top_level_node(Parser* self, bool error_on_no_match) {
     if (parser_match_keyword(self, PROCEDURE_DECL_KEYWORD)) {
         return parser_procedure_decl(self, parser_previous(self));
     } else if (parser_match_keyword(self, VARIABLE_DECL_KEYWORD)) {
         return parser_variable_decl(self, parser_previous(self));
     } else {
-        fatal_error_token(
-                parser_current(self),
-                "invalid token in top-level");
+        if (error_on_no_match) {
+            fatal_error_token(
+                    parser_current(self),
+                    "invalid token in top-level");
+        }
     }
-    assert(0);
+
+    if (error_on_no_match) {
+        assert(0);
+    }
     return null;
+}
+
+Node* parser_procedure_level_node(Parser* self) {
+    Node* node = parser_top_level_node(self, false);
+    if (node) {
+        return node;
+    }
+
+    return parser_expr_stmt(self);
 }
 
 void parser_init(Parser* self, SrcFile* srcfile) {
     self->srcfile = srcfile;
     self->srcfile->nodes = null;
     self->token_idx = 0;
-    self->in_function = false;
+    self->in_procedure = false;
     self->error = false;
 }
 
 void parser_parse(Parser* self) {
     while (parser_current(self)->kind != TOKEN_KIND_EOF) {
-        Node* node = parser_top_level_node(self);
+        Node* node = parser_top_level_node(self, true);
         buf_push(self->srcfile->nodes, node);
     }
 }

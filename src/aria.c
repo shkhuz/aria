@@ -85,7 +85,10 @@ typedef enum {
 
 typedef enum {
     NODE_KIND_TYPE,
+    NODE_KIND_SYMBOL,
+    NODE_KIND_PROCEDURE_CALL,
     NODE_KIND_BLOCK,
+    NODE_KIND_EXPR_STMT,
     NODE_KIND_VARIABLE_DECL,
     NODE_KIND_PROCEDURE_DECL,
 } NodeKind;
@@ -103,15 +106,33 @@ struct Node {
             };
         } type;
 
+        // A symbol is an identifier
+        // with an optional `::` accessor
+        // before it.
+        // TODO: implement `::`
+        struct {
+            Token* identifier;
+        } symbol;
+
+        struct {
+            Node* callee;
+            Node** args;
+        } procedure_call;
+
         struct {
             Node** nodes;
             // TODO: add node expression 
         } block;
 
         struct {
+            Node* expr;
+        } expr_stmt;
+
+        struct {
             bool mut;
             Token* identifier;
             Node* type;
+            bool in_procedure;
         } variable_decl;
 
         struct {
@@ -134,6 +155,29 @@ Node* node_type_identifier_new(
     return node;
 }
 
+Node* node_symbol_new(
+        Token* identifier) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_SYMBOL;
+    node->head = identifier;
+    node->symbol.identifier = identifier;
+    node->tail = identifier;
+    return node;
+}
+
+Node* node_procedure_call_new(
+        Node* callee,
+        Node** args,
+        Token* rparen) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_PROCEDURE_CALL;
+    node->head = callee->head;
+    node->procedure_call.callee = callee;
+    node->procedure_call.args = args;
+    node->tail = rparen;
+    return node;
+}
+
 Node* node_block_new(
         Token* lbrace,
         Node** nodes,
@@ -143,6 +187,17 @@ Node* node_block_new(
     node->head = lbrace;
     node->block.nodes = nodes;
     node->tail = rbrace;
+    return node;
+}
+
+Node* node_expr_stmt_new(
+        Node* expr,
+        Token* semicolon) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_EXPR_STMT;
+    node->head = expr->head;
+    node->expr_stmt.expr = expr;
+    node->tail = semicolon;
     return node;
 }
 
@@ -170,6 +225,7 @@ Node* node_variable_decl_new(
         bool mut, 
         Token* identifier,
         Node* type,
+        bool in_procedure,
         Token* semicolon) {
     alloc_with_type(node, Node);
     node->kind = NODE_KIND_VARIABLE_DECL;
@@ -177,6 +233,7 @@ Node* node_variable_decl_new(
     node->variable_decl.mut = mut;
     node->variable_decl.identifier = identifier;
     node->variable_decl.type = type;
+    node->variable_decl.in_procedure = in_procedure;
     // TODO: should we change the `tail` to 
     // the `tail` of the type (or the identifier 
     // before the colon)?

@@ -4,10 +4,12 @@ let something: u64;
 
 proc main() {
     let mut args: string;
-
     proc code() u8 {
         let input;
     }
+    let args;
+
+    proc code() {}
 }
 
 let main;
