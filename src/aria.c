@@ -80,7 +80,7 @@ bool token_lexeme_eq(
 }
 
 typedef enum {
-    TYPE_KIND_IDENTIFIER,
+    TYPE_KIND_BASE,
 } TypeKind;
 
 typedef enum {
@@ -102,7 +102,9 @@ struct Node {
         struct {
             TypeKind kind;
             union {
-                Token* identifier;
+                struct {
+                    Node* symbol;
+                } base;
             };
         } type;
 
@@ -144,14 +146,14 @@ struct Node {
     };
 };
 
-Node* node_type_identifier_new(
-        Token* identifier) {
+Node* node_type_base_new(
+        Node* symbol) {
     alloc_with_type(node, Node);
     node->kind = NODE_KIND_TYPE;
-    node->head = identifier;
-    node->type.kind = TYPE_KIND_IDENTIFIER;
-    node->type.identifier = identifier;
-    node->tail = identifier;
+    node->head = symbol->head;
+    node->type.kind = TYPE_KIND_BASE;
+    node->type.base.symbol = symbol;
+    node->tail = symbol->tail;
     return node;
 }
 
@@ -275,6 +277,62 @@ struct SrcFile {
     Token** tokens;
     Node** nodes;
 };
+
+// This function is used to create tokens 
+// apart from source file tokens. Mainly 
+// used to instantiate builtin types, intrinsics,
+// directives, etc.
+Token* token_from_string(char* identifier) {
+    return token_alloc(
+            TOKEN_KIND_IDENTIFIER,
+            identifier,
+            null,
+            null,
+            null,
+            0,
+            0,
+            0);
+}
+
+// A separate buffer for builtin types apart from
+// the globals is created, to loop over them.
+Node** builtin_types = null;
+Node* u8_type;
+Node* u16_type;
+Node* u32_type;
+Node* u64_type;
+Node* usize_type;
+Node* i8_type;
+Node* i16_type;
+Node* i32_type;
+Node* i64_type;
+Node* isize_type;
+Node* void_type;
+
+Node* builtin_type_base_from_string(char* identifier) {
+    Node* type = node_type_base_new( 
+            node_symbol_new(
+                token_from_string(identifier)));
+    // This pushes the newly-created type to the 
+    // `builtin_types` buffer so that I don't forget
+    // to update it in `init_builtin_types`.
+    buf_push(builtin_types, type);
+    return type;
+}
+
+void init_builtin_types() {
+    u8_type = builtin_type_base_from_string("u8");
+    u16_type = builtin_type_base_from_string("u16");
+    u32_type = builtin_type_base_from_string("u32");
+    u64_type = builtin_type_base_from_string("u64");
+    usize_type = builtin_type_base_from_string("usize");
+    i8_type = builtin_type_base_from_string("i8");
+    i16_type = builtin_type_base_from_string("i16");
+    i32_type = builtin_type_base_from_string("i32");
+    i64_type = builtin_type_base_from_string("i64");
+    isize_type = builtin_type_base_from_string("isize");
+    void_type = builtin_type_base_from_string("void");
+}
 
 /* typedef struct { */
 /*  SrcFile* srcfile; */

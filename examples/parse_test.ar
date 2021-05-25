@@ -1,4 +1,4 @@
-proc main() {
+proc main() void {
     let mut args: string;
     call(self);
     proc code() u8 {

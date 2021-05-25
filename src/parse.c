@@ -78,7 +78,7 @@ bool parser_match_keyword(Parser* self, char* keyword) {
 
 Node* parser_match_type(Parser* self) {
     if (parser_match_token(self, TOKEN_KIND_IDENTIFIER)) {
-        return node_type_identifier_new(parser_previous(self));
+        return node_type_base_new(node_symbol_new(parser_previous(self)));
     }
     return null;
 }

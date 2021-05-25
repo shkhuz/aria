@@ -152,7 +152,7 @@ void resolver_variable_decl(
     }
 
     if (node->variable_decl.type) {
-        /* resolver_node(self, node->variable_decl.type, true); */
+        resolver_node(self, node->variable_decl.type, true);
     }
 
     if (node->variable_decl.initializer) {
@@ -213,6 +213,34 @@ void resolver_pre_decl_node(
     }
 }
 
+void resolver_type_base(Resolver* self, Node* node) {
+    Token* identifier = node->type.base.symbol->symbol.identifier;
+
+    buf_loop(builtin_types, i) {
+        if (builtin_types[i]->type.kind == TYPE_KIND_BASE) {
+            if (token_lexeme_eq(
+                        builtin_types[i]->type.base.symbol->symbol.identifier,
+                        identifier)) {
+                return;
+            }
+        }
+    }
+
+    error_node(
+            node,
+            "unresolved type `%s`",
+            identifier->lexeme);
+}
+
+void resolver_type(Resolver* self, Node* node) {
+    switch (node->type.kind) {
+        case TYPE_KIND_BASE:
+        {
+            resolver_type_base(self, node);
+        } break;
+    }
+}
+
 // This function actually resolves the nodes, 
 // instead of checking for redeclaration. 
 // Refer to `resolver_pre_decl_node`'s doc comment.
@@ -256,6 +284,7 @@ void resolver_node(
 
         case NODE_KIND_TYPE:
         {
+            resolver_type(self, node);
         } break;
     }
 }

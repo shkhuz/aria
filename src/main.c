@@ -168,6 +168,7 @@ int main(int argc, char* argv[]) {
     }
     ///// TESTS END /////   
 
+    init_builtin_types();
     g_executable_path = argv[0];
 
     if (argc < 2) {
