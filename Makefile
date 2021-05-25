@@ -16,10 +16,10 @@ CC := gcc
 LD := gcc
 
 PREPROCESSOR_DEFINES := -DTAB_COUNT=4 -DAST_TAB_COUNT=4
-ifeq ($(warn), yes)
-	WARN_CFLAGS := 
-else
+ifeq ($(warn), no)
 	WARN_CFLAGS := -Wno-switch -Wno-unused-variable -Wno-unused-parameter
+else
+	WARN_CFLAGS := 
 endif
 CFLAGS := $(PREPROCESSOR_DEFINES) -I$(SRC_DIR) -I. -Wall -Wextra -Wshadow $(WARN_CFLAGS) -std=gnu99 -m64 -g -O0
 ASMFLAGS := -felf64

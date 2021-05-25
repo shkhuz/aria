@@ -15,7 +15,7 @@ bool parse_srcfile(SrcFile* srcfile) {
         return true;
     }
 
-    Token** tokens = srcfile->tokens;
+    /* Token** tokens = srcfile->tokens; */
     /* buf_loop(tokens, j) { */
     /*     printf( */
     /*             "[%u, %lu:%lu:%lu] ", */ 

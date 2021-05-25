@@ -1,18 +1,14 @@
-let mut var;
-let var;
-let something: u64;
-
 proc main() {
     let mut args: string;
+    call(self);
     proc code() u8 {
         let input;
     }
-    let args;
+    let args = args;
 
     proc code() {}
+    proc call() {
+        hello;
+    }
 }
 
-let main;
-
-let
-main;

@@ -34,33 +34,96 @@ void resolver_node(
         Node* node,
         bool ignore_procedure_level_decl_node_pre_check);
 
+typedef enum {
+    SCOPE_UNRESOLVED,
+    SCOPE_LOCAL,
+    SCOPE_PARENT,
+} ScopeStatusKind;
+
+typedef struct {
+    ScopeStatusKind kind;
+
+    // This is populated only if the `kind` is 
+    // SCOPE_LOCAL or SCOPE_PARENT. For SCOPE_UNRESOLVED,
+    // the value is `null`. It doesn't make 
+    // sense to have a nonexistent node!
+    Node* found_node;
+} ScopeStatus;
+
+ScopeStatus resolver_search_in_all_scope(Resolver* self, Token* identifier) {
+    Scope* scope = self->current_scope;
+    while (scope != null) {
+        buf_loop(scope->nodes, i) {
+            Token* scope_identifier = node_get_identifier(
+                    scope->nodes[i],
+                    true);
+            assert(scope_identifier);
+
+            if (token_lexeme_eq(identifier, scope_identifier)) {
+                return (ScopeStatus) {
+                    (scope == self->current_scope ? SCOPE_LOCAL : SCOPE_PARENT),
+                    scope->nodes[i],
+                };
+            }
+        }
+        scope = scope->parent;
+    }
+    return (ScopeStatus){ SCOPE_UNRESOLVED, null };
+}
+
 // Pushes a node into the scope symbol table 
-// if not already pushed.
-// If redeclaration occurs, raises an error and 
+// if not already pushed. If redeclaration occurs 
+// in the local scope, it raises an error and 
 // returns.
-void resolver_cpush_scope(Resolver* self, Node* node) {
+void resolver_cpush_in_scope(Resolver* self, Node* node) {
     Token* identifier = node_get_identifier(node, true);
     assert(identifier);
 
-    buf_loop(self->current_scope->nodes, i) {
-        Token* scope_identifier = node_get_identifier(
-                self->current_scope->nodes[i],
-                true);
-        assert(scope_identifier);
-
-        if (token_lexeme_eq(identifier, scope_identifier)) {
-            error_node(
-                    node,
-                    "redeclaration of symbol `%s`",
-                    identifier->lexeme);
-            note_node(
-                    self->current_scope->nodes[i],
-                    "...previously declared here");
-            return;
-        }
+    ScopeStatus status = resolver_search_in_all_scope(self, identifier);
+    if (status.kind == SCOPE_LOCAL) {
+        error_node(
+                node,
+                "redeclaration of symbol `%s`",
+                identifier->lexeme);
+        note_node(
+                status.found_node,
+                "...previously declared here");
+        return;
     }
 
     buf_push(self->current_scope->nodes, node);
+}
+
+// TODO: should this accept a `Node` or a `Token`?
+void resolver_assert_in_scope(Resolver* self, Node* node) {
+    assert(node->kind == NODE_KIND_SYMBOL);
+
+    Token* identifier = node->symbol.identifier;
+    if (resolver_search_in_all_scope(self, identifier).kind == 
+            SCOPE_UNRESOLVED) {
+        error_node(
+                node,
+                "unresolved symbol `%s`",
+                identifier->lexeme);
+    }
+}
+
+void resolver_procedure_call(Resolver* self, Node* node) {
+    if (node->procedure_call.callee->kind != NODE_KIND_SYMBOL) {
+        error_node(
+                node->procedure_call.callee,
+                "callee must be an identifier");
+    } else {
+        resolver_node(self, node->procedure_call.callee, true);
+    }
+
+    buf_loop(node->procedure_call.args, i) {
+        resolver_node(self, node->procedure_call.args[i], true);
+    }
+}
+
+void resolver_symbol(Resolver* self, Node* node) {
+    resolver_assert_in_scope(self, node);
 }
 
 void resolver_block(Resolver* self, Node* node) {
@@ -78,10 +141,23 @@ void resolver_variable_decl(
         Node* node,
         bool ignore_procedure_level_decl_node_pre_check) {
     if (!ignore_procedure_level_decl_node_pre_check) {
-        resolver_cpush_scope(self, node);
+        resolver_cpush_in_scope(self, node);
     }
 
-    /* resolver_type(self, node->variable_decl.type); */
+    if (!node->variable_decl.type && !node->variable_decl.initializer) {
+        error_node(
+                node,
+                "type must be annotated or an initializer must be provided");
+        return;
+    }
+
+    if (node->variable_decl.type) {
+        /* resolver_node(self, node->variable_decl.type, true); */
+    }
+
+    if (node->variable_decl.initializer) {
+        resolver_node(self, node->variable_decl.initializer, true);
+    }
 }
 
 void resolver_procedure_decl(Resolver* self, Node* node) {
@@ -112,13 +188,13 @@ void resolver_pre_decl_node(
     switch (node->kind) {
         case NODE_KIND_PROCEDURE_DECL:
         {
-            resolver_cpush_scope(self, node);
+            resolver_cpush_in_scope(self, node);
         } break;
 
         case NODE_KIND_VARIABLE_DECL:
         {
             if (!ignore_procedure_level_decl_node) {
-                resolver_cpush_scope(self, node);
+                resolver_cpush_in_scope(self, node);
             }
         } break;
 
@@ -156,6 +232,30 @@ void resolver_node(
                     self, 
                     node, 
                     ignore_procedure_level_decl_node_pre_check);
+        } break;
+
+        case NODE_KIND_EXPR_STMT:
+        {
+            resolver_node(self, node->expr_stmt.expr, true);
+        } break;
+
+        case NODE_KIND_PROCEDURE_CALL:
+        {
+            resolver_procedure_call(self, node);
+        } break;
+        
+        case NODE_KIND_SYMBOL:
+        {
+            resolver_symbol(self, node);
+        } break;
+
+        case NODE_KIND_BLOCK:
+        {
+            resolver_block(self, node);
+        } break;
+
+        case NODE_KIND_TYPE:
+        {
         } break;
     }
 }

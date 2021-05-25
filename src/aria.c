@@ -132,7 +132,7 @@ struct Node {
             bool mut;
             Token* identifier;
             Node* type;
-            bool in_procedure;
+            Node* initializer;
         } variable_decl;
 
         struct {
@@ -225,7 +225,7 @@ Node* node_variable_decl_new(
         bool mut, 
         Token* identifier,
         Node* type,
-        bool in_procedure,
+        Node* initializer,
         Token* semicolon) {
     alloc_with_type(node, Node);
     node->kind = NODE_KIND_VARIABLE_DECL;
@@ -233,7 +233,7 @@ Node* node_variable_decl_new(
     node->variable_decl.mut = mut;
     node->variable_decl.identifier = identifier;
     node->variable_decl.type = type;
-    node->variable_decl.in_procedure = in_procedure;
+    node->variable_decl.initializer = initializer;
     // TODO: should we change the `tail` to 
     // the `tail` of the type (or the identifier 
     // before the colon)?
@@ -244,8 +244,13 @@ Node* node_variable_decl_new(
 Token* node_get_identifier(Node* node, bool assert_on_erroneous_node) {
     Token* identifier = null;
     switch (node->kind) {
+        case NODE_KIND_EXPR_STMT:
         case NODE_KIND_TYPE:
         case NODE_KIND_BLOCK:
+        // TODO: check if these expressions should 
+        // return an identifier...
+        case NODE_KIND_SYMBOL:
+        case NODE_KIND_PROCEDURE_CALL:
         {
             if (assert_on_erroneous_node) {
                 assert(0);

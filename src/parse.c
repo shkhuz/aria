@@ -1,7 +1,6 @@
 typedef struct {
     SrcFile* srcfile;
     u64 token_idx;
-    bool in_procedure;
     bool error;
 } Parser;
 
@@ -216,18 +215,22 @@ Node* parser_variable_decl(Parser* self, Token* keyword) {
         type = parser_expect_type(self);
     }
 
+    Node* initializer = null;
+    if (parser_match_token(self, TOKEN_KIND_EQUAL)) {
+        initializer = parser_expr(self);
+    }
+
     Token* semicolon = parser_expect_semicolon(self);
     return node_variable_decl_new(
             keyword, 
             mut, 
             identifier, 
             type, 
-            self->in_procedure,
+            initializer,
             semicolon);
 }
 
 Node* parser_procedure_decl(Parser* self, Token* keyword) {
-    self->in_procedure = true;
     Token* identifier = 
         parser_expect_identifier(self, "expected procedure name, got `%s`");
 
@@ -245,7 +248,6 @@ Node* parser_procedure_decl(Parser* self, Token* keyword) {
 
     Node* body = parser_block(self, parser_expect_lbrace(self));
 
-    self->in_procedure = false;
     return node_procedure_decl_new(
             keyword,
             identifier,
@@ -286,7 +288,6 @@ void parser_init(Parser* self, SrcFile* srcfile) {
     self->srcfile = srcfile;
     self->srcfile->nodes = null;
     self->token_idx = 0;
-    self->in_procedure = false;
     self->error = false;
 }
 
