@@ -34,6 +34,8 @@ void resolver_node(
         Node* node,
         bool ignore_procedure_level_decl_node_pre_check);
 
+void resolver_type(Resolver* self, Node* node);
+
 typedef enum {
     SCOPE_UNRESOLVED,
     SCOPE_LOCAL,
@@ -162,6 +164,7 @@ void resolver_variable_decl(
 
 void resolver_procedure_decl(Resolver* self, Node* node) {
     resolver_create_scope(self, scope);
+    resolver_type(self, node->procedure_decl.type);
     resolver_block(self, node->procedure_decl.body);
     resolver_revert_scope(self, scope);
 }
@@ -232,11 +235,20 @@ void resolver_type_base(Resolver* self, Node* node) {
             identifier->lexeme);
 }
 
+void resolver_type_ptr(Resolver* self, Node* node) {
+    resolver_type(self, node->type.ptr.right);
+}
+
 void resolver_type(Resolver* self, Node* node) {
     switch (node->type.kind) {
         case TYPE_KIND_BASE:
         {
             resolver_type_base(self, node);
+        } break;
+
+        case TYPE_KIND_PTR:
+        {
+            resolver_type_ptr(self, node);
         } break;
     }
 }

@@ -1,7 +1,7 @@
 proc main() void {
     let mut args: string;
     call(self);
-    proc code() u8 {
+    proc code() *game {
         let input;
     }
     let args = args;

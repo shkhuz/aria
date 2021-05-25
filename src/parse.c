@@ -76,24 +76,6 @@ bool parser_match_keyword(Parser* self, char* keyword) {
     return false;
 }
 
-Node* parser_match_type(Parser* self) {
-    if (parser_match_token(self, TOKEN_KIND_IDENTIFIER)) {
-        return node_type_base_new(node_symbol_new(parser_previous(self)));
-    }
-    return null;
-}
-
-Node* parser_expect_type(Parser* self) {
-    Node* type = parser_match_type(self);
-    if (!type) {
-        fatal_error_token(
-                parser_current(self),
-                "expected type, got `%s`",
-                parser_current(self)->lexeme);
-    }
-    return type;
-}
-
 Token* parser_expect(Parser* self, TokenKind kind, char* fmt, ...) {
     if (!parser_match_token(self, kind)) {
         va_list ap;
@@ -140,10 +122,29 @@ Token* parser_expect(Parser* self, TokenKind kind, char* fmt, ...) {
             "expected `,`, got `%s`", \
             parser_current(self)->lexeme)
 
+Node* parser_type_base(Parser* self) {
+    Token* identifier = 
+        parser_expect_identifier(self, "expected type identifier, got `%s`");
+    return node_type_base_new(node_symbol_new(identifier));
+}
+
+Node* parser_type_ptr(Parser* self) {
+    if (parser_match_token(self, TOKEN_KIND_STAR)) {
+        return node_type_ptr_new(
+                parser_previous(self), 
+                parser_type_ptr(self));
+    }
+    return parser_type_base(self);
+}
+
+Node* parser_type(Parser* self) {
+    return parser_type_ptr(self);
+}
+
 Node* parser_symbol(Parser* self) {
     Token* identifier = parser_expect_identifier(
             self,
-            "expected identifier");
+            "expected identifier, got `%s`");
     return node_symbol_new(identifier);
 }
 
@@ -212,7 +213,7 @@ Node* parser_variable_decl(Parser* self, Token* keyword) {
 
     Node* type = null;
     if (parser_match_token(self, TOKEN_KIND_COLON)) {
-        type = parser_expect_type(self);
+        type = parser_type(self);
     }
 
     Node* initializer = null;
@@ -241,10 +242,10 @@ Node* parser_procedure_decl(Parser* self, Token* keyword) {
         parser_goto_next_token(self);
     }
 
-    Node* type = null;
+    Node* type = void_type;
     if (parser_current(self)->kind != TOKEN_KIND_LBRACE) {
-        type = parser_expect_type(self);
-    }
+        type = parser_type(self);
+    } 
 
     Node* body = parser_block(self, parser_expect_lbrace(self));
 

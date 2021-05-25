@@ -81,6 +81,7 @@ bool token_lexeme_eq(
 
 typedef enum {
     TYPE_KIND_BASE,
+    TYPE_KIND_PTR,
 } TypeKind;
 
 typedef enum {
@@ -105,6 +106,10 @@ struct Node {
                 struct {
                     Node* symbol;
                 } base;
+
+                struct {
+                    Node* right;
+                } ptr;
             };
         } type;
 
@@ -154,6 +159,18 @@ Node* node_type_base_new(
     node->type.kind = TYPE_KIND_BASE;
     node->type.base.symbol = symbol;
     node->tail = symbol->tail;
+    return node;
+}
+
+Node* node_type_ptr_new(
+        Token* star,
+        Node* right) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_TYPE;
+    node->head = star;
+    node->type.kind = TYPE_KIND_PTR;
+    node->type.ptr.right = right;
+    node->tail = right->tail;
     return node;
 }
 
