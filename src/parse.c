@@ -115,6 +115,13 @@ Token* parser_expect(Parser* self, TokenKind kind, char* fmt, ...) {
             "expected `;`, got `%s`", \
             parser_current(self)->lexeme)
 
+#define parser_expect_colon(self) \
+    parser_expect( \
+            self, \
+            TOKEN_KIND_COLON, \
+            "expected `:`, got `%s`", \
+            parser_current(self)->lexeme)
+
 #define parser_expect_comma(self) \
     parser_expect( \
             self, \
@@ -124,7 +131,7 @@ Token* parser_expect(Parser* self, TokenKind kind, char* fmt, ...) {
 
 Node* parser_type_base(Parser* self) {
     Token* identifier = 
-        parser_expect_identifier(self, "expected type identifier, got `%s`");
+        parser_expect_identifier(self, "expected type name, got `%s`");
     return node_type_base_new(node_symbol_new(identifier));
 }
 
@@ -241,7 +248,16 @@ Node* parser_procedure_decl(Parser* self, Token* keyword) {
     Token* lparen = parser_expect_lparen(self);
     while (!parser_match_token(self, TOKEN_KIND_RPAREN)) {
         parser_check_eof(self, lparen);
-        parser_goto_next_token(self);
+
+        Token* param_identifier = 
+            parser_expect_identifier(self, "expected parameter name");
+        parser_expect_colon(self);
+        Node* param_type = parser_type(self);
+        buf_push(params, node_param_new(param_identifier, param_type));
+
+        if (parser_current(self)->kind != TOKEN_KIND_RPAREN) {
+            parser_expect_comma(self);
+        }
     }
 
     Node* type = void_type;

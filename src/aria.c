@@ -91,6 +91,7 @@ typedef enum {
     NODE_KIND_SYMBOL,
     NODE_KIND_PROCEDURE_CALL,
     NODE_KIND_BLOCK,
+    NODE_KIND_PARAM,
     NODE_KIND_EXPR_STMT,
     NODE_KIND_VARIABLE_DECL,
     NODE_KIND_PROCEDURE_DECL,
@@ -125,6 +126,7 @@ struct Node {
         // TODO: implement `::`
         struct {
             Token* identifier;
+            Node* ref;
         } symbol;
 
         struct {
@@ -136,6 +138,11 @@ struct Node {
             Node** nodes;
             // TODO: add node expression 
         } block;
+
+        struct {
+            Token* identifier;
+            Node* type;
+        } param;
 
         struct {
             Node* expr;
@@ -196,6 +203,7 @@ Node* node_symbol_new(
     node->kind = NODE_KIND_SYMBOL;
     node->head = identifier;
     node->symbol.identifier = identifier;
+    node->symbol.ref = null;
     node->tail = identifier;
     return node;
 }
@@ -222,6 +230,18 @@ Node* node_block_new(
     node->head = lbrace;
     node->block.nodes = nodes;
     node->tail = rbrace;
+    return node;
+}
+
+Node* node_param_new(
+        Token* identifier,
+        Node* type) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_PARAM;
+    node->head = identifier;
+    node->param.identifier = identifier;
+    node->param.type = type;
+    node->tail = type->tail;
     return node;
 }
 
@@ -277,7 +297,6 @@ Node* node_variable_decl_new(
 }
 
 Token* node_get_identifier(Node* node, bool assert_on_erroneous_node) {
-    Token* identifier = null;
     switch (node->kind) {
         case NODE_KIND_EXPR_STMT:
         case NODE_KIND_TYPE:
@@ -294,16 +313,40 @@ Token* node_get_identifier(Node* node, bool assert_on_erroneous_node) {
         } break;
 
         case NODE_KIND_VARIABLE_DECL:
+            return node->variable_decl.identifier;
+        case NODE_KIND_PARAM:
+            return node->param.identifier;
+        case NODE_KIND_PROCEDURE_DECL:
+            return node->procedure_decl.identifier;
+    }
+    return null;
+}
+
+Node* node_get_type(Node* node, bool assert_on_erroneous_node) {
+    switch (node->kind) {
+        case NODE_KIND_EXPR_STMT:
+        // TODO: check if these expressions should 
+        // return a type...
+        case NODE_KIND_TYPE:
+        case NODE_KIND_BLOCK:
+        case NODE_KIND_NUMBER:
+        case NODE_KIND_PROCEDURE_CALL:
         {
-            identifier = node->variable_decl.identifier;
+            if (assert_on_erroneous_node) {
+                assert(0);
+            }
         } break;
 
+        case NODE_KIND_VARIABLE_DECL:
+            return node->variable_decl.type;
+        case NODE_KIND_PARAM:
+            return node->param.type;
         case NODE_KIND_PROCEDURE_DECL:
-        {
-            identifier = node->procedure_decl.identifier;
-        } break;
+            return node->procedure_decl.type;
+        case NODE_KIND_SYMBOL:
+            return node_get_type(node->symbol.ref, true);
     }
-    return identifier;
+    return null;
 }
 
 struct SrcFile {

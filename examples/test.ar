@@ -1,3 +1,4 @@
+// RESOLVER TEST
 // proc main() void {
 //     let mut args: string = 12;
 //     call(self);
@@ -6,10 +7,19 @@
 //     }
 //     let args = args;
 
-//     proc code() {}
+//     proc code(identifier: string, identifier: u8) {
+//         let identifier = 100;
+//     }
 //     proc call() {
 //         hello;
 //     }
 // }
 
-let args: u8 = 1_000_000_000_000;
+// ANALYZER TEST
+proc main() {
+    proc hello() *u64 {
+    }
+
+    let val: u64 = hello();
+}
+let args: *u64 = 1_000_000_000_000;

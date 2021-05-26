@@ -3,14 +3,44 @@ typedef struct {
     bool error;
 } Analyzer;
 
+Node* analyzer_expr(Analyzer* self, Node* node);
+void analyzer_stmt(Analyzer* self, Node* node);
+
 Node* analyzer_number(Analyzer* self, Node* node) {
     return u64_type;
+}
+
+Node* analyzer_symbol(Analyzer* self, Node* node) {
+    assert(node->symbol.ref);
+    return node_get_type(node, true);
+}
+
+Node* analyzer_procedure_call(Analyzer* self, Node* node) {
+    return analyzer_expr(self, node->procedure_call.callee);
+}
+
+Node* analyzer_block(Analyzer* self, Node* node) {
+    buf_loop(node->block.nodes, i) {
+        analyzer_stmt(self, node->block.nodes[i]);
+    }
+    return null;
 }
 
 Node* analyzer_expr(Analyzer* self, Node* node) {
     switch (node->kind) {
         case NODE_KIND_NUMBER:
             return analyzer_number(self, node);
+        case NODE_KIND_SYMBOL:
+            return analyzer_symbol(self, node);
+        case NODE_KIND_PROCEDURE_CALL:
+            return analyzer_procedure_call(self, node);
+
+        case NODE_KIND_VARIABLE_DECL:
+        case NODE_KIND_PROCEDURE_DECL:
+        case NODE_KIND_EXPR_STMT:
+        {
+            assert(0);
+        } break;
     }
     assert(0);
     return null;
@@ -66,11 +96,25 @@ void analyzer_variable_decl(Analyzer* self, Node* node) {
     }
 }
 
+void analyzer_procedure_decl(Analyzer* self, Node* node) {
+    analyzer_block(self, node->procedure_decl.body);
+}
+
 void analyzer_stmt(Analyzer* self, Node* node) {
     switch (node->kind) {
         case NODE_KIND_VARIABLE_DECL:
         {
             analyzer_variable_decl(self, node);
+        } break;
+
+        case NODE_KIND_PROCEDURE_DECL:
+        {
+            analyzer_procedure_decl(self, node);
+        } break;
+
+        case NODE_KIND_EXPR_STMT: 
+        {
+            analyzer_expr(self, node->expr_stmt.expr);
         } break;
     }
 }

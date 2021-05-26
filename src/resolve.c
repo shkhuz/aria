@@ -14,6 +14,10 @@ Scope* scope_from_scope(Scope* parent) {
     Scope* name = scope_from_scope(self->current_scope); \
     self->current_scope = name;
 
+#define resolver_init_scope(self, name) \
+    name = scope_from_scope(self->current_scope); \
+    self->current_scope = name;
+
 #define resolver_revert_scope(self, name) \
     self->current_scope = name->parent;
 
@@ -97,17 +101,19 @@ void resolver_cpush_in_scope(Resolver* self, Node* node) {
 }
 
 // TODO: should this accept a `Node` or a `Token`?
-void resolver_assert_in_scope(Resolver* self, Node* node) {
+Node* resolver_assert_in_scope(Resolver* self, Node* node) {
     assert(node->kind == NODE_KIND_SYMBOL);
 
     Token* identifier = node->symbol.identifier;
-    if (resolver_search_in_all_scope(self, identifier).kind == 
-            SCOPE_UNRESOLVED) {
+    ScopeStatus status = resolver_search_in_all_scope(self, identifier);
+    if (status.kind == SCOPE_UNRESOLVED) {
         error_node(
                 node,
                 "unresolved symbol `%s`",
                 identifier->lexeme);
+        return null;
     }
+    return status.found_node;
 }
 
 void resolver_procedure_call(Resolver* self, Node* node) {
@@ -125,10 +131,15 @@ void resolver_procedure_call(Resolver* self, Node* node) {
 }
 
 void resolver_symbol(Resolver* self, Node* node) {
-    resolver_assert_in_scope(self, node);
+    node->symbol.ref = resolver_assert_in_scope(self, node);
 }
 
-void resolver_block(Resolver* self, Node* node) {
+void resolver_block(Resolver* self, Node* node, bool create_new_scope) {
+    Scope* scope = null;
+    if (create_new_scope) {
+        resolver_init_scope(self, scope);
+    }
+
     buf_loop(node->block.nodes, i) {
         resolver_pre_decl_node(self, node->block.nodes[i], true);
     }
@@ -136,6 +147,21 @@ void resolver_block(Resolver* self, Node* node) {
     buf_loop(node->block.nodes, i) {
         resolver_node(self, node->block.nodes[i], false);
     }
+
+    if (create_new_scope) {
+        resolver_revert_scope(self, scope);
+    }
+}
+
+void resolver_param(
+        Resolver* self, 
+        Node* node,
+        bool ignore_procedure_level_decl_node_pre_check) {
+    if (!ignore_procedure_level_decl_node_pre_check) {
+        resolver_cpush_in_scope(self, node);
+    }
+
+    resolver_type(self, node->param.type);
 }
 
 void resolver_variable_decl(
@@ -154,7 +180,7 @@ void resolver_variable_decl(
     }
 
     if (node->variable_decl.type) {
-        resolver_node(self, node->variable_decl.type, true);
+        resolver_type(self, node->variable_decl.type);
     }
 
     if (node->variable_decl.initializer) {
@@ -164,8 +190,13 @@ void resolver_variable_decl(
 
 void resolver_procedure_decl(Resolver* self, Node* node) {
     resolver_create_scope(self, scope);
+    buf_loop(node->procedure_decl.params, i) {
+        resolver_node(self, node->procedure_decl.params[i], false);
+    }
+
     resolver_type(self, node->procedure_decl.type);
-    resolver_block(self, node->procedure_decl.body);
+    resolver_block(self, node->procedure_decl.body, false);
+
     resolver_revert_scope(self, scope);
 }
 
@@ -195,6 +226,7 @@ void resolver_pre_decl_node(
         } break;
 
         case NODE_KIND_VARIABLE_DECL:
+        case NODE_KIND_PARAM:
         {
             if (!ignore_procedure_level_decl_node) {
                 resolver_cpush_in_scope(self, node);
@@ -275,6 +307,14 @@ void resolver_node(
                     ignore_procedure_level_decl_node_pre_check);
         } break;
 
+        case NODE_KIND_PARAM:
+        {
+            resolver_param(
+                    self, 
+                    node, 
+                    ignore_procedure_level_decl_node_pre_check);
+        } break;
+
         case NODE_KIND_EXPR_STMT:
         {
             resolver_node(self, node->expr_stmt.expr, true);
@@ -292,7 +332,7 @@ void resolver_node(
 
         case NODE_KIND_BLOCK:
         {
-            resolver_block(self, node);
+            resolver_block(self, node, true);
         } break;
 
         case NODE_KIND_TYPE:
