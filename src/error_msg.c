@@ -19,6 +19,90 @@ char* get_line_from_file(File* file, u64 line) {
     return current_char_in_line;
 }
 
+#define __vmsg_user_stage1 \
+    if (kind != MSG_KIND_ROOT_ERR) { \
+        assert(char_count > 0); \
+        assert(line > 0); \
+        assert(column > 0); \
+    } \
+    char* src_line = null;  \
+    u64 src_line_length = 0; \
+    u64 char_count_new = char_count; \
+    if (kind != MSG_KIND_ROOT_ERR) { \
+        src_line = get_line_from_file(srcfile->contents, line); \
+        char* c = src_line; \
+        while (*c != '\n' && *c != '\0') { \
+            c++; \
+            src_line_length++; \
+        } \
+        if (src_line_length - column + 1 < char_count) { \
+            char_count_new = src_line_length - column + 1; \
+        } \
+    } \
+    if (kind != MSG_KIND_ROOT_ERR) { \
+        fprintf( \
+                stderr, \
+                ANSI_FBOLD \
+                "%s:%lu:%lu: " \
+                ANSI_RESET, \
+                srcfile->contents->fpath, \
+                line,  \
+                column \
+        ); \
+    } \
+    switch (kind) { \
+        case MSG_KIND_ROOT_ERR: \
+        case MSG_KIND_ERR:   \
+            fprintf(stderr, ANSI_FRED "error: " ANSI_RESET);  \
+            break; \
+        case MSG_KIND_NOTE: \
+            fprintf(stderr, ANSI_FCYAN "note: " ANSI_RESET); \
+            break; \
+    } \
+
+#define __vmsg_user_stage3 \
+    fprintf(stderr, "\n"); \
+    if (kind != MSG_KIND_ROOT_ERR) { \
+        char* src_line_to_print = src_line; \
+        char* beg_of_src_line = src_line; \
+        int indent = fprintf(stderr, "%6lu | ", line) - 2; \
+        char* color = ANSI_RESET; \
+        switch (kind) { \
+            case MSG_KIND_ERR: \
+                color = ANSI_FRED; \
+                break; \
+            case MSG_KIND_NOTE: \
+                color = ANSI_FCYAN; \
+                break; \
+            default: \
+                assert(0); \
+        } \
+        while (*src_line_to_print != '\n' && *src_line_to_print != '\0') { \
+            if ((u64)(src_line_to_print - beg_of_src_line) == (column - 1)) { \
+                fprintf(stderr, "%s", color); \
+            }  \
+            fprintf(stderr, "%c", *src_line_to_print); \
+            src_line_to_print++; \
+            if ((u64)(src_line_to_print - beg_of_src_line) ==  \
+                (column + char_count - 1)) { \
+                fprintf(stderr, ANSI_RESET); \
+            } \
+        } \
+        fprintf(stderr, "\n"); \
+        for (int c = 0; c < indent; c++) { \
+            fprintf(stderr, " "); \
+        } \
+        fprintf(stderr, "| "); \
+        for (u64 c = 0; c < column - 1; c++) { \
+            fprintf(stderr, " "); \
+        } \
+        fprintf(stderr, "%s", color); \
+        for (u64 c = 0; c < char_count_new; c++) { \
+            fprintf(stderr, "^"); \
+        } \
+        fprintf(stderr, ANSI_RESET "\n"); \
+    } \
+
 void vmsg_user(
         MsgKind kind, 
         SrcFile* srcfile, 
@@ -27,108 +111,46 @@ void vmsg_user(
         u64 char_count, 
         char* fmt, 
         va_list ap) {
-
     va_list aq;
     va_copy(aq, ap);
-
-    if (kind != MSG_KIND_ROOT_ERR) {
-        assert(char_count > 0);
-        assert(line > 0);
-        assert(column > 0);
-    }
-
-    char* src_line = null; 
-    u64 src_line_length = 0;
-    u64 char_count_new = char_count;
-
-    if (kind != MSG_KIND_ROOT_ERR) {
-        src_line = get_line_from_file(srcfile->contents, line);
-        char* c = src_line;
-        while (*c != '\n' && *c != '\0') {
-            c++;
-            src_line_length++;
-        }
-
-        if (src_line_length - column + 1 < char_count) {
-            char_count_new = src_line_length - column + 1;
-        }
-    }
-
-    if (kind != MSG_KIND_ROOT_ERR) {
-        fprintf(
-                stderr,
-                ANSI_FBOLD
-                "%s:%lu:%lu: "
-                ANSI_RESET,
-                srcfile->contents->fpath,
-                line, 
-                column
-        );
-    }
-
-    switch (kind) {
-        case MSG_KIND_ROOT_ERR:
-        case MSG_KIND_ERR:  
-            fprintf(stderr, ANSI_FRED "error: " ANSI_RESET); 
-            break;
-        case MSG_KIND_NOTE:
-            fprintf(stderr, ANSI_FCYAN "note: " ANSI_RESET);
-            break;
-    }
-
+    __vmsg_user_stage1;
     vfprintf(stderr, fmt, aq);
-    fprintf(stderr, "\n");
-
-    if (kind != MSG_KIND_ROOT_ERR) {
-        char* src_line_to_print = src_line;
-        char* beg_of_src_line = src_line;
-        int indent = fprintf(stderr, "%6lu | ", line) - 2;
-
-        char* color = ANSI_RESET;
-        switch (kind) {
-            case MSG_KIND_ERR:
-                color = ANSI_FRED;
-                break;
-            case MSG_KIND_NOTE:
-                color = ANSI_FCYAN;
-                break;
-            default:
-                assert(0);
-        }
-
-        // Source line print
-        while (*src_line_to_print != '\n' && *src_line_to_print != '\0') {
-            if ((u64)(src_line_to_print - beg_of_src_line) == (column - 1)) {
-                fprintf(stderr, "%s", color);
-            } 
-            
-            fprintf(stderr, "%c", *src_line_to_print);
-            src_line_to_print++;
-
-            if ((u64)(src_line_to_print - beg_of_src_line) == 
-                (column + char_count - 1)) {
-                fprintf(stderr, ANSI_RESET);
-            }
-
-        }
-        fprintf(stderr, "\n");
-
-        // `^^^^` printing
-        for (int c = 0; c < indent; c++) {
-            fprintf(stderr, " ");
-        }
-        fprintf(stderr, "| ");
-        for (u64 c = 0; c < column - 1; c++) {
-            fprintf(stderr, " ");
-        }
-        fprintf(stderr, "%s", color);
-        for (u64 c = 0; c < char_count_new; c++) {
-            fprintf(stderr, "^");
-        }
-        fprintf(stderr, ANSI_RESET "\n");
-    }
-
+    __vmsg_user_stage3;
     va_end(aq);
+}
+
+void stderr_print_type(Node* type) {
+    assert(type->kind == NODE_KIND_TYPE);
+
+    switch (type->type.kind) {
+        case TYPE_KIND_BASE:
+        {
+            fprintf(stderr, type->type.base.symbol->symbol.identifier->lexeme);
+        } break;
+
+        case TYPE_KIND_PTR:
+        {
+            fprintf(stderr, "*");
+            stderr_print_type(type->type.ptr.right);
+        } break;
+    }
+}
+
+void msg_user_type_mismatch(
+        MsgKind kind,
+        SrcFile* srcfile,
+        u64 line,
+        u64 column,
+        u64 char_count,
+        Node* from,
+        Node* to) {
+    __vmsg_user_stage1;
+    fprintf(stderr, "cannot convert from `");
+    stderr_print_type(from);
+    fprintf(stderr, "` to `");
+    stderr_print_type(to);
+    fprintf(stderr, "`");
+    __vmsg_user_stage3;
 }
 
 void msg_user(
@@ -139,7 +161,6 @@ void msg_user(
         u64 char_count, 
         char* fmt, 
         ...) {
-
     va_list ap;
     va_start(ap, fmt);
     vmsg_user(kind, srcfile, line, column, char_count, fmt, ap);
@@ -220,6 +241,27 @@ void msg_user_node(
     va_end(ap);
 }
 
+void msg_user_type_mismatch_node(
+        MsgKind kind,
+        Node* node,
+        Node* from,
+        Node* to) {
+    u64 char_count = 
+        (node->tail->column + node->tail->char_count) - node->head->column;
+    if (node->head->line != node->tail->line) {
+        char_count = node->tail->char_count;
+    }
+
+    msg_user_type_mismatch(
+            kind,
+            node->head->srcfile,
+            node->head->line,
+            node->head->column,
+            char_count,
+            from,
+            to);
+}
+
 void terminate_compilation() {
     msg_user(
             MSG_KIND_ROOT_ERR, 
@@ -263,4 +305,7 @@ void terminate_compilation() {
     verror_token(__VA_ARGS__); terminate_compilation()
 #define fatal_error_token(...)  \
     error_token(__VA_ARGS__); terminate_compilation()
+
+#define error_type_mismatch_node(...) \
+    msg_user_type_mismatch_node(MSG_KIND_ERR, __VA_ARGS__)
 

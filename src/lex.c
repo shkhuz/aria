@@ -129,6 +129,15 @@ void lexer_lex(Lexer* self) {
                 lexer_push_tok_by_type(self, kind);
             } break;
 
+            case '0': case '1': case '2': case '3': case '4':
+            case '5': case '6': case '7': case '8': case '9':
+            {
+                while (isdigit(*self->current) || *self->current == '_') {
+                    self->current++;
+                }
+                lexer_push_tok_by_type(self, TOKEN_KIND_NUMBER);
+            } break;
+
             case '@':
             {
                 self->current++;

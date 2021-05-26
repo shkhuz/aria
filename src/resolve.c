@@ -207,6 +207,7 @@ void resolver_pre_decl_node(
             // DO NOTHING
         } break;
 
+        case NODE_KIND_NUMBER:
         case NODE_KIND_TYPE:
         case NODE_KIND_SYMBOL:
         case NODE_KIND_PROCEDURE_CALL:
@@ -297,6 +298,10 @@ void resolver_node(
         case NODE_KIND_TYPE:
         {
             resolver_type(self, node);
+        } break;
+
+        case NODE_KIND_NUMBER:
+        {
         } break;
     }
 }

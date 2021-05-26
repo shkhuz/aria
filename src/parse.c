@@ -188,6 +188,8 @@ Node* parser_expr_atom(Parser* self) {
         } else {
             return symbol;
         }
+    } else if (parser_match_token(self, TOKEN_KIND_NUMBER)) {
+        return node_number_new(parser_previous(self));
     }
     return null;
 }

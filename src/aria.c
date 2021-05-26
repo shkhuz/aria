@@ -22,6 +22,7 @@ typedef enum {
     TOKEN_KIND_KEYWORD,
     TOKEN_KIND_DIRECTIVE,
     TOKEN_KIND_STRING,
+    TOKEN_KIND_NUMBER,
     TOKEN_KIND_LPAREN,
     TOKEN_KIND_RPAREN,
     TOKEN_KIND_LBRACE,
@@ -85,6 +86,7 @@ typedef enum {
 } TypeKind;
 
 typedef enum {
+    NODE_KIND_NUMBER,
     NODE_KIND_TYPE,
     NODE_KIND_SYMBOL,
     NODE_KIND_PROCEDURE_CALL,
@@ -100,6 +102,10 @@ struct Node {
     Token* tail;
 
     union {
+        struct {
+            Token* number;
+        } number;
+
         struct {
             TypeKind kind;
             union {
@@ -150,6 +156,16 @@ struct Node {
         } procedure_decl;
     };
 };
+
+Node* node_number_new(
+        Token* number) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_NUMBER;
+    node->head = number;
+    node->number.number = number;
+    node->tail = number;
+    return node;
+}
 
 Node* node_type_base_new(
         Node* symbol) {
@@ -266,6 +282,7 @@ Token* node_get_identifier(Node* node, bool assert_on_erroneous_node) {
         case NODE_KIND_EXPR_STMT:
         case NODE_KIND_TYPE:
         case NODE_KIND_BLOCK:
+        case NODE_KIND_NUMBER:
         // TODO: check if these expressions should 
         // return an identifier...
         case NODE_KIND_SYMBOL:
@@ -351,11 +368,3 @@ void init_builtin_types() {
     void_type = builtin_type_base_from_string("void");
 }
 
-/* typedef struct { */
-/*  SrcFile* srcfile; */
-/*  bool error; */
-/*  u64 error_count; */
-/* } Checker; */
-
-/* void checker_init(Checker* self, SrcFile* srcfile); */
-/* void checker_check(Checker* self); */

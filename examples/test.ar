@@ -1,110 +1,15 @@
-#import "file.ar";
-#import "test.ar";
-#import "test/test.ar";
+// proc main() void {
+//     let mut args: string = 12;
+//     call(self);
+//     proc code() *game {
+//         let input;
+//     }
+//     let args = args;
 
-namespace std {
-    namespace cool {
-        let variable = cool();
+//     proc code() {}
+//     proc call() {
+//         hello;
+//     }
+// }
 
-        struct string {
-            len: std::ty::x64::usize,
-        }
-
-        fn nested_fn() {
-            fn _1() {
-                fn _2() {
-                    var();
-                    get_function(a, b)(a, b, c);
-                }
-            }
-        }
-    }
-
-    struct cool {}
-}
-
-struct foo {}
-
-struct baz {
-    foo: struct { c: char },
-    baz: int, 
-    bar: struct Vec {
-        items: array,
-        cap: usize,
-    },
-}
-
-fn main(argc: int, argv: char_ptr_ptr) u8;
-
-fn cool() struct { } {
-    hmm;
-}
-
-fn start() noreturn {
-    let val = get_val;
-    struct Game { 
-        name: string,
-    } 
-
-    std::fjdk::dkfj::cool::nested_fn();
-    let str: std::cool::string;
-
-    // get colors
-    // print colors
-    let mut string: std::string;
-    str = string = get_string();
-
-    printf(std::cool::variable);
-
-    // let i = 10;
-    // take_ptr(&i);
-
-    let i = (a + (b - d)) * c;
-
-    // let c: u8 = 'a';
-    // let ptr_to_c: const u8* = &c;
-    // let list: const u8** = &ptr_to_c;
-    // *list = "hello";
-    
-    let ptr: *const u8;
-    let ptr: *const *const u8;
-    let ptr: *const *const *const u8;
-    let mut ptr: *u8;
-    let mut ptr: **u8;
-    let mut ptr: *const **u8;
-    let mut ptr: ****const ****u8;
-
-    let a: u8;
-    let p = &a;
-    **p = some_other; // WRONG CODE: FOR DEMONSTRATION
-
-    let str = "string";
-    let str: string = "dfjs dskfjsd fdsf dskfjdk \n \n\n\n";
-
-    // let arr: [u8; 5];
-    // let slice: [u8];
-    // let const_slice: [const u8];
-}
-
-// fn take_ptr(ptr: const usize*) {}
-
-fn ___() {
-    foo;
-    foo + fd::bar;
-
-    // game: Game = get_game();
-    // game: Game;
-    // game := get_game() + game;
-
-    let game: Game = get_game();
-    let game: Game;
-    let game = get_game() + game;
-}
-
-// ---------------------------
-
-fn main() {
-    // let mut i = 12;
-    // let ptr = &i;
-    // *ptr += 1;
-}
+let args: u8 = 1_000_000_000_000;

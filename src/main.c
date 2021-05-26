@@ -4,6 +4,7 @@
 #include <lex.c>
 #include <parse.c>
 #include <resolve.c>
+#include <analyze.c>
 
 char* g_executable_path;
 
@@ -71,26 +72,26 @@ bool resolve_srcfiles(SrcFile** srcfiles) {
     return error;
 }
 
-/* bool check_srcfile(SrcFile* srcfile) { */
-/*  Checker checker; */
-/*  checker_init(&checker, srcfile); */
-/*  checker_check(&checker); */
-/*  if (checker.error) { */
-/*      return true; */
-/*  } */
-/*  return false; */
-/* } */
+bool analyze_srcfile(SrcFile* srcfile) {
+    Analyzer analyzer;
+    analyzer_init(&analyzer, srcfile);
+    analyzer_analyze(&analyzer);
+    if (analyzer.error) {
+        return true;
+    }
+    return false;
+}
 
-/* bool check_srcfiles(SrcFile** srcfiles) { */
-/*  bool error = false; */
-/*  buf_loop(srcfiles, i) { */
-/*      bool current_error = check_srcfile(srcfiles[i]); */
-/*      if (!error) { */
-/*          error = current_error; */
-/*      } */
-/*  } */
-/*  return error; */
-/* } */
+bool analyze_srcfiles(SrcFile** srcfiles) {
+    bool error = false;
+    buf_loop(srcfiles, i) {
+        bool current_error = analyze_srcfile(srcfiles[i]);
+        if (!error) {
+            error = current_error;
+        }
+    }
+    return error;
+}
 
 SrcFile* read_srcfile_or_error(
         char* fpath, 
@@ -262,8 +263,8 @@ int main(int argc, char* argv[]) {
         terminate_compilation();
     }
 
-    /* bool checking_error = check_srcfiles(srcfiles); */
-    /* if (checking_error) { */
-    /*  terminate_compilation(); */
-    /* } */
+    bool analyzing_error = analyze_srcfiles(srcfiles);
+    if (analyzing_error) {
+        terminate_compilation();
+    }
 }
