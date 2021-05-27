@@ -96,6 +96,10 @@ void lexer_init(Lexer* self, SrcFile* srcfile) {
     self->error = false;
 }
 
+bool lexer_is_digit(char c) {
+    return isdigit(c) || c == '_';
+}
+
 void lexer_lex(Lexer* self) {
     for (;;) {
         self->start = self->current;
@@ -133,6 +137,10 @@ void lexer_lex(Lexer* self) {
             case '5': case '6': case '7': case '8': case '9':
             {
                 while (isdigit(*self->current) || *self->current == '_') {
+                    if (*self->current == '_' && 
+                        !isdigit(*(self->current+1))) {
+                        break;
+                    }
                     self->current++;
                 }
                 lexer_push_tok_by_type(self, TOKEN_KIND_NUMBER);
