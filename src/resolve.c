@@ -91,10 +91,19 @@ void resolver_cpush_in_scope(Resolver* self, Node* node) {
                 node,
                 "redeclaration of symbol `%s`",
                 identifier->lexeme);
+        return;
+    } else if (status.kind == SCOPE_PARENT) {
+        warning_node(
+                node,
+                "`%s` shadows symbol",
+                identifier->lexeme);
+    }
+
+    if (status.kind == SCOPE_LOCAL ||
+        status.kind == SCOPE_PARENT) {
         note_node(
                 status.found_node,
                 "...previously declared here");
-        return;
     }
 
     buf_push(self->current_scope->nodes, node);

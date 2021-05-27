@@ -1,6 +1,7 @@
 typedef enum {
     MSG_KIND_ROOT_ERR, 
     MSG_KIND_ERR,
+    MSG_KIND_WARN,
     MSG_KIND_NOTE,
 } MsgKind;
 
@@ -52,8 +53,11 @@ char* get_line_from_file(File* file, u64 line) {
     } \
     switch (kind) { \
         case MSG_KIND_ROOT_ERR: \
-        case MSG_KIND_ERR:   \
-            fprintf(stderr, ANSI_FRED "error: " ANSI_RESET);  \
+        case MSG_KIND_ERR: \
+            fprintf(stderr, ANSI_FRED "error: " ANSI_RESET); \
+            break; \
+        case MSG_KIND_WARN: \
+            fprintf(stderr, ANSI_FGREEN "warning: " ANSI_RESET); \
             break; \
         case MSG_KIND_NOTE: \
             fprintf(stderr, ANSI_FCYAN "note: " ANSI_RESET); \
@@ -70,6 +74,9 @@ char* get_line_from_file(File* file, u64 line) {
         switch (kind) { \
             case MSG_KIND_ERR: \
                 color = ANSI_FRED; \
+                break; \
+            case MSG_KIND_WARN: \
+                color = ANSI_FGREEN; \
                 break; \
             case MSG_KIND_NOTE: \
                 color = ANSI_FCYAN; \
@@ -326,6 +333,15 @@ void terminate_compilation() {
     vmsg_user_token(MSG_KIND_NOTE, __VA_ARGS__)
 #define note_token(...) \
     msg_user_token(MSG_KIND_NOTE, __VA_ARGS__)
+
+#define vwarning_node(...) \
+    vmsg_user_node(MSG_KIND_WARN, __VA_ARGS__)
+#define warning_node(...) \
+    msg_user_node(MSG_KIND_WARN, __VA_ARGS__)
+#define vwarning_token(...) \
+    vmsg_user_token(MSG_KIND_WARN, __VA_ARGS__)
+#define warning_token(...) \
+    msg_user_token(MSG_KIND_WARN, __VA_ARGS__)
 
 #define fatal_verror_node(...)  \
     verror_node(__VA_ARGS__); terminate_compilation()
