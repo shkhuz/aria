@@ -167,6 +167,11 @@ int main(int argc, char* argv[]) {
         alloc_with_type(i, u8);
         free(i);    
     }
+
+    {
+        printf(":: ULLONG_MAX: %llu\n", ULLONG_MAX);
+        printf(":: ASCII value of `0` (dec): %u\n", (unsigned int)'0');
+    }
     ///// TESTS END /////   
 
     init_builtin_types();

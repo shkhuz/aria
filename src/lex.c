@@ -96,8 +96,8 @@ void lexer_init(Lexer* self, SrcFile* srcfile) {
     self->error = false;
 }
 
-bool lexer_is_digit(char c) {
-    return isdigit(c) || c == '_';
+int lexer_char_to_digit(char c) {
+    return c - 48;
 }
 
 void lexer_lex(Lexer* self) {
@@ -136,14 +136,32 @@ void lexer_lex(Lexer* self) {
             case '0': case '1': case '2': case '3': case '4':
             case '5': case '6': case '7': case '8': case '9':
             {
+                int base = 10;
+                u64 val = 0;
+                bool overflow = false;
                 while (isdigit(*self->current) || *self->current == '_') {
                     if (*self->current == '_' && 
                         !isdigit(*(self->current+1))) {
                         break;
                     }
+
+                    if (*self->current != '_') {
+                        int digit = lexer_char_to_digit(*self->current);
+                        if (val > (ULLONG_MAX - digit) / base) {
+                            overflow = true;
+                        }
+                        val = val * base + digit;
+                    }
                     self->current++;
                 }
-                lexer_push_tok_by_type(self, TOKEN_KIND_NUMBER);
+
+                if (overflow) {
+                    lexer_error_from_start_to_current(
+                            self,
+                            "integer overflow");
+                } else {
+                    lexer_push_tok_by_type(self, TOKEN_KIND_NUMBER);
+                }
             } break;
 
             case '@':
