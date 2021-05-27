@@ -125,7 +125,10 @@ void stderr_print_type(Node* type) {
     switch (type->type.kind) {
         case TYPE_KIND_BASE:
         {
-            fprintf(stderr, type->type.base.symbol->symbol.identifier->lexeme);
+            fprintf(
+                    stderr, 
+                    "%s", 
+                    type->type.base.symbol->symbol.identifier->lexeme);
         } break;
 
         case TYPE_KIND_PTR:
@@ -145,10 +148,24 @@ void msg_user_type_mismatch(
         Node* from,
         Node* to) {
     __vmsg_user_stage1;
-    fprintf(stderr, "cannot convert from `");
+    fprintf(stderr, "cannot convert from `" ANSI_FRED);
     stderr_print_type(from);
-    fprintf(stderr, "` to `");
+    fprintf(stderr, ANSI_RESET "` to `" ANSI_FCYAN);
     stderr_print_type(to);
+    fprintf(stderr, ANSI_RESET "`");
+    __vmsg_user_stage3;
+}
+
+void msg_user_expect_type(
+        MsgKind kind,
+        SrcFile* srcfile,
+        u64 line,
+        u64 column,
+        u64 char_count,
+        Node* type) {
+    __vmsg_user_stage1;
+    fprintf(stderr, "expected `");
+    stderr_print_type(type);
     fprintf(stderr, "`");
     __vmsg_user_stage3;
 }
@@ -262,6 +279,19 @@ void msg_user_type_mismatch_node(
             to);
 }
 
+void msg_user_expect_type_token(
+        MsgKind kind,
+        Token* token,
+        Node* type) {
+    msg_user_expect_type(
+            kind,
+            token->srcfile,
+            token->line,
+            token->column,
+            token->char_count,
+            type);
+}
+
 void terminate_compilation() {
     msg_user(
             MSG_KIND_ROOT_ERR, 
@@ -309,3 +339,5 @@ void terminate_compilation() {
 #define error_type_mismatch_node(...) \
     msg_user_type_mismatch_node(MSG_KIND_ERR, __VA_ARGS__)
 
+#define error_expect_type_token(...) \
+    msg_user_expect_type_token(MSG_KIND_ERR, __VA_ARGS__)

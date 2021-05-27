@@ -17,9 +17,9 @@
 
 // ANALYZER TEST
 proc main() {
-    proc hello() *u64 {
+    proc hello(a: usize, b: u8, c: i16) *u64 {
     }
 
-    let val: u64 = hello();
+    let val: u64 = hello(1, 2, 3);
 }
 let args: *u64 = 1_000_000_000_000;

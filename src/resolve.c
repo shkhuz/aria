@@ -210,7 +210,7 @@ void resolver_procedure_decl(Resolver* self, Node* node) {
 // This parameter is useful for when checking top-
 // level declarations, where we want to check for 
 // variable redeclarations in one-pass, to have 
-// declaration-independancy.
+// order-independant declarations.
 // The `false` value is useful for when we are 
 // checking variables inside a procedure, where 
 // variables are defined top-to-botton and not 
