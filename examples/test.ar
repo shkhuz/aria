@@ -16,10 +16,19 @@
 // }
 
 // ANALYZER TEST
-proc main() {
-    proc hello(a: usize, b: usize, c: usize) *u64 {
-    }
+// proc main() {
+//     proc hello(a: usize, b: usize, c: usize) *u64 {
+//         {
+//         }
+//     }
 
-    let val: u64 = hello(1, 2, 3);
+//     let val: u64 = hello(1, 2, 3);
+// }
+
+// CODE GENERATOR TEST
+proc main() {
+    code_me(1000000, 2, 4);
 }
-let args: *u64 = 1_000_000_000_000;
+
+proc code_me(a: i8, b: usize, c: u32) {
+}

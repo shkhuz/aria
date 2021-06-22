@@ -41,6 +41,25 @@ typedef int64_t i64;
 #define CLAMP_MAX(x, max) MIN(x, max)
 #define CLAMP_MIN(x, min) MAX(x, min)
 
+int round_to_next_multiple(int n, int multiple) {
+	if (multiple == 0) return n;
+
+	int remainder = n % multiple;
+	if (remainder == 0) return n;
+
+	return n + multiple - remainder;
+}
+
+int get_bits_for_value(u64 n) {
+	int count = 0;
+	u64 val = n;
+	while (val > 0) {
+		val = val >> 1;
+		count++;
+	}
+	return count;
+}
+
 ///// ANSI COLORS /////
 #define ANSI_FBOLD    "\x1B[1m"
 #define ANSI_FRED     "\x1B[1;31m"
@@ -77,6 +96,7 @@ typedef struct {
 
 #define buf_remove(b, n)   ((b) ? _buf_remove(b, n, sizeof(*(b))) : 0)
 
+#define buf_printf(b, ...) ((b) = buf__printf((b), __VA_ARGS__))
 #define buf_loop(b, c) \
     for (u64 c = 0; c < buf_len(b); ++c)
 #define buf_write(b, s) \
@@ -124,6 +144,26 @@ void _buf_remove(const void* buf, u64 idx, u64 elem_size) {
     
     BufHdr* hdr = _buf_hdr(buf);
     hdr->len = len - 1;
+}
+
+char* buf__printf(char* buf, const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    size_t cap = buf_cap(buf) - buf_len(buf);
+    size_t n = 1 + vsnprintf(buf_end(buf), cap, fmt, ap);
+    va_end(ap);
+
+    if (n > cap) {
+        buf_fit(buf, n + buf_len(buf));
+        va_start(ap, fmt);
+        size_t new_cap = buf_cap(buf) - buf_len(buf);
+        n = 1 + vsnprintf(buf_end(buf), new_cap, fmt, ap);
+        assert(n <= new_cap);
+        va_end(ap);
+    }
+
+    _buf_hdr(buf)->len += n - 1;
+    return buf;
 }
 
 ///// STRING INTERNING /////

@@ -18,11 +18,31 @@ char* directives[] = {
 };
 
 typedef enum {
+    TYPE_PRIMITIVE_KIND_U8,
+    TYPE_PRIMITIVE_KIND_U16,
+    TYPE_PRIMITIVE_KIND_U32,
+    TYPE_PRIMITIVE_KIND_U64,
+    TYPE_PRIMITIVE_KIND_USIZE,
+    TYPE_PRIMITIVE_KIND_I8,
+    TYPE_PRIMITIVE_KIND_I16,
+    TYPE_PRIMITIVE_KIND_I32,
+    TYPE_PRIMITIVE_KIND_I64,
+    TYPE_PRIMITIVE_KIND_ISIZE,
+    TYPE_PRIMITIVE_KIND_VOID,
+    TYPE_PRIMITIVE_KIND_NONE,
+} TypePrimitiveKind;
+
+#define PRIMITIVE_TYPE_PTR_SIZE 8
+
+typedef enum {
     TOKEN_KIND_IDENTIFIER,
     TOKEN_KIND_KEYWORD,
     TOKEN_KIND_DIRECTIVE,
     TOKEN_KIND_STRING,
-    TOKEN_KIND_NUMBER,
+    TOKEN_KIND_NUMBER_8,
+    TOKEN_KIND_NUMBER_16,
+    TOKEN_KIND_NUMBER_32,
+    TOKEN_KIND_NUMBER_64,
     TOKEN_KIND_LPAREN,
     TOKEN_KIND_RPAREN,
     TOKEN_KIND_LBRACE,
@@ -81,13 +101,10 @@ bool token_lexeme_eq(
 }
 
 typedef enum {
-    TYPE_KIND_BASE,
-    TYPE_KIND_PTR,
-} TypeKind;
-
-typedef enum {
     NODE_KIND_NUMBER,
-    NODE_KIND_TYPE,
+    NODE_KIND_TYPE_PRIMITIVE,
+    NODE_KIND_TYPE_CUSTOM,
+    NODE_KIND_TYPE_PTR,
     NODE_KIND_SYMBOL,
     NODE_KIND_PROCEDURE_CALL,
     NODE_KIND_BLOCK,
@@ -108,17 +125,17 @@ struct Node {
         } number;
 
         struct {
-            TypeKind kind;
-            union {
-                struct {
-                    Node* symbol;
-                } base;
+            Token* token;
+            TypePrimitiveKind kind;
+        } type_primitive;
 
-                struct {
-                    Node* right;
-                } ptr;
-            };
-        } type;
+        struct {
+            Node* symbol;
+        } type_custom;
+
+        struct {
+            Node* right;
+        } type_ptr;
 
         // A symbol is an identifier
         // with an optional `::` accessor
@@ -153,6 +170,7 @@ struct Node {
             Token* identifier;
             Node* type;
             Node* initializer;
+            bool in_procedure;
         } variable_decl;
 
         struct {
@@ -160,6 +178,7 @@ struct Node {
             Node** params;
             Node* type;
             Node* body;
+            int local_vars_bytes;
         } procedure_decl;
     };
 };
@@ -174,13 +193,24 @@ Node* node_number_new(
     return node;
 }
 
-Node* node_type_base_new(
+Node* node_type_primitive_new(
+        Token* token,
+        TypePrimitiveKind kind) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_TYPE_PRIMITIVE;
+    node->head = token;
+    node->type_primitive.token = token;
+    node->type_primitive.kind = kind;
+    node->tail = token;
+    return node;
+}
+
+Node* node_type_custom_new(
         Node* symbol) {
     alloc_with_type(node, Node);
-    node->kind = NODE_KIND_TYPE;
+    node->kind = NODE_KIND_TYPE_CUSTOM;
     node->head = symbol->head;
-    node->type.kind = TYPE_KIND_BASE;
-    node->type.base.symbol = symbol;
+    node->type_custom.symbol = symbol;
     node->tail = symbol->tail;
     return node;
 }
@@ -189,10 +219,9 @@ Node* node_type_ptr_new(
         Token* star,
         Node* right) {
     alloc_with_type(node, Node);
-    node->kind = NODE_KIND_TYPE;
+    node->kind = NODE_KIND_TYPE_PTR;
     node->head = star;
-    node->type.kind = TYPE_KIND_PTR;
-    node->type.ptr.right = right;
+    node->type_ptr.right = right;
     node->tail = right->tail;
     return node;
 }
@@ -247,12 +276,12 @@ Node* node_param_new(
 
 Node* node_expr_stmt_new(
         Node* expr,
-        Token* semicolon) {
+        Token* tail) {
     alloc_with_type(node, Node);
     node->kind = NODE_KIND_EXPR_STMT;
     node->head = expr->head;
     node->expr_stmt.expr = expr;
-    node->tail = semicolon;
+    node->tail = tail;
     return node;
 }
 
@@ -269,6 +298,7 @@ Node* node_procedure_decl_new(
     node->procedure_decl.params = params;
     node->procedure_decl.type = type;
     node->procedure_decl.body = body;
+    node->procedure_decl.local_vars_bytes = 0;
     // TODO: should we change the `tail` to
     // the `tail` of the type (or the parenthesis)?
     node->tail = body->tail;
@@ -281,7 +311,8 @@ Node* node_variable_decl_new(
         Token* identifier,
         Node* type,
         Node* initializer,
-        Token* semicolon) {
+        Token* semicolon,
+        bool in_procedure) {
     alloc_with_type(node, Node);
     node->kind = NODE_KIND_VARIABLE_DECL;
     node->head = keyword;
@@ -289,6 +320,7 @@ Node* node_variable_decl_new(
     node->variable_decl.identifier = identifier;
     node->variable_decl.type = type;
     node->variable_decl.initializer = initializer;
+    node->variable_decl.in_procedure = in_procedure;
     // TODO: should we change the `tail` to 
     // the `tail` of the type (or the identifier 
     // before the colon)?
@@ -299,7 +331,9 @@ Node* node_variable_decl_new(
 Token* node_get_identifier(Node* node, bool assert_on_erroneous_node) {
     switch (node->kind) {
         case NODE_KIND_EXPR_STMT:
-        case NODE_KIND_TYPE:
+        case NODE_KIND_TYPE_PRIMITIVE:
+		case NODE_KIND_TYPE_CUSTOM:
+		case NODE_KIND_TYPE_PTR:
         case NODE_KIND_BLOCK:
         case NODE_KIND_NUMBER:
         // TODO: check if these expressions should 
@@ -327,7 +361,9 @@ Node* node_get_type(Node* node, bool assert_on_erroneous_node) {
         case NODE_KIND_EXPR_STMT:
         // TODO: check if these expressions should 
         // return a type...
-        case NODE_KIND_TYPE:
+        case NODE_KIND_TYPE_PRIMITIVE:
+        case NODE_KIND_TYPE_CUSTOM:
+        case NODE_KIND_TYPE_PTR:
         case NODE_KIND_BLOCK:
         case NODE_KIND_NUMBER:
         case NODE_KIND_PROCEDURE_CALL:
@@ -355,59 +391,130 @@ struct SrcFile {
     Node** nodes;
 };
 
-// This function is used to create tokens 
-// apart from source file tokens. Mainly 
-// used to instantiate builtin types, intrinsics,
-// directives, etc.
-Token* token_from_string(char* identifier) {
-    return token_alloc(
-            TOKEN_KIND_IDENTIFIER,
-            identifier,
-            null,
-            null,
-            null,
-            0,
-            0,
-            0);
+typedef struct {
+    char* str;
+    TypePrimitiveKind kind;
+} StrToTypePrimitiveKindMap;
+
+StrToTypePrimitiveKindMap PRIMITIVE_TYPES[] = {
+    { "u8", TYPE_PRIMITIVE_KIND_U8 },
+    { "u16", TYPE_PRIMITIVE_KIND_U16 },
+    { "u32", TYPE_PRIMITIVE_KIND_U32 },
+    { "u64", TYPE_PRIMITIVE_KIND_U64 },
+    { "usize", TYPE_PRIMITIVE_KIND_USIZE },
+    { "i8", TYPE_PRIMITIVE_KIND_I8 },
+    { "i16", TYPE_PRIMITIVE_KIND_I16 },
+    { "i32", TYPE_PRIMITIVE_KIND_I32 },
+    { "i64", TYPE_PRIMITIVE_KIND_I64 },
+    { "isize", TYPE_PRIMITIVE_KIND_ISIZE },
+    { "void", TYPE_PRIMITIVE_KIND_VOID },
+};
+
+TypePrimitiveKind primitive_type_str_to_kind(char* name) {
+    for (u64 i = 0; i < stack_arr_len(PRIMITIVE_TYPES); i++) {
+        if (stri(PRIMITIVE_TYPES[i].str) == stri(name)) {
+            return PRIMITIVE_TYPES[i].kind;
+        }
+    }
+    return TYPE_PRIMITIVE_KIND_NONE;
 }
 
-// A separate buffer for builtin types apart from
-// the globals is created, to loop over them.
-Node** builtin_types = null;
-Node* u8_type;
-Node* u16_type;
-Node* u32_type;
-Node* u64_type;
-Node* usize_type;
-Node* i8_type;
-Node* i16_type;
-Node* i32_type;
-Node* i64_type;
-Node* isize_type;
-Node* void_type;
-
-Node* builtin_type_base_from_string(char* identifier) {
-    Node* type = node_type_base_new( 
-            node_symbol_new(
-                token_from_string(identifier)));
-    // This pushes the newly-created type to the 
-    // `builtin_types` buffer so that I don't forget
-    // to update it in `init_builtin_types`.
-    buf_push(builtin_types, type);
-    return type;
+char* primitive_type_kind_to_str(TypePrimitiveKind kind) {
+    for (u64 i = 0; i < stack_arr_len(PRIMITIVE_TYPES); i++) {
+        if (PRIMITIVE_TYPES[i].kind == kind) {
+            return PRIMITIVE_TYPES[i].str;
+        }
+    }
+    assert(0);
+    return null;
 }
 
-void init_builtin_types() {
-    u8_type = builtin_type_base_from_string("u8");
-    u16_type = builtin_type_base_from_string("u16");
-    u32_type = builtin_type_base_from_string("u32");
-    u64_type = builtin_type_base_from_string("u64");
-    usize_type = builtin_type_base_from_string("usize");
-    i8_type = builtin_type_base_from_string("i8");
-    i16_type = builtin_type_base_from_string("i16");
-    i32_type = builtin_type_base_from_string("i32");
-    i64_type = builtin_type_base_from_string("i64");
-    isize_type = builtin_type_base_from_string("isize");
-    void_type = builtin_type_base_from_string("void");
+int primitive_type_size(TypePrimitiveKind kind) {
+    switch (kind) {
+        case TYPE_PRIMITIVE_KIND_U8:
+        case TYPE_PRIMITIVE_KIND_I8: return 1;
+
+        case TYPE_PRIMITIVE_KIND_U16:
+        case TYPE_PRIMITIVE_KIND_I16: return 2;
+
+        case TYPE_PRIMITIVE_KIND_U32:
+        case TYPE_PRIMITIVE_KIND_I32: return 4;
+
+        case TYPE_PRIMITIVE_KIND_U64:
+        case TYPE_PRIMITIVE_KIND_I64: return 8;
+
+        case TYPE_PRIMITIVE_KIND_USIZE:
+        case TYPE_PRIMITIVE_KIND_ISIZE: return 8;
+
+        case TYPE_PRIMITIVE_KIND_VOID: return 0;
+        case TYPE_PRIMITIVE_KIND_NONE: break;
+    }
+    assert(0);
+    return 0;
 }
 
+int type_get_size_bytes(Node* type) {
+    switch (type->kind) {
+        case NODE_KIND_TYPE_PTR:
+            return PRIMITIVE_TYPE_PTR_SIZE;
+
+        case NODE_KIND_TYPE_PRIMITIVE:
+        {
+            return primitive_type_size(type->type_primitive.kind);
+        } break;
+
+        case NODE_KIND_TYPE_CUSTOM: 
+        {
+            assert(0);
+        } break;
+    }
+    assert(0);
+    return 0;
+}
+
+typedef struct {
+    Node* u8;
+    Node* u16;
+    Node* u32;
+    Node* u64;
+    Node* usize;
+    Node* i8;
+    Node* i16;
+    Node* i32;
+    Node* i64;
+    Node* isize;
+    Node* void_;
+} PrimitiveTypePlaceholders;
+
+PrimitiveTypePlaceholders primitive_type_placeholders;
+
+Node* primitive_type_new_placeholder(TypePrimitiveKind kind) {
+    return node_type_primitive_new(null, kind);
+}
+
+void init_primitive_types() {
+    primitive_type_placeholders.u8 = 
+        primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_U8);
+    primitive_type_placeholders.u16 = 
+        primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_U16);
+    primitive_type_placeholders.u32 = 
+        primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_U32);
+    primitive_type_placeholders.u64 = 
+        primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_U64);
+    primitive_type_placeholders.usize = 
+        primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_USIZE);
+
+    primitive_type_placeholders.i8 = 
+        primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_I8);
+    primitive_type_placeholders.i16 = 
+        primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_I16);
+    primitive_type_placeholders.i32 = 
+        primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_I32);
+    primitive_type_placeholders.i64 = 
+        primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_I64);
+    primitive_type_placeholders.isize = 
+        primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_ISIZE);
+
+    primitive_type_placeholders.void_ = 
+        primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_VOID);
+}

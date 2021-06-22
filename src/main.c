@@ -5,6 +5,7 @@
 #include <parse.c>
 #include <resolve.c>
 #include <analyze.c>
+#include <x64_codegen.c>
 
 char* g_executable_path;
 
@@ -93,6 +94,18 @@ bool analyze_srcfiles(SrcFile** srcfiles) {
     return error;
 }
 
+void codegen_srcfile(SrcFile* srcfile) {
+    CodeGenerator codegenerator;
+    codegenerator_init(&codegenerator, srcfile);
+    codegenerator_gen(&codegenerator);
+}
+
+void codegen_srcfiles(SrcFile** srcfiles) {
+    buf_loop(srcfiles, i) {
+        codegen_srcfile(srcfiles[i]);
+    }
+}
+
 SrcFile* read_srcfile_or_error(
         char* fpath, 
         MsgKind error_kind, 
@@ -149,6 +162,11 @@ int main(int argc, char* argv[]) {
         assert(buf_len(buffer) == 1);
         buf_remove(buffer, 0);
         assert(buf_len(buffer) == 0);
+
+        char* buffer2 = null;
+        buf_push(buffer2, '1');
+        buf_printf(buffer2, "%s", "hello world!\0");
+        assert(buffer2[5] == 'o');
     }
 
     {
@@ -170,11 +188,10 @@ int main(int argc, char* argv[]) {
 
     {
         printf(":: ULLONG_MAX: %llu\n", ULLONG_MAX);
-        printf(":: ASCII value of `0` (dec): %u\n", (unsigned int)'0');
     }
     ///// TESTS END /////   
 
-    init_builtin_types();
+    init_primitive_types();
     g_executable_path = argv[0];
 
     if (argc < 2) {
@@ -272,4 +289,6 @@ int main(int argc, char* argv[]) {
     if (analyzing_error) {
         terminate_compilation();
     }
+
+    codegen_srcfiles(srcfiles);
 }

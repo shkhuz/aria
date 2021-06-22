@@ -127,21 +127,26 @@ void vmsg_user(
 }
 
 void stderr_print_type(Node* type) {
-    assert(type->kind == NODE_KIND_TYPE);
+    switch (type->kind) {
+        case NODE_KIND_TYPE_PRIMITIVE:
+        {
+            fprintf(stderr,
+                    "%s",
+                    primitive_type_kind_to_str(type->type_primitive.kind));
+        } break;
 
-    switch (type->type.kind) {
-        case TYPE_KIND_BASE:
+        case NODE_KIND_TYPE_CUSTOM:
         {
             fprintf(
                     stderr, 
                     "%s", 
-                    type->type.base.symbol->symbol.identifier->lexeme);
+                    type->type_custom.symbol->symbol.identifier->lexeme);
         } break;
 
-        case TYPE_KIND_PTR:
+        case NODE_KIND_TYPE_PTR:
         {
             fprintf(stderr, "*");
-            stderr_print_type(type->type.ptr.right);
+            stderr_print_type(type->type_ptr.right);
         } break;
     }
 }
@@ -353,7 +358,7 @@ void terminate_compilation() {
     error_token(__VA_ARGS__); terminate_compilation()
 
 #define error_type_mismatch_node(...) \
-    msg_user_type_mismatch_node(MSG_KIND_ERR, __VA_ARGS__)
+    self->error = true; msg_user_type_mismatch_node(MSG_KIND_ERR, __VA_ARGS__)
 
 #define error_expect_type_token(...) \
-    msg_user_expect_type_token(MSG_KIND_ERR, __VA_ARGS__)
+    self->error = true; msg_user_expect_type_token(MSG_KIND_ERR, __VA_ARGS__)

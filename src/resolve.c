@@ -249,7 +249,9 @@ void resolver_pre_decl_node(
         } break;
 
         case NODE_KIND_NUMBER:
-        case NODE_KIND_TYPE:
+        case NODE_KIND_TYPE_PRIMITIVE:
+        case NODE_KIND_TYPE_CUSTOM:
+        case NODE_KIND_TYPE_PTR:
         case NODE_KIND_SYMBOL:
         case NODE_KIND_PROCEDURE_CALL:
         {
@@ -258,19 +260,9 @@ void resolver_pre_decl_node(
     }
 }
 
-void resolver_type_base(Resolver* self, Node* node) {
-    Token* identifier = node->type.base.symbol->symbol.identifier;
-
-    buf_loop(builtin_types, i) {
-        if (builtin_types[i]->type.kind == TYPE_KIND_BASE) {
-            if (token_lexeme_eq(
-                        builtin_types[i]->type.base.symbol->symbol.identifier,
-                        identifier)) {
-                return;
-            }
-        }
-    }
-
+void resolver_type_custom(Resolver* self, Node* node) {
+    Token* identifier = node->type_custom.symbol->symbol.identifier;
+    // TODO: check
     error_node(
             node,
             "unresolved type `%s`",
@@ -278,17 +270,19 @@ void resolver_type_base(Resolver* self, Node* node) {
 }
 
 void resolver_type_ptr(Resolver* self, Node* node) {
-    resolver_type(self, node->type.ptr.right);
+    resolver_type(self, node->type_ptr.right);
 }
 
 void resolver_type(Resolver* self, Node* node) {
-    switch (node->type.kind) {
-        case TYPE_KIND_BASE:
+    switch (node->kind) {
+        case NODE_KIND_TYPE_PRIMITIVE: break;
+
+        case NODE_KIND_TYPE_CUSTOM:
         {
-            resolver_type_base(self, node);
+            resolver_type_custom(self, node);
         } break;
 
-        case TYPE_KIND_PTR:
+        case NODE_KIND_TYPE_PTR:
         {
             resolver_type_ptr(self, node);
         } break;
@@ -344,7 +338,9 @@ void resolver_node(
             resolver_block(self, node, true);
         } break;
 
-        case NODE_KIND_TYPE:
+        case NODE_KIND_TYPE_PRIMITIVE:
+		case NODE_KIND_TYPE_CUSTOM:
+		case NODE_KIND_TYPE_PTR:
         {
             resolver_type(self, node);
         } break;

@@ -2,6 +2,7 @@ typedef struct {
     SrcFile* srcfile;
     u64 token_idx;
     bool error;
+    bool in_procedure;
 } Parser;
 
 Node* parser_top_level_node(Parser* self, bool error_on_no_match);
@@ -129,10 +130,17 @@ Token* parser_expect(Parser* self, TokenKind kind, char* fmt, ...) {
             "expected `,`, got `%s`", \
             parser_current(self)->lexeme)
 
-Node* parser_type_base(Parser* self) {
+Node* parser_type_atom(Parser* self) {
     Token* identifier = 
         parser_expect_identifier(self, "expected type name, got `%s`");
-    return node_type_base_new(node_symbol_new(identifier));
+    TypePrimitiveKind kind = primitive_type_str_to_kind(identifier->lexeme);
+    if (kind == TYPE_PRIMITIVE_KIND_NONE) {
+        return node_type_custom_new(node_symbol_new(identifier));
+    } else {
+        return node_type_primitive_new(identifier, kind);
+    }
+    assert(0);
+    return null;
 }
 
 Node* parser_type_ptr(Parser* self) {
@@ -141,7 +149,7 @@ Node* parser_type_ptr(Parser* self) {
                 parser_previous(self), 
                 parser_type_ptr(self));
     }
-    return parser_type_base(self);
+    return parser_type_atom(self);
 }
 
 Node* parser_type(Parser* self) {
@@ -195,8 +203,18 @@ Node* parser_expr_atom(Parser* self) {
         } else {
             return symbol;
         }
-    } else if (parser_match_token(self, TOKEN_KIND_NUMBER)) {
+    } else if (parser_match_token(self, TOKEN_KIND_NUMBER_8) ||
+               parser_match_token(self, TOKEN_KIND_NUMBER_16) ||
+               parser_match_token(self, TOKEN_KIND_NUMBER_32) ||
+               parser_match_token(self, TOKEN_KIND_NUMBER_64)) {
         return node_number_new(parser_previous(self));
+    } else if (parser_match_token(self, TOKEN_KIND_LBRACE)) {
+        return parser_block(self, parser_previous(self));
+    } else {
+        fatal_error_token(
+                parser_current(self),
+                "`%s` is invalid here",
+                parser_current(self)->lexeme);
     }
     return null;
 }
@@ -207,8 +225,15 @@ Node* parser_expr(Parser* self) {
 
 Node* parser_expr_stmt(Parser* self) {
     Node* node = parser_expr(self);
-    Token* semicolon = parser_expect_semicolon(self);
-    return node_expr_stmt_new(node, semicolon);
+    Token* tail = null;
+    if (!node) return null;
+
+    if (node->kind != NODE_KIND_BLOCK) {
+        tail = parser_expect_semicolon(self);
+    } else {
+        tail = node->tail;
+    }
+    return node_expr_stmt_new(node, tail);
 }
 
 Node* parser_variable_decl(Parser* self, Token* keyword) {
@@ -237,10 +262,12 @@ Node* parser_variable_decl(Parser* self, Token* keyword) {
             identifier, 
             type, 
             initializer,
-            semicolon);
+            semicolon,
+            self->in_procedure);
 }
 
 Node* parser_procedure_decl(Parser* self, Token* keyword) {
+    self->in_procedure = true;
     Token* identifier = 
         parser_expect_identifier(self, "expected procedure name, got `%s`");
 
@@ -260,13 +287,14 @@ Node* parser_procedure_decl(Parser* self, Token* keyword) {
         }
     }
 
-    Node* type = void_type;
+    Node* type = primitive_type_placeholders.void_;
     if (parser_current(self)->kind != TOKEN_KIND_LBRACE) {
         type = parser_type(self);
     } 
 
     Node* body = parser_block(self, parser_expect_lbrace(self));
 
+    self->in_procedure = false;
     return node_procedure_decl_new(
             keyword,
             identifier,
@@ -295,11 +323,9 @@ Node* parser_top_level_node(Parser* self, bool error_on_no_match) {
 }
 
 Node* parser_procedure_level_node(Parser* self) {
-    Node* node = parser_top_level_node(self, false);
-    if (node) {
-        return node;
-    }
-
+    if (parser_match_keyword(self, VARIABLE_DECL_KEYWORD)) {
+        return parser_variable_decl(self, parser_previous(self));
+    } 
     return parser_expr_stmt(self);
 }
 
@@ -308,6 +334,7 @@ void parser_init(Parser* self, SrcFile* srcfile) {
     self->srcfile->nodes = null;
     self->token_idx = 0;
     self->error = false;
+    self->in_procedure = false;
 }
 
 void parser_parse(Parser* self) {

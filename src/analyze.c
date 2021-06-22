@@ -1,36 +1,43 @@
 typedef struct {
     SrcFile* srcfile;
     bool error;
+    int local_vars_bytes;
 } Analyzer;
 
 Node* analyzer_expr(Analyzer* self, Node* node);
 void analyzer_stmt(Analyzer* self, Node* node);
 
 Node* get_inner_type(Node* type) {
-    assert(type->kind == NODE_KIND_TYPE);
-    switch (type->type.kind) {
-        case TYPE_KIND_BASE: return null;
-        case TYPE_KIND_PTR: return type->type.ptr.right;
+    switch (type->kind) {
+        case NODE_KIND_TYPE_CUSTOM:
+        case NODE_KIND_TYPE_PRIMITIVE: return null;
+        case NODE_KIND_TYPE_PTR: return type->type_ptr.right;
     }
     assert(0);
     return null;
 }
 
-bool implicit_cast(Node* a, Node* b) {
-    assert(a && b);
-    assert(a->kind == NODE_KIND_TYPE && b->kind == NODE_KIND_TYPE);
+bool implicit_cast(Node* from, Node* to) {
+    assert(from && to);
+    //assert(from->kind == NODE_KIND_TYPE && to->kind == NODE_KIND_TYPE);
 
-    if (a->type.kind == b->type.kind) {
-        if (a->type.kind == TYPE_KIND_BASE) {
+    if (from->kind == to->kind) {
+        if (from->kind == NODE_KIND_TYPE_CUSTOM) {
             if (token_lexeme_eq(
-                        a->type.base.symbol->symbol.identifier,
-                        b->type.base.symbol->symbol.identifier)) {
+                        from->type_custom.symbol->symbol.identifier,
+                        to->type_custom.symbol->symbol.identifier)) {
                 return true;
             }
+        } else if (from->kind == NODE_KIND_TYPE_PRIMITIVE) {
+            if (primitive_type_size(from->type_primitive.kind) >
+                primitive_type_size(to->type_primitive.kind)) {
+                return false;
+            }
+            return true;
         } else {
             return implicit_cast(
-                    get_inner_type(a),
-                    get_inner_type(b));
+                    get_inner_type(from),
+                    get_inner_type(to));
         }
     } 
 
@@ -38,7 +45,21 @@ bool implicit_cast(Node* a, Node* b) {
 }
 
 Node* analyzer_number(Analyzer* self, Node* node) {
-    return u64_type;
+    switch (node->number.number->kind) {
+        case TOKEN_KIND_NUMBER_8:
+            return primitive_type_placeholders.u8;
+        case TOKEN_KIND_NUMBER_16:
+            return primitive_type_placeholders.u16;
+        case TOKEN_KIND_NUMBER_32:
+            return primitive_type_placeholders.u32;
+        case TOKEN_KIND_NUMBER_64:
+            return primitive_type_placeholders.u64;
+        default:
+        {
+            assert(0);
+        } break;
+    }
+    return null;
 }
 
 Node* analyzer_symbol(Analyzer* self, Node* node) {
@@ -105,6 +126,8 @@ Node* analyzer_expr(Analyzer* self, Node* node) {
             return analyzer_symbol(self, node);
         case NODE_KIND_PROCEDURE_CALL:
             return analyzer_procedure_call(self, node);
+        case NODE_KIND_BLOCK: 
+            return null;
 
         case NODE_KIND_VARIABLE_DECL:
         case NODE_KIND_PROCEDURE_DECL:
@@ -133,10 +156,23 @@ void analyzer_variable_decl(Analyzer* self, Node* node) {
                     annotated_type);
         }
     }
+
+    if (node->variable_decl.initializer) {
+        node->variable_decl.type = 
+            analyzer_expr(self, node->variable_decl.initializer);
+        if (!node->variable_decl.type) return;
+    }
+
+    if (node->variable_decl.in_procedure) {
+        self->local_vars_bytes += 
+            type_get_size_bytes(node->variable_decl.type);
+    }
 }
 
 void analyzer_procedure_decl(Analyzer* self, Node* node) {
+    self->local_vars_bytes = 0;
     analyzer_block(self, node->procedure_decl.body);
+    node->procedure_decl.local_vars_bytes = self->local_vars_bytes;
 }
 
 void analyzer_stmt(Analyzer* self, Node* node) {
@@ -161,6 +197,7 @@ void analyzer_stmt(Analyzer* self, Node* node) {
 void analyzer_init(Analyzer* self, SrcFile* srcfile) {
     self->srcfile = srcfile;
     self->error = false;
+    self->local_vars_bytes = 0;
 }
 
 void analyzer_analyze(Analyzer* self) {

@@ -160,7 +160,22 @@ void lexer_lex(Lexer* self) {
                             self,
                             "integer overflow");
                 } else {
-                    lexer_push_tok_by_type(self, TOKEN_KIND_NUMBER);
+                    int bits = round_to_next_multiple(
+                            get_bits_for_value(val), 
+                            8);
+                    TokenKind kind;
+                    switch (bits) {
+                        case 8: kind = TOKEN_KIND_NUMBER_8; break;
+                        case 16: kind = TOKEN_KIND_NUMBER_16; break;
+                        case 24:
+                        case 32: kind = TOKEN_KIND_NUMBER_32; break;
+                        case 40:
+                        case 48:
+                        case 56:
+                        case 64: kind = TOKEN_KIND_NUMBER_64; break;
+                        default: assert(0); break;
+                    }
+                    lexer_push_tok_by_type(self, kind);
                 }
             } break;
 
