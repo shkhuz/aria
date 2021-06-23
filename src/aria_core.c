@@ -60,6 +60,13 @@ int get_bits_for_value(u64 n) {
 	return count;
 }
 
+///// ERROR CODES /////
+
+typedef enum {
+	ERROR_CODE_OUT_OF_MEM,
+	ERROR_CODE_OKAY,
+} ErrorCode;
+
 ///// ANSI COLORS /////
 #define ANSI_FBOLD    "\x1B[1m"
 #define ANSI_FRED     "\x1B[1;31m"
@@ -72,8 +79,8 @@ int get_bits_for_value(u64 n) {
 
 ///// STRETCHY BUFFER /////
 typedef struct {
-    u64 len;
-    u64 cap;
+    size_t len;
+    size_t cap;
     char buf[];
 } BufHdr;
 
@@ -98,16 +105,16 @@ typedef struct {
 
 #define buf_printf(b, ...) ((b) = buf__printf((b), __VA_ARGS__))
 #define buf_loop(b, c) \
-    for (u64 c = 0; c < buf_len(b); ++c)
+    for (size_t c = 0; c < buf_len(b); ++c)
 #define buf_write(b, s) \
     for (size_t i = 0; i < strlen(s); i++) { buf_push(b, s[i]); }
 
-void* _buf_grow(const void* buf, u64 new_len, u64 elem_size) {
+void* _buf_grow(const void* buf, size_t new_len, size_t elem_size) {
     /* assert(buf_cap(buf) <= (__SIZE_MAX__ - 1) / 2); */
-    u64 new_cap = CLAMP_MIN(2 * buf_cap(buf), MAX(new_len, 16));
+    size_t new_cap = CLAMP_MIN(2 * buf_cap(buf), MAX(new_len, 16));
     assert(new_len <= new_cap);
     /* assert(new_cap <= (__SIZE_MAX__ - offsetof(BufHdr, buf)) / elem_size); */
-    u64 new_size = offsetof(BufHdr, buf) + (new_cap * elem_size);
+    size_t new_size = offsetof(BufHdr, buf) + (new_cap * elem_size);
     BufHdr* new_hdr;
 
     if (buf) {
@@ -122,7 +129,7 @@ void* _buf_grow(const void* buf, u64 new_len, u64 elem_size) {
     return new_hdr->buf;
 }
 
-void _buf_shrink(const void* buf, u64 size) {
+void _buf_shrink(const void* buf, size_t size) {
     if (size > buf_len(buf)) {
         size = buf_len(buf);
     }
@@ -130,13 +137,13 @@ void _buf_shrink(const void* buf, u64 size) {
     _buf_hdr(buf)->len -= size;
 }
 
-void _buf_remove(const void* buf, u64 idx, u64 elem_size) {
-    u64 len = buf_len(buf);
+void _buf_remove(const void* buf, size_t idx, size_t elem_size) {
+    size_t len = buf_len(buf);
     assert(idx < len);
     assert(buf);
 
-    u64 byte_pos = elem_size * idx;
-    u64 elem_to_move_count = len - idx - 1;
+    size_t byte_pos = elem_size * idx;
+    size_t elem_to_move_count = len - idx - 1;
     memmove(
             (u8*)buf + byte_pos, 
             (u8*)buf + byte_pos + elem_size, 
@@ -169,13 +176,13 @@ char* buf__printf(char* buf, const char* fmt, ...) {
 ///// STRING INTERNING /////
 typedef struct {
     char* str;
-    u64 len;
+    size_t len;
 } StrIntern;
 
 static StrIntern* g_interns;
 
 char* strni(char* start, char* end) {
-    u64 len = end - start;
+    size_t len = end - start;
     buf_loop(g_interns, i) {
         if (g_interns[i].len == len &&
             strncmp(g_interns[i].str, start, len) == false) {
@@ -199,7 +206,7 @@ typedef struct {
     char* fpath;
     char* abs_fpath;
     char* contents;
-    u64 len;
+    size_t len;
 } File;
 
 typedef struct {
@@ -229,7 +236,7 @@ FileOrError file_read(const char* fpath) {
     }
 
     fseek(fp, 0, SEEK_END);
-    u64 size = ftell(fp);
+    size_t size = ftell(fp);
     rewind(fp);
 
     char* contents = (char*)malloc(size + 1);
@@ -284,8 +291,8 @@ char* aria_strapp(char* to, char* from) {
     }
 
     char* res = null;
-    uint to_len = strlen(to);
-    uint from_len = strlen(from);
+    size_t to_len = strlen(to);
+    size_t from_len = strlen(from);
     for (uint i = 0; i < to_len; i++) {
         buf_push(res, to[i]);
     }
@@ -314,7 +321,7 @@ char* aria_notdir(char* fpath) {
         return null;
     } 
 
-    uint fpath_len = strlen(fpath);
+    size_t fpath_len = strlen(fpath);
     char* last_slash_ptr = strrchr(fpath, '/');
     if (last_slash_ptr == null) {
         return fpath;
@@ -330,3 +337,5 @@ char* aria_notdir(char* fpath) {
 ///// MISC /////
 #define COMBINE1(X, Y) X##Y
 #define COMBINE(X,Y) COMBINE1(X,Y)
+
+#include <bigint.c>

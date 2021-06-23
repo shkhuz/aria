@@ -188,7 +188,23 @@ int main(int argc, char* argv[]) {
 
     {
         printf(":: ULLONG_MAX: %llu\n", ULLONG_MAX);
+
+		u8* buf__1 = null;
+		buf_fit(buf__1, 8);
+		assert(buf_cap(buf__1) >= 8);
     }
+
+	
+		BigInt a;
+		bigint_init_unsigned(&a, ULLONG_MAX);
+
+		BigInt c;
+		bigint_init(&c);
+
+		for (size_t ii = 0; ii < 10000; ii++) {
+			_bigint_add(&a, &c, &c);
+		}
+	
     ///// TESTS END /////   
 
     init_primitive_types();
