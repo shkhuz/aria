@@ -182,29 +182,79 @@ int main(int argc, char* argv[]) {
     }
 
     {
-        alloc_with_type(i, u8);
-        free(i);    
+        alloc_with_type(alloc_with_type_test, u8);
+        free(alloc_with_type_test);
+
+        // zero_memory()
+        u8* buf = malloc(17 * sizeof(u8));
+        for (size_t i = 0; i < 16; i++) {
+            buf[i] = 0xaa;
+        }
+        buf[16] = 0xaa;
+        zero_memory(buf, 16);
+        for (size_t i = 0; i < 16; i++) {
+            assert(buf[i] == 0);
+        }
+        assert(buf[16] == 0xaa);
     }
 
     {
         printf(":: ULLONG_MAX: %llu\n", ULLONG_MAX);
+        printf(":: INT32_MAX:  %lu\n", (u64)INT32_MAX);
+        printf(":: INT32_MIN:  %ld\n", (i64)INT32_MIN);
+        printf(":: UINT32_MAX: %lu\n", (u64)UINT32_MAX);
+        assert(sizeof_in_bits(u64) == 64);
+        assert(sizeof_in_bits(u32) == 32);
+        assert(sizeof_in_bits(u16) == 16);
+        assert(sizeof_in_bits(u8) == 8);
+        assert(sizeof_in_bits(i64) == 64);
+        assert(sizeof_in_bits(i32) == 32);
+        assert(sizeof_in_bits(i16) == 16);
+        assert(sizeof_in_bits(i8) == 8);
 
 		u8* buf__1 = null;
 		buf_fit(buf__1, 8);
 		assert(buf_cap(buf__1) >= 8);
     }
 
-	
-		BigInt a;
-		bigint_init_unsigned(&a, ULLONG_MAX);
+    {
+        bigint b;
+        bigint_init(&b);
 
-		BigInt c;
+        bigint_set_u64(&b, UINT64_MAX);
+        bigint_mul(&b, &b, &b);
+        assert(!bigint_fits_u64(&b));
+
+        bigint_set_u64(&b, ((u64)UINT8_MAX));
+        assert(bigint_fits_u8(&b));
+        bigint_set_u64(&b, ((u64)UINT8_MAX)+1);
+        assert(!bigint_fits_u8(&b));
+
+        bigint_set_i64(&b, ((i64)INT8_MAX));
+        assert(bigint_fits_i8(&b));
+        bigint_set_i64(&b, ((i64)INT8_MIN));
+        assert(bigint_fits_i8(&b));
+
+        bigint_set_i64(&b, ((i64)INT8_MAX)+1);
+        assert(!bigint_fits_i8(&b));
+        bigint_set_i64(&b, ((i64)INT8_MIN)-1);
+        assert(!bigint_fits_i8(&b));
+    }
+
+		bigint a;
+        bigint_init_u64(&a, 5);
+        
+        bigint b;
+        bigint_init_i64(&b, 11);
+
+		bigint c;
 		bigint_init(&c);
+        bigint_mul(&a, &b, &c);
 
-		for (size_t ii = 0; ii < 10000; ii++) {
-			_bigint_add(&a, &c, &c);
-		}
-	
+        bigint d;
+        bigint_init_i64(&d, (((i64)INT8_MIN)));
+        printf("fits: %u\n", bigint_fits_i8(&d));
+
     ///// TESTS END /////   
 
     init_primitive_types();

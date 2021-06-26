@@ -26,11 +26,13 @@ typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
+typedef u64 u128 __attribute__((mode(TI)));
 
 typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
+typedef i64 i128 __attribute__((mode(TI)));
 
 #define null (void*)0
 
@@ -50,11 +52,10 @@ int round_to_next_multiple(int n, int multiple) {
 	return n + multiple - remainder;
 }
 
-int get_bits_for_value(u64 n) {
-	int count = 0;
-	u64 val = n;
-	while (val > 0) {
-		val = val >> 1;
+size_t get_bits_for_value(u128 n) {
+	size_t count = 0;
+	while (n > 0) {
+		n = n >> 1;
 		count++;
 	}
 	return count;
@@ -332,7 +333,10 @@ char* aria_notdir(char* fpath) {
 
 ///// MEMORY /////
 #define alloc_with_type(name, type) type* name = malloc(sizeof(type));
+#define zero_memory(mem, count) (memset(mem, 0, count * sizeof(*mem)))
 #define stack_arr_len(arr) (sizeof(arr) / sizeof(*arr))
+#define sizeof_in_bits(x) ((size_t)8 * sizeof(x))
+#define swap_vars(t, a, b) do { t _c = a; a = b; b = _c; } while (0)
 
 ///// MISC /////
 #define COMBINE1(X, Y) X##Y
