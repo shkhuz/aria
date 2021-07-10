@@ -136,9 +136,11 @@ void lexer_lex(Lexer* self) {
             case '0': case '1': case '2': case '3': case '4':
             case '5': case '6': case '7': case '8': case '9':
             {
-                int base = 10;
-                u64 val = 0;
-                bool overflow = false;
+                alloc_with_type(base, bigint);
+                bigint_init_u64(base, 10);
+                alloc_with_type(val, bigint);
+                bigint_init(val);
+
                 while (isdigit(*self->current) || *self->current == '_') {
                     if (*self->current == '_' && 
                         !isdigit(*(self->current+1))) {
@@ -147,36 +149,25 @@ void lexer_lex(Lexer* self) {
 
                     if (*self->current != '_') {
                         int digit = lexer_char_to_digit(*self->current);
-                        if (val > (ULLONG_MAX - digit) / base) {
-                            overflow = true;
-                        }
-                        val = val * base + digit;
+                        alloc_with_type(digit_bi, bigint);
+                        bigint_init_u64(digit_bi, (u64)digit);
+
+                        bigint_mul(val, base, val);
+                        bigint_add(val, digit_bi, val);
+                        /* val = val * base + digit; */
+
+                        bigint_clear(digit_bi);
+                        free(digit_bi);
                     }
                     self->current++;
                 }
 
-                if (overflow) {
-                    lexer_error_from_start_to_current(
-                            self,
-                            "integer overflow");
-                } else {
-                    int bits = round_to_next_multiple(
-                            get_bits_for_value(val), 
-                            8);
-                    TokenKind kind;
-                    switch (bits) {
-                        case 8: kind = TOKEN_KIND_NUMBER_8; break;
-                        case 16: kind = TOKEN_KIND_NUMBER_16; break;
-                        case 24:
-                        case 32: kind = TOKEN_KIND_NUMBER_32; break;
-                        case 40:
-                        case 48:
-                        case 56:
-                        case 64: kind = TOKEN_KIND_NUMBER_64; break;
-                        default: assert(0); break;
-                    }
-                    lexer_push_tok_by_type(self, kind);
-                }
+                lexer_push_tok_by_type(self, TOKEN_KIND_NUMBER);
+                self->srcfile->tokens[buf_len(self->srcfile->tokens)-1]
+                    ->number.val = val;
+
+                bigint_clear(base);
+                free(base);
             } break;
 
             case '@':

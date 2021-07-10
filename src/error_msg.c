@@ -126,31 +126,6 @@ void vmsg_user(
     va_end(aq);
 }
 
-void stderr_print_type(Node* type) {
-    switch (type->kind) {
-        case NODE_KIND_TYPE_PRIMITIVE:
-        {
-            fprintf(stderr,
-                    "%s",
-                    primitive_type_kind_to_str(type->type_primitive.kind));
-        } break;
-
-        case NODE_KIND_TYPE_CUSTOM:
-        {
-            fprintf(
-                    stderr, 
-                    "%s", 
-                    type->type_custom.symbol->symbol.identifier->lexeme);
-        } break;
-
-        case NODE_KIND_TYPE_PTR:
-        {
-            fprintf(stderr, "*");
-            stderr_print_type(type->type_ptr.right);
-        } break;
-    }
-}
-
 void msg_user_type_mismatch(
         MsgKind kind,
         SrcFile* srcfile,

@@ -39,10 +39,7 @@ typedef enum {
     TOKEN_KIND_KEYWORD,
     TOKEN_KIND_DIRECTIVE,
     TOKEN_KIND_STRING,
-    TOKEN_KIND_NUMBER_8,
-    TOKEN_KIND_NUMBER_16,
-    TOKEN_KIND_NUMBER_32,
-    TOKEN_KIND_NUMBER_64,
+    TOKEN_KIND_NUMBER,
     TOKEN_KIND_LPAREN,
     TOKEN_KIND_RPAREN,
     TOKEN_KIND_LBRACE,
@@ -66,6 +63,11 @@ typedef struct {
     char* lexeme, *start, *end;
     SrcFile* srcfile;
     u64 line, column, char_count;
+    union {
+        struct {
+            bigint* val;
+        } number;
+    };
 } Token;
 
 Token* token_alloc(
@@ -78,16 +80,14 @@ Token* token_alloc(
         u64 column,
         u64 char_count) {
     alloc_with_type(token, Token);
-    *token = (Token) {
-        kind,
-        lexeme,
-        start,
-        end,
-        srcfile,
-        line,
-        column,
-        char_count
-    };
+    token->kind = kind;
+    token->lexeme = lexeme;
+    token->start = start;
+    token->end = end;
+    token->srcfile = srcfile;
+    token->line = line;
+    token->column = column;
+    token->char_count = char_count;
     return token;
 }
 
@@ -109,6 +109,7 @@ typedef enum {
     NODE_KIND_PROCEDURE_CALL,
     NODE_KIND_BLOCK,
     NODE_KIND_PARAM,
+    NODE_KIND_UNARY,
     NODE_KIND_EXPR_STMT,
     NODE_KIND_VARIABLE_DECL,
     NODE_KIND_PROCEDURE_DECL,
@@ -122,6 +123,7 @@ struct Node {
     union {
         struct {
             Token* number;
+            bigint* val;
         } number;
 
         struct {
@@ -157,6 +159,12 @@ struct Node {
         } block;
 
         struct {
+            Token* op;
+            Node* right;
+            bigint* val;
+        } unary;
+
+        struct {
             Token* identifier;
             Node* type;
         } param;
@@ -189,6 +197,7 @@ Node* node_number_new(
     node->kind = NODE_KIND_NUMBER;
     node->head = number;
     node->number.number = number;
+    node->number.val = number->number.val;
     node->tail = number;
     return node;
 }
@@ -274,6 +283,20 @@ Node* node_param_new(
     return node;
 }
 
+Node* node_expr_unary_new(
+        Token* op,
+        Node* right) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_UNARY;
+    node->head = op;
+    node->unary.op = op;
+    node->unary.right = right;
+    alloc_with_type_no_decl(node->unary.val, bigint);
+    bigint_init(node->unary.val);
+    node->tail = right->tail;
+    return node;
+}
+
 Node* node_expr_stmt_new(
         Node* expr,
         Token* tail) {
@@ -336,6 +359,7 @@ Token* node_get_identifier(Node* node, bool assert_on_erroneous_node) {
 		case NODE_KIND_TYPE_PTR:
         case NODE_KIND_BLOCK:
         case NODE_KIND_NUMBER:
+        case NODE_KIND_UNARY:
         // TODO: check if these expressions should 
         // return an identifier...
         case NODE_KIND_SYMBOL:
@@ -356,6 +380,28 @@ Token* node_get_identifier(Node* node, bool assert_on_erroneous_node) {
     return null;
 }
 
+/* char* node_to_str(Node* node) { */
+/*     char* buf = null; */
+/*     switch (node->kind) { */
+/*         case NODE_KIND_NUMBER: */
+/*         { */
+/*             buf_write(buf, node->number.number->lexeme); */
+/*         } break; */
+
+/*         case NODE_KIND_UNARY: */
+/*         { */
+/*             buf_write(buf, node->unary.op->lexeme); */
+/*             char* right = node_to_str(node->unary.right); */
+/*             buf_write(buf, right); */
+/*             buf_free(right); */
+/*         } break; */
+
+/*         default: assert(0); break; */
+/*     } */
+/*     buf_push(buf, '\0'); */
+/*     return buf; */
+/* } */
+
 Node* node_get_type(Node* node, bool assert_on_erroneous_node) {
     switch (node->kind) {
         case NODE_KIND_EXPR_STMT:
@@ -366,6 +412,7 @@ Node* node_get_type(Node* node, bool assert_on_erroneous_node) {
         case NODE_KIND_TYPE_PTR:
         case NODE_KIND_BLOCK:
         case NODE_KIND_NUMBER:
+        case NODE_KIND_UNARY:
         case NODE_KIND_PROCEDURE_CALL:
         {
             if (assert_on_erroneous_node) {
@@ -381,6 +428,24 @@ Node* node_get_type(Node* node, bool assert_on_erroneous_node) {
             return node->procedure_decl.type;
         case NODE_KIND_SYMBOL:
             return node_get_type(node->symbol.ref, true);
+    }
+    return null;
+}
+
+const bigint* node_get_val_number(Node* node) {
+    switch (node->kind) {
+        case NODE_KIND_NUMBER:
+            return (const bigint*)node->number.val;
+        case NODE_KIND_UNARY:
+        {
+            if (node->unary.op->kind == TOKEN_KIND_MINUS) {
+                return (const bigint*)node->unary.val;
+            } else {
+                assert(0);
+            }
+        } break;
+
+        default: assert(0); break;
     }
     return null;
 }
@@ -451,6 +516,61 @@ int primitive_type_size(TypePrimitiveKind kind) {
     }
     assert(0);
     return 0;
+}
+
+bool primitive_type_is_signed(TypePrimitiveKind kind) {
+    switch (kind) {
+        case TYPE_PRIMITIVE_KIND_U8:
+        case TYPE_PRIMITIVE_KIND_U16:
+        case TYPE_PRIMITIVE_KIND_U32:
+        case TYPE_PRIMITIVE_KIND_U64:
+        case TYPE_PRIMITIVE_KIND_USIZE: return false;
+
+        case TYPE_PRIMITIVE_KIND_I8:
+        case TYPE_PRIMITIVE_KIND_I16:
+        case TYPE_PRIMITIVE_KIND_I32:
+        case TYPE_PRIMITIVE_KIND_I64:
+        case TYPE_PRIMITIVE_KIND_ISIZE: return true;
+
+        case TYPE_PRIMITIVE_KIND_VOID: 
+        case TYPE_PRIMITIVE_KIND_NONE: assert(0); break;
+    }
+    return false;
+}
+
+char* type_to_str(Node* type) {
+    char* buf = null;
+    switch (type->kind) {
+        case NODE_KIND_TYPE_PRIMITIVE:
+        {
+            buf_write(
+                    buf, 
+                    primitive_type_kind_to_str(type->type_primitive.kind));
+        } break;
+
+        case NODE_KIND_TYPE_CUSTOM:
+        {
+            buf_write(
+                    buf, 
+                    type->type_custom.symbol->symbol.identifier->lexeme);
+        } break;
+
+        case NODE_KIND_TYPE_PTR:
+        {
+            buf_push(buf, '*');
+            buf_write(
+                    buf, 
+                    type_to_str(type->type_ptr.right));
+        } break;
+
+        default: assert(0); break;
+    }
+    buf_push(buf, '\0');
+    return buf;
+}
+
+void stderr_print_type(Node* type) {
+    fprintf(stderr, "%s", type_to_str(type));
 }
 
 int type_get_size_bytes(Node* type) {

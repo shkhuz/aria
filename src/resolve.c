@@ -143,6 +143,10 @@ void resolver_symbol(Resolver* self, Node* node) {
     node->symbol.ref = resolver_assert_in_scope(self, node);
 }
 
+void resolver_expr_unary(Resolver* self, Node* node) {
+    resolver_node(self, node->unary.right, false);
+}
+
 void resolver_block(Resolver* self, Node* node, bool create_new_scope) {
     Scope* scope = null;
     if (create_new_scope) {
@@ -253,6 +257,7 @@ void resolver_pre_decl_node(
         case NODE_KIND_TYPE_CUSTOM:
         case NODE_KIND_TYPE_PTR:
         case NODE_KIND_SYMBOL:
+        case NODE_KIND_UNARY:
         case NODE_KIND_PROCEDURE_CALL:
         {
             assert(0);
@@ -331,6 +336,11 @@ void resolver_node(
         case NODE_KIND_SYMBOL:
         {
             resolver_symbol(self, node);
+        } break;
+
+        case NODE_KIND_UNARY:
+        {
+            resolver_expr_unary(self, node);
         } break;
 
         case NODE_KIND_BLOCK:

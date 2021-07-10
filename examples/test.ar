@@ -27,8 +27,8 @@
 
 // CODE GENERATOR TEST
 proc main() {
-    code_me(1000000, 2, 4);
+    code_me(--128, 2, -----128);
 }
 
-proc code_me(a: i8, b: usize, c: u32) {
+proc code_me(a: u8, b: usize, c: i8) {
 }

@@ -203,10 +203,7 @@ Node* parser_expr_atom(Parser* self) {
         } else {
             return symbol;
         }
-    } else if (parser_match_token(self, TOKEN_KIND_NUMBER_8) ||
-               parser_match_token(self, TOKEN_KIND_NUMBER_16) ||
-               parser_match_token(self, TOKEN_KIND_NUMBER_32) ||
-               parser_match_token(self, TOKEN_KIND_NUMBER_64)) {
+    } else if (parser_match_token(self, TOKEN_KIND_NUMBER)) {
         return node_number_new(parser_previous(self));
     } else if (parser_match_token(self, TOKEN_KIND_LBRACE)) {
         return parser_block(self, parser_previous(self));
@@ -219,8 +216,17 @@ Node* parser_expr_atom(Parser* self) {
     return null;
 }
 
-Node* parser_expr(Parser* self) {
+Node* parser_expr_unary(Parser* self) {
+    if (parser_match_token(self, TOKEN_KIND_MINUS)) {
+        Token* op = parser_previous(self);
+        Node* right = parser_expr_unary(self);
+        return node_expr_unary_new(op, right);
+    }
     return parser_expr_atom(self);
+}
+
+Node* parser_expr(Parser* self) {
+    return parser_expr_unary(self);
 }
 
 Node* parser_expr_stmt(Parser* self) {

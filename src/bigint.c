@@ -126,7 +126,9 @@ bigint_err bigint_copy(const bigint* a, bigint* b) {
     }
 
     _bigint_copy_digits(b->d, a->d, a->used);
-    _bigint_zero_digits(b->d + a->used, b->used - a->used);
+    if (b->used > a->used) {
+        _bigint_zero_digits(b->d + a->used, b->used - a->used);
+    }
     b->used = a->used;
     b->sign = a->sign;
     return BIGINT_ERR_OKAY;

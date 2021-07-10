@@ -4,7 +4,7 @@ typedef struct {
     int local_vars_bytes;
 } Analyzer;
 
-Node* analyzer_expr(Analyzer* self, Node* node);
+Node* analyzer_expr(Analyzer* self, Node* node, Node* cast_to_type);
 void analyzer_stmt(Analyzer* self, Node* node);
 
 Node* get_inner_type(Node* type) {
@@ -30,7 +30,9 @@ bool implicit_cast(Node* from, Node* to) {
             }
         } else if (from->kind == NODE_KIND_TYPE_PRIMITIVE) {
             if (primitive_type_size(from->type_primitive.kind) >
-                primitive_type_size(to->type_primitive.kind)) {
+                primitive_type_size(to->type_primitive.kind) ||
+                primitive_type_is_signed(from->type_primitive.kind) != 
+                primitive_type_is_signed(to->type_primitive.kind)) {
                 return false;
             }
             return true;
@@ -44,27 +46,121 @@ bool implicit_cast(Node* from, Node* to) {
     return false;
 }
 
-Node* analyzer_number(Analyzer* self, Node* node) {
-    switch (node->number.number->kind) {
-        case TOKEN_KIND_NUMBER_8:
-            return primitive_type_placeholders.u8;
-        case TOKEN_KIND_NUMBER_16:
-            return primitive_type_placeholders.u16;
-        case TOKEN_KIND_NUMBER_32:
-            return primitive_type_placeholders.u32;
-        case TOKEN_KIND_NUMBER_64:
-            return primitive_type_placeholders.u64;
-        default:
-        {
-            assert(0);
-        } break;
+bool analyzer_bigint_fits(bigint* a, TypePrimitiveKind kind) {
+    switch (kind) {
+        case TYPE_PRIMITIVE_KIND_U8:
+            return bigint_fits_u8(a);
+        case TYPE_PRIMITIVE_KIND_U16:
+            return bigint_fits_u16(a);
+        case TYPE_PRIMITIVE_KIND_U32:
+            return bigint_fits_u32(a);
+        case TYPE_PRIMITIVE_KIND_U64:
+            return bigint_fits_u64(a);
+        case TYPE_PRIMITIVE_KIND_USIZE:
+            return bigint_fits_u64(a);
+
+        case TYPE_PRIMITIVE_KIND_I8:
+            return bigint_fits_i8(a);
+        case TYPE_PRIMITIVE_KIND_I16:
+            return bigint_fits_i16(a);
+        case TYPE_PRIMITIVE_KIND_I32:
+            return bigint_fits_i32(a);
+        case TYPE_PRIMITIVE_KIND_I64:
+            return bigint_fits_i64(a);
+        case TYPE_PRIMITIVE_KIND_ISIZE:
+            return bigint_fits_i64(a);
+
+        case TYPE_PRIMITIVE_KIND_VOID: 
+        case TYPE_PRIMITIVE_KIND_NONE: assert(0); break;
+    }
+    return false;
+}
+
+Node* analyzer_get_largest_type_for_bigint(
+        Analyzer* self, 
+        bigint* val, 
+        Node* node,
+        Node* cast_to_type) {
+    if (cast_to_type && 
+        cast_to_type->kind == NODE_KIND_TYPE_PRIMITIVE &&
+        analyzer_bigint_fits(val, cast_to_type->type_primitive.kind)) {
+        return cast_to_type;
+    } else if (cast_to_type && 
+        cast_to_type->kind == NODE_KIND_TYPE_PRIMITIVE) {
+        char* cast_to_type_str = type_to_str(cast_to_type);
+        error_node(
+                node,
+                "cannot convert to `" ANSI_FCYAN "%s" ANSI_RESET "`",
+                cast_to_type_str);
+        return null;
+        buf_free(cast_to_type);
+    }
+
+    if (bigint_fits_u8(val)) {
+        return primitive_type_placeholders.u8;
+    } else if (bigint_fits_i8(val)) {
+        return primitive_type_placeholders.i8;
+    } else if (bigint_fits_u16(val)) {
+        return primitive_type_placeholders.u16;
+    } else if (bigint_fits_i16(val)) {
+        return primitive_type_placeholders.i16;
+    } else if (bigint_fits_u32(val)) {
+        return primitive_type_placeholders.u32;
+    } else if (bigint_fits_i32(val)) {
+        return primitive_type_placeholders.i32;
+    } else if (bigint_fits_u64(val)) {
+        return primitive_type_placeholders.u64;
+    } else if (bigint_fits_i64(val)) {
+        return primitive_type_placeholders.i64;
+    } else {
+        error_node(
+                node,
+                "integer overflow");
     }
     return null;
+}
+
+Node* analyzer_number(Analyzer* self, Node* node, Node* cast_to_type) {
+    /* switch (node->number.number->kind) { */
+    /*     case TOKEN_KIND_NUMBER_8: */
+    /*     case TOKEN_KIND_NUMBER_16: */
+    /*     case TOKEN_KIND_NUMBER_32: */
+    /*         return primitive_type_placeholders.u32; */
+    /*     case TOKEN_KIND_NUMBER_64: */
+    /*         return primitive_type_placeholders.u64; */
+    /*     default: */
+    /*     { */
+    /*         assert(0); */
+    /*     } break; */
+    /* } */
+    return analyzer_get_largest_type_for_bigint(
+            self, 
+            node->number.val, 
+            node, 
+            cast_to_type);
 }
 
 Node* analyzer_symbol(Analyzer* self, Node* node) {
     assert(node->symbol.ref);
     return node_get_type(node, true);
+}
+
+Node* analyzer_expr_unary(Analyzer* self, Node* node, Node* cast_to_type) {
+    if (node->unary.op->kind == TOKEN_KIND_MINUS) {
+        const bigint* val = null;
+        analyzer_expr(self, node->unary.right, null);
+        if ((val = node_get_val_number(node->unary.right))) {
+            bigint_neg(val, node->unary.val);
+            return analyzer_get_largest_type_for_bigint(
+                    self, 
+                    node->unary.val, 
+                    node,
+                    cast_to_type);
+        } else {
+            return analyzer_expr(self, node->unary.right, cast_to_type);
+        }
+    }
+    return null;
 }
 
 Node* analyzer_procedure_call(Analyzer* self, Node* node) {
@@ -73,7 +169,7 @@ Node* analyzer_procedure_call(Analyzer* self, Node* node) {
     Node** params = 
         node->procedure_call.callee->symbol.ref->procedure_decl.params;
     u64 param_len = buf_len(params);
-    Node* return_type = analyzer_expr(self, node->procedure_call.callee);
+    Node* return_type = analyzer_expr(self, node->procedure_call.callee, null);
 
     if (arg_len != param_len) {
         if (arg_len < param_len) {
@@ -92,8 +188,8 @@ Node* analyzer_procedure_call(Analyzer* self, Node* node) {
     }
 
     buf_loop(args, i) {
-        Node* arg_type = analyzer_expr(self, args[i]);
         Node* param_type = params[i]->param.type;
+        Node* arg_type = analyzer_expr(self, args[i], param_type);
         if (arg_type && param_type && 
                 !implicit_cast(
                     arg_type, 
@@ -118,12 +214,14 @@ Node* analyzer_block(Analyzer* self, Node* node) {
     return null;
 }
 
-Node* analyzer_expr(Analyzer* self, Node* node) {
+Node* analyzer_expr(Analyzer* self, Node* node, Node* cast_to_type) {
     switch (node->kind) {
         case NODE_KIND_NUMBER:
-            return analyzer_number(self, node);
+            return analyzer_number(self, node, cast_to_type);
         case NODE_KIND_SYMBOL:
             return analyzer_symbol(self, node);
+        case NODE_KIND_UNARY:
+            return analyzer_expr_unary(self, node, cast_to_type);
         case NODE_KIND_PROCEDURE_CALL:
             return analyzer_procedure_call(self, node);
         case NODE_KIND_BLOCK: 
@@ -143,8 +241,10 @@ Node* analyzer_expr(Analyzer* self, Node* node) {
 void analyzer_variable_decl(Analyzer* self, Node* node) {
     if (node->variable_decl.type && node->variable_decl.initializer) {
         Node* annotated_type = node->variable_decl.type;
-        Node* initializer_type = 
-            analyzer_expr(self, node->variable_decl.initializer);
+        Node* initializer_type = analyzer_expr(
+                self, 
+                node->variable_decl.initializer, 
+                annotated_type);
 
         if (annotated_type && initializer_type && 
                 !implicit_cast(
@@ -159,7 +259,7 @@ void analyzer_variable_decl(Analyzer* self, Node* node) {
 
     if (node->variable_decl.initializer) {
         node->variable_decl.type = 
-            analyzer_expr(self, node->variable_decl.initializer);
+            analyzer_expr(self, node->variable_decl.initializer, null);
         if (!node->variable_decl.type) return;
     }
 
@@ -189,7 +289,7 @@ void analyzer_stmt(Analyzer* self, Node* node) {
 
         case NODE_KIND_EXPR_STMT: 
         {
-            analyzer_expr(self, node->expr_stmt.expr);
+            analyzer_expr(self, node->expr_stmt.expr, null);
         } break;
     }
 }

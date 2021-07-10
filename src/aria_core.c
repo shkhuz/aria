@@ -332,7 +332,8 @@ char* aria_notdir(char* fpath) {
 }   
 
 ///// MEMORY /////
-#define alloc_with_type(name, type) type* name = malloc(sizeof(type));
+#define alloc_with_type(name, type) type* name = malloc(sizeof(type))
+#define alloc_with_type_no_decl(name, type) name = malloc(sizeof(type))
 #define zero_memory(mem, count) (memset(mem, 0, count * sizeof(*mem)))
 #define stack_arr_len(arr) (sizeof(arr) / sizeof(*arr))
 #define sizeof_in_bits(x) ((size_t)8 * sizeof(x))
