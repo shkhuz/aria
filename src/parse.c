@@ -242,12 +242,7 @@ Node* parser_expr_stmt(Parser* self) {
     return node_expr_stmt_new(node, tail);
 }
 
-Node* parser_variable_decl(Parser* self, Token* keyword) {
-    bool mut = false;
-    if (parser_match_keyword(self, "mut")) {
-        mut = true;
-    }
-    
+Node* parser_variable_decl(Parser* self, Token* keyword, bool constant) {
     Token* identifier = 
         parser_expect_identifier(self, "expected variable name, got `%s`");
 
@@ -264,7 +259,7 @@ Node* parser_variable_decl(Parser* self, Token* keyword) {
     Token* semicolon = parser_expect_semicolon(self);
     return node_variable_decl_new(
             keyword, 
-            mut, 
+            constant, 
             identifier, 
             type, 
             initializer,
@@ -313,7 +308,9 @@ Node* parser_top_level_node(Parser* self, bool error_on_no_match) {
     if (parser_match_keyword(self, PROCEDURE_DECL_KEYWORD)) {
         return parser_procedure_decl(self, parser_previous(self));
     } else if (parser_match_keyword(self, VARIABLE_DECL_KEYWORD)) {
-        return parser_variable_decl(self, parser_previous(self));
+        return parser_variable_decl(self, parser_previous(self), false);
+    } else if (parser_match_keyword(self, CONSTANT_DECL_KEYWORD)) {
+        return parser_variable_decl(self, parser_previous(self), true);
     } else {
         if (error_on_no_match) {
             fatal_error_token(
@@ -330,8 +327,10 @@ Node* parser_top_level_node(Parser* self, bool error_on_no_match) {
 
 Node* parser_procedure_level_node(Parser* self) {
     if (parser_match_keyword(self, VARIABLE_DECL_KEYWORD)) {
-        return parser_variable_decl(self, parser_previous(self));
-    } 
+        return parser_variable_decl(self, parser_previous(self), false);
+    } else if (parser_match_keyword(self, CONSTANT_DECL_KEYWORD)) {
+        return parser_variable_decl(self, parser_previous(self), true);
+    }
     return parser_expr_stmt(self);
 }
 

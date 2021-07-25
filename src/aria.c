@@ -3,14 +3,14 @@ typedef struct SrcFile SrcFile;
 
 #define PROCEDURE_DECL_KEYWORD "proc"
 #define VARIABLE_DECL_KEYWORD "let"
+#define CONSTANT_DECL_KEYWORD "const"
 
 char* keywords[] = {
     "module",
     "struct",
     PROCEDURE_DECL_KEYWORD,
     VARIABLE_DECL_KEYWORD,
-    "mut",
-    "const",
+    CONSTANT_DECL_KEYWORD,
 };
 
 char* directives[] = {
@@ -174,7 +174,7 @@ struct Node {
         } expr_stmt;
 
         struct {
-            bool mut;
+            bool constant;
             Token* identifier;
             Node* type;
             Node* initializer;
@@ -330,7 +330,7 @@ Node* node_procedure_decl_new(
 
 Node* node_variable_decl_new(
         Token* keyword,
-        bool mut, 
+        bool constant, 
         Token* identifier,
         Node* type,
         Node* initializer,
@@ -339,7 +339,7 @@ Node* node_variable_decl_new(
     alloc_with_type(node, Node);
     node->kind = NODE_KIND_VARIABLE_DECL;
     node->head = keyword;
-    node->variable_decl.mut = mut;
+    node->variable_decl.constant = constant;
     node->variable_decl.identifier = identifier;
     node->variable_decl.type = type;
     node->variable_decl.initializer = initializer;
