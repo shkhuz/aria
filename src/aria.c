@@ -8,13 +8,13 @@ typedef struct SrcFile SrcFile;
 char* keywords[] = {
     "module",
     "struct",
+    "import",
     PROCEDURE_DECL_KEYWORD,
     VARIABLE_DECL_KEYWORD,
     CONSTANT_DECL_KEYWORD,
 };
 
 char* directives[] = {
-    "@import",
 };
 
 typedef enum {
@@ -113,6 +113,7 @@ typedef enum {
     NODE_KIND_EXPR_STMT,
     NODE_KIND_VARIABLE_DECL,
     NODE_KIND_PROCEDURE_DECL,
+    NODE_KIND_IMPLICIT_MODULE,
 } NodeKind;
 
 struct Node {
@@ -188,6 +189,13 @@ struct Node {
             Node* body;
             int local_vars_bytes;
         } procedure_decl;
+
+        struct {
+            Token* identifier;
+            char* filename;
+            char* file_path;
+            SrcFile* srcfile;
+        } implicit_module;
     };
 };
 
@@ -328,6 +336,21 @@ Node* node_procedure_decl_new(
     return node;
 }
 
+Node* node_implicit_module_new(
+        Token* keyword,
+        Token* identifier,
+        char* filename,
+        char* file_path) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_IMPLICIT_MODULE;
+    node->head = keyword;
+    node->implicit_module.identifier = identifier;
+    node->implicit_module.filename = filename;
+    node->implicit_module.file_path = file_path;
+    node->tail = identifier;
+    return node;
+}
+
 Node* node_variable_decl_new(
         Token* keyword,
         bool constant, 
@@ -360,6 +383,7 @@ Token* node_get_identifier(Node* node, bool assert_on_erroneous_node) {
         case NODE_KIND_BLOCK:
         case NODE_KIND_NUMBER:
         case NODE_KIND_UNARY:
+        case NODE_KIND_IMPLICIT_MODULE:
         // TODO: check if these expressions should 
         // return an identifier...
         case NODE_KIND_SYMBOL:
@@ -405,6 +429,7 @@ Token* node_get_identifier(Node* node, bool assert_on_erroneous_node) {
 Node* node_get_type(Node* node, bool assert_on_erroneous_node) {
     switch (node->kind) {
         case NODE_KIND_EXPR_STMT:
+        case NODE_KIND_IMPLICIT_MODULE:
         // TODO: check if these expressions should 
         // return a type...
         case NODE_KIND_TYPE_PRIMITIVE:

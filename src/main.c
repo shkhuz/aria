@@ -301,50 +301,50 @@ int main(int argc, char* argv[]) {
         terminate_compilation();
     }
 
-    /* bool import_files_error = false; */
-    /* buf_loop(srcfiles, s) { */
-    /*  buf_loop(srcfiles[s]->stmts, i) { */
-    /*      if (srcfiles[s]->stmts[i]->ty == ST_IMPORTED_NAMESPACE) { */
-    /*          bool parsed = false; */
-    /*          buf_loop(srcfiles, ss) { */
-    /*              if (stri(srcfiles[s]->stmts[i]->imported_namespace.fpath) == stri(srcfiles[ss]->contents->fpath)) { */
-    /*                  srcfiles[s]->stmts[i]->imported_namespace.srcfile = srcfiles[ss]; */
-    /*                  parsed = true; */
-    /*                  break; */
-    /*              } */
-    /*          } */
+    bool import_files_error = false;
+    buf_loop(srcfiles, s) {
+        buf_loop(srcfiles[s]->nodes, i) {
+            if (srcfiles[s]->nodes[i]->kind == NODE_KIND_IMPLICIT_MODULE) {
+                bool parsed = false;
+                buf_loop(srcfiles, ss) {
+                    if (stri(srcfiles[s]->nodes[i]->implicit_module.file_path) == stri(srcfiles[ss]->contents->fpath)) {
+                        srcfiles[s]->nodes[i]->implicit_module.srcfile = srcfiles[ss];
+                        parsed = true;
+                        break;
+                    }
+                }
 
-    /*          if (parsed) { */
-    /*              continue; */
-    /*          } */
+                if (parsed) {
+                    continue;
+                }
 
-    /*          Token* import = srcfiles[s]->stmts[i]->ident; */
-    /*          SrcFile* srcfile = read_srcfile_or_error( */
-    /*                  srcfiles[s]->stmts[i]->imported_namespace.fpath, */
-    /*                  MSG_KIND_ERR, */
-    /*                  import->srcfile, */
-    /*                  import->line, */
-    /*                  import->column, */
-    /*                  import->char_count); */
-    /*          if (!srcfile) { */
-    /*              import_files_error = true; */
-    /*              continue; */
-    /*          } */
-    /*          srcfiles[s]->stmts[i]->imported_namespace.srcfile = srcfile; */
+                Token* import = srcfiles[s]->nodes[i]->implicit_module.identifier;
+                SrcFile* srcfile = read_srcfile_or_error(
+                        srcfiles[s]->nodes[i]->implicit_module.file_path,
+                        MSG_KIND_ERR,
+                        import->srcfile,
+                        import->line,
+                        import->column,
+                        import->char_count);
+                if (!srcfile) {
+                    import_files_error = true;
+                    continue;
+                }
+                srcfiles[s]->nodes[i]->implicit_module.srcfile = srcfile;
 
-    /*          bool current_import_file_error = parse_srcfile(srcfile); */
-    /*          if (!current_import_file_error) { */
-    /*              buf_push(srcfiles, srcfile); */
-    /*          } else { */
-    /*              import_files_error = true; */
-    /*          } */
-    /*      } */
-    /*  } */
-    /* } */
+                bool current_import_file_error = parse_srcfile(srcfile);
+                if (!current_import_file_error) {
+                    buf_push(srcfiles, srcfile);
+                } else {
+                    import_files_error = true;
+                }
+            }
+        }
+    }
 
-    /* if (import_files_error) { */
-    /*  terminate_compilation(); */
-    /* } */
+    if (import_files_error) {
+        terminate_compilation();
+    }
 
     bool resolving_error = resolve_srcfiles(srcfiles);
     if (resolving_error) {

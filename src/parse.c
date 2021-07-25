@@ -305,7 +305,41 @@ Node* parser_procedure_decl(Parser* self, Token* keyword) {
 }
 
 Node* parser_top_level_node(Parser* self, bool error_on_no_match) {
-    if (parser_match_keyword(self, PROCEDURE_DECL_KEYWORD)) {
+    if (parser_match_keyword(self, "import")) {
+        Token* import_keyword = parser_previous(self);
+        if (!parser_match_token(self, TOKEN_KIND_IDENTIFIER)) {
+            fatal_error_token(
+                    parser_current(self),
+                    "expected module name");
+        }
+        Token* import_module_token = parser_previous(self);
+        // relative to this file
+        char* import_filename = aria_strapp(
+                stri(import_module_token->lexeme),
+                ".ar");
+        parser_expect_semicolon(self);
+
+        char* current_file_path = stri(self->srcfile->contents->fpath);
+        char* last_slash_ptr = strrchr(current_file_path, '/');
+        uint last_slash_idx = 0;
+        if (last_slash_ptr) {
+            last_slash_idx = last_slash_ptr - current_file_path;
+        }
+
+        char* current_dir_path = aria_strsub(
+                current_file_path,
+                0,
+                (last_slash_idx == 0 ? 0 : last_slash_idx + 1));
+        // relative to compiler
+        char* import_file_path = aria_strapp(
+                (current_dir_path == null ? "" : current_dir_path),
+                import_filename);
+        return node_implicit_module_new(
+                import_keyword,
+                import_module_token,
+                import_filename,
+                import_file_path);
+    } else if (parser_match_keyword(self, PROCEDURE_DECL_KEYWORD)) {
         return parser_procedure_decl(self, parser_previous(self));
     } else if (parser_match_keyword(self, VARIABLE_DECL_KEYWORD)) {
         return parser_variable_decl(self, parser_previous(self), false);

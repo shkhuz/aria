@@ -1,3 +1,4 @@
+import test;
 proc init() {
     const i = 0;
 }

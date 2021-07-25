@@ -26,6 +26,8 @@
 // }
 
 // CODE GENERATOR TEST
+import coolmod;
+
 proc main() {
     code_me(--128, 2, -----128);
     let val = 256;
