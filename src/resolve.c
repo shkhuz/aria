@@ -56,6 +56,20 @@ typedef struct {
     Node* found_node;
 } ScopeStatus;
 
+Node* resolver_search_in_specific_scope(Resolver* self, Token* identifier, Node** scope) {
+    buf_loop(scope, i) {
+        Token* scope_identifier = node_get_identifier(
+                scope[i],
+                true);
+        assert(scope_identifier);
+
+        if (token_lexeme_eq(identifier, scope_identifier)) {
+            return scope[i];
+        }
+    }
+    return null;
+}
+
 ScopeStatus resolver_search_in_all_scope(Resolver* self, Token* identifier) {
     Scope* scope = self->current_scope;
     while (scope != null) {
@@ -109,6 +123,24 @@ void resolver_cpush_in_scope(Resolver* self, Node* node) {
     buf_push(self->current_scope->nodes, node);
 }
 
+#define ERROR_UNRESOLVED_SYMBOL "unresolved symbol"
+
+Node* resolver_assert_in_specific_scope(
+        Resolver* self,
+        Token* identifier,
+        Node** scope) {
+    Node* node = resolver_search_in_specific_scope(
+            self,
+            identifier,
+            scope);
+    if (!node) {
+        error_token(
+                identifier,
+                ERROR_UNRESOLVED_SYMBOL);
+    }
+    return node;
+}
+
 // TODO: should this accept a `Node` or a `Token`?
 Node* resolver_assert_in_scope(Resolver* self, Node* node) {
     assert(node->kind == NODE_KIND_SYMBOL);
@@ -118,11 +150,90 @@ Node* resolver_assert_in_scope(Resolver* self, Node* node) {
     if (status.kind == SCOPE_UNRESOLVED) {
         error_node(
                 node,
-                "unresolved symbol `%s`",
-                identifier->lexeme);
+                ERROR_UNRESOLVED_SYMBOL);
         return null;
     }
     return status.found_node;
+}
+
+#define ERROR_MODULE_NOT_FOUND "module not found in scope"
+
+Node** resolver_get_static_accessor_module(
+        Resolver* self, 
+        Node* static_accessor) {
+    Token** accessors = static_accessor->static_accessor.accessors;
+    Scope* scope = self->current_scope;
+    printf("%lu\n", buf_len(scope->nodes));
+    Node** module = null;
+
+    if (static_accessor->static_accessor.from_global_scope) {
+        module = self->srcfile->nodes;
+    } else {
+        bool first_accessor_found = false;
+        while (scope != null) {
+            buf_loop(scope->nodes, i) {
+                if (scope->nodes[i]->kind == NODE_KIND_IMPLICIT_MODULE && 
+                    stri(scope->nodes[i]->implicit_module.identifier->lexeme) ==
+                    stri(accessors[0]->lexeme)) {
+                    module = scope->nodes[i]->implicit_module.srcfile->nodes;
+                    first_accessor_found = true;
+                    break;
+                }
+            }
+            if (first_accessor_found) break;
+            scope = scope->parent;
+        }
+
+        if (module == null) {
+            error_token(
+                    accessors[0],
+                    ERROR_MODULE_NOT_FOUND);
+            return null;
+        }
+    }
+
+    size_t start_idx = 
+        (static_accessor->static_accessor.from_global_scope ? 0 : 1);
+    for (size_t i = start_idx; i < buf_len(accessors); i++) {
+        bool found = false;
+        buf_loop(module, j) {
+            if (module[j]->kind == NODE_KIND_IMPLICIT_MODULE &&
+                stri(module[j]->implicit_module.identifier->lexeme) == 
+                stri(accessors[i]->lexeme)) {
+                found = true;
+                module = module[j]->implicit_module.srcfile->nodes;
+                break;
+            }
+        }
+
+        if (!found) {
+            error_token(
+                    accessors[i],
+                    ERROR_MODULE_NOT_FOUND);
+            return null;
+        }
+    }
+    return module;
+}
+
+Node* resolver_assert_static_accessor_ident_in_scope(
+        Resolver* self, 
+        Node* node) {
+    assert(node->kind == NODE_KIND_SYMBOL);
+
+    if (node->symbol.static_accessor->static_accessor.accessors) {
+        Node** module = resolver_get_static_accessor_module(
+                self, 
+                node->symbol.static_accessor);
+        if (module) {
+            return resolver_assert_in_specific_scope(
+                    self, 
+                    node->symbol.identifier,
+                    module);
+        } else return null;
+    }
+
+    return resolver_assert_in_scope(self, node);
 }
 
 void resolver_procedure_call(Resolver* self, Node* node) {
@@ -140,7 +251,9 @@ void resolver_procedure_call(Resolver* self, Node* node) {
 }
 
 void resolver_symbol(Resolver* self, Node* node) {
-    node->symbol.ref = resolver_assert_in_scope(self, node);
+    node->symbol.ref = resolver_assert_static_accessor_ident_in_scope(
+            self, 
+            node);
 }
 
 void resolver_expr_unary(Resolver* self, Node* node) {
@@ -234,6 +347,7 @@ void resolver_pre_decl_node(
         bool ignore_procedure_level_decl_node) {
     switch (node->kind) {
         case NODE_KIND_PROCEDURE_DECL:
+        case NODE_KIND_IMPLICIT_MODULE:
         {
             resolver_cpush_in_scope(self, node);
         } break;

@@ -105,6 +105,7 @@ typedef enum {
     NODE_KIND_TYPE_PRIMITIVE,
     NODE_KIND_TYPE_CUSTOM,
     NODE_KIND_TYPE_PTR,
+    NODE_KIND_STATIC_ACCESSOR,
     NODE_KIND_SYMBOL,
     NODE_KIND_PROCEDURE_CALL,
     NODE_KIND_BLOCK,
@@ -140,11 +141,17 @@ struct Node {
             Node* right;
         } type_ptr;
 
+        struct {
+            Token** accessors;
+            bool from_global_scope;
+            Token* head;
+        } static_accessor;
+
         // A symbol is an identifier
         // with an optional `::` accessor
         // before it.
-        // TODO: implement `::`
         struct {
+            Node* static_accessor;
             Token* identifier;
             Node* ref;
         } symbol;
@@ -243,11 +250,27 @@ Node* node_type_ptr_new(
     return node;
 }
 
+Node* node_static_accessor_new(
+        Token** accessors,
+        bool from_global_scope,
+        Token* head) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_STATIC_ACCESSOR;
+    node->head = head;
+    node->static_accessor.accessors = accessors;
+    node->static_accessor.from_global_scope = from_global_scope;
+    node->static_accessor.head = head;
+    node->tail = (accessors ? accessors[buf_len(accessors)-1] : head);
+    return node;
+}
+
 Node* node_symbol_new(
+        Node* static_accessor,
         Token* identifier) {
     alloc_with_type(node, Node);
     node->kind = NODE_KIND_SYMBOL;
-    node->head = identifier;
+    node->head = (static_accessor->head ? static_accessor->head : identifier);
+    node->symbol.static_accessor = static_accessor;
     node->symbol.identifier = identifier;
     node->symbol.ref = null;
     node->tail = identifier;
@@ -383,7 +406,6 @@ Token* node_get_identifier(Node* node, bool assert_on_erroneous_node) {
         case NODE_KIND_BLOCK:
         case NODE_KIND_NUMBER:
         case NODE_KIND_UNARY:
-        case NODE_KIND_IMPLICIT_MODULE:
         // TODO: check if these expressions should 
         // return an identifier...
         case NODE_KIND_SYMBOL:
@@ -400,6 +422,8 @@ Token* node_get_identifier(Node* node, bool assert_on_erroneous_node) {
             return node->param.identifier;
         case NODE_KIND_PROCEDURE_DECL:
             return node->procedure_decl.identifier;
+        case NODE_KIND_IMPLICIT_MODULE:
+            return node->implicit_module.identifier;
     }
     return null;
 }

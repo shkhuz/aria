@@ -130,12 +130,37 @@ Token* parser_expect(Parser* self, TokenKind kind, char* fmt, ...) {
             "expected `,`, got `%s`", \
             parser_current(self)->lexeme)
 
+Node* parser_static_accessor(Parser* self) {
+    Token** accessors = null;
+    bool from_global_scope = false;
+    Token* head = null;
+
+    while (true) {
+        if (parser_current(self)->kind == TOKEN_KIND_IDENTIFIER &&
+            parser_next(self)->kind == TOKEN_KIND_DOUBLE_COLON) {
+            if (!head) head = parser_current(self);
+            buf_push(accessors, parser_current(self));
+            parser_goto_next_token(self);
+            parser_goto_next_token(self);
+        } else {
+            break;
+        }
+    }
+    return node_static_accessor_new(
+            accessors,
+            from_global_scope,
+            head);
+}
+
 Node* parser_type_atom(Parser* self) {
+    Node* static_accessor = parser_static_accessor(self);
     Token* identifier = 
         parser_expect_identifier(self, "expected type name, got `%s`");
     TypePrimitiveKind kind = primitive_type_str_to_kind(identifier->lexeme);
+
     if (kind == TYPE_PRIMITIVE_KIND_NONE) {
-        return node_type_custom_new(node_symbol_new(identifier));
+        return node_type_custom_new(
+                node_symbol_new(static_accessor, identifier));
     } else {
         return node_type_primitive_new(identifier, kind);
     }
@@ -157,10 +182,11 @@ Node* parser_type(Parser* self) {
 }
 
 Node* parser_symbol(Parser* self) {
+    Node* static_accessor = parser_static_accessor(self);
     Token* identifier = parser_expect_identifier(
             self,
             "expected identifier, got `%s`");
-    return node_symbol_new(identifier);
+    return node_symbol_new(static_accessor, identifier);
 }
 
 Node* parser_procedure_call(

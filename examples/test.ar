@@ -38,6 +38,8 @@ proc main() {
     let vd = -438737748478473847873847384784738437;
     let v: *u64;
     const i = 0;
+
+    coolmod::init();
 }
 
 proc code_me(a: u8, b: usize, c: i8) {
