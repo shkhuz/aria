@@ -28,8 +28,8 @@
 // CODE GENERATOR TEST
 import coolmod;
 
-proc main() {
-    code_me(--128, 2, -----128);
+proc main(a: u8) {
+    coolmod::test::code_me(--128, 2, -----128);
     let val = 256;
     let va = 256;
     let vl = 256;
@@ -37,7 +37,7 @@ proc main() {
     let vall = 256;
     let vd = -438737748478473847873847384784738437;
     let v: *u64;
-    const i = 0;
+    const i = a;
 
     coolmod::init();
 }

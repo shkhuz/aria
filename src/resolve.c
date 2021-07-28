@@ -236,13 +236,36 @@ Node* resolver_assert_static_accessor_ident_in_scope(
     return resolver_assert_in_scope(self, node);
 }
 
+char* resolver_top_level_node_in_word(Node* node) {
+    switch (node->kind) {
+        case NODE_KIND_IMPLICIT_MODULE: return "module";
+        case NODE_KIND_PROCEDURE_DECL: return "procedure";
+        case NODE_KIND_VARIABLE_DECL: 
+        case NODE_KIND_PARAM: return "variable";
+        default: assert(0);
+    }
+    return null;
+}
+
 void resolver_procedure_call(Resolver* self, Node* node) {
     if (node->procedure_call.callee->kind != NODE_KIND_SYMBOL) {
         error_node(
                 node->procedure_call.callee,
                 "callee must be an identifier");
-    } else {
-        resolver_node(self, node->procedure_call.callee, true);
+        return;
+    }
+
+    node->procedure_call.callee->symbol.ref = 
+        resolver_assert_static_accessor_ident_in_scope(
+            self,
+            node->procedure_call.callee);
+    if (node->procedure_call.callee->symbol.ref->kind != 
+            NODE_KIND_PROCEDURE_DECL) {
+        error_node(
+                node->procedure_call.callee,
+                "expected procedure, got %s",
+                resolver_top_level_node_in_word(
+                    node->procedure_call.callee->symbol.ref));
     }
 
     buf_loop(node->procedure_call.args, i) {
@@ -254,6 +277,13 @@ void resolver_symbol(Resolver* self, Node* node) {
     node->symbol.ref = resolver_assert_static_accessor_ident_in_scope(
             self, 
             node);
+    if (node->symbol.ref->kind != NODE_KIND_VARIABLE_DECL &&
+        node->symbol.ref->kind != NODE_KIND_PARAM) {
+        error_node(
+                node,
+                "%s is not expected here",
+                resolver_top_level_node_in_word(node->symbol.ref));
+    }
 }
 
 void resolver_expr_unary(Resolver* self, Node* node) {
