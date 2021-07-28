@@ -29,7 +29,8 @@
 import coolmod;
 
 proc main(a: u8) {
-    coolmod::test::code_me(--128, 2, -----128);
+    const b: usize = 12;
+    coolmod::init(--b);
     let val = 256;
     let va = 256;
     let vl = 256;
@@ -38,10 +39,13 @@ proc main(a: u8) {
     let vd = -438737748478473847873847384784738437;
     let v: *u64;
     const i = a;
+    const dd: *u8 = pointer();
 
-    coolmod::init();
+    coolmod::init(--128);
 }
 
 proc code_me(a: u8, b: usize, c: i8) {
 }
 
+proc pointer(a: *u8) *u8 {
+}

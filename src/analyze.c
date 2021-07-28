@@ -150,6 +150,8 @@ Node* analyzer_expr_unary(Analyzer* self, Node* node, Node* cast_to_type) {
         const bigint* val = null;
         analyzer_expr(self, node->unary.right, null);
         if ((val = node_get_val_number(node->unary.right))) {
+            alloc_with_type_no_decl(node->unary.val, bigint);
+            bigint_init(node->unary.val);
             bigint_neg(val, node->unary.val);
             return analyzer_get_largest_type_for_bigint(
                     self, 
@@ -255,9 +257,7 @@ void analyzer_variable_decl(Analyzer* self, Node* node) {
                     initializer_type,
                     annotated_type);
         }
-    }
-
-    if (node->variable_decl.initializer) {
+    } else if (node->variable_decl.initializer) {
         node->variable_decl.type = 
             analyzer_expr(self, node->variable_decl.initializer, null);
         if (!node->variable_decl.type) return;

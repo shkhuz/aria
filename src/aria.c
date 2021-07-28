@@ -322,8 +322,7 @@ Node* node_expr_unary_new(
     node->head = op;
     node->unary.op = op;
     node->unary.right = right;
-    alloc_with_type_no_decl(node->unary.val, bigint);
-    bigint_init(node->unary.val);
+    node->unary.val = null;
     node->tail = right->tail;
     return node;
 }
@@ -488,11 +487,17 @@ const bigint* node_get_val_number(Node* node) {
         case NODE_KIND_UNARY:
         {
             if (node->unary.op->kind == TOKEN_KIND_MINUS) {
+                if (node->unary.val == null) {
+                    return null;
+                }
                 return (const bigint*)node->unary.val;
             } else {
                 assert(0);
             }
         } break;
+
+        case NODE_KIND_SYMBOL:
+            return null;
 
         default: assert(0); break;
     }

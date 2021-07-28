@@ -151,9 +151,9 @@ void msg_user_expect_type(
         u64 char_count,
         Node* type) {
     __vmsg_user_stage1;
-    fprintf(stderr, "expected `");
+    fprintf(stderr, "expected `" ANSI_FCYAN);
     stderr_print_type(type);
-    fprintf(stderr, "`");
+    fprintf(stderr, ANSI_RESET "`");
     __vmsg_user_stage3;
 }
 

@@ -1,4 +1,4 @@
 import test;
-proc init() {
-    const i = 0;
+proc init(a: u8) {
+    const i = a;
 }
