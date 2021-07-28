@@ -287,7 +287,14 @@ void resolver_expr_assign(Resolver* self, Node* node) {
 
     if (node->assign.left->kind == NODE_KIND_SYMBOL) {
         if (node->assign.left->symbol.ref->kind == NODE_KIND_VARIABLE_DECL) {
-
+            if (node->assign.left->symbol.ref->variable_decl.constant) {
+                error_node(
+                        node->assign.left,
+                        "cannot modify immutable variable");
+                note_node(
+                    node->assign.left->symbol.ref,
+                    "...variable declared here");
+            }
         } else {
             /* error_node( */
             /*         node->assign.left, */

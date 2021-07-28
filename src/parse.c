@@ -51,7 +51,7 @@ void parser_check_eof(Parser* self, Token* pair) {
     if (parser_current(self)->kind == TOKEN_KIND_EOF) {
         note_token(
                 pair,
-                "...while matching `%s`...",
+                "while matching `%s`...",
                 pair->lexeme);
         fatal_error_token(
                 parser_current(self),
