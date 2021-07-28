@@ -110,6 +110,7 @@ typedef enum {
     NODE_KIND_PROCEDURE_CALL,
     NODE_KIND_BLOCK,
     NODE_KIND_PARAM,
+    NODE_KIND_ASSIGN,
     NODE_KIND_UNARY,
     NODE_KIND_EXPR_STMT,
     NODE_KIND_VARIABLE_DECL,
@@ -176,6 +177,12 @@ struct Node {
             Token* identifier;
             Node* type;
         } param;
+
+        struct {
+            Token* op;
+            Node* left;
+            Node* right;
+        } assign;
 
         struct {
             Node* expr;
@@ -311,6 +318,20 @@ Node* node_param_new(
     node->param.identifier = identifier;
     node->param.type = type;
     node->tail = type->tail;
+    return node;
+}
+
+Node* node_expr_assign_new(
+        Token* op,
+        Node* left,
+        Node* right) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_ASSIGN;
+    node->head = left->head;
+    node->assign.op = op;
+    node->assign.left = left;
+    node->assign.right = right;
+    node->tail = right->tail;
     return node;
 }
 
@@ -476,6 +497,17 @@ Node* node_get_type(Node* node, bool assert_on_erroneous_node) {
             return node->procedure_decl.type;
         case NODE_KIND_SYMBOL:
             return node_get_type(node->symbol.ref, true);
+    }
+    return null;
+}
+
+char* node_get_name_in_word(Node* node) {
+    switch (node->kind) {
+        case NODE_KIND_IMPLICIT_MODULE: return "module";
+        case NODE_KIND_PROCEDURE_DECL: return "procedure";
+        case NODE_KIND_VARIABLE_DECL: 
+        case NODE_KIND_PARAM: return "variable";
+        default: assert(0);
     }
     return null;
 }

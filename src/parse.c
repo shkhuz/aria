@@ -186,7 +186,15 @@ Node* parser_symbol(Parser* self) {
     Token* identifier = parser_expect_identifier(
             self,
             "expected identifier, got `%s`");
-    return node_symbol_new(static_accessor, identifier);
+    TypePrimitiveKind kind = primitive_type_str_to_kind(identifier->lexeme);
+
+    if (kind == TYPE_PRIMITIVE_KIND_NONE) {
+        return node_symbol_new(static_accessor, identifier);
+    } else {
+        return node_type_primitive_new(identifier, kind);
+    }
+    assert(0);
+    return null;
 }
 
 Node* parser_procedure_call(
@@ -251,8 +259,21 @@ Node* parser_expr_unary(Parser* self) {
     return parser_expr_atom(self);
 }
 
+Node* parser_expr_assign(Parser* self) {
+    Node* left = parser_expr_unary(self);
+    if (parser_match_token(self, TOKEN_KIND_EQUAL)) {
+        Token* op = parser_previous(self);
+        Node* right = parser_expr_assign(self);
+        return node_expr_assign_new(
+                op,
+                left,
+                right);
+    }
+    return left;
+}
+
 Node* parser_expr(Parser* self) {
-    return parser_expr_unary(self);
+    return parser_expr_assign(self);
 }
 
 Node* parser_expr_stmt(Parser* self) {

@@ -56,7 +56,10 @@ typedef struct {
     Node* found_node;
 } ScopeStatus;
 
-Node* resolver_search_in_specific_scope(Resolver* self, Token* identifier, Node** scope) {
+Node* resolver_search_in_specific_scope(
+        Resolver* self, 
+        Token* identifier, 
+        Node** scope) {
     buf_loop(scope, i) {
         Token* scope_identifier = node_get_identifier(
                 scope[i],
@@ -236,17 +239,6 @@ Node* resolver_assert_static_accessor_ident_in_scope(
     return resolver_assert_in_scope(self, node);
 }
 
-char* resolver_top_level_node_in_word(Node* node) {
-    switch (node->kind) {
-        case NODE_KIND_IMPLICIT_MODULE: return "module";
-        case NODE_KIND_PROCEDURE_DECL: return "procedure";
-        case NODE_KIND_VARIABLE_DECL: 
-        case NODE_KIND_PARAM: return "variable";
-        default: assert(0);
-    }
-    return null;
-}
-
 void resolver_procedure_call(Resolver* self, Node* node) {
     if (node->procedure_call.callee->kind != NODE_KIND_SYMBOL) {
         error_node(
@@ -264,8 +256,7 @@ void resolver_procedure_call(Resolver* self, Node* node) {
         error_node(
                 node->procedure_call.callee,
                 "expected procedure, got %s",
-                resolver_top_level_node_in_word(
-                    node->procedure_call.callee->symbol.ref));
+                node_get_name_in_word(node->procedure_call.callee->symbol.ref));
     }
 
     buf_loop(node->procedure_call.args, i) {
@@ -282,12 +273,34 @@ void resolver_symbol(Resolver* self, Node* node) {
         error_node(
                 node,
                 "%s is not expected here",
-                resolver_top_level_node_in_word(node->symbol.ref));
+                node_get_name_in_word(node->symbol.ref));
     }
 }
 
 void resolver_expr_unary(Resolver* self, Node* node) {
     resolver_node(self, node->unary.right, false);
+}
+
+void resolver_expr_assign(Resolver* self, Node* node) {
+    resolver_node(self, node->assign.left, false);
+    resolver_node(self, node->assign.right, false);
+
+    if (node->assign.left->kind == NODE_KIND_SYMBOL) {
+        if (node->assign.left->symbol.ref->kind == NODE_KIND_VARIABLE_DECL) {
+
+        } else {
+            /* error_node( */
+            /*         node->assign.left, */
+            /*         "l-value is a %s", */
+            /*         node_get_name_in_word(node->assign.left->symbol.ref)); */
+            // This else-branch is left blank because it will already
+            // print the correct error message in resolver_node() call above.
+        }
+    } else {
+        error_node(
+                node->assign.left,
+                "invalid l-value");
+    }
 }
 
 void resolver_block(Resolver* self, Node* node, bool create_new_scope) {
@@ -402,6 +415,7 @@ void resolver_pre_decl_node(
         case NODE_KIND_TYPE_PTR:
         case NODE_KIND_SYMBOL:
         case NODE_KIND_UNARY:
+        case NODE_KIND_ASSIGN:
         case NODE_KIND_PROCEDURE_CALL:
         {
             assert(0);
@@ -485,6 +499,11 @@ void resolver_node(
         case NODE_KIND_UNARY:
         {
             resolver_expr_unary(self, node);
+        } break;
+
+        case NODE_KIND_ASSIGN:
+        {
+            resolver_expr_assign(self, node);
         } break;
 
         case NODE_KIND_BLOCK:

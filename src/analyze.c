@@ -165,6 +165,27 @@ Node* analyzer_expr_unary(Analyzer* self, Node* node, Node* cast_to_type) {
     return null;
 }
 
+Node* analyzer_expr_assign(Analyzer* self, Node* node) {
+    Node* left_type = analyzer_expr(
+            self, 
+            node->assign.left,
+            null);
+    Node* right_type = analyzer_expr(
+            self, 
+            node->assign.right,
+            null);
+
+    if (left_type && right_type && 
+            !implicit_cast(
+                right_type, 
+                left_type)) {
+        error_type_mismatch_node(
+                node,
+                right_type,
+                left_type);
+    }
+}
+
 Node* analyzer_procedure_call(Analyzer* self, Node* node) {
     Node** args = node->procedure_call.args;
     u64 arg_len = buf_len(args);
@@ -224,6 +245,8 @@ Node* analyzer_expr(Analyzer* self, Node* node, Node* cast_to_type) {
             return analyzer_symbol(self, node);
         case NODE_KIND_UNARY:
             return analyzer_expr_unary(self, node, cast_to_type);
+        case NODE_KIND_ASSIGN:
+            return analyzer_expr_assign(self, node);
         case NODE_KIND_PROCEDURE_CALL:
             return analyzer_procedure_call(self, node);
         case NODE_KIND_BLOCK: 

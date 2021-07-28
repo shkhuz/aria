@@ -39,6 +39,7 @@ proc main(a: u8) {
     let vd = -438737748478473847873847384784738437;
     let v: *u64;
     const i = a;
+    i = v;
     const dd: *u8 = pointer();
 
     coolmod::init(--128);
