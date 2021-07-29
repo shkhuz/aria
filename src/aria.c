@@ -110,8 +110,9 @@ typedef enum {
     NODE_KIND_PROCEDURE_CALL,
     NODE_KIND_BLOCK,
     NODE_KIND_PARAM,
-    NODE_KIND_ASSIGN,
     NODE_KIND_UNARY,
+    NODE_KIND_BINARY,
+    NODE_KIND_ASSIGN,
     NODE_KIND_EXPR_STMT,
     NODE_KIND_VARIABLE_DECL,
     NODE_KIND_PROCEDURE_DECL,
@@ -174,15 +175,22 @@ struct Node {
         } unary;
 
         struct {
-            Token* identifier;
-            Node* type;
-        } param;
+            Token* op;
+            Node* left;
+            Node* right;
+            bigint* val;
+        } binary;
 
         struct {
             Token* op;
             Node* left;
             Node* right;
         } assign;
+
+        struct {
+            Token* identifier;
+            Node* type;
+        } param;
 
         struct {
             Node* expr;
@@ -321,6 +329,34 @@ Node* node_param_new(
     return node;
 }
 
+Node* node_expr_unary_new(
+        Token* op,
+        Node* right) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_UNARY;
+    node->head = op;
+    node->unary.op = op;
+    node->unary.right = right;
+    node->unary.val = null;
+    node->tail = right->tail;
+    return node;
+}
+
+Node* node_expr_binary_new(
+        Token* op,
+        Node* left,
+        Node* right) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_BINARY;
+    node->head = left->head;
+    node->binary.op = op;
+    node->binary.left = left;
+    node->binary.right = right;
+    node->binary.val = null;
+    node->tail = right->tail;
+    return node;
+}
+
 Node* node_expr_assign_new(
         Token* op,
         Node* left,
@@ -331,19 +367,6 @@ Node* node_expr_assign_new(
     node->assign.op = op;
     node->assign.left = left;
     node->assign.right = right;
-    node->tail = right->tail;
-    return node;
-}
-
-Node* node_expr_unary_new(
-        Token* op,
-        Node* right) {
-    alloc_with_type(node, Node);
-    node->kind = NODE_KIND_UNARY;
-    node->head = op;
-    node->unary.op = op;
-    node->unary.right = right;
-    node->unary.val = null;
     node->tail = right->tail;
     return node;
 }
@@ -518,14 +541,20 @@ const bigint* node_get_val_number(Node* node) {
             return (const bigint*)node->number.val;
         case NODE_KIND_UNARY:
         {
-            if (node->unary.op->kind == TOKEN_KIND_MINUS) {
-                if (node->unary.val == null) {
-                    return null;
-                }
-                return (const bigint*)node->unary.val;
-            } else {
-                assert(0);
-            }
+            /* if (node->unary.op->kind == TOKEN_KIND_MINUS) { */
+            /*     if (node->unary.val == null) { */
+            /*         return null; */
+            /*     } */
+            /*     return (const bigint*)node->unary.val; */
+            /* } else { */
+            /*     assert(0); */
+            /* } */
+            return (const bigint*)node->unary.val;
+        } break;
+        
+        case NODE_KIND_BINARY:
+        {
+            return (const bigint*)node->binary.val;
         } break;
 
         case NODE_KIND_SYMBOL:
@@ -541,6 +570,16 @@ struct SrcFile {
     Token** tokens;
     Node** nodes;
 };
+
+bool primitive_type_is_integer(TypePrimitiveKind kind);
+
+bool type_is_integer(Node* node) {
+    if (node->kind == NODE_KIND_TYPE_PRIMITIVE &&
+        primitive_type_is_integer(node->type_primitive.kind)) {
+        return true;
+    }
+    return false;
+}
 
 typedef struct {
     char* str;
@@ -612,6 +651,25 @@ bool primitive_type_is_signed(TypePrimitiveKind kind) {
         case TYPE_PRIMITIVE_KIND_U64:
         case TYPE_PRIMITIVE_KIND_USIZE: return false;
 
+        case TYPE_PRIMITIVE_KIND_I8:
+        case TYPE_PRIMITIVE_KIND_I16:
+        case TYPE_PRIMITIVE_KIND_I32:
+        case TYPE_PRIMITIVE_KIND_I64:
+        case TYPE_PRIMITIVE_KIND_ISIZE: return true;
+
+        case TYPE_PRIMITIVE_KIND_VOID: 
+        case TYPE_PRIMITIVE_KIND_NONE: assert(0); break;
+    }
+    return false;
+}
+
+bool primitive_type_is_integer(TypePrimitiveKind kind) {
+    switch (kind) {
+        case TYPE_PRIMITIVE_KIND_U8:
+        case TYPE_PRIMITIVE_KIND_U16:
+        case TYPE_PRIMITIVE_KIND_U32:
+        case TYPE_PRIMITIVE_KIND_U64:
+        case TYPE_PRIMITIVE_KIND_USIZE:
         case TYPE_PRIMITIVE_KIND_I8:
         case TYPE_PRIMITIVE_KIND_I16:
         case TYPE_PRIMITIVE_KIND_I32:

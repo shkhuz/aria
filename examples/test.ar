@@ -28,8 +28,10 @@
 // CODE GENERATOR TEST
 import coolmod;
 
+// as of yet, compile-time variable values are not checked
+// for overflow.
 proc main(a: u8) {
-    const b: usize = 12;
+    let b: usize = 12;
     coolmod::init(--b);
     let val = 256;
     let va = 256;
@@ -44,10 +46,17 @@ proc main(a: u8) {
     b = -b;
 
     coolmod::init(--128);
+    vl = 12;
 }
 
 proc code_me(a: u8, b: usize, c: i8) {
+    const aa: u8 = -128;
+    b = -a;
 }
 
-proc pointer(a: *u8) *u8 {
+proc pointer(p: *u8) *u8 {
+    const i = -p;
+    const a: i8 = 129 - 1;
+    const b = 2;
+    const c = a + b;
 }

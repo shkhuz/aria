@@ -102,13 +102,14 @@ void resolver_cpush_in_scope(Resolver* self, Node* node) {
     Token* identifier = node_get_identifier(node, true);
     assert(identifier);
 
+    bool error = false;
     ScopeStatus status = resolver_search_in_all_scope(self, identifier);
     if (status.kind == SCOPE_LOCAL) {
         error_node(
                 node,
                 "redeclaration of symbol `%s`",
                 identifier->lexeme);
-        return;
+        error = true;
     } else if (status.kind == SCOPE_PARENT) {
         warning_node(
                 node,
@@ -123,6 +124,7 @@ void resolver_cpush_in_scope(Resolver* self, Node* node) {
                 "...previously declared here");
     }
 
+    if (error) return;
     buf_push(self->current_scope->nodes, node);
 }
 
@@ -281,6 +283,11 @@ void resolver_expr_unary(Resolver* self, Node* node) {
     resolver_node(self, node->unary.right, false);
 }
 
+void resolver_expr_binary(Resolver* self, Node* node) {
+    resolver_node(self, node->binary.left, false);
+    resolver_node(self, node->binary.right, false);
+}
+
 void resolver_expr_assign(Resolver* self, Node* node) {
     resolver_node(self, node->assign.left, false);
     resolver_node(self, node->assign.right, false);
@@ -422,6 +429,7 @@ void resolver_pre_decl_node(
         case NODE_KIND_TYPE_PTR:
         case NODE_KIND_SYMBOL:
         case NODE_KIND_UNARY:
+        case NODE_KIND_BINARY:
         case NODE_KIND_ASSIGN:
         case NODE_KIND_PROCEDURE_CALL:
         {
@@ -506,6 +514,11 @@ void resolver_node(
         case NODE_KIND_UNARY:
         {
             resolver_expr_unary(self, node);
+        } break;
+
+        case NODE_KIND_BINARY:
+        {
+            resolver_expr_binary(self, node);
         } break;
 
         case NODE_KIND_ASSIGN:

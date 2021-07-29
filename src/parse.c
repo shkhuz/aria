@@ -259,8 +259,22 @@ Node* parser_expr_unary(Parser* self) {
     return parser_expr_atom(self);
 }
 
-Node* parser_expr_assign(Parser* self) {
+Node* parser_expr_binary(Parser* self) {
     Node* left = parser_expr_unary(self);
+    while (parser_match_token(self, TOKEN_KIND_PLUS) ||
+           parser_match_token(self, TOKEN_KIND_MINUS)) {
+        Token* op = parser_previous(self);
+        Node* right = parser_expr_unary(self);
+        left = node_expr_binary_new(
+                op,
+                left,
+                right);
+    }
+    return left;
+}
+
+Node* parser_expr_assign(Parser* self) {
+    Node* left = parser_expr_binary(self);
     if (parser_match_token(self, TOKEN_KIND_EQUAL)) {
         Token* op = parser_previous(self);
         Node* right = parser_expr_assign(self);

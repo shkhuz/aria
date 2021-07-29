@@ -148,18 +148,69 @@ Node* analyzer_symbol(Analyzer* self, Node* node) {
 Node* analyzer_expr_unary(Analyzer* self, Node* node, Node* cast_to_type) {
     if (node->unary.op->kind == TOKEN_KIND_MINUS) {
         const bigint* val = null;
-        analyzer_expr(self, node->unary.right, null);
-        if ((val = node_get_val_number(node->unary.right))) {
-            alloc_with_type_no_decl(node->unary.val, bigint);
-            bigint_init(node->unary.val);
-            bigint_neg(val, node->unary.val);
-            return analyzer_get_largest_type_for_bigint(
-                    self, 
-                    node->unary.val, 
-                    node,
-                    cast_to_type);
+        Node* right_type = analyzer_expr(self, node->unary.right, null);
+        if (right_type && type_is_integer(right_type)) {
+            if ((val = node_get_val_number(node->unary.right))) {
+                alloc_with_type_no_decl(node->unary.val, bigint);
+                bigint_init(node->unary.val);
+                bigint_neg(val, node->unary.val);
+                return analyzer_get_largest_type_for_bigint(
+                        self, 
+                        node->unary.val, 
+                        node,
+                        cast_to_type);
+            } else {
+                return analyzer_expr(self, node->unary.right, cast_to_type);
+            }
         } else {
-            return analyzer_expr(self, node->unary.right, cast_to_type);
+            if (right_type) {
+                error_node(
+                        node->unary.right,
+                        "unary (-) operator requires an integer");
+            }
+        }
+    }
+    return null;
+}
+
+Node* analyzer_expr_binary(Analyzer* self, Node* node, Node* cast_to_type) {
+    if (node->binary.op->kind == TOKEN_KIND_PLUS ||
+        node->binary.op->kind == TOKEN_KIND_MINUS) {
+        const bigint* left_val = null;
+        const bigint* right_val = null;
+        Node* left_type = analyzer_expr(self, node->binary.left, null);
+        Node* right_type = analyzer_expr(self, node->binary.right, null);
+        if (left_type && right_type) {
+            if (type_is_integer(left_type) && type_is_integer(right_type)) {
+                if (primitive_type_is_signed(left_type->type_primitive.kind) ==
+                    primitive_type_is_signed(right_type->type_primitive.kind)) {
+                    if ((left_val = node_get_val_number(node->binary.left)) &&
+                        (right_val = node_get_val_number(node->binary.right))) {
+                        alloc_with_type_no_decl(node->binary.val, bigint);
+                        bigint_init(node->binary.val);
+                        if (node->binary.op->kind == TOKEN_KIND_PLUS) {
+                            bigint_add(left_val, right_val, node->binary.val);
+                        } else if (node->binary.op->kind == TOKEN_KIND_MINUS) {
+                            bigint_sub(left_val, right_val, node->binary.val);
+                        } else assert(0);
+                        return analyzer_get_largest_type_for_bigint(
+                                self, 
+                                node->binary.val, 
+                                node,
+                                cast_to_type);
+                    }
+                } else {
+                    error_token(
+                            node->binary.op,
+                            "operator requires arguments to be of "
+                            "same signedness");
+                }
+            } else {
+                error_token(
+                        node->binary.op,
+                        "operator requires an integer "
+                        "or a pointer argument");
+            } 
         }
     }
     return null;
@@ -184,6 +235,7 @@ Node* analyzer_expr_assign(Analyzer* self, Node* node) {
                 right_type,
                 left_type);
     }
+    return null;
 }
 
 Node* analyzer_procedure_call(Analyzer* self, Node* node) {
@@ -245,6 +297,8 @@ Node* analyzer_expr(Analyzer* self, Node* node, Node* cast_to_type) {
             return analyzer_symbol(self, node);
         case NODE_KIND_UNARY:
             return analyzer_expr_unary(self, node, cast_to_type);
+        case NODE_KIND_BINARY:
+            return analyzer_expr_binary(self, node, cast_to_type);
         case NODE_KIND_ASSIGN:
             return analyzer_expr_assign(self, node);
         case NODE_KIND_PROCEDURE_CALL:
