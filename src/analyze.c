@@ -309,12 +309,31 @@ Node* analyzer_expr(Analyzer* self, Node* node, Node* cast_to_type) {
         case NODE_KIND_VARIABLE_DECL:
         case NODE_KIND_PROCEDURE_DECL:
         case NODE_KIND_EXPR_STMT:
+        case NODE_KIND_RETURN:
         {
             assert(0);
         } break;
     }
     assert(0);
     return null;
+}
+
+void analyzer_return(Analyzer* self, Node* node) {
+    Node* proc_return_type = node->return_.procedure->procedure_decl.type;
+    Node* right_type = analyzer_expr(
+            self, 
+            node->return_.right,
+            proc_return_type);
+
+    if (proc_return_type && right_type &&
+            !implicit_cast(
+                right_type, 
+                proc_return_type)) {
+        error_type_mismatch_node(
+                node->return_.right,
+                right_type,
+                proc_return_type);
+    }
 }
 
 void analyzer_variable_decl(Analyzer* self, Node* node) {
@@ -327,8 +346,8 @@ void analyzer_variable_decl(Analyzer* self, Node* node) {
 
         if (annotated_type && initializer_type && 
                 !implicit_cast(
-                    annotated_type, 
-                    initializer_type)) {
+                    initializer_type, 
+                    annotated_type)) {
             error_type_mismatch_node(
                     node->variable_decl.initializer,
                     initializer_type,
@@ -367,6 +386,11 @@ void analyzer_stmt(Analyzer* self, Node* node) {
         case NODE_KIND_EXPR_STMT: 
         {
             analyzer_expr(self, node->expr_stmt.expr, null);
+        } break;
+
+        case NODE_KIND_RETURN:
+        {
+            analyzer_return(self, node);
         } break;
     }
 }

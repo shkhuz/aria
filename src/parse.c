@@ -229,7 +229,6 @@ Node* parser_block(Parser* self, Token* lbrace) {
 }
 
 Node* parser_expr_atom(Parser* self) {
-    // TODO: add block expression here
     if (parser_current(self)->kind == TOKEN_KIND_IDENTIFIER) {
         Node* symbol = parser_symbol(self);
         if (parser_match_token(self, TOKEN_KIND_LPAREN)) {
@@ -294,6 +293,11 @@ Node* parser_expr_stmt(Parser* self) {
     Node* node = parser_expr(self);
     Token* tail = null;
     if (!node) return null;
+
+    if (parser_current(self)->kind == TOKEN_KIND_RBRACE) {
+        // implicit return from procedure
+        return node_return_new(null, node, null);
+    }
 
     if (node->kind != NODE_KIND_BLOCK) {
         tail = parser_expect_semicolon(self);
@@ -425,6 +429,14 @@ Node* parser_procedure_level_node(Parser* self) {
         return parser_variable_decl(self, parser_previous(self), false);
     } else if (parser_match_keyword(self, CONSTANT_DECL_KEYWORD)) {
         return parser_variable_decl(self, parser_previous(self), true);
+    } else if (parser_match_keyword(self, "return")) {
+        Token* keyword = parser_previous(self);
+        Node* right = parser_expr(self);
+        parser_expect_semicolon(self);
+        return node_return_new(
+                keyword, 
+                right, 
+                parser_previous(self));
     }
     return parser_expr_stmt(self);
 }

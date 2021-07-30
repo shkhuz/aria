@@ -26,6 +26,7 @@ typedef struct {
     Scope* global_scope;
     Scope* current_scope;
     bool error;
+    Node* current_procedure;
 } Resolver;
 
 void resolver_pre_decl_node(
@@ -347,6 +348,11 @@ void resolver_param(
     resolver_type(self, node->param.type);
 }
 
+void resolver_return(Resolver* self, Node* node) {
+    resolver_node(self, node->return_.right, false);
+    node->return_.procedure = self->current_procedure;
+}
+
 void resolver_variable_decl(
         Resolver* self, 
         Node* node,
@@ -372,6 +378,7 @@ void resolver_variable_decl(
 }
 
 void resolver_procedure_decl(Resolver* self, Node* node) {
+    self->current_procedure = node;
     resolver_create_scope(self, scope);
     buf_loop(node->procedure_decl.params, i) {
         resolver_node(self, node->procedure_decl.params[i], false);
@@ -381,6 +388,7 @@ void resolver_procedure_decl(Resolver* self, Node* node) {
     resolver_block(self, node->procedure_decl.body, false);
 
     resolver_revert_scope(self, scope);
+    self->current_procedure = null;
 }
 
 // This function checks if the node 
@@ -418,6 +426,7 @@ void resolver_pre_decl_node(
         } break;
 
         case NODE_KIND_EXPR_STMT:
+        case NODE_KIND_RETURN:
         case NODE_KIND_BLOCK:
         {
             // DO NOTHING
@@ -501,6 +510,11 @@ void resolver_node(
             resolver_node(self, node->expr_stmt.expr, true);
         } break;
 
+        case NODE_KIND_RETURN:
+        {
+            resolver_return(self, node);
+        } break;
+
         case NODE_KIND_PROCEDURE_CALL:
         {
             resolver_procedure_call(self, node);
@@ -549,6 +563,7 @@ void resolver_init(Resolver* self, SrcFile* srcfile) {
     self->global_scope = scope_from_scope(null);
     self->current_scope = self->global_scope;
     self->error = false;
+    self->current_procedure = null;
 }
 
 void resolver_resolve(Resolver* self) {

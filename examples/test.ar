@@ -49,14 +49,16 @@ proc main(a: u8) {
     vl = 12;
 }
 
-proc code_me(a: u8, b: usize, c: i8) {
+proc code_me(a: u8, b: usize, c: i8) u8 {
     const aa: u8 = -128;
     b = -a;
+    return b;
 }
 
 proc pointer(p: *u8) *u8 {
     const i = -p;
     const a: i8 = 129 - 1;
     const b = 2;
-    const c = a + b;
+    const c: u8 = a + b;
+    c
 }

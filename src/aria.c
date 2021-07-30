@@ -12,6 +12,7 @@ char* keywords[] = {
     PROCEDURE_DECL_KEYWORD,
     VARIABLE_DECL_KEYWORD,
     CONSTANT_DECL_KEYWORD,
+    "return"
 };
 
 char* directives[] = {
@@ -114,6 +115,7 @@ typedef enum {
     NODE_KIND_BINARY,
     NODE_KIND_ASSIGN,
     NODE_KIND_EXPR_STMT,
+    NODE_KIND_RETURN,
     NODE_KIND_VARIABLE_DECL,
     NODE_KIND_PROCEDURE_DECL,
     NODE_KIND_IMPLICIT_MODULE,
@@ -195,6 +197,11 @@ struct Node {
         struct {
             Node* expr;
         } expr_stmt;
+
+        struct {
+            Node* right;
+            Node* procedure;
+        } return_;
 
         struct {
             bool constant;
@@ -373,12 +380,25 @@ Node* node_expr_assign_new(
 
 Node* node_expr_stmt_new(
         Node* expr,
-        Token* tail) {
+        Token* semicolon) {
     alloc_with_type(node, Node);
     node->kind = NODE_KIND_EXPR_STMT;
     node->head = expr->head;
     node->expr_stmt.expr = expr;
-    node->tail = tail;
+    node->tail = semicolon;
+    return node;
+}
+
+Node* node_return_new(
+        Token* keyword,
+        Node* right,
+        Token* semicolon) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_RETURN;
+    node->head = (keyword ? keyword : right->head);
+    node->return_.right = right;
+    node->return_.procedure = null;
+    node->tail = (semicolon ? semicolon : right->tail);
     return node;
 }
 
