@@ -36,10 +36,22 @@ bool implicit_cast(Node* from, Node* to) {
                 return false;
             }
             return true;
-        } else {
-            return implicit_cast(
-                    get_inner_type(from),
-                    get_inner_type(to));
+        } else if (from->kind == NODE_KIND_TYPE_PTR) {
+            // There are four cases:
+            //           to           C = const
+            //      |---------|       M = mutable
+            //      |   | C M |       O = okay to cast
+            //      |---------|       ! = cannot cast
+            // from | C | O ! |
+            //      | M | O O |
+            //      |---------|
+            // 
+            // These four cases are handled by this one line
+            if (!from->type_ptr.constant || to->type_ptr.constant) {
+                return implicit_cast(
+                        get_inner_type(from),
+                        get_inner_type(to));
+            }
         }
     } 
 
@@ -166,8 +178,16 @@ Node* analyzer_expr_unary(Analyzer* self, Node* node, Node* cast_to_type) {
             if (right_type) {
                 error_node(
                         node->unary.right,
-                        "unary (-) operator requires an integer");
+                        "operator requires an integer");
             }
+        }
+    } else if (node->unary.op->kind == TOKEN_KIND_AMPERSAND) {
+        Node* right_type = analyzer_expr(self, node->unary.right, null);
+        if (right_type) {
+            return node_type_ptr_new(
+                    null, 
+                    node->unary.right->symbol.ref->variable_decl.constant,
+                    right_type);
         }
     }
     return null;

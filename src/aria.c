@@ -142,6 +142,7 @@ struct Node {
         } type_custom;
 
         struct {
+            bool constant;
             Node* right;
         } type_ptr;
 
@@ -263,10 +264,12 @@ Node* node_type_custom_new(
 
 Node* node_type_ptr_new(
         Token* star,
+        bool constant,
         Node* right) {
     alloc_with_type(node, Node);
     node->kind = NODE_KIND_TYPE_PTR;
     node->head = star;
+    node->type_ptr.constant = constant;
     node->type_ptr.right = right;
     node->tail = right->tail;
     return node;
@@ -722,6 +725,11 @@ char* type_to_str(Node* type) {
         case NODE_KIND_TYPE_PTR:
         {
             buf_push(buf, '*');
+            if (type->type_ptr.constant) {
+                buf_write(
+                        buf,
+                        "const ");
+            }
             buf_write(
                     buf, 
                     type_to_str(type->type_ptr.right));

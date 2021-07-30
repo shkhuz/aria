@@ -55,10 +55,10 @@ proc code_me(a: u8, b: usize, c: i8) u8 {
     return b;
 }
 
-proc pointer(p: *u8) *u8 {
+proc pointer(p: *u8) *const *const u8 {
     const i = -p;
-    const a: i8 = 129 - 1;
+    let a: u8 = 129 - 1;
     const b = 2;
     const c: u8 = a + b;
-    c
+    &p
 }

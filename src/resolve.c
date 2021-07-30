@@ -282,6 +282,18 @@ void resolver_symbol(Resolver* self, Node* node) {
 
 void resolver_expr_unary(Resolver* self, Node* node) {
     resolver_node(self, node->unary.right, false);
+    if (node->unary.op->kind == TOKEN_KIND_AMPERSAND) {
+        if (node->unary.right->kind == NODE_KIND_SYMBOL) {
+            if (node->unary.right->symbol.ref->kind == 
+                    NODE_KIND_VARIABLE_DECL) {
+                // Do nothing
+            }
+        } else {
+            error_node(
+                    node->unary.right,
+                    "invalid r-value");
+        }
+    }
 }
 
 void resolver_expr_binary(Resolver* self, Node* node) {

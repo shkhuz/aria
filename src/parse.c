@@ -170,8 +170,14 @@ Node* parser_type_atom(Parser* self) {
 
 Node* parser_type_ptr(Parser* self) {
     if (parser_match_token(self, TOKEN_KIND_STAR)) {
+        Token* star = parser_previous(self);
+        bool constant = false;
+        if (parser_match_keyword(self, "const")) {
+            constant = true;
+        }
         return node_type_ptr_new(
-                parser_previous(self), 
+                star,
+                constant,
                 parser_type_ptr(self));
     }
     return parser_type_atom(self);
@@ -250,7 +256,8 @@ Node* parser_expr_atom(Parser* self) {
 }
 
 Node* parser_expr_unary(Parser* self) {
-    if (parser_match_token(self, TOKEN_KIND_MINUS)) {
+    if (parser_match_token(self, TOKEN_KIND_MINUS) ||
+        parser_match_token(self, TOKEN_KIND_AMPERSAND)) {
         Token* op = parser_previous(self);
         Node* right = parser_expr_unary(self);
         return node_expr_unary_new(op, right);
