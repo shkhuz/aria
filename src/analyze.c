@@ -29,13 +29,20 @@ bool implicit_cast(Node* from, Node* to) {
                 return true;
             }
         } else if (from->kind == NODE_KIND_TYPE_PRIMITIVE) {
-            if (primitive_type_size(from->type_primitive.kind) >
-                primitive_type_size(to->type_primitive.kind) ||
-                primitive_type_is_signed(from->type_primitive.kind) != 
-                primitive_type_is_signed(to->type_primitive.kind)) {
-                return false;
+            if (primitive_type_is_integer(from->type_primitive.kind) &&
+                primitive_type_is_integer(to->type_primitive.kind)) {
+                if (primitive_type_size(from->type_primitive.kind) >
+                    primitive_type_size(to->type_primitive.kind) ||
+                    primitive_type_is_signed(from->type_primitive.kind) != 
+                    primitive_type_is_signed(to->type_primitive.kind)) {
+                    return false;
+                } else return true;
+            } else {
+                if (from->type_primitive.kind == TYPE_PRIMITIVE_KIND_VOID &&
+                    to->type_primitive.kind == TYPE_PRIMITIVE_KIND_VOID) {
+                    return true;
+                } else return false;
             }
-            return true;
         } else if (from->kind == NODE_KIND_TYPE_PTR) {
             // There are four cases:
             //           to           C = const
@@ -193,15 +200,32 @@ Node* analyzer_expr_unary(Analyzer* self, Node* node, Node* cast_to_type) {
     return null;
 }
 
+Node* analyzer_expr_deref(Analyzer* self, Node* node) {
+    Node* right_type = analyzer_expr(self, node->deref.right, null);
+    if (right_type) {
+        if (right_type->kind == NODE_KIND_TYPE_PTR) {
+            node->deref.constant = right_type->type_ptr.constant;
+            return right_type->type_ptr.right;
+        } else {
+            error_node(
+                    node->deref.right,
+                    "cannot dereference a non-pointer type");
+        }
+    }
+    return null;
+}
+
 Node* analyzer_expr_binary(Analyzer* self, Node* node, Node* cast_to_type) {
     if (node->binary.op->kind == TOKEN_KIND_PLUS ||
         node->binary.op->kind == TOKEN_KIND_MINUS) {
         const bigint* left_val = null;
         const bigint* right_val = null;
         Node* left_type = analyzer_expr(self, node->binary.left, null);
-        Node* right_type = analyzer_expr(self, node->binary.right, null);
+        Node* right_type = analyzer_expr(self, node->binary.right, left_type);
+        bool checked_reversed = false;
         if (left_type && right_type) {
             if (type_is_integer(left_type) && type_is_integer(right_type)) {
+check_signedness:
                 if (primitive_type_is_signed(left_type->type_primitive.kind) ==
                     primitive_type_is_signed(right_type->type_primitive.kind)) {
                     if ((left_val = node_get_val_number(node->binary.left)) &&
@@ -218,13 +242,44 @@ Node* analyzer_expr_binary(Analyzer* self, Node* node, Node* cast_to_type) {
                                 node->binary.val, 
                                 node,
                                 cast_to_type);
+                    } else {
+                        if (type_get_size_bytes(left_type) >= 
+                            type_get_size_bytes(right_type)) {
+                            return left_type;
+                        } else return right_type;
                     }
                 } else {
+                    if (!checked_reversed) {
+                        checked_reversed = true;
+                        g_block_error_msgs = true;
+                        right_type = analyzer_expr(
+                                self, 
+                                node->binary.right, 
+                                null);
+                        left_type = analyzer_expr(
+                                self, 
+                                node->binary.left, 
+                                right_type);
+                        g_block_error_msgs = false;
+                        goto check_signedness;
+                    }
                     error_token(
                             node->binary.op,
                             "operator requires arguments to be of "
                             "same signedness");
                 }
+            } else if ((left_type->kind == NODE_KIND_TYPE_PTR && 
+                       type_is_integer(right_type)) ||
+                       (right_type->kind == NODE_KIND_TYPE_PTR && 
+                       type_is_integer(left_type))) {
+                if (right_type->kind == NODE_KIND_TYPE_PTR && 
+                       type_is_integer(left_type)) {
+                    // Canonicalize ptr-arithmetic
+                    Node* tmp = left_type;
+                    left_type = right_type;
+                    right_type = tmp;
+                }
+                return left_type;
             } else {
                 error_token(
                         node->binary.op,
@@ -254,6 +309,15 @@ Node* analyzer_expr_assign(Analyzer* self, Node* node) {
                 node,
                 right_type,
                 left_type);
+        return null;
+    }
+
+    if (node->assign.left->kind == NODE_KIND_DEREF) {
+        if (node->assign.left->deref.constant) {
+            error_node(
+                    node->assign.left,
+                    "cannot modify contents of a const-pointer");
+        }
     }
     return null;
 }
@@ -302,11 +366,15 @@ Node* analyzer_procedure_call(Analyzer* self, Node* node) {
     return return_type;
 }
 
-Node* analyzer_block(Analyzer* self, Node* node) {
+Node* analyzer_block(Analyzer* self, Node* node, Node* cast_to_type) {
     buf_loop(node->block.nodes, i) {
         analyzer_stmt(self, node->block.nodes[i]);
     }
-    return null;
+    if (node->block.return_value) {
+        return analyzer_expr(self, node->block.return_value, cast_to_type);
+    } else {
+        return primitive_type_placeholders.void_;
+    }
 }
 
 Node* analyzer_expr(Analyzer* self, Node* node, Node* cast_to_type) {
@@ -317,6 +385,8 @@ Node* analyzer_expr(Analyzer* self, Node* node, Node* cast_to_type) {
             return analyzer_symbol(self, node);
         case NODE_KIND_UNARY:
             return analyzer_expr_unary(self, node, cast_to_type);
+        case NODE_KIND_DEREF:
+            return analyzer_expr_deref(self, node);
         case NODE_KIND_BINARY:
             return analyzer_expr_binary(self, node, cast_to_type);
         case NODE_KIND_ASSIGN:
@@ -324,7 +394,16 @@ Node* analyzer_expr(Analyzer* self, Node* node, Node* cast_to_type) {
         case NODE_KIND_PROCEDURE_CALL:
             return analyzer_procedure_call(self, node);
         case NODE_KIND_BLOCK: 
-            return null;
+            return analyzer_block(self, node, cast_to_type);
+
+        case NODE_KIND_TYPE_PRIMITIVE:
+        case NODE_KIND_TYPE_CUSTOM:
+        case NODE_KIND_TYPE_PTR:
+        {
+            error_node(
+                    node,
+                    "type is not expected here");
+        } return null;
 
         case NODE_KIND_VARIABLE_DECL:
         case NODE_KIND_PROCEDURE_DECL:
@@ -338,12 +417,28 @@ Node* analyzer_expr(Analyzer* self, Node* node, Node* cast_to_type) {
     return null;
 }
 
+void analyzer_print_note_for_procedure_return_type(Node* procedure) {
+    if (procedure->procedure_decl.type->kind == NODE_KIND_TYPE_PRIMITIVE &&
+        procedure->procedure_decl.type->type_primitive.token == null) {
+        note_token(
+                procedure->procedure_decl.body->head,
+                "...return type implicitly inferred here");
+    } else {
+        note_node(
+                procedure->procedure_decl.type,
+                "...return type annotated here");
+    }
+}
+
 void analyzer_return(Analyzer* self, Node* node) {
     Node* proc_return_type = node->return_.procedure->procedure_decl.type;
-    Node* right_type = analyzer_expr(
+    Node* right_type = primitive_type_placeholders.void_;
+    if (node->return_.right) {
+        right_type = analyzer_expr(
             self, 
             node->return_.right,
-            proc_return_type);
+            null);
+    }
 
     if (proc_return_type && right_type &&
             !implicit_cast(
@@ -353,6 +448,7 @@ void analyzer_return(Analyzer* self, Node* node) {
                 node->return_.right,
                 right_type,
                 proc_return_type);
+        analyzer_print_note_for_procedure_return_type(node->return_.procedure);
     }
 }
 
@@ -387,7 +483,21 @@ void analyzer_variable_decl(Analyzer* self, Node* node) {
 
 void analyzer_procedure_decl(Analyzer* self, Node* node) {
     self->local_vars_bytes = 0;
-    analyzer_block(self, node->procedure_decl.body);
+    Node* annotated_type = node->procedure_decl.type;
+    Node* body_type = analyzer_block(
+            self, node->procedure_decl.body, 
+            annotated_type);
+    if (body_type && annotated_type &&
+            !implicit_cast(
+                body_type,
+                annotated_type)) {
+        error_type_mismatch_node(
+                node->procedure_decl.body->block.return_value,
+                body_type,
+                annotated_type);
+        analyzer_print_note_for_procedure_return_type(node);
+    }
+
     node->procedure_decl.local_vars_bytes = self->local_vars_bytes;
 }
 

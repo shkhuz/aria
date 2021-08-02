@@ -5,8 +5,13 @@ typedef struct {
     bool in_procedure;
 } Parser;
 
+typedef struct {
+    bool is_return_value;
+    Node* node;
+} ProcedureLevelNode;
+
 Node* parser_top_level_node(Parser* self, bool error_on_no_match);
-Node* parser_procedure_level_node(Parser* self);
+ProcedureLevelNode parser_procedure_level_node(Parser* self);
 Node* parser_expr(Parser* self);
 
 Token* parser_current(Parser* self) {
@@ -100,6 +105,13 @@ Token* parser_expect(Parser* self, TokenKind kind, char* fmt, ...) {
             self, \
             TOKEN_KIND_LPAREN, \
             "expected `(`, got `%s`", \
+            parser_current(self)->lexeme)
+
+#define parser_expect_rparen(self) \
+    parser_expect( \
+            self, \
+            TOKEN_KIND_RPAREN, \
+            "expected `)`, got `%s`", \
             parser_current(self)->lexeme)
 
 #define parser_expect_lbrace(self) \
@@ -225,13 +237,18 @@ Node* parser_procedure_call(
 
 Node* parser_block(Parser* self, Token* lbrace) {
     Node** nodes = null;
+    Node* return_value = null;
     while (!parser_match_token(self, TOKEN_KIND_RBRACE)) {
         parser_check_eof(self, lbrace);
-        Node* node = parser_procedure_level_node(self);
-        buf_push(nodes, node);
+        ProcedureLevelNode meta_node = parser_procedure_level_node(self);
+        if (meta_node.is_return_value) {
+            return_value = meta_node.node;
+        } else {
+            buf_push(nodes, meta_node.node);
+        }
     }
     Token* rbrace = parser_previous(self);
-    return node_block_new(lbrace, nodes, rbrace);
+    return node_block_new(lbrace, nodes, return_value, rbrace);
 }
 
 Node* parser_expr_atom(Parser* self) {
@@ -244,8 +261,20 @@ Node* parser_expr_atom(Parser* self) {
         }
     } else if (parser_match_token(self, TOKEN_KIND_NUMBER)) {
         return node_number_new(parser_previous(self));
+    } else if (parser_match_token(self, TOKEN_KIND_STAR)) {
+        Token* op = parser_previous(self);
+        Node* right = parser_expr_atom(self);
+        return node_expr_deref_new(op, right);
     } else if (parser_match_token(self, TOKEN_KIND_LBRACE)) {
         return parser_block(self, parser_previous(self));
+    } else if (parser_match_token(self, TOKEN_KIND_LPAREN)) {
+        Token* lparen = parser_previous(self);
+        Node* node = parser_expr(self);
+        parser_expect_rparen(self);
+        Token* rparen = parser_previous(self);
+        node->head = lparen;
+        node->tail = rparen;
+        return node;
     } else {
         fatal_error_token(
                 parser_current(self),
@@ -296,15 +325,9 @@ Node* parser_expr(Parser* self) {
     return parser_expr_assign(self);
 }
 
-Node* parser_expr_stmt(Parser* self) {
-    Node* node = parser_expr(self);
+Node* parser_expr_stmt(Parser* self, Node* node) {
     Token* tail = null;
     if (!node) return null;
-
-    if (parser_current(self)->kind == TOKEN_KIND_RBRACE) {
-        // implicit return from procedure
-        return node_return_new(null, node, null);
-    }
 
     if (node->kind != NODE_KIND_BLOCK) {
         tail = parser_expect_semicolon(self);
@@ -431,21 +454,46 @@ Node* parser_top_level_node(Parser* self, bool error_on_no_match) {
     return null;
 }
 
-Node* parser_procedure_level_node(Parser* self) {
+ProcedureLevelNode parser_procedure_level_node(Parser* self) {
+    ProcedureLevelNode result = (ProcedureLevelNode){
+        false,
+        null,
+    };
+
     if (parser_match_keyword(self, VARIABLE_DECL_KEYWORD)) {
-        return parser_variable_decl(self, parser_previous(self), false);
+        result.node = parser_variable_decl(
+                self, 
+                parser_previous(self), 
+                false);
+        return result;
     } else if (parser_match_keyword(self, CONSTANT_DECL_KEYWORD)) {
-        return parser_variable_decl(self, parser_previous(self), true);
+        result.node = parser_variable_decl(
+                self, 
+                parser_previous(self), 
+                true);
+        return result;
     } else if (parser_match_keyword(self, "return")) {
         Token* keyword = parser_previous(self);
-        Node* right = parser_expr(self);
+        Node* right = null;
+        if (parser_current(self)->kind != TOKEN_KIND_SEMICOLON) {
+            right = parser_expr(self);
+        }
         parser_expect_semicolon(self);
-        return node_return_new(
+        result.node = node_return_new(
                 keyword, 
                 right, 
                 parser_previous(self));
+        return result;
     }
-    return parser_expr_stmt(self);
+
+    Node* expr = parser_expr(self);
+    if (parser_current(self)->kind == TOKEN_KIND_RBRACE) {
+        result.is_return_value = true;
+        result.node = expr;
+        return result;
+    }
+    result.node = parser_expr_stmt(self, expr);
+    return result;
 }
 
 void parser_init(Parser* self, SrcFile* srcfile) {

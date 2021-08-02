@@ -112,6 +112,7 @@ typedef enum {
     NODE_KIND_BLOCK,
     NODE_KIND_PARAM,
     NODE_KIND_UNARY,
+    NODE_KIND_DEREF,
     NODE_KIND_BINARY,
     NODE_KIND_ASSIGN,
     NODE_KIND_EXPR_STMT,
@@ -168,7 +169,7 @@ struct Node {
 
         struct {
             Node** nodes;
-            // TODO: add node expression 
+            Node* return_value;
         } block;
 
         struct {
@@ -176,6 +177,12 @@ struct Node {
             Node* right;
             bigint* val;
         } unary;
+
+        struct {
+            Token* op;
+            Node* right;
+            bool constant;
+        } deref;
 
         struct {
             Token* op;
@@ -318,11 +325,13 @@ Node* node_procedure_call_new(
 Node* node_block_new(
         Token* lbrace,
         Node** nodes,
+        Node* return_value,
         Token* rbrace) {
     alloc_with_type(node, Node);
     node->kind = NODE_KIND_BLOCK;
     node->head = lbrace;
     node->block.nodes = nodes;
+    node->block.return_value = return_value;
     node->tail = rbrace;
     return node;
 }
@@ -348,6 +357,19 @@ Node* node_expr_unary_new(
     node->unary.op = op;
     node->unary.right = right;
     node->unary.val = null;
+    node->tail = right->tail;
+    return node;
+}
+
+Node* node_expr_deref_new(
+        Token* op,
+        Node* right) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_DEREF;
+    node->head = op;
+    node->deref.op = op;
+    node->deref.right = right;
+    node->deref.constant = false;
     node->tail = right->tail;
     return node;
 }
@@ -699,7 +721,7 @@ bool primitive_type_is_integer(TypePrimitiveKind kind) {
         case TYPE_PRIMITIVE_KIND_I64:
         case TYPE_PRIMITIVE_KIND_ISIZE: return true;
 
-        case TYPE_PRIMITIVE_KIND_VOID: 
+        case TYPE_PRIMITIVE_KIND_VOID: return false;
         case TYPE_PRIMITIVE_KIND_NONE: assert(0); break;
     }
     return false;

@@ -254,7 +254,8 @@ void resolver_procedure_call(Resolver* self, Node* node) {
         resolver_assert_static_accessor_ident_in_scope(
             self,
             node->procedure_call.callee);
-    if (node->procedure_call.callee->symbol.ref->kind != 
+    if (node->procedure_call.callee->symbol.ref &&
+        node->procedure_call.callee->symbol.ref->kind != 
             NODE_KIND_PROCEDURE_DECL) {
         error_node(
                 node->procedure_call.callee,
@@ -271,7 +272,8 @@ void resolver_symbol(Resolver* self, Node* node) {
     node->symbol.ref = resolver_assert_static_accessor_ident_in_scope(
             self, 
             node);
-    if (node->symbol.ref->kind != NODE_KIND_VARIABLE_DECL &&
+    if (node->symbol.ref &&
+        node->symbol.ref->kind != NODE_KIND_VARIABLE_DECL &&
         node->symbol.ref->kind != NODE_KIND_PARAM) {
         error_node(
                 node,
@@ -284,15 +286,42 @@ void resolver_expr_unary(Resolver* self, Node* node) {
     resolver_node(self, node->unary.right, false);
     if (node->unary.op->kind == TOKEN_KIND_AMPERSAND) {
         if (node->unary.right->kind == NODE_KIND_SYMBOL) {
-            if (node->unary.right->symbol.ref->kind == 
-                    NODE_KIND_VARIABLE_DECL) {
-                // Do nothing
+            if (node->unary.right->symbol.ref &&
+                (node->unary.right->symbol.ref->kind == 
+                    NODE_KIND_VARIABLE_DECL ||
+                node->unary.right->symbol.ref->kind == 
+                    NODE_KIND_PARAM)) {
+                // Do nothing 'cause it will be checked by
+                // the analyzer symbol checker.
             }
         } else {
             error_node(
                     node->unary.right,
                     "invalid r-value");
         }
+    }
+}
+
+void resolver_expr_deref(Resolver* self, Node* node) {
+    resolver_node(self, node->deref.right, false);
+    if (node->deref.right->kind == NODE_KIND_SYMBOL) {
+        if (node->deref.right->symbol.ref &&
+            (node->deref.right->symbol.ref->kind == 
+                NODE_KIND_VARIABLE_DECL ||
+            node->deref.right->symbol.ref->kind == 
+                NODE_KIND_PARAM)) {
+            // Do nothing 'cause it will be checked by
+            // the analyzer symbol checker.
+        }
+    } else if (node->deref.right->kind == NODE_KIND_BINARY) {
+    } else if (node->deref.right->kind == NODE_KIND_UNARY &&
+               node->deref.right->unary.op->kind != TOKEN_KIND_MINUS) {
+    } else if (node->deref.right->kind == NODE_KIND_SYMBOL) {
+    } else if (node->deref.right->kind == NODE_KIND_DEREF) {
+    } else {
+        error_node(
+                node->deref.right,
+                "invalid r-value");
     }
 }
 
@@ -306,7 +335,8 @@ void resolver_expr_assign(Resolver* self, Node* node) {
     resolver_node(self, node->assign.right, false);
 
     if (node->assign.left->kind == NODE_KIND_SYMBOL) {
-        if (node->assign.left->symbol.ref->kind == NODE_KIND_VARIABLE_DECL) {
+        if (node->assign.left->symbol.ref &&
+            node->assign.left->symbol.ref->kind == NODE_KIND_VARIABLE_DECL) {
             if (node->assign.left->symbol.ref->variable_decl.constant) {
                 error_node(
                         node->assign.left,
@@ -323,6 +353,7 @@ void resolver_expr_assign(Resolver* self, Node* node) {
             // This else-branch is left blank because it will already
             // print the correct error message in resolver_node() call above.
         }
+    } else if (node->assign.left->kind == NODE_KIND_DEREF) {
     } else {
         error_node(
                 node->assign.left,
@@ -344,6 +375,10 @@ void resolver_block(Resolver* self, Node* node, bool create_new_scope) {
         resolver_node(self, node->block.nodes[i], false);
     }
 
+    if (node->block.return_value) {
+        resolver_node(self, node->block.return_value, false);
+    }
+
     if (create_new_scope) {
         resolver_revert_scope(self, scope);
     }
@@ -361,7 +396,9 @@ void resolver_param(
 }
 
 void resolver_return(Resolver* self, Node* node) {
-    resolver_node(self, node->return_.right, false);
+    if (node->return_.right) {
+        resolver_node(self, node->return_.right, false);
+    }
     node->return_.procedure = self->current_procedure;
 }
 
@@ -450,6 +487,7 @@ void resolver_pre_decl_node(
         case NODE_KIND_TYPE_PTR:
         case NODE_KIND_SYMBOL:
         case NODE_KIND_UNARY:
+        case NODE_KIND_DEREF:
         case NODE_KIND_BINARY:
         case NODE_KIND_ASSIGN:
         case NODE_KIND_PROCEDURE_CALL:
@@ -540,6 +578,11 @@ void resolver_node(
         case NODE_KIND_UNARY:
         {
             resolver_expr_unary(self, node);
+        } break;
+
+        case NODE_KIND_DEREF:
+        {
+            resolver_expr_deref(self, node);
         } break;
 
         case NODE_KIND_BINARY:

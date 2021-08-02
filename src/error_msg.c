@@ -5,6 +5,13 @@ typedef enum {
     MSG_KIND_NOTE,
 } MsgKind;
 
+bool g_block_error_msgs = false;
+
+#define aria_fprintf(file, fmt, ...) \
+    (!g_block_error_msgs ? fprintf(file, fmt, ##__VA_ARGS__) : 0)
+#define aria_vfprintf(file, fmt, arg) \
+    (!g_block_error_msgs ? vfprintf(file, fmt, arg) : 0)
+
 char* get_line_from_file(File* file, u64 line) {
     char* current_char_in_line = file->contents;
     u64 current_line_number = 1;
@@ -41,7 +48,7 @@ char* get_line_from_file(File* file, u64 line) {
         } \
     } \
     if (kind != MSG_KIND_ROOT_ERR) { \
-        fprintf( \
+        aria_fprintf( \
                 stderr, \
                 ANSI_FBOLD \
                 "%s:%lu:%lu: " \
@@ -54,22 +61,22 @@ char* get_line_from_file(File* file, u64 line) {
     switch (kind) { \
         case MSG_KIND_ROOT_ERR: \
         case MSG_KIND_ERR: \
-            fprintf(stderr, ANSI_FRED "error: " ANSI_RESET); \
+            aria_fprintf(stderr, ANSI_FRED "error: " ANSI_RESET); \
             break; \
         case MSG_KIND_WARN: \
-            fprintf(stderr, ANSI_FGREEN "warning: " ANSI_RESET); \
+            aria_fprintf(stderr, ANSI_FGREEN "warning: " ANSI_RESET); \
             break; \
         case MSG_KIND_NOTE: \
-            fprintf(stderr, ANSI_FCYAN "note: " ANSI_RESET); \
+            aria_fprintf(stderr, ANSI_FCYAN "note: " ANSI_RESET); \
             break; \
     } \
 
 #define __vmsg_user_stage3 \
-    fprintf(stderr, "\n"); \
+    aria_fprintf(stderr, "\n"); \
     if (kind != MSG_KIND_ROOT_ERR) { \
         char* src_line_to_print = src_line; \
         char* beg_of_src_line = src_line; \
-        int indent = fprintf(stderr, "%6lu | ", line) - 2; \
+        int indent = aria_fprintf(stderr, "%6lu | ", line) - 2; \
         char* color = ANSI_RESET; \
         switch (kind) { \
             case MSG_KIND_ERR: \
@@ -86,28 +93,28 @@ char* get_line_from_file(File* file, u64 line) {
         } \
         while (*src_line_to_print != '\n' && *src_line_to_print != '\0') { \
             if ((u64)(src_line_to_print - beg_of_src_line) == (column - 1)) { \
-                fprintf(stderr, "%s", color); \
+                aria_fprintf(stderr, "%s", color); \
             }  \
-            fprintf(stderr, "%c", *src_line_to_print); \
+            aria_fprintf(stderr, "%c", *src_line_to_print); \
             src_line_to_print++; \
             if ((u64)(src_line_to_print - beg_of_src_line) ==  \
                 (column + char_count - 1)) { \
-                fprintf(stderr, ANSI_RESET); \
+                aria_fprintf(stderr, ANSI_RESET); \
             } \
         } \
-        fprintf(stderr, "\n"); \
+        aria_fprintf(stderr, "\n"); \
         for (int c = 0; c < indent; c++) { \
-            fprintf(stderr, " "); \
+            aria_fprintf(stderr, " "); \
         } \
-        fprintf(stderr, "| "); \
+        aria_fprintf(stderr, "| "); \
         for (u64 c = 0; c < column - 1; c++) { \
-            fprintf(stderr, " "); \
+            aria_fprintf(stderr, " "); \
         } \
-        fprintf(stderr, "%s", color); \
+        aria_fprintf(stderr, "%s", color); \
         for (u64 c = 0; c < char_count_new; c++) { \
-            fprintf(stderr, "^"); \
+            aria_fprintf(stderr, "^"); \
         } \
-        fprintf(stderr, ANSI_RESET "\n"); \
+        aria_fprintf(stderr, ANSI_RESET "\n"); \
     } \
 
 void vmsg_user(
@@ -121,7 +128,7 @@ void vmsg_user(
     va_list aq;
     va_copy(aq, ap);
     __vmsg_user_stage1;
-    vfprintf(stderr, fmt, aq);
+    aria_vfprintf(stderr, fmt, aq);
     __vmsg_user_stage3;
     va_end(aq);
 }
@@ -135,11 +142,11 @@ void msg_user_type_mismatch(
         Node* from,
         Node* to) {
     __vmsg_user_stage1;
-    fprintf(stderr, "cannot convert from `" ANSI_FRED);
+    aria_fprintf(stderr, "cannot convert from `" ANSI_FRED);
     stderr_print_type(from);
-    fprintf(stderr, ANSI_RESET "` to `" ANSI_FCYAN);
+    aria_fprintf(stderr, ANSI_RESET "` to `" ANSI_FCYAN);
     stderr_print_type(to);
-    fprintf(stderr, ANSI_RESET "`");
+    aria_fprintf(stderr, ANSI_RESET "`");
     __vmsg_user_stage3;
 }
 
@@ -151,9 +158,9 @@ void msg_user_expect_type(
         u64 char_count,
         Node* type) {
     __vmsg_user_stage1;
-    fprintf(stderr, "expected `" ANSI_FCYAN);
+    aria_fprintf(stderr, "expected `" ANSI_FCYAN);
     stderr_print_type(type);
-    fprintf(stderr, ANSI_RESET "`");
+    aria_fprintf(stderr, ANSI_RESET "`");
     __vmsg_user_stage3;
 }
 

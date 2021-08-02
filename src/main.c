@@ -241,6 +241,7 @@ int main(int argc, char* argv[]) {
         assert(!bigint_fits_i8(&b));
     }
 
+    {
 		bigint a;
         bigint_init_u64(&a, 5);
         
@@ -254,6 +255,7 @@ int main(int argc, char* argv[]) {
         bigint d;
         bigint_init_i64(&d, (((i64)INT8_MIN)));
         printf("fits: %u\n", bigint_fits_i8(&d));
+    }
 
     ///// TESTS END /////   
 

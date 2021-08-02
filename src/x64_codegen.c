@@ -33,6 +33,7 @@ void codegenerator_block(CodeGenerator* self, Node* node) {
     buf_loop(node->block.nodes, i) {
         codegenerator_node(self, node->block.nodes[i]);
     }
+    codegenerator_node(self, node->block.return_value);
 }
 
 char* codegenerator_get_asm_type_specifier(int bytes) {
