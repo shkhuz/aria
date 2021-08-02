@@ -62,7 +62,7 @@ Node* resolver_search_in_specific_scope(
         Token* identifier, 
         Node** scope) {
     buf_loop(scope, i) {
-        Token* scope_identifier = node_get_identifier(
+        Token* scope_identifier = node_get_main_token(
                 scope[i],
                 true);
         assert(scope_identifier);
@@ -78,7 +78,7 @@ ScopeStatus resolver_search_in_all_scope(Resolver* self, Token* identifier) {
     Scope* scope = self->current_scope;
     while (scope != null) {
         buf_loop(scope->nodes, i) {
-            Token* scope_identifier = node_get_identifier(
+            Token* scope_identifier = node_get_main_token(
                     scope->nodes[i],
                     true);
             assert(scope_identifier);
@@ -100,7 +100,7 @@ ScopeStatus resolver_search_in_all_scope(Resolver* self, Token* identifier) {
 // in the local scope, it raises an error and 
 // returns.
 void resolver_cpush_in_scope(Resolver* self, Node* node) {
-    Token* identifier = node_get_identifier(node, true);
+    Token* identifier = node_get_main_token(node, true);
     assert(identifier);
 
     bool error = false;

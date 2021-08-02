@@ -6,6 +6,7 @@ typedef enum {
 } MsgKind;
 
 bool g_block_error_msgs = false;
+int g_last_bar_indent;
 
 #define aria_fprintf(file, fmt, ...) \
     (!g_block_error_msgs ? fprintf(file, fmt, ##__VA_ARGS__) : 0)
@@ -77,6 +78,7 @@ char* get_line_from_file(File* file, u64 line) {
         char* src_line_to_print = src_line; \
         char* beg_of_src_line = src_line; \
         int indent = aria_fprintf(stderr, "%6lu | ", line) - 2; \
+        g_last_bar_indent = indent; \
         char* color = ANSI_RESET; \
         switch (kind) { \
             case MSG_KIND_ERR: \
@@ -148,6 +150,46 @@ void msg_user_type_mismatch(
     stderr_print_type(to);
     aria_fprintf(stderr, ANSI_RESET "`");
     __vmsg_user_stage3;
+}
+
+void stderr_print_mark_upto_last_bar_indent() {
+    for (int c = 0; c < g_last_bar_indent; c++) {
+        aria_fprintf(stderr, " ");
+    }
+    aria_fprintf(stderr, "= ");
+}
+
+void note_root_type_single(
+        Node* a) {
+    stderr_print_mark_upto_last_bar_indent();
+    aria_fprintf(
+            stderr, 
+            ANSI_FCYAN 
+            "note: " ANSI_RESET 
+            "`" ANSI_FCYAN);
+    stderr_print_type(a);
+    aria_fprintf(
+            stderr, 
+            ANSI_RESET "`\n");
+}
+
+void note_root_type_double(
+        Node* a,
+        Node* b) {
+    stderr_print_mark_upto_last_bar_indent();
+    aria_fprintf(
+            stderr, 
+            ANSI_FCYAN 
+            "note: " ANSI_RESET 
+            "`" ANSI_FCYAN);
+    stderr_print_type(a);
+    aria_fprintf(
+            stderr, 
+            ANSI_RESET "` and `" ANSI_FCYAN);
+    stderr_print_type(b);
+    aria_fprintf(
+            stderr, 
+            ANSI_RESET "`\n");
 }
 
 void msg_user_expect_type(
@@ -226,11 +268,10 @@ void vmsg_user_node(
                 fmt,
                 aq);
     } else {
-        Token* msg_on = node_get_identifier(node, false);
+        Token* msg_on = node_get_main_token(node, false);
         if (!msg_on) {
             msg_on = node->head;
         }
-
         vmsg_user_token(
                 kind,
                 msg_on,
@@ -257,20 +298,30 @@ void msg_user_type_mismatch_node(
         Node* node,
         Node* from,
         Node* to) {
-    u64 char_count = 
-        (node->tail->column + node->tail->char_count) - node->head->column;
-    if (node->head->line != node->tail->line) {
-        char_count = node->tail->char_count;
+    if (node->head->line == node->tail->line) {
+        msg_user_type_mismatch(
+                kind,
+                node->head->srcfile,
+                node->head->line,
+                node->head->column,
+                (node->tail->column + node->tail->char_count) - 
+                    node->head->column,
+                from,
+                to);
+    } else {
+        Token* msg_on = node_get_main_token(node, false);
+        if (!msg_on) {
+            msg_on = node->head;
+        }
+        msg_user_type_mismatch(
+                kind,
+                msg_on->srcfile,
+                msg_on->line,
+                msg_on->column,
+                msg_on->char_count,
+                from,
+                to);
     }
-
-    msg_user_type_mismatch(
-            kind,
-            node->head->srcfile,
-            node->head->line,
-            node->head->column,
-            char_count,
-            from,
-            to);
 }
 
 void msg_user_expect_type_token(

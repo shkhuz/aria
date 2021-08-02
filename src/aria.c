@@ -485,15 +485,17 @@ Node* node_variable_decl_new(
     return node;
 }
 
-Token* node_get_identifier(Node* node, bool assert_on_erroneous_node) {
+Token* node_get_main_token(Node* node, bool assert_on_erroneous_node) {
     switch (node->kind) {
         case NODE_KIND_EXPR_STMT:
+        case NODE_KIND_RETURN:
         case NODE_KIND_TYPE_PRIMITIVE:
 		case NODE_KIND_TYPE_CUSTOM:
 		case NODE_KIND_TYPE_PTR:
         case NODE_KIND_BLOCK:
         case NODE_KIND_NUMBER:
-        case NODE_KIND_UNARY:
+        case NODE_KIND_STATIC_ACCESSOR:
+
         // TODO: check if these expressions should 
         // return an identifier...
         case NODE_KIND_SYMBOL:
@@ -503,6 +505,15 @@ Token* node_get_identifier(Node* node, bool assert_on_erroneous_node) {
                 assert(0);
             }
         } break;
+
+        case NODE_KIND_UNARY:
+            return node->unary.op;
+        case NODE_KIND_BINARY:
+            return node->binary.op;
+        case NODE_KIND_DEREF:
+            return node->deref.op;
+        case NODE_KIND_ASSIGN:
+            return node->assign.op;
 
         case NODE_KIND_VARIABLE_DECL:
             return node->variable_decl.identifier;
@@ -764,7 +775,9 @@ char* type_to_str(Node* type) {
 }
 
 void stderr_print_type(Node* type) {
-    fprintf(stderr, "%s", type_to_str(type));
+    char* type_str = type_to_str(type);
+    fprintf(stderr, "%s", type_str);
+    buf_free(type_str);
 }
 
 int type_get_size_bytes(Node* type) {

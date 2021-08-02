@@ -14,6 +14,8 @@ BIN_FILE := $(BIN_DIR)/$(PROJECT)
 
 CC := clang
 LD := clang
+# CC := gcc
+# LD := gcc
 
 PREPROCESSOR_DEFINES := -DTAB_COUNT=4 -DAST_TAB_COUNT=4
 ifeq ($(warn), no)

@@ -180,8 +180,7 @@ void lexer_lex(Lexer* self) {
 
                     bool is_valid = false;
                     for (uint i = 0; i < stack_arr_len(directives); i++) {
-                        if (
-                                stri(directives[i]) == 
+                        if (stri(directives[i]) == 
                                 strni(self->start, self->current)) {
                             is_valid = true;
                         }

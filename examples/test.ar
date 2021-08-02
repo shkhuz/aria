@@ -57,13 +57,16 @@ proc code_me(a: u8, b: usize, c: i8) {
     // *(&i) = 1;
     // const p = &i;
     // *p = 12;
+    const vv: void;
     const i = {
-        const int: i8 = 1;
-        int + (1 - int + { const a = 12; pointer(); 123 })
+        const int: i8 = vv + 1;
+        int + (-1 - int + { const a = 12; pointer(); 123 })
     };
 
     let p = &i;
     p = 2 + p;
+    *p = 
+        vv;
 
     {p}
 }
