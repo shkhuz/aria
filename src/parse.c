@@ -261,6 +261,9 @@ Node* parser_expr_atom(Parser* self) {
         }
     } else if (parser_match_token(self, TOKEN_KIND_NUMBER)) {
         return node_number_new(parser_previous(self));
+    } else if (parser_match_keyword(self, "true") ||
+               parser_match_keyword(self, "false")) {
+        return node_boolean_new(parser_previous(self));
     } else if (parser_match_token(self, TOKEN_KIND_STAR)) {
         Token* op = parser_previous(self);
         Node* right = parser_expr_atom(self);

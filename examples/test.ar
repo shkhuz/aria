@@ -65,8 +65,7 @@ proc code_me(a: u8, b: usize, c: i8) {
 
     let p = &i;
     p = 2 + p;
-    *p = 
-        vv;
+    *p = vv;
 
     {p}
 }
@@ -78,4 +77,6 @@ proc code_me(a: u8, b: usize, c: i8) {
 //     const c: u8 = a + b;
 //     &p
 // }
-proc pointer() {}
+proc pointer() {
+    const b: i8 = true;
+}

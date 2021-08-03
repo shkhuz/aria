@@ -482,6 +482,7 @@ void resolver_pre_decl_node(
         } break;
 
         case NODE_KIND_NUMBER:
+        case NODE_KIND_BOOLEAN:
         case NODE_KIND_TYPE_PRIMITIVE:
         case NODE_KIND_TYPE_CUSTOM:
         case NODE_KIND_TYPE_PTR:
@@ -608,6 +609,10 @@ void resolver_node(
         } break;
 
         case NODE_KIND_NUMBER:
+        {
+        } break;
+
+        case NODE_KIND_BOOLEAN:
         {
         } break;
     }

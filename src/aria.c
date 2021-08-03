@@ -12,7 +12,9 @@ char* keywords[] = {
     PROCEDURE_DECL_KEYWORD,
     VARIABLE_DECL_KEYWORD,
     CONSTANT_DECL_KEYWORD,
-    "return"
+    "return",
+    "true",
+    "false",
 };
 
 char* directives[] = {
@@ -29,6 +31,7 @@ typedef enum {
     TYPE_PRIMITIVE_KIND_I32,
     TYPE_PRIMITIVE_KIND_I64,
     TYPE_PRIMITIVE_KIND_ISIZE,
+    TYPE_PRIMITIVE_KIND_BOOL,
     TYPE_PRIMITIVE_KIND_VOID,
     TYPE_PRIMITIVE_KIND_NONE,
 } TypePrimitiveKind;
@@ -103,6 +106,7 @@ bool token_lexeme_eq(
 
 typedef enum {
     NODE_KIND_NUMBER,
+    NODE_KIND_BOOLEAN,
     NODE_KIND_TYPE_PRIMITIVE,
     NODE_KIND_TYPE_CUSTOM,
     NODE_KIND_TYPE_PTR,
@@ -132,6 +136,10 @@ struct Node {
             Token* number;
             bigint* val;
         } number;
+
+        struct {
+            Token* boolean;
+        } boolean;
 
         struct {
             Token* token;
@@ -244,6 +252,16 @@ Node* node_number_new(
     node->number.number = number;
     node->number.val = number->number.val;
     node->tail = number;
+    return node;
+}
+
+Node* node_boolean_new(
+        Token* boolean) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_BOOLEAN;
+    node->head = boolean;
+    node->boolean.boolean = boolean;
+    node->tail = boolean;
     return node;
 }
 
@@ -653,6 +671,7 @@ StrToTypePrimitiveKindMap PRIMITIVE_TYPES[] = {
     { "i32", TYPE_PRIMITIVE_KIND_I32 },
     { "i64", TYPE_PRIMITIVE_KIND_I64 },
     { "isize", TYPE_PRIMITIVE_KIND_ISIZE },
+    { "bool", TYPE_PRIMITIVE_KIND_BOOL },
     { "void", TYPE_PRIMITIVE_KIND_VOID },
 };
 
@@ -692,6 +711,8 @@ int primitive_type_size(TypePrimitiveKind kind) {
         case TYPE_PRIMITIVE_KIND_USIZE:
         case TYPE_PRIMITIVE_KIND_ISIZE: return 8;
 
+        case TYPE_PRIMITIVE_KIND_BOOL: return 8;
+
         case TYPE_PRIMITIVE_KIND_VOID: return 0;
         case TYPE_PRIMITIVE_KIND_NONE: break;
     }
@@ -713,6 +734,7 @@ bool primitive_type_is_signed(TypePrimitiveKind kind) {
         case TYPE_PRIMITIVE_KIND_I64:
         case TYPE_PRIMITIVE_KIND_ISIZE: return true;
 
+        case TYPE_PRIMITIVE_KIND_BOOL:
         case TYPE_PRIMITIVE_KIND_VOID: 
         case TYPE_PRIMITIVE_KIND_NONE: assert(0); break;
     }
@@ -732,6 +754,7 @@ bool primitive_type_is_integer(TypePrimitiveKind kind) {
         case TYPE_PRIMITIVE_KIND_I64:
         case TYPE_PRIMITIVE_KIND_ISIZE: return true;
 
+        case TYPE_PRIMITIVE_KIND_BOOL: 
         case TYPE_PRIMITIVE_KIND_VOID: return false;
         case TYPE_PRIMITIVE_KIND_NONE: assert(0); break;
     }
@@ -810,6 +833,7 @@ typedef struct {
     Node* i32;
     Node* i64;
     Node* isize;
+    Node* bool_;
     Node* void_;
 } PrimitiveTypePlaceholders;
 
@@ -842,6 +866,8 @@ void init_primitive_types() {
     primitive_type_placeholders.isize = 
         primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_ISIZE);
 
+    primitive_type_placeholders.bool_ = 
+        primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_BOOL);
     primitive_type_placeholders.void_ = 
         primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_VOID);
 }

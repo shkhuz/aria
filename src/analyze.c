@@ -41,6 +41,9 @@ bool implicit_cast(Node* from, Node* to) {
                 if (from->type_primitive.kind == TYPE_PRIMITIVE_KIND_VOID &&
                     to->type_primitive.kind == TYPE_PRIMITIVE_KIND_VOID) {
                     return true;
+                } else if (from->type_primitive.kind == TYPE_PRIMITIVE_KIND_BOOL 
+                        && to->type_primitive.kind == TYPE_PRIMITIVE_KIND_BOOL) {
+                    return true;
                 } else return false;
             }
         } else if (from->kind == NODE_KIND_TYPE_PTR) {
@@ -157,6 +160,10 @@ Node* analyzer_number(Analyzer* self, Node* node, Node* cast_to_type) {
             node->number.val, 
             node, 
             cast_to_type);
+}
+
+Node* analyzer_boolean(Analyzer* self, Node* node, Node* cast_to_type) {
+    return primitive_type_placeholders.bool_;
 }
 
 Node* analyzer_symbol(Analyzer* self, Node* node) {
@@ -403,6 +410,8 @@ Node* analyzer_expr(Analyzer* self, Node* node, Node* cast_to_type) {
     switch (node->kind) {
         case NODE_KIND_NUMBER:
             return analyzer_number(self, node, cast_to_type);
+        case NODE_KIND_BOOLEAN:
+            return analyzer_boolean(self, node, cast_to_type);
         case NODE_KIND_SYMBOL:
             return analyzer_symbol(self, node);
         case NODE_KIND_UNARY:
