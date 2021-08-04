@@ -152,6 +152,20 @@ void msg_user_type_mismatch(
     __vmsg_user_stage3;
 }
 
+void msg_user_cannot_convert_to(
+        MsgKind kind,
+        SrcFile* srcfile,
+        u64 line,
+        u64 column,
+        u64 char_count,
+        Node* to) {
+    __vmsg_user_stage1;
+    aria_fprintf(stderr, "cannot convert to `" ANSI_FCYAN);
+    stderr_print_type(to);
+    aria_fprintf(stderr, ANSI_RESET "`");
+    __vmsg_user_stage3;
+}
+
 void stderr_print_mark_upto_last_bar_indent() {
     for (int c = 0; c < g_last_bar_indent; c++) {
         aria_fprintf(stderr, " ");
@@ -324,6 +338,77 @@ void msg_user_type_mismatch_node(
     }
 }
 
+void msg_user_type_mismatch_token(
+        MsgKind kind,
+        Token* token,
+        Node* from,
+        Node* to) {
+    msg_user_type_mismatch(
+            kind,
+            token->srcfile,
+            token->line,
+            token->column, 
+            token->char_count,
+            from,
+            to);
+}
+
+void msg_user_cannot_convert_to_node(
+        MsgKind kind,
+        Node* node,
+        Node* to) {
+    if (node->head->line == node->tail->line) {
+        msg_user_cannot_convert_to(
+                kind,
+                node->head->srcfile,
+                node->head->line,
+                node->head->column,
+                (node->tail->column + node->tail->char_count) - 
+                    node->head->column,
+                to);
+    } else {
+        Token* msg_on = node_get_main_token(node, false);
+        if (!msg_on) {
+            msg_on = node->head;
+        }
+        msg_user_cannot_convert_to(
+                kind,
+                msg_on->srcfile,
+                msg_on->line,
+                msg_on->column,
+                msg_on->char_count,
+                to);
+    }
+}
+
+void msg_user_expect_type_node(
+        MsgKind kind,
+        Node* node,
+        Node* type) {
+    if (node->head->line == node->tail->line) {
+        msg_user_expect_type(
+                kind,
+                node->head->srcfile,
+                node->head->line,
+                node->head->column,
+                (node->tail->column + node->tail->char_count) - 
+                    node->head->column,
+                type);
+    } else {
+        Token* msg_on = node_get_main_token(node, false);
+        if (!msg_on) {
+            msg_on = node->head;
+        }
+        msg_user_expect_type(
+                kind,
+                msg_on->srcfile,
+                msg_on->line,
+                msg_on->column,
+                msg_on->char_count,
+                type);
+    }
+}
+
 void msg_user_expect_type_token(
         MsgKind kind,
         Token* token,
@@ -392,6 +477,14 @@ void terminate_compilation() {
 
 #define error_type_mismatch_node(...) \
     self->error = true; msg_user_type_mismatch_node(MSG_KIND_ERR, __VA_ARGS__)
+#define error_type_mismatch_token(...) \
+    self->error = true; msg_user_type_mismatch_token(MSG_KIND_ERR, __VA_ARGS__)
 
+#define error_cannot_convert_to_node(...) \
+    self->error = true; \
+    msg_user_cannot_convert_to_node(MSG_KIND_ERR, __VA_ARGS__)
+
+#define error_expect_type_node(...) \
+    self->error = true; msg_user_expect_type_node(MSG_KIND_ERR, __VA_ARGS__)
 #define error_expect_type_token(...) \
     self->error = true; msg_user_expect_type_token(MSG_KIND_ERR, __VA_ARGS__)

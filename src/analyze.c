@@ -109,13 +109,10 @@ Node* analyzer_get_largest_type_for_bigint(
         return cast_to_type;
     } else if (cast_to_type && 
                type_is_integer(cast_to_type)) {
-        char* cast_to_type_str = type_to_str(cast_to_type);
-        error_node(
+        error_cannot_convert_to_node(
                 node,
-                "cannot convert to `" ANSI_FCYAN "%s" ANSI_RESET "`",
-                cast_to_type_str);
+                cast_to_type);
         return null;
-        buf_free(cast_to_type);
     }
 
     if (bigint_fits_u8(val)) {
@@ -222,6 +219,21 @@ Node* analyzer_expr_deref(Analyzer* self, Node* node) {
         }
     }
     return null;
+}
+
+Node* analyzer_expr_cast(Analyzer* self, Node* node) {
+    Node* left_type = analyzer_expr(self, node->cast.left, null);
+    Node* cast_to = node->cast.right;
+    if (type_is_void(left_type) && type_is_void(cast_to)) {
+            return cast_to;
+    } else if (type_is_void(left_type) || type_is_void(cast_to)) {
+        error_type_mismatch_node(
+                node->cast.left,
+                left_type,
+                cast_to);
+        return null;
+    }
+    return cast_to;
 }
 
 Node* analyzer_expr_binary(Analyzer* self, Node* node, Node* cast_to_type) {
@@ -334,8 +346,8 @@ check:
                     right_type);
             goto check;
         }
-        error_type_mismatch_node(
-                node,
+        error_type_mismatch_token(
+                node->assign.op,
                 right_type,
                 left_type);
         return null;
@@ -418,6 +430,8 @@ Node* analyzer_expr(Analyzer* self, Node* node, Node* cast_to_type) {
             return analyzer_expr_unary(self, node, cast_to_type);
         case NODE_KIND_DEREF:
             return analyzer_expr_deref(self, node);
+        case NODE_KIND_CAST:
+            return analyzer_expr_cast(self, node);
         case NODE_KIND_BINARY:
             return analyzer_expr_binary(self, node, cast_to_type);
         case NODE_KIND_ASSIGN:

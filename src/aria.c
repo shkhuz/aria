@@ -15,6 +15,7 @@ char* keywords[] = {
     "return",
     "true",
     "false",
+    "as",
 };
 
 char* directives[] = {
@@ -117,6 +118,7 @@ typedef enum {
     NODE_KIND_PARAM,
     NODE_KIND_UNARY,
     NODE_KIND_DEREF,
+    NODE_KIND_CAST,
     NODE_KIND_BINARY,
     NODE_KIND_ASSIGN,
     NODE_KIND_EXPR_STMT,
@@ -191,6 +193,12 @@ struct Node {
             Node* right;
             bool constant;
         } deref;
+
+        struct {
+            Node* left;
+            Token* op;
+            Node* right;
+        } cast;
 
         struct {
             Token* op;
@@ -388,6 +396,20 @@ Node* node_expr_deref_new(
     node->deref.op = op;
     node->deref.right = right;
     node->deref.constant = false;
+    node->tail = right->tail;
+    return node;
+}
+
+Node* node_expr_cast_new(
+        Node* left,
+        Token* op,
+        Node* right) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_CAST;
+    node->head = left->head;
+    node->cast.left = left;
+    node->cast.op = op;
+    node->cast.right = right;
     node->tail = right->tail;
     return node;
 }
@@ -645,16 +667,6 @@ struct SrcFile {
     Node** nodes;
 };
 
-bool primitive_type_is_integer(TypePrimitiveKind kind);
-
-bool type_is_integer(Node* node) {
-    if (node->kind == NODE_KIND_TYPE_PRIMITIVE &&
-        primitive_type_is_integer(node->type_primitive.kind)) {
-        return true;
-    }
-    return false;
-}
-
 typedef struct {
     char* str;
     TypePrimitiveKind kind;
@@ -871,3 +883,20 @@ void init_primitive_types() {
     primitive_type_placeholders.void_ = 
         primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_VOID);
 }
+
+bool type_is_integer(Node* node) {
+    if (node->kind == NODE_KIND_TYPE_PRIMITIVE &&
+        primitive_type_is_integer(node->type_primitive.kind)) {
+        return true;
+    }
+    return false;
+}
+
+bool type_is_void(Node* node) {
+    if (node->kind == NODE_KIND_TYPE_PRIMITIVE &&
+        node->type_primitive.kind == TYPE_PRIMITIVE_KIND_VOID) {
+        return true;
+    }
+    return false;
+}
+

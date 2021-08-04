@@ -297,12 +297,25 @@ Node* parser_expr_unary(Parser* self) {
     return parser_expr_atom(self);
 }
 
-Node* parser_expr_binary(Parser* self) {
+Node* parser_expr_cast(Parser* self) {
     Node* left = parser_expr_unary(self);
+    while (parser_match_keyword(self, "as")) {
+        Token* op = parser_previous(self);
+        Node* right = parser_type(self);
+        left = node_expr_cast_new(
+                left,
+                op,
+                right);
+    }
+    return left;
+}
+
+Node* parser_expr_binary(Parser* self) {
+    Node* left = parser_expr_cast(self);
     while (parser_match_token(self, TOKEN_KIND_PLUS) ||
            parser_match_token(self, TOKEN_KIND_MINUS)) {
         Token* op = parser_previous(self);
-        Node* right = parser_expr_unary(self);
+        Node* right = parser_expr_cast(self);
         left = node_expr_binary_new(
                 op,
                 left,

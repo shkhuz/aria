@@ -59,15 +59,15 @@ proc code_me(a: u8, b: usize, c: i8) {
     // *p = 12;
     const vv: void;
     const i = {
-        const int: i8 = vv + 1;
+        const int: i8 = vv + 1 as u8;
         int + (-1 - int + { const a = 12; pointer(); 123 })
     };
 
     let p = &i;
     p = 2 + p;
-    *p = vv;
+    *p = vv as i8;
 
-    {p}
+    {p as bool}
 }
 
 // proc pointer(p: *u8) *const *const u8 {
@@ -78,5 +78,7 @@ proc code_me(a: u8, b: usize, c: i8) {
 //     &p
 // }
 proc pointer() {
-    const b: i8 = true;
+    const good = true;
+    const b: i8 = -true;
+    const i = &good as void;
 }

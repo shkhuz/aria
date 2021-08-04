@@ -318,11 +318,17 @@ void resolver_expr_deref(Resolver* self, Node* node) {
                node->deref.right->unary.op->kind != TOKEN_KIND_MINUS) {
     } else if (node->deref.right->kind == NODE_KIND_SYMBOL) {
     } else if (node->deref.right->kind == NODE_KIND_DEREF) {
+    /* } else if (node->deref.right->kind == NODE_KIND_CAST) { */
     } else {
         error_node(
                 node->deref.right,
                 "invalid r-value");
     }
+}
+
+void resolver_expr_cast(Resolver* self, Node* node) {
+    resolver_node(self, node->cast.left, false);
+    resolver_type(self, node->cast.right);
 }
 
 void resolver_expr_binary(Resolver* self, Node* node) {
@@ -489,6 +495,7 @@ void resolver_pre_decl_node(
         case NODE_KIND_SYMBOL:
         case NODE_KIND_UNARY:
         case NODE_KIND_DEREF:
+        case NODE_KIND_CAST:
         case NODE_KIND_BINARY:
         case NODE_KIND_ASSIGN:
         case NODE_KIND_PROCEDURE_CALL:
@@ -584,6 +591,11 @@ void resolver_node(
         case NODE_KIND_DEREF:
         {
             resolver_expr_deref(self, node);
+        } break;
+
+        case NODE_KIND_CAST:
+        {
+            resolver_expr_cast(self, node);
         } break;
 
         case NODE_KIND_BINARY:
