@@ -92,6 +92,7 @@ bool analyzer_bigint_fits(bigint* a, TypePrimitiveKind kind) {
         case TYPE_PRIMITIVE_KIND_ISIZE:
             return bigint_fits_i64(a);
 
+        case TYPE_PRIMITIVE_KIND_BOOL:
         case TYPE_PRIMITIVE_KIND_VOID: 
         case TYPE_PRIMITIVE_KIND_NONE: assert(0); break;
     }
@@ -418,6 +419,136 @@ Node* analyzer_block(Analyzer* self, Node* node, Node* cast_to_type) {
     }
 }
 
+Node* analyzer_if_branch(Analyzer* self, Node* node, Node* cast_to_type) {
+    if (node->if_branch.cond) {
+        Node* cond_type = analyzer_expr(self, node->if_branch.cond, null);
+        if (cond_type && !implicit_cast(
+                    cond_type, 
+                    primitive_type_placeholders.bool_)) {
+            error_type_mismatch_node(
+                    node->if_branch.cond,
+                    cond_type,
+                    primitive_type_placeholders.bool_);
+        }
+    }
+
+    return analyzer_block(self, node->if_branch.body, cast_to_type);
+}
+
+#define note_if_branch_return_value_pos \
+    "...if-branch value annotated here"
+#define note_if_branch_return_value_infererred_pos \
+    "...if-branch value inferred from here"
+
+void analyzer_print_note_for_if_branch_type_mismatch(
+        Node* node,
+        Node* if_branch_return_value) {
+    if (if_branch_return_value) {
+        note_node(
+                if_branch_return_value,
+                note_if_branch_return_value_pos);
+    } else {
+        note_token(
+                node->if_expr.if_branch->if_branch.body->tail,
+                note_if_branch_return_value_infererred_pos);
+    }
+}
+
+Node* analyzer_if_expr(Analyzer* self, Node* node, Node* cast_to_type) {
+    // Get branch types
+    Node* if_branch_type = analyzer_if_branch(
+            self, 
+            node->if_expr.if_branch, 
+            cast_to_type);
+    Node** else_if_branch_type = null;
+    buf_loop(node->if_expr.else_if_branch, i) {
+        buf_push(else_if_branch_type, analyzer_if_branch(
+                self, 
+                node->if_expr.else_if_branch[i], 
+                cast_to_type));
+    }
+    Node* else_branch_type = null;
+    if (node->if_expr.else_branch) {
+        else_branch_type = analyzer_if_branch(
+                self, 
+                node->if_expr.else_branch, 
+                cast_to_type);
+    }
+
+    // Verify branch types
+    // TODO: make it so that branch that pass in this "verify" stage are 
+    // processed in "compare" stage, even if other branches fail
+    buf_loop(node->if_expr.else_if_branch, i) {
+        if (node->if_expr.else_if_branch[i] &&
+            !else_if_branch_type[i]) {
+            return null;
+        }
+    }
+    if (node->if_expr.else_branch && 
+        !else_branch_type) {
+        return null;
+    }
+
+    Node* if_branch_return_value = 
+        node->if_expr.if_branch->if_branch.body->block.return_value;
+    Node** else_if_branch_return_value = null;
+    buf_loop(node->if_expr.else_if_branch, i) {
+        buf_push(else_if_branch_return_value, 
+                node->if_expr.else_if_branch[i]->
+                    if_branch.body->block.return_value);
+    }
+    Node* else_branch_return_value = null;
+    if (node->if_expr.else_branch) {
+        else_branch_return_value = 
+            node->if_expr.else_branch->if_branch.body->block.return_value;
+    }
+
+    assert(buf_len(else_if_branch_return_value) ==
+           buf_len(else_if_branch_type));
+
+    
+    // Compare branch types
+    buf_loop(else_if_branch_type, i) {
+        if (!implicit_cast(if_branch_type, else_if_branch_type[i])) {
+            if (else_if_branch_return_value[i]) {
+                error_type_mismatch_node(
+                        else_if_branch_return_value[i],
+                        else_if_branch_type[i],
+                        if_branch_type);
+            } else {
+                error_type_mismatch_token(
+                        node->if_expr.else_if_branch[i]->if_branch.body->tail,
+                        else_if_branch_type[i],
+                        if_branch_type);
+            }
+            analyzer_print_note_for_if_branch_type_mismatch(
+                    node,
+                    if_branch_return_value);
+            return null;
+        }
+    }
+    if (node->if_expr.else_branch) {
+        if (!implicit_cast(if_branch_type, else_branch_type)) {
+            if (else_branch_return_value) {
+                error_type_mismatch_node(
+                        else_branch_return_value,
+                        else_branch_type,
+                        if_branch_type);
+            } else {
+                error_type_mismatch_token(
+                        node->if_expr.else_branch->if_branch.body->tail,
+                        else_branch_type,
+                        if_branch_type);
+            }
+            analyzer_print_note_for_if_branch_type_mismatch(
+                    node,
+                    if_branch_return_value);
+            return null;
+        }
+    }
+    return if_branch_type;
+}
+
 Node* analyzer_expr(Analyzer* self, Node* node, Node* cast_to_type) {
     switch (node->kind) {
         case NODE_KIND_NUMBER:
@@ -440,6 +571,8 @@ Node* analyzer_expr(Analyzer* self, Node* node, Node* cast_to_type) {
             return analyzer_procedure_call(self, node);
         case NODE_KIND_BLOCK: 
             return analyzer_block(self, node, cast_to_type);
+        case NODE_KIND_IF_EXPR:
+            return analyzer_if_expr(self, node, cast_to_type);
 
         case NODE_KIND_TYPE_PRIMITIVE:
         case NODE_KIND_TYPE_CUSTOM:
@@ -467,7 +600,7 @@ void analyzer_print_note_for_procedure_return_type(Node* procedure) {
         procedure->procedure_decl.type->type_primitive.token == null) {
         note_token(
                 procedure->procedure_decl.body->head,
-                "...return type implicitly inferred here");
+                "...return type implicitly inferred from here");
     } else {
         note_node(
                 procedure->procedure_decl.type,

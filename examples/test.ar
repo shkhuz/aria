@@ -81,4 +81,14 @@ proc pointer() {
     const good = true;
     const b: i8 = -true;
     const i = &good as void;
+
+    const value = 10;
+    const from = if good {
+    } else if good {
+
+    } else if good {
+
+    } else {
+        value
+    };
 }

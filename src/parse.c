@@ -251,6 +251,64 @@ Node* parser_block(Parser* self, Token* lbrace) {
     return node_block_new(lbrace, nodes, return_value, rbrace);
 }
 
+Node* parser_if_branch(
+        Parser* self, 
+        Token* keyword, 
+        IfBranchKind branch_kind) {
+    Node* cond = null;
+    if (branch_kind != IF_BRANCH_ELSE) {
+        cond = parser_expr(self);
+    }
+
+    if (branch_kind == IF_BRANCH_ELSE_IF &&
+        cond->kind == NODE_KIND_BLOCK) {
+        if (parser_current(self)->kind == TOKEN_KIND_RBRACE) {
+            fatal_error_token(
+                    parser_current(self),
+                    "expected `{` for else-if body "
+                    "(did you forget the else-if condition?)");
+        }
+    }
+    Node* body = parser_block(self, parser_expect_lbrace(self));
+    return node_if_branch_new(
+            keyword,
+            cond,
+            body, 
+            branch_kind);
+}
+
+Node* parser_if_expr(Parser* self, Token* keyword) {
+    Node* if_branch = parser_if_branch(self, keyword, IF_BRANCH_IF);
+    Node** else_if_branch = null;
+
+    while (true) {
+        if (parser_match_keyword(self, "else")) {
+            Token* else_keyword = parser_previous(self);
+            if (parser_match_keyword(self, "if")) {
+                buf_push(else_if_branch, parser_if_branch(
+                            self,
+                            else_keyword,
+                            IF_BRANCH_ELSE_IF));
+            } else {
+                parser_goto_previous_token(self);
+                break;
+            }
+        } else break;
+    }
+
+    Node* else_branch = null;
+    if (parser_match_keyword(self, "else")) {
+        else_branch = parser_if_branch(
+                self, 
+                parser_previous(self), 
+                IF_BRANCH_ELSE);
+    }
+    return node_if_expr_new(
+            if_branch,
+            else_if_branch,
+            else_branch);
+}
+
 Node* parser_expr_atom(Parser* self) {
     if (parser_current(self)->kind == TOKEN_KIND_IDENTIFIER) {
         Node* symbol = parser_symbol(self);
@@ -270,6 +328,8 @@ Node* parser_expr_atom(Parser* self) {
         return node_expr_deref_new(op, right);
     } else if (parser_match_token(self, TOKEN_KIND_LBRACE)) {
         return parser_block(self, parser_previous(self));
+    } else if (parser_match_keyword(self, "if")) {
+        return parser_if_expr(self, parser_previous(self));
     } else if (parser_match_token(self, TOKEN_KIND_LPAREN)) {
         Token* lparen = parser_previous(self);
         Node* node = parser_expr(self);
@@ -345,7 +405,8 @@ Node* parser_expr_stmt(Parser* self, Node* node) {
     Token* tail = null;
     if (!node) return null;
 
-    if (node->kind != NODE_KIND_BLOCK) {
+    if (node->kind != NODE_KIND_BLOCK &&
+        node->kind != NODE_KIND_IF_EXPR) {
         tail = parser_expect_semicolon(self);
     } else {
         tail = node->tail;

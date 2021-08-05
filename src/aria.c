@@ -16,6 +16,8 @@ char* keywords[] = {
     "true",
     "false",
     "as",
+    "if",
+    "else",
 };
 
 char* directives[] = {
@@ -115,6 +117,8 @@ typedef enum {
     NODE_KIND_SYMBOL,
     NODE_KIND_PROCEDURE_CALL,
     NODE_KIND_BLOCK,
+    NODE_KIND_IF_BRANCH,
+    NODE_KIND_IF_EXPR,
     NODE_KIND_PARAM,
     NODE_KIND_UNARY,
     NODE_KIND_DEREF,
@@ -127,6 +131,12 @@ typedef enum {
     NODE_KIND_PROCEDURE_DECL,
     NODE_KIND_IMPLICIT_MODULE,
 } NodeKind;
+
+typedef enum {
+    IF_BRANCH_IF,
+    IF_BRANCH_ELSE_IF,
+    IF_BRANCH_ELSE,
+} IfBranchKind;
 
 struct Node {
     NodeKind kind;
@@ -181,6 +191,19 @@ struct Node {
             Node** nodes;
             Node* return_value;
         } block;
+
+        struct {
+            Token* keyword;
+            Node* cond;
+            Node* body;
+            IfBranchKind branch_kind;
+        } if_branch;
+
+        struct {
+            Node* if_branch;
+            Node** else_if_branch;
+            Node* else_branch;
+        } if_expr;
 
         struct {
             Token* op;
@@ -359,6 +382,42 @@ Node* node_block_new(
     node->block.nodes = nodes;
     node->block.return_value = return_value;
     node->tail = rbrace;
+    return node;
+}
+
+Node* node_if_branch_new(
+        Token* keyword,
+        Node* cond,
+        Node* body,
+        IfBranchKind branch_kind) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_IF_BRANCH;
+    node->head = keyword;
+    node->if_branch.keyword = keyword;
+    node->if_branch.cond = cond;
+    node->if_branch.body = body;
+    node->if_branch.branch_kind = branch_kind;
+    node->tail = body->tail;
+    return node;
+}
+
+Node* node_if_expr_new(
+        Node* if_branch,
+        Node** else_if_branch,
+        Node* else_branch) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_IF_EXPR;
+    node->head = if_branch->head;
+    node->if_expr.if_branch = if_branch;
+    node->if_expr.else_if_branch = else_if_branch;
+    node->if_expr.else_branch = else_branch;
+    if (else_branch) {
+        node->tail = else_branch->tail;
+    } else if (else_if_branch) {
+        node->tail = else_if_branch[buf_len(else_if_branch)-1]->tail;
+    } else {
+        node->tail = if_branch->tail;
+    }
     return node;
 }
 

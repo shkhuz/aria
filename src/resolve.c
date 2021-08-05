@@ -408,6 +408,23 @@ void resolver_return(Resolver* self, Node* node) {
     node->return_.procedure = self->current_procedure;
 }
 
+void resolver_if_branch(Resolver* self, Node* node) {
+    if (node->if_branch.cond) {
+        resolver_node(self, node->if_branch.cond, false);
+    }
+    resolver_node(self, node->if_branch.body, false);
+}
+
+void resolver_if_expr(Resolver* self, Node* node) {
+    resolver_if_branch(self, node->if_expr.if_branch);
+    buf_loop(node->if_expr.else_if_branch, i) {
+        resolver_if_branch(self, node->if_expr.else_if_branch[i]);
+    }
+    if (node->if_expr.else_branch) {
+        resolver_if_branch(self, node->if_expr.else_branch);
+    }
+}
+
 void resolver_variable_decl(
         Resolver* self, 
         Node* node,
@@ -483,6 +500,7 @@ void resolver_pre_decl_node(
         case NODE_KIND_EXPR_STMT:
         case NODE_KIND_RETURN:
         case NODE_KIND_BLOCK:
+        case NODE_KIND_IF_EXPR:
         {
             // DO NOTHING
         } break;
@@ -611,6 +629,11 @@ void resolver_node(
         case NODE_KIND_BLOCK:
         {
             resolver_block(self, node, true);
+        } break;
+
+        case NODE_KIND_IF_EXPR:
+        {
+            resolver_if_expr(self, node);
         } break;
 
         case NODE_KIND_TYPE_PRIMITIVE:
