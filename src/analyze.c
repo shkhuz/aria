@@ -361,7 +361,7 @@ check:
                     "cannot modify contents of a const-pointer");
         }
     }
-    return null;
+    return left_type;
 }
 
 Node* analyzer_procedure_call(Analyzer* self, Node* node) {
@@ -608,15 +608,24 @@ void analyzer_print_note_for_procedure_return_type(Node* procedure) {
     }
 }
 
+// TODO: (NodeKind) check child expression kind or
+// add to list if new expression kinds are added
 void analyzer_expr_stmt(Analyzer* self, Node* node) {
     Node* child_type = analyzer_expr(self, node->expr_stmt.expr, null);
-    if ((node->expr_stmt.expr->kind == NODE_KIND_PROCEDURE_CALL ||
-        node->expr_stmt.expr->kind == NODE_KIND_DEREF ||
+    if (child_type &&
+        (
         node->expr_stmt.expr->kind == NODE_KIND_NUMBER ||
         node->expr_stmt.expr->kind == NODE_KIND_BOOLEAN ||
+        node->expr_stmt.expr->kind == NODE_KIND_SYMBOL ||
+        node->expr_stmt.expr->kind == NODE_KIND_PROCEDURE_CALL ||
+        node->expr_stmt.expr->kind == NODE_KIND_BLOCK ||
+        node->expr_stmt.expr->kind == NODE_KIND_IF_EXPR ||
+        node->expr_stmt.expr->kind == NODE_KIND_PARAM ||
+        node->expr_stmt.expr->kind == NODE_KIND_UNARY ||
+        node->expr_stmt.expr->kind == NODE_KIND_DEREF ||
         node->expr_stmt.expr->kind == NODE_KIND_CAST ||
-        node->expr_stmt.expr->kind == NODE_KIND_BINARY ||
-        node->expr_stmt.expr->kind == NODE_KIND_UNARY) &&
+        node->expr_stmt.expr->kind == NODE_KIND_BINARY
+        ) &&
         (!implicit_cast(child_type, primitive_type_placeholders.void_))) {
         warning_node(
                 node->expr_stmt.expr,

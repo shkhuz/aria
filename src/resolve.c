@@ -302,6 +302,8 @@ void resolver_expr_unary(Resolver* self, Node* node) {
     }
 }
 
+// TODO: (NodeKind) check child expression kind or
+// add to list if new expression kinds are added
 void resolver_expr_deref(Resolver* self, Node* node) {
     resolver_node(self, node->deref.right, false);
     if (node->deref.right->kind == NODE_KIND_SYMBOL) {
@@ -313,12 +315,15 @@ void resolver_expr_deref(Resolver* self, Node* node) {
             // Do nothing 'cause it will be checked by
             // the analyzer symbol checker.
         }
-    } else if (node->deref.right->kind == NODE_KIND_BINARY) {
+    } else if (node->deref.right->kind == NODE_KIND_PROCEDURE_CALL) {
+    } else if (node->deref.right->kind == NODE_KIND_BLOCK) {
+    } else if (node->deref.right->kind == NODE_KIND_IF_EXPR) {
     } else if (node->deref.right->kind == NODE_KIND_UNARY &&
-               node->deref.right->unary.op->kind != TOKEN_KIND_MINUS) {
-    } else if (node->deref.right->kind == NODE_KIND_SYMBOL) {
+               node->deref.right->unary.op->kind == TOKEN_KIND_STAR) {
     } else if (node->deref.right->kind == NODE_KIND_DEREF) {
-    /* } else if (node->deref.right->kind == NODE_KIND_CAST) { */
+    } else if (node->deref.right->kind == NODE_KIND_CAST) {
+    } else if (node->deref.right->kind == NODE_KIND_BINARY) {
+    } else if (node->deref.right->kind == NODE_KIND_ASSIGN) {
     } else {
         error_node(
                 node->deref.right,

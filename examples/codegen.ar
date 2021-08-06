@@ -1,8 +1,34 @@
-// proc main() {
-//     its_game_time();
-// }
+proc main() {
+    its_game_time();
+}
 
 proc its_game_time() *void {
-    1;
-    return 7873 as *u16;
+    0 as void
 }
+
+// proc its_game_time() *void {
+//     1;
+//     (1+2);
+//     add(1, 2);
+//     param_deref_test(6756 as *u8);
+//     *(75654 as *u8) = 12;
+//     return 7873 as *u16;
+// }
+
+// proc add(a: usize, b: usize) usize {
+//     let i = 1;
+//     let p = &i;
+//     *(p = 4545 as *u8);
+//     a + b
+// }
+
+// proc param_deref_test(p: *u8) u8 {
+//     const i = {
+//         if p as bool {
+//             *p
+//         } else {
+//             *(p + 2)
+//         }
+//     };
+//     i
+// }
