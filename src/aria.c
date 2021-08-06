@@ -247,6 +247,7 @@ struct Node {
 
         struct {
             Node* right;
+            Node* right_type;
             Node* procedure;
         } return_;
 
@@ -521,6 +522,7 @@ Node* node_return_new(
     node->kind = NODE_KIND_RETURN;
     node->head = (keyword ? keyword : right->head);
     node->return_.right = right;
+    node->return_.right_type = null;
     node->return_.procedure = null;
     node->tail = (semicolon ? semicolon : right->tail);
     return node;

@@ -358,5 +358,5 @@ int main(int argc, char* argv[]) {
         terminate_compilation();
     }
 
-    /* codegen_srcfiles(srcfiles); */
+    codegen_srcfiles(srcfiles);
 }

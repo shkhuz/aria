@@ -608,6 +608,22 @@ void analyzer_print_note_for_procedure_return_type(Node* procedure) {
     }
 }
 
+void analyzer_expr_stmt(Analyzer* self, Node* node) {
+    Node* child_type = analyzer_expr(self, node->expr_stmt.expr, null);
+    if ((node->expr_stmt.expr->kind == NODE_KIND_PROCEDURE_CALL ||
+        node->expr_stmt.expr->kind == NODE_KIND_DEREF ||
+        node->expr_stmt.expr->kind == NODE_KIND_NUMBER ||
+        node->expr_stmt.expr->kind == NODE_KIND_BOOLEAN ||
+        node->expr_stmt.expr->kind == NODE_KIND_CAST ||
+        node->expr_stmt.expr->kind == NODE_KIND_BINARY ||
+        node->expr_stmt.expr->kind == NODE_KIND_UNARY) &&
+        (!implicit_cast(child_type, primitive_type_placeholders.void_))) {
+        warning_node(
+                node->expr_stmt.expr,
+                "unused value");
+    }
+}
+
 void analyzer_return(Analyzer* self, Node* node) {
     Node* proc_return_type = node->return_.procedure->procedure_decl.type;
     Node* right_type = primitive_type_placeholders.void_;
@@ -628,7 +644,9 @@ void analyzer_return(Analyzer* self, Node* node) {
                 proc_return_type);
         analyzer_print_note_for_procedure_return_type(
                 node->return_.procedure);
+        return;
     }
+    node->return_.right_type = right_type;
 }
 
 void analyzer_variable_decl(Analyzer* self, Node* node) {
@@ -663,17 +681,41 @@ void analyzer_variable_decl(Analyzer* self, Node* node) {
 void analyzer_procedure_decl(Analyzer* self, Node* node) {
     self->local_vars_bytes = 0;
     Node* annotated_type = node->procedure_decl.type;
-    Node* body_type = analyzer_block(
+    Node* body_type = null;
+    body_type = analyzer_block(
             self, node->procedure_decl.body, 
             annotated_type);
+    Node* error_marker_node = node->procedure_decl.body->block.return_value;
+    if (!node->procedure_decl.body->block.return_value &&
+        node->procedure_decl.body->block.nodes && 
+        node->procedure_decl.body->block.nodes[
+            buf_len(node->procedure_decl.body->block.nodes)-1]->kind == 
+            NODE_KIND_RETURN /*&&
+        node->procedure_decl.body->block.nodes[
+            buf_len(node->procedure_decl.body->block.nodes)-1]->
+                return_.right_type*/) {
+        body_type = node->procedure_decl.body->block.nodes[
+            buf_len(node->procedure_decl.body->block.nodes)-1]->
+                return_.right_type;
+        error_marker_node = node->procedure_decl.body->block.nodes[
+            buf_len(node->procedure_decl.body->block.nodes)-1]->
+                return_.right;
+    }
     if (body_type && annotated_type &&
             !implicit_cast(
                 body_type,
                 annotated_type)) {
-        error_type_mismatch_node(
-                node->procedure_decl.body->block.return_value,
-                body_type,
-                annotated_type);
+        if (error_marker_node) {
+            error_type_mismatch_node(
+                    error_marker_node,
+                    body_type,
+                    annotated_type);
+        } else {
+            error_type_mismatch_token(
+                    node->tail,
+                    body_type,
+                    annotated_type);
+        }
         analyzer_print_note_for_procedure_return_type(node);
     }
 
@@ -694,7 +736,7 @@ void analyzer_stmt(Analyzer* self, Node* node) {
 
         case NODE_KIND_EXPR_STMT: 
         {
-            analyzer_expr(self, node->expr_stmt.expr, null);
+            analyzer_expr_stmt(self, node);
         } break;
 
         case NODE_KIND_RETURN:
