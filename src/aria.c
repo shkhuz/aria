@@ -15,6 +15,7 @@ char* keywords[] = {
     "return",
     "true",
     "false",
+    "null",
     "as",
     "if",
     "else",
@@ -109,7 +110,7 @@ bool token_lexeme_eq(
 
 typedef enum {
     NODE_KIND_NUMBER,
-    NODE_KIND_BOOLEAN,
+    NODE_KIND_CONSTANT,
     NODE_KIND_TYPE_PRIMITIVE,
     NODE_KIND_TYPE_CUSTOM,
     NODE_KIND_TYPE_PTR,
@@ -133,6 +134,11 @@ typedef enum {
 } NodeKind;
 
 typedef enum {
+    CONSTANT_KIND_BOOLEAN,
+    CONSTANT_KIND_NULL,
+} ConstantKind;
+
+typedef enum {
     IF_BRANCH_IF,
     IF_BRANCH_ELSE_IF,
     IF_BRANCH_ELSE,
@@ -150,8 +156,9 @@ struct Node {
         } number;
 
         struct {
-            Token* boolean;
-        } boolean;
+            Token* keyword;
+            ConstantKind constant_kind;
+        } constant;
 
         struct {
             Token* token;
@@ -287,13 +294,19 @@ Node* node_number_new(
     return node;
 }
 
-Node* node_boolean_new(
-        Token* boolean) {
+Node* node_constant_new(
+        Token* keyword) {
     alloc_with_type(node, Node);
-    node->kind = NODE_KIND_BOOLEAN;
-    node->head = boolean;
-    node->boolean.boolean = boolean;
-    node->tail = boolean;
+    node->kind = NODE_KIND_CONSTANT;
+    node->head = keyword;
+    node->constant.keyword = keyword;
+    if (stri(keyword->lexeme) == stri("true") ||
+        stri(keyword->lexeme) == stri("false")) {
+        node->constant.constant_kind = CONSTANT_KIND_BOOLEAN;
+    } else if (stri(keyword->lexeme) == stri("null")) {
+        node->constant.constant_kind = CONSTANT_KIND_NULL;
+    } else assert(0);
+    node->tail = keyword;
     return node;
 }
 
@@ -908,12 +921,17 @@ typedef struct {
     Node* isize;
     Node* bool_;
     Node* void_;
+    Node* void_ptr;
 } PrimitiveTypePlaceholders;
 
 PrimitiveTypePlaceholders primitive_type_placeholders;
 
 Node* primitive_type_new_placeholder(TypePrimitiveKind kind) {
     return node_type_primitive_new(null, kind);
+}
+
+Node* ptr_type_new_placeholder(Node* right) {
+    return node_type_ptr_new(null, false, right);
 }
 
 void init_primitive_types() {
@@ -943,6 +961,9 @@ void init_primitive_types() {
         primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_BOOL);
     primitive_type_placeholders.void_ = 
         primitive_type_new_placeholder(TYPE_PRIMITIVE_KIND_VOID);
+
+    primitive_type_placeholders.void_ptr = 
+        ptr_type_new_placeholder(primitive_type_placeholders.void_);
 }
 
 bool type_is_integer(Node* node) {

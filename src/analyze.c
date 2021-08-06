@@ -160,8 +160,13 @@ Node* analyzer_number(Analyzer* self, Node* node, Node* cast_to_type) {
             cast_to_type);
 }
 
-Node* analyzer_boolean(Analyzer* self, Node* node, Node* cast_to_type) {
-    return primitive_type_placeholders.bool_;
+Node* analyzer_constant(Analyzer* self, Node* node, Node* cast_to_type) {
+    if (node->constant.constant_kind == CONSTANT_KIND_BOOLEAN) {
+        return primitive_type_placeholders.bool_;
+    } else if (node->constant.constant_kind == CONSTANT_KIND_NULL) {
+        return primitive_type_placeholders.void_ptr;
+    } else assert(0);
+    return null;
 }
 
 Node* analyzer_symbol(Analyzer* self, Node* node) {
@@ -506,6 +511,11 @@ Node* analyzer_if_expr(Analyzer* self, Node* node, Node* cast_to_type) {
     assert(buf_len(else_if_branch_return_value) ==
            buf_len(else_if_branch_type));
 
+    if (if_branch_return_value && !node->if_expr.else_branch) {
+        error_node(
+                node,
+                "else-branch is mandatory when value is used");
+    }
     
     // Compare branch types
     buf_loop(else_if_branch_type, i) {
@@ -553,8 +563,8 @@ Node* analyzer_expr(Analyzer* self, Node* node, Node* cast_to_type) {
     switch (node->kind) {
         case NODE_KIND_NUMBER:
             return analyzer_number(self, node, cast_to_type);
-        case NODE_KIND_BOOLEAN:
-            return analyzer_boolean(self, node, cast_to_type);
+        case NODE_KIND_CONSTANT:
+            return analyzer_constant(self, node, cast_to_type);
         case NODE_KIND_SYMBOL:
             return analyzer_symbol(self, node);
         case NODE_KIND_UNARY:
@@ -615,7 +625,7 @@ void analyzer_expr_stmt(Analyzer* self, Node* node) {
     if (child_type &&
         (
         node->expr_stmt.expr->kind == NODE_KIND_NUMBER ||
-        node->expr_stmt.expr->kind == NODE_KIND_BOOLEAN ||
+        node->expr_stmt.expr->kind == NODE_KIND_CONSTANT ||
         node->expr_stmt.expr->kind == NODE_KIND_SYMBOL ||
         node->expr_stmt.expr->kind == NODE_KIND_PROCEDURE_CALL ||
         node->expr_stmt.expr->kind == NODE_KIND_BLOCK ||

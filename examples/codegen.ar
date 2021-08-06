@@ -3,7 +3,15 @@ proc main() {
 }
 
 proc its_game_time() *void {
-    0 as void
+    const i = 1;
+    if i as bool {
+        its_game_time();
+    } else if (i+1) as bool {
+        its_game_time();
+    } else {
+        null
+    }
+    null
 }
 
 // proc its_game_time() *void {
