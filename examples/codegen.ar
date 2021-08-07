@@ -1,18 +1,20 @@
 proc main() {
-    its_game_time();
+    const i: i8 = 1;
+    write(&i);
 }
 
 proc its_game_time() *void {
     const i = 1;
     if i as bool {
-        its_game_time();
+        its_game_time()
     } else if (i+1) as bool {
-        its_game_time();
+        its_game_time()
     } else {
         null
     }
-    null
 }
+
+extern proc write(buf: *const i8) bool;
 
 // proc its_game_time() *void {
 //     1;

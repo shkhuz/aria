@@ -372,8 +372,24 @@ check:
 Node* analyzer_procedure_call(Analyzer* self, Node* node) {
     Node** args = node->procedure_call.args;
     u64 arg_len = buf_len(args);
-    Node** params = 
-        node->procedure_call.callee->symbol.ref->procedure_decl.params;
+
+    Node** params = null;
+    // This could be done in a more "neater" way if the 
+    // procedure call only points to the procedure header,
+    // not the procedure declaration or the extern procedure 
+    // itself. But I think that the extra information about
+    // the body of the procedure and whether or not it's an
+    // external procedure will come in handy later on.
+    if (node->procedure_call.callee->symbol.ref->kind == 
+            NODE_KIND_PROCEDURE_DECL) {
+        params = node->procedure_call.callee->symbol.ref->
+            procedure_decl.header->procedure_header.params;
+    } else if (node->procedure_call.callee->symbol.ref->kind == 
+            NODE_KIND_EXTERN_PROCEDURE) {
+        params = node->procedure_call.callee->symbol.ref->
+            extern_procedure.header->procedure_header.params;
+    } else assert(0);
+
     u64 param_len = buf_len(params);
     Node* return_type = analyzer_expr(self, node->procedure_call.callee, null);
 
@@ -595,6 +611,8 @@ Node* analyzer_expr(Analyzer* self, Node* node, Node* cast_to_type) {
 
         case NODE_KIND_VARIABLE_DECL:
         case NODE_KIND_PROCEDURE_DECL:
+        case NODE_KIND_EXTERN_PROCEDURE:
+        case NODE_KIND_PROCEDURE_HEADER:
         case NODE_KIND_EXPR_STMT:
         case NODE_KIND_RETURN:
         {
@@ -606,14 +624,16 @@ Node* analyzer_expr(Analyzer* self, Node* node, Node* cast_to_type) {
 }
 
 void analyzer_print_note_for_procedure_return_type(Node* procedure) {
-    if (procedure->procedure_decl.type->kind == NODE_KIND_TYPE_PRIMITIVE &&
-        procedure->procedure_decl.type->type_primitive.token == null) {
+    if (procedure->procedure_decl.header->
+            procedure_header.type->kind == NODE_KIND_TYPE_PRIMITIVE &&
+        procedure->procedure_decl.header->
+            procedure_header.type->type_primitive.token == null) {
         note_token(
                 procedure->procedure_decl.body->head,
                 "...return type implicitly inferred from here");
     } else {
         note_node(
-                procedure->procedure_decl.type,
+                procedure->procedure_decl.header->procedure_header.type,
                 "...return type annotated here");
     }
 }
@@ -644,7 +664,8 @@ void analyzer_expr_stmt(Analyzer* self, Node* node) {
 }
 
 void analyzer_return(Analyzer* self, Node* node) {
-    Node* proc_return_type = node->return_.procedure->procedure_decl.type;
+    Node* proc_return_type = 
+        node->return_.procedure->procedure_decl.header->procedure_header.type;
     Node* right_type = primitive_type_placeholders.void_;
     if (node->return_.right) {
         right_type = analyzer_expr(
@@ -699,7 +720,7 @@ void analyzer_variable_decl(Analyzer* self, Node* node) {
 
 void analyzer_procedure_decl(Analyzer* self, Node* node) {
     self->local_vars_bytes = 0;
-    Node* annotated_type = node->procedure_decl.type;
+    Node* annotated_type = node->procedure_decl.header->procedure_header.type;
     Node* body_type = null;
     body_type = analyzer_block(
             self, node->procedure_decl.body, 
@@ -741,6 +762,9 @@ void analyzer_procedure_decl(Analyzer* self, Node* node) {
     node->procedure_decl.local_vars_bytes = self->local_vars_bytes;
 }
 
+void analyzer_extern_procedure(Analyzer* self, Node* node) {
+}
+
 void analyzer_stmt(Analyzer* self, Node* node) {
     switch (node->kind) {
         case NODE_KIND_VARIABLE_DECL:
@@ -751,6 +775,11 @@ void analyzer_stmt(Analyzer* self, Node* node) {
         case NODE_KIND_PROCEDURE_DECL:
         {
             analyzer_procedure_decl(self, node);
+        } break;
+
+        case NODE_KIND_EXTERN_PROCEDURE:
+        {
+            analyzer_extern_procedure(self, node);
         } break;
 
         case NODE_KIND_EXPR_STMT: 

@@ -55,7 +55,7 @@ char* codegenerator_get_asm_type_specifier(int bytes) {
 
 void codegenerator_return(CodeGenerator* self, Node* node) {
     codegenerator_node(self, node->return_.right);
-    asmw("jmp .ret");
+    asmw("jmp .L_ret");
 }
 
 void codegenerator_variable_decl(CodeGenerator* self, Node* node) {
@@ -72,8 +72,11 @@ void codegenerator_variable_decl(CodeGenerator* self, Node* node) {
 }
 
 void codegenerator_procedure_decl(CodeGenerator* self, Node* node) {
-    asmp("global %s", node->procedure_decl.identifier->lexeme);
-    asml(node->procedure_decl.identifier->lexeme);
+    asmp(
+            "global %s", 
+            node->procedure_decl.header->procedure_header.identifier->lexeme);
+    asml(
+            node->procedure_decl.header->procedure_header.identifier->lexeme);
     asmw("push rbp");
     asmw("mov rbp, rsp");
 
@@ -89,9 +92,17 @@ void codegenerator_procedure_decl(CodeGenerator* self, Node* node) {
     if (node->procedure_decl.local_vars_bytes) {
         asmp("add rsp, %lu", local_vars_bytes_align_16);
     }
-    asml(".ret");
+    asml(".L_ret");
     asmw("pop rbp");
     asmw("ret");
+    asmw("");
+}
+
+void codegenerator_extern_procedure(CodeGenerator* self, Node* node) {
+    asmp(
+            "extern %s", 
+            node->extern_procedure.header->
+                procedure_header.identifier->lexeme);
     asmw("");
 }
 
@@ -100,6 +111,11 @@ void codegenerator_node(CodeGenerator* self, Node* node) {
         case NODE_KIND_PROCEDURE_DECL: 
         {
             codegenerator_procedure_decl(self, node);
+        } break;
+
+        case NODE_KIND_EXTERN_PROCEDURE:
+        {
+            codegenerator_extern_procedure(self, node);
         } break;
 
         case NODE_KIND_VARIABLE_DECL:

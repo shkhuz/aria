@@ -82,6 +82,19 @@ bool parser_match_keyword(Parser* self, char* keyword) {
     return false;
 }
 
+Token* parser_expect_keyword(Parser* self, char* keyword) {
+    if (parser_match_keyword(self, keyword)) {
+        return parser_previous(self);
+    } else {
+        fatal_error_token(
+                parser_current(self),
+                "expected keyword `%s`, got `%s`",
+                keyword,
+                parser_current(self)->lexeme);
+    }
+    return null;
+}
+
 Token* parser_expect(Parser* self, TokenKind kind, char* fmt, ...) {
     if (!parser_match_token(self, kind)) {
         va_list ap;
@@ -440,8 +453,7 @@ Node* parser_variable_decl(Parser* self, Token* keyword, bool constant) {
             self->in_procedure);
 }
 
-Node* parser_procedure_decl(Parser* self, Token* keyword) {
-    self->in_procedure = true;
+Node* parser_procedure_header(Parser* self, Token* keyword) {
     Token* identifier = 
         parser_expect_identifier(self, "expected procedure name, got `%s`");
 
@@ -462,19 +474,34 @@ Node* parser_procedure_decl(Parser* self, Token* keyword) {
     }
 
     Node* type = primitive_type_placeholders.void_;
-    if (parser_current(self)->kind != TOKEN_KIND_LBRACE) {
+    if (parser_current(self)->kind != TOKEN_KIND_LBRACE && 
+        parser_current(self)->kind != TOKEN_KIND_SEMICOLON) {
         type = parser_type(self);
     } 
 
-    Node* body = parser_block(self, parser_expect_lbrace(self));
+    return node_procedure_header_new(
+            keyword, 
+            identifier, 
+            params, 
+            type);
+}
 
+Node* parser_procedure_decl(Parser* self, Token* keyword) {
+    self->in_procedure = true;
+    Node* header = parser_procedure_header(self, keyword);
+    Node* body = parser_block(self, parser_expect_lbrace(self));
     self->in_procedure = false;
     return node_procedure_decl_new(
-            keyword,
-            identifier,
-            params,
-            type,
+            header,
             body);
+}
+
+Node* parser_extern_procedure(Parser* self, Token* extern_keyword) {
+    Token* procedure_keyword = 
+        parser_expect_keyword(self, PROCEDURE_DECL_KEYWORD);
+    Node* header = parser_procedure_header(self, procedure_keyword);
+    Token* semicolon = parser_expect_semicolon(self);
+    return node_extern_procedure_new(extern_keyword, header, semicolon);
 }
 
 Node* parser_top_level_node(Parser* self, bool error_on_no_match) {
@@ -518,6 +545,8 @@ Node* parser_top_level_node(Parser* self, bool error_on_no_match) {
         return parser_variable_decl(self, parser_previous(self), false);
     } else if (parser_match_keyword(self, CONSTANT_DECL_KEYWORD)) {
         return parser_variable_decl(self, parser_previous(self), true);
+    } else if (parser_match_keyword(self, "extern")) {
+        return parser_extern_procedure(self, parser_previous(self));
     } else {
         if (error_on_no_match) {
             fatal_error_token(

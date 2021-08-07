@@ -256,7 +256,9 @@ void resolver_procedure_call(Resolver* self, Node* node) {
             node->procedure_call.callee);
     if (node->procedure_call.callee->symbol.ref &&
         node->procedure_call.callee->symbol.ref->kind != 
-            NODE_KIND_PROCEDURE_DECL) {
+            NODE_KIND_PROCEDURE_DECL &&
+        node->procedure_call.callee->symbol.ref->kind != 
+            NODE_KIND_EXTERN_PROCEDURE) {
         error_node(
                 node->procedure_call.callee,
                 "expected procedure, got %s",
@@ -454,18 +456,28 @@ void resolver_variable_decl(
     }
 }
 
+void resolver_procedure_header(Resolver* self, Node* node) {
+    buf_loop(node->procedure_header.params, i) {
+        resolver_node(
+                self, 
+                node->procedure_header.params[i], 
+                false);
+    }
+    resolver_type(self, node->procedure_header.type);
+}
+
 void resolver_procedure_decl(Resolver* self, Node* node) {
     self->current_procedure = node;
     resolver_create_scope(self, scope);
-    buf_loop(node->procedure_decl.params, i) {
-        resolver_node(self, node->procedure_decl.params[i], false);
-    }
+    resolver_procedure_header(self, node->procedure_decl.header);
 
-    resolver_type(self, node->procedure_decl.type);
     resolver_block(self, node->procedure_decl.body, false);
-
     resolver_revert_scope(self, scope);
     self->current_procedure = null;
+}
+
+void resolver_extern_procedure(Resolver* self, Node* node) {
+    resolver_procedure_header(self, node->extern_procedure.header);
 }
 
 // This function checks if the node 
@@ -489,6 +501,7 @@ void resolver_pre_decl_node(
         bool ignore_procedure_level_decl_node) {
     switch (node->kind) {
         case NODE_KIND_PROCEDURE_DECL:
+        case NODE_KIND_EXTERN_PROCEDURE:
         case NODE_KIND_IMPLICIT_MODULE:
         {
             resolver_cpush_in_scope(self, node);
@@ -568,6 +581,11 @@ void resolver_node(
         case NODE_KIND_PROCEDURE_DECL:
         {
             resolver_procedure_decl(self, node);
+        } break;
+
+        case NODE_KIND_EXTERN_PROCEDURE:
+        {
+            resolver_extern_procedure(self, node);
         } break;
 
         case NODE_KIND_VARIABLE_DECL:

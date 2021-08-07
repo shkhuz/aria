@@ -10,6 +10,7 @@ char* keywords[] = {
     "struct",
     "import",
     PROCEDURE_DECL_KEYWORD,
+    "extern",
     VARIABLE_DECL_KEYWORD,
     CONSTANT_DECL_KEYWORD,
     "return",
@@ -129,7 +130,9 @@ typedef enum {
     NODE_KIND_EXPR_STMT,
     NODE_KIND_RETURN,
     NODE_KIND_VARIABLE_DECL,
+    NODE_KIND_PROCEDURE_HEADER,
     NODE_KIND_PROCEDURE_DECL,
+    NODE_KIND_EXTERN_PROCEDURE,
     NODE_KIND_IMPLICIT_MODULE,
 } NodeKind;
 
@@ -270,9 +273,18 @@ struct Node {
             Token* identifier;
             Node** params;
             Node* type;
+        } procedure_header;
+
+        struct {
+            Node* header;
             Node* body;
             int local_vars_bytes;
         } procedure_decl;
+
+        struct {
+            Token* extern_keyword;
+            Node* header;
+        } extern_procedure;
 
         struct {
             Token* identifier;
@@ -541,23 +553,46 @@ Node* node_return_new(
     return node;
 }
 
-Node* node_procedure_decl_new(
+Node* node_procedure_header_new(
         Token* keyword,
         Token* identifier,
         Node** params,
-        Node* type,
+        Node* type) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_PROCEDURE_HEADER;
+    node->head = keyword;
+    node->procedure_header.identifier = identifier;
+    node->procedure_header.params = params;
+    node->procedure_header.type = type;
+    node->tail = type->tail;
+    return node;
+}
+
+Node* node_procedure_decl_new(
+        Node* header,
         Node* body) {
     alloc_with_type(node, Node);
     node->kind = NODE_KIND_PROCEDURE_DECL;
-    node->head = keyword;
-    node->procedure_decl.identifier = identifier;
-    node->procedure_decl.params = params;
-    node->procedure_decl.type = type;
+    node->head = header->head;
+    node->procedure_decl.header = header;
     node->procedure_decl.body = body;
     node->procedure_decl.local_vars_bytes = 0;
     // TODO: should we change the `tail` to
     // the `tail` of the type (or the parenthesis)?
     node->tail = body->tail;
+    return node;
+}
+
+Node* node_extern_procedure_new(
+        Token* extern_keyword,
+        Node* header, 
+        Token* semicolon) {
+    alloc_with_type(node, Node);
+    node->kind = NODE_KIND_EXTERN_PROCEDURE;
+    node->head = extern_keyword;
+    node->extern_procedure.extern_keyword = extern_keyword;
+    node->extern_procedure.header = header;
+    node->tail = semicolon;
     return node;
 }
 
@@ -634,7 +669,15 @@ Token* node_get_main_token(Node* node, bool assert_on_erroneous_node) {
         case NODE_KIND_PARAM:
             return node->param.identifier;
         case NODE_KIND_PROCEDURE_DECL:
-            return node->procedure_decl.identifier;
+            return node_get_main_token(
+                    node->procedure_decl.header,
+                    assert_on_erroneous_node);
+        case NODE_KIND_EXTERN_PROCEDURE:
+            return node_get_main_token(
+                    node->extern_procedure.header,
+                    assert_on_erroneous_node);
+        case NODE_KIND_PROCEDURE_HEADER:
+            return node->procedure_header.identifier;
         case NODE_KIND_IMPLICIT_MODULE:
             return node->implicit_module.identifier;
     }
@@ -687,7 +730,15 @@ Node* node_get_type(Node* node, bool assert_on_erroneous_node) {
         case NODE_KIND_PARAM:
             return node->param.type;
         case NODE_KIND_PROCEDURE_DECL:
-            return node->procedure_decl.type;
+            return node_get_type(
+                    node->procedure_decl.header, 
+                    assert_on_erroneous_node);
+        case NODE_KIND_EXTERN_PROCEDURE:
+            return node_get_type(
+                    node->extern_procedure.header, 
+                    assert_on_erroneous_node);
+        case NODE_KIND_PROCEDURE_HEADER:
+            return node->procedure_header.type;
         case NODE_KIND_SYMBOL:
             return node_get_type(node->symbol.ref, true);
     }
@@ -697,7 +748,8 @@ Node* node_get_type(Node* node, bool assert_on_erroneous_node) {
 char* node_get_name_in_word(Node* node) {
     switch (node->kind) {
         case NODE_KIND_IMPLICIT_MODULE: return "module";
-        case NODE_KIND_PROCEDURE_DECL: return "procedure";
+        case NODE_KIND_PROCEDURE_DECL: 
+        case NODE_KIND_EXTERN_PROCEDURE: return "procedure";
         case NODE_KIND_VARIABLE_DECL: 
         case NODE_KIND_PARAM: return "variable";
         default: assert(0);
