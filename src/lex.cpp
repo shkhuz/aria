@@ -5,7 +5,7 @@ struct Lexer {
     bool error;
 
     Lexer(Srcfile* srcfile)
-    : srcfile(srcfile) {
+        : srcfile(srcfile) {
         this->start = srcfile->handle->contents;
         this->current = this->start;
         this->last_newline = this->start;
@@ -30,8 +30,8 @@ struct Lexer {
     template<typename T, typename... Args>
     void __error(size_t column, size_t char_count, T first, Args... args) {
         this->error = true;
-        msg_user(
-                MsgKind::err,
+        msg::default_msg(
+                msg::MsgKind::err,
                 this->srcfile,
                 this->line,
                 column,
@@ -61,7 +61,9 @@ struct Lexer {
     void push_tok(TokenKind kind) {
         this->srcfile->tokens.push_back(new Token {
             kind,
-            std::string(this->start, this->current),
+            (kind == TokenKind::eof ? 
+             "EOF" : 
+             std::string(this->start, this->current)),
             this->start,
             this->current,
             this->srcfile,
@@ -107,6 +109,34 @@ struct Lexer {
                     this->push_tok(kind);
                 } break;
 
+                case '(': {
+                    this->push_tok_adv_one(TokenKind::lparen);
+                } break;
+
+                case ')': {
+                    this->push_tok_adv_one(TokenKind::rparen);
+                } break;
+
+                case '{': {
+                    this->push_tok_adv_one(TokenKind::lbrace);
+                } break;
+
+                case '}': {
+                    this->push_tok_adv_one(TokenKind::rbrace);
+                } break;
+
+                case ':': {
+                    this->push_tok_adv_one(TokenKind::colon);
+                } break;
+
+                case ',': {
+                    this->push_tok_adv_one(TokenKind::comma);
+                } break;
+
+                case '*': {
+                    this->push_tok_adv_one(TokenKind::star);
+                } break;
+
                 case '\n': {
                     this->last_newline = this->current++;
                     this->line++;
@@ -115,7 +145,7 @@ struct Lexer {
                 case '\t': {
                     error_current_to_current(
                             "aria does not support tabs");
-                    terminate_compilation();
+                    msg::terminate_compilation();
                 } break;
 
                 case ' ':

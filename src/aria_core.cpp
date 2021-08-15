@@ -35,6 +35,7 @@ typedef i64 i128 __attribute__((mode(TI)));
 void stderr_print() {
 }
 
+// TODO: find out where should this go...
 template<typename T, typename... Args>
 void stderr_print(T first, Args... args) {
     std::cerr << first;
@@ -96,6 +97,27 @@ namespace fio {
         file->contents = contents;
         return { file, FileOpenOperation::success };
     }
+
+    char* get_line(
+            fio::File* handle, 
+            size_t line) {
+        char* char_in_line = handle->contents;
+        size_t line_number = 1;
+        while (line_number != line) {
+            while (*char_in_line != '\n') {
+                if (*char_in_line == '\0') {
+                    return nullptr;
+                } else char_in_line++;
+            }
+            char_in_line++;
+            line_number++;
+        }
+        return char_in_line;
+    }
 }
 
 #define stack_arr_len(arr) (sizeof(arr) / sizeof(*arr))
+#define COMBINE1(X, Y) X##Y
+#define COMBINE(X,Y) COMBINE1(X,Y)
+#define comptime_map(kt, vt) \
+    struct { kt k; vt v; }

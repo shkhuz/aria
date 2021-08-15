@@ -2,12 +2,13 @@
 #include <aria.cpp>
 #include <error_msg.cpp>
 #include <lex.cpp>
+#include <parse.cpp>
 
 char* g_exec_path;
 
 Srcfile* read_srcfile_or_error(
         char* path,
-        MsgKind error_kind,
+        msg::MsgKind error_kind,
         Srcfile* error_srcfile,
         size_t line,
         size_t column,
@@ -18,7 +19,7 @@ Srcfile* read_srcfile_or_error(
         srcfile->handle = opt_handle.file;
         return srcfile;
     } else if (opt_handle.status == fio::FileOpenOperation::failure) {
-        msg_user(
+        msg::default_msg(
                 error_kind,
                 error_srcfile,
                 line,
@@ -26,7 +27,7 @@ Srcfile* read_srcfile_or_error(
                 char_count,
                 "cannot read source file `", path, "`");
     } else if (opt_handle.status == fio::FileOpenOperation::directory) {
-        msg_user(
+        msg::default_msg(
                 error_kind,
                 error_srcfile,
                 line,
@@ -39,16 +40,17 @@ Srcfile* read_srcfile_or_error(
 
 int main(int argc, char* argv[]) {
     g_exec_path = argv[0];
+    init_builtin_types();
 
     if (argc < 2) {
-        msg_user(
-                MsgKind::root_err,
+        msg::default_msg(
+                msg::MsgKind::root_err,
                 nullptr,
                 0,
                 0,
                 0,
                 "no input files");
-        terminate_compilation();
+        msg::terminate_compilation();
     }
 
     std::vector<Srcfile*> srcfiles;
@@ -56,7 +58,7 @@ int main(int argc, char* argv[]) {
     for (int i = 1; i < argc; i++) {
         Srcfile* srcfile = read_srcfile_or_error(
                 argv[i], 
-                MsgKind::root_err,
+                msg::MsgKind::root_err,
                 nullptr,
                 0,
                 0,
@@ -67,7 +69,7 @@ int main(int argc, char* argv[]) {
         }
         srcfiles.push_back(srcfile);
     }
-    if (read_error) terminate_compilation();
+    if (read_error) msg::terminate_compilation();
 
     bool parsing_error = false;
     for (auto& srcfile: srcfiles) {
@@ -79,6 +81,10 @@ int main(int argc, char* argv[]) {
                 stderr_print(*tok, "\n");
             }
         }
+
+        Parser parser(srcfile);
+        parser.run();
+        if (parser.error && !parsing_error) parsing_error = true;
     }
-    if (parsing_error) terminate_compilation();
+    if (parsing_error) msg::terminate_compilation();
 }
