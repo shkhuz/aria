@@ -1,20 +1,25 @@
 proc main() {
-    const i: i8 = 1;
-    write(&i);
+    const a = 1;
+    const b = 2;
+    const i = a + b;
+    take(&a);
+    takeu(&b);
 }
 
-proc its_game_time() *void {
-    const i = 1;
-    if i as bool {
-        its_game_time()
-    } else if (i+1) as bool {
-        its_game_time()
-    } else {
-        null
-    }
-}
+// proc its_game_time() *void {
+//     const i = 1;
+//     if i as bool {
+//         its_game_time()
+//     } else if (i+1) as bool {
+//         its_game_time()
+//     } else {
+//         null
+//     }
+// }
 
-extern proc write(buf: *const i8) bool;
+// extern proc write(buf: *const i8) bool;
+proc take(buf: *const i8) {}
+proc takeu(buf: *const u8) {}
 
 // proc its_game_time() *void {
 //     1;
