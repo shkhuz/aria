@@ -1,9 +1,9 @@
-proc main() {
-    const a = 1;
-    const b = 2;
-    const i = a + b;
-    take(&a);
-    takeu(&b);
+fn main() {
+    const a = 1;    // type variable: t1
+    const b = 2;    // type variable: t2
+    const i = a + b;    // b.type_variable = a.type_variable;
+    take(&a);   // a.type_variable = i8
+    takeu(&b);  // error: cannot convert from `i8` to `u8`
 }
 
 // proc its_game_time() *void {
@@ -18,8 +18,8 @@ proc main() {
 // }
 
 // extern proc write(buf: *const i8) bool;
-proc take(buf: *const i8) {}
-proc takeu(buf: *const u8) {}
+fn take(buf: *const i8) {}
+fn takeu(buf: *const u8) {}
 
 // proc its_game_time() *void {
 //     1;

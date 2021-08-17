@@ -1,3 +1,11 @@
+struct FunctionLevelNode {
+    bool is_return_value;
+    union {
+        Stmt* stmt;
+        Expr* expr;
+    };
+};
+
 struct Parser {
     Srcfile* srcfile;
     size_t token_idx;
@@ -130,6 +138,12 @@ struct Parser {
                 "`:`");
     }
 
+    Token* expect_semicolon() {
+        return this->expect(
+                TokenKind::semicolon,
+                "`;`");
+    }
+
     Token* expect_comma() {
         return this->expect(
                 TokenKind::comma,
@@ -170,25 +184,94 @@ struct Parser {
     }
 
     ScopedBlock block(Token* lbrace) {
+        std::vector<Stmt*> stmts;
+        Expr* return_value = nullptr;
         while (!this->match(TokenKind::rbrace)) {
             this->check_eof(lbrace);
+            FunctionLevelNode meta = this->function_level_node();
+            if (meta.is_return_value) return_value = meta.expr;
+            else stmts.push_back(meta.stmt);
         }
         return ScopedBlock {
-            {},
-            nullptr,
+            lbrace,
+            stmts,
+            return_value,
         };
     }
 
-    void function_header(FunctionHeader* header) {
-        header->identifier = this->expect_identifier("procedure name");
+    Expr* atom_expr() {
+        if (this->match(TokenKind::identifier)) {
+            return symbol_new(Symbol {
+                    this->previous(),
+            });
+        } else if (this->match(TokenKind::lbrace)) {
+            return scoped_block_new(
+                    this->block(
+                        this->previous()));
+        } else if (this->match(TokenKind::semicolon)) {
+            return nullptr;
+        } else {
+            msg::fatal_error(
+                    this->current(),
+                    "`", 
+                    this->current()->lexeme, 
+                    "` is invalid here");
+        }
+        return nullptr;
+    }
 
+    Expr* expr() {
+        return atom_expr();
+    }
+
+    ExprStmt expr_stmt(Expr* expr) {
+        if (!expr) return {};
+        if (expr->kind != ExprKind::scoped_block) {
+            this->expect_semicolon();
+        }
+        return ExprStmt { expr };
+    }
+
+    FunctionLevelNode function_level_node() {
+        FunctionLevelNode result {
+            false,
+            { nullptr },
+        };
+
+        if (this->match_keyword("return")) {
+            Token* keyword = this->previous();
+            Expr* child = nullptr;
+            if (this->current()->kind != TokenKind::semicolon) {
+                child = this->expr();
+            }
+            this->expect_semicolon();
+            result.stmt = return_new(keyword, Return {
+                child,
+                nullptr,
+            });
+        }
+
+        Expr* expr = this->expr();
+        if (this->current()->kind == TokenKind::rbrace) {
+            result.is_return_value = true;
+            result.expr = expr;
+            return result;
+        }
+        result.stmt = expr_stmt_new(this->expr_stmt(expr));
+        return result;
+    }
+
+    FunctionHeader function_header() {
+        Token* identifier = this->expect_identifier("procedure name");
         Token* lparen = this->expect_lparen();
+
+        std::vector<Param*> params;
         while (!this->match(TokenKind::rparen)) {
             this->check_eof(lparen);
             Token* param_identifier = this->expect_identifier("parameter");
             this->expect_colon();
             Type* param_type = this->type();
-            header->params.push_back(new Param {
+            params.push_back(new Param {
                     param_identifier,
                     param_type,
             });
@@ -198,18 +281,30 @@ struct Parser {
             }
         }
 
-        header->ret_type = builtin_type_placeholders.void_kind;
+        Type* ret_type = builtin_type_placeholders.void_kind;
         if (this->current()->kind != TokenKind::lbrace) {
-            header->ret_type = this->type();
+            ret_type = this->type();
         }
+        return FunctionHeader {
+            identifier,
+            params,
+            ret_type,
+        };
     }
 
     Stmt* top_level_stmt(bool error_on_no_match) {
         if (this->match_keyword("fn")) {
-            FunctionHeader header {};
-            this->function_header(&header);
-            return function_new(header, this->block(this->expect_lbrace()));
+            return function_new(Function {
+                    this->function_header(),
+                    this->block(this->expect_lbrace())
+            });
+        } else if (error_on_no_match) {
+            msg::fatal_error(
+                    this->current(),
+                    "invalid token in top-level");
         }
+
+        if (error_on_no_match) assert(0);
         return nullptr;
     }
 

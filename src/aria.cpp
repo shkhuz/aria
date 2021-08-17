@@ -1,6 +1,7 @@
 std::string keywords[] = {
     "fn",
     "let",
+    "return",
 };
 
 struct Type;
@@ -16,8 +17,10 @@ enum class TokenKind {
     lbrace,
     rbrace,
     colon,
+    semicolon,
     comma,
     star,
+    fslash,
     eof,
 };
 
@@ -104,16 +107,23 @@ struct Type {
 
 enum class ExprKind {
     symbol,
+    scoped_block,
 };
 
-struct StaticAccessor {
-    std::vector<Token*> accessors;
-    bool from_global_scope;
-};
+/* struct StaticAccessor { */
+/*     std::vector<Token*> accessors; */
+/*     bool from_global_scope; */
+/* }; */
 
 struct Symbol {
-    StaticAccessor* sa;
+    /* StaticAccessor* static_accessor; */
     Token* identifier;
+};
+
+struct ScopedBlock {
+    Token* lbrace;
+    std::vector<Stmt*> stmts;
+    Expr* value;
 };
 
 struct Expr {
@@ -121,13 +131,19 @@ struct Expr {
     Token* main_token;
     union {
         Symbol symbol;
+        ScopedBlock scoped_block;
     };
+
+    Expr(ExprKind kind, Token* main_token) 
+        : kind(kind), main_token(main_token) {
+    }
 };
 
 enum class StmtKind {
     function,
     variable,
     ret,
+    expr_stmt,
 };
 
 struct Param {
@@ -141,14 +157,18 @@ struct FunctionHeader {
     Type* ret_type;
 };
 
-struct ScopedBlock {
-    std::vector<Stmt*> stmts;
-    Expr* value;
-};
-
 struct Function {
     FunctionHeader header;
     ScopedBlock body;
+};
+
+struct Return {
+    Expr* child;
+    Stmt* function;
+};
+
+struct ExprStmt {
+    Expr* child;
 };
 
 struct Stmt {
@@ -156,6 +176,8 @@ struct Stmt {
     Token* main_token;
     union {
         Function function;
+        Return ret;
+        ExprStmt expr_stmt;
     };
 
     Stmt(StmtKind kind, Token* main_token)
@@ -208,12 +230,35 @@ Type* ptr_type_new(
     return type;
 }
 
-Stmt* function_new(
-        FunctionHeader header,
-        ScopedBlock body) {
-    Stmt* stmt = new Stmt(StmtKind::function, header.identifier);
-    stmt->function.header = header;
-    stmt->function.body = body;
+Expr* symbol_new(Symbol symbol) {
+    Expr* expr = new Expr(ExprKind::symbol, symbol.identifier);
+    expr->symbol = symbol;
+    return expr;
+}
+
+Expr* scoped_block_new(ScopedBlock scoped_block) {
+    Expr* expr = new Expr(ExprKind::scoped_block, scoped_block.lbrace);
+    expr->scoped_block = scoped_block;
+    return expr;
+}
+
+Stmt* function_new(Function function) {
+    Stmt* stmt = new Stmt(StmtKind::function, function.header.identifier);
+    stmt->function = function;
+    return stmt;
+}
+
+Stmt* return_new(Token* keyword, Return ret) {
+    Stmt* stmt = new Stmt(StmtKind::ret, keyword);
+    stmt->ret = ret;
+    return stmt;
+}
+
+Stmt* expr_stmt_new(ExprStmt expr_stmt) {
+    Stmt* stmt = new Stmt(
+            StmtKind::expr_stmt, 
+            (expr_stmt.child ? expr_stmt.child->main_token : nullptr));
+    stmt->expr_stmt = expr_stmt;
     return stmt;
 }
 

@@ -129,12 +129,25 @@ struct Lexer {
                     this->push_tok_adv_one(TokenKind::colon);
                 } break;
 
+                case ';': {
+                    this->push_tok_adv_one(TokenKind::semicolon);
+                } break;
+
                 case ',': {
                     this->push_tok_adv_one(TokenKind::comma);
                 } break;
 
                 case '*': {
                     this->push_tok_adv_one(TokenKind::star);
+                } break;
+
+                case '/': {
+                    if (*(this->current + 1) == '/') {
+                        while (*this->current != '\n' && 
+                               *this->current != '\0') {
+                            this->current++;
+                        }
+                    } else this->push_tok_adv_one(TokenKind::fslash);
                 } break;
 
                 case '\n': {
