@@ -1,10 +1,12 @@
-fn good(a: u8, b: usize,) void {
-    {
-        return;
-        symb
-    };
-    symb;
-    sym
-}
+// fn good(a: u8, b: usize,) void {
+//     {
+//         return;
+//         symb
+//     }
+//     symb;
+//     sym
+// }
 fn h2__3wew__1234567890__() {
+    let i = b;
+    let i;
 }

@@ -150,6 +150,10 @@ struct Lexer {
                     } else this->push_tok_adv_one(TokenKind::fslash);
                 } break;
 
+                case '=': {
+                    this->push_tok_adv_one(TokenKind::equal);
+                } break;
+
                 case '\n': {
                     this->last_newline = this->current++;
                     this->line++;

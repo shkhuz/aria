@@ -1,6 +1,8 @@
 std::string keywords[] = {
     "fn",
     "let",
+    "mut",
+    "const",
     "return",
 };
 
@@ -21,6 +23,7 @@ enum class TokenKind {
     comma,
     star,
     fslash,
+    equal,
     eof,
 };
 
@@ -30,6 +33,11 @@ struct Token {
     char* start, *end;
     Srcfile* srcfile;
     size_t line, column, char_count;
+
+    static bool is_lexeme_eq(Token* a, Token* b) {
+        if (a->lexeme == b->lexeme) return true;
+        return false;
+    }
 }; 
 
 enum class TypeKind {
@@ -103,6 +111,10 @@ struct Type {
         BuiltinType builtin;
         PtrType ptr;
     };
+
+    Type(TypeKind kind, Token* main_token)
+        : kind(kind), main_token(main_token) {
+    }
 };
 
 enum class ExprKind {
@@ -142,24 +154,32 @@ struct Expr {
 enum class StmtKind {
     function,
     variable,
+    param,
     ret,
     expr_stmt,
 };
 
-struct Param {
-    Token* identifier;
-    Type* type;
-};
-
 struct FunctionHeader {
     Token* identifier;
-    std::vector<Param*> params;
+    std::vector<Stmt*> params;
     Type* ret_type;
 };
 
 struct Function {
     FunctionHeader header;
-    ScopedBlock body;
+    Expr* body;
+};
+
+struct Variable {
+    bool constant;
+    Token* identifier;
+    Type* type;
+    Expr* initializer;
+};
+
+struct Param {
+    Token* identifier;
+    Type* type;
 };
 
 struct Return {
@@ -176,6 +196,8 @@ struct Stmt {
     Token* main_token;
     union {
         Function function;
+        Variable variable;
+        Param param;
         Return ret;
         ExprStmt expr_stmt;
     };
@@ -211,9 +233,7 @@ namespace builtin_type {
 Type* builtin_type_new(
         Token* identifier,
         BuiltinTypeKind kind) {
-    Type* type = new Type;
-    type->kind = TypeKind::builtin;
-    type->main_token = identifier;
+    Type* type = new Type(TypeKind::builtin, identifier);
     type->builtin.identifier = identifier;
     type->builtin.kind = kind;
     return type;
@@ -223,42 +243,73 @@ Type* ptr_type_new(
         Token* star,
         bool constant,
         Type* child) {
-    Type* type = new Type;
-    type->kind = TypeKind::ptr;
-    type->main_token = star;
+    Type* type = new Type(TypeKind::ptr, star);
     type->ptr.child = child;
     return type;
 }
 
-Expr* symbol_new(Symbol symbol) {
-    Expr* expr = new Expr(ExprKind::symbol, symbol.identifier);
-    expr->symbol = symbol;
+Expr* symbol_new(Token* identifier) {
+    Expr* expr = new Expr(ExprKind::symbol, identifier);
+    expr->symbol.identifier = identifier;
     return expr;
 }
 
-Expr* scoped_block_new(ScopedBlock scoped_block) {
-    Expr* expr = new Expr(ExprKind::scoped_block, scoped_block.lbrace);
-    expr->scoped_block = scoped_block;
+Expr* scoped_block_new(
+        Token* lbrace,
+        std::vector<Stmt*> stmts,
+        Expr* value) {
+    Expr* expr = new Expr(ExprKind::scoped_block, lbrace);
+    expr->scoped_block.lbrace = lbrace;
+    expr->scoped_block.stmts = stmts;
+    expr->scoped_block.value = value;
     return expr;
 }
 
-Stmt* function_new(Function function) {
-    Stmt* stmt = new Stmt(StmtKind::function, function.header.identifier);
-    stmt->function = function;
+Stmt* function_new(
+        FunctionHeader header,
+        Expr* body) {
+    Stmt* stmt = new Stmt(StmtKind::function, header.identifier);
+    stmt->function.header = header;
+    stmt->function.body = body;
     return stmt;
 }
 
-Stmt* return_new(Token* keyword, Return ret) {
+Stmt* variable_new(
+        bool constant,
+        Token* identifier,
+        Type* type,
+        Expr* initializer) {
+    Stmt* stmt = new Stmt(StmtKind::variable, identifier);
+    stmt->variable.constant = constant;
+    stmt->variable.identifier = identifier;
+    stmt->variable.type = type;
+    stmt->variable.initializer = initializer;
+    return stmt;
+}
+
+Stmt* param_new(
+        Token* identifier,
+        Type* type) {
+    Stmt* stmt = new Stmt(StmtKind::param, identifier);
+    stmt->param.identifier = identifier;
+    stmt->param.type = type;
+    return stmt;
+}
+
+Stmt* return_new(
+        Token* keyword, 
+        Expr* child) {
     Stmt* stmt = new Stmt(StmtKind::ret, keyword);
-    stmt->ret = ret;
+    stmt->ret.child = child;
+    stmt->ret.function = nullptr;
     return stmt;
 }
 
-Stmt* expr_stmt_new(ExprStmt expr_stmt) {
+Stmt* expr_stmt_new(Expr* child) {
     Stmt* stmt = new Stmt(
             StmtKind::expr_stmt, 
-            (expr_stmt.child ? expr_stmt.child->main_token : nullptr));
-    stmt->expr_stmt = expr_stmt;
+            (child ? child->main_token : nullptr));
+    stmt->expr_stmt.child = child;
     return stmt;
 }
 

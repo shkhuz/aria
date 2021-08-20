@@ -183,7 +183,7 @@ struct Parser {
         return this->ptr_type();
     }
 
-    ScopedBlock block(Token* lbrace) {
+    Expr* scoped_block(Token* lbrace) {
         std::vector<Stmt*> stmts;
         Expr* return_value = nullptr;
         while (!this->match(TokenKind::rbrace)) {
@@ -192,24 +192,18 @@ struct Parser {
             if (meta.is_return_value) return_value = meta.expr;
             else stmts.push_back(meta.stmt);
         }
-        return ScopedBlock {
-            lbrace,
-            stmts,
-            return_value,
-        };
+        return scoped_block_new(
+                lbrace,
+                stmts,
+                return_value
+        );
     }
 
     Expr* atom_expr() {
         if (this->match(TokenKind::identifier)) {
-            return symbol_new(Symbol {
-                    this->previous(),
-            });
+            return symbol_new(this->previous());
         } else if (this->match(TokenKind::lbrace)) {
-            return scoped_block_new(
-                    this->block(
-                        this->previous()));
-        } else if (this->match(TokenKind::semicolon)) {
-            return nullptr;
+            return this->scoped_block(this->previous());
         } else {
             msg::fatal_error(
                     this->current(),
@@ -224,12 +218,12 @@ struct Parser {
         return atom_expr();
     }
 
-    ExprStmt expr_stmt(Expr* expr) {
+    Stmt* expr_stmt(Expr* expr) {
         if (!expr) return {};
         if (expr->kind != ExprKind::scoped_block) {
             this->expect_semicolon();
         }
-        return ExprStmt { expr };
+        return expr_stmt_new(expr);
     }
 
     FunctionLevelNode function_level_node() {
@@ -245,10 +239,14 @@ struct Parser {
                 child = this->expr();
             }
             this->expect_semicolon();
-            result.stmt = return_new(keyword, Return {
-                child,
-                nullptr,
-            });
+            result.stmt = return_new(
+                    keyword, 
+                    child
+            );
+            return result;
+        } else if (this->match_keyword("let")) {
+            result.stmt = this->variable();
+            return result;
         }
 
         Expr* expr = this->expr();
@@ -257,7 +255,7 @@ struct Parser {
             result.expr = expr;
             return result;
         }
-        result.stmt = expr_stmt_new(this->expr_stmt(expr));
+        result.stmt = this->expr_stmt(expr);
         return result;
     }
 
@@ -265,16 +263,16 @@ struct Parser {
         Token* identifier = this->expect_identifier("procedure name");
         Token* lparen = this->expect_lparen();
 
-        std::vector<Param*> params;
+        std::vector<Stmt*> params;
         while (!this->match(TokenKind::rparen)) {
             this->check_eof(lparen);
             Token* param_identifier = this->expect_identifier("parameter");
             this->expect_colon();
             Type* param_type = this->type();
-            params.push_back(new Param {
+            params.push_back(param_new(
                     param_identifier,
-                    param_type,
-            });
+                    param_type
+            ));
 
             if (this->current()->kind != TokenKind::rparen) {
                 this->expect_comma();
@@ -292,12 +290,40 @@ struct Parser {
         };
     }
 
+    Stmt* variable() {
+        bool constant = true;
+        if (this->match_keyword("mut")) {
+            constant = false;
+        }
+
+        Token* identifier = this->expect_identifier("variable name");
+        Type* type = nullptr;
+        if (this->match(TokenKind::colon)) {
+            type = this->type();
+        }
+
+        Expr* initializer = nullptr;
+        if (this->match(TokenKind::equal)) {
+            initializer = this->expr();
+        }
+
+        this->expect_semicolon();
+        return variable_new(
+                constant, 
+                identifier,
+                type,
+                initializer
+        );
+    }
+
     Stmt* top_level_stmt(bool error_on_no_match) {
         if (this->match_keyword("fn")) {
-            return function_new(Function {
+            return function_new(
                     this->function_header(),
-                    this->block(this->expect_lbrace())
-            });
+                    this->scoped_block(this->expect_lbrace())
+            );
+        } else if (this->match_keyword("let")) {
+            return this->variable();
         } else if (error_on_no_match) {
             msg::fatal_error(
                     this->current(),

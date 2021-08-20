@@ -189,6 +189,18 @@ namespace msg {
     }
 
     template<typename T, typename... Args>
+    void warning(
+            Token* token,
+            T first,
+            Args... args) {
+        default_msg(
+                MsgKind::warn,
+                token,
+                first,
+                args...);
+    }
+
+    template<typename T, typename... Args>
     void note(
             Token* token,
             T first,

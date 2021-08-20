@@ -3,6 +3,7 @@
 #include <error_msg.cpp>
 #include <lex.cpp>
 #include <parse.cpp>
+#include <resolve.cpp>
 
 char* g_exec_path;
 
@@ -87,4 +88,12 @@ int main(int argc, char* argv[]) {
         if (parser.error && !parsing_error) parsing_error = true;
     }
     if (parsing_error) msg::terminate_compilation();
+
+    bool resolving_error = false;
+    for (auto& srcfile: srcfiles) {
+        Resolver resolver(srcfile);
+        resolver.run();
+        if (resolver.error && !resolving_error) resolving_error = true;
+    }
+    if (resolving_error) msg::terminate_compilation();
 }
