@@ -38,6 +38,7 @@ struct Lexer {
                 char_count,
                 first, 
                 args...);
+        msg::terminate_compilation();
     }
 
     template<typename T, typename... Args>
@@ -76,6 +77,18 @@ struct Lexer {
     void push_tok_adv_one(TokenKind kind) {
         this->current++;
         this->push_tok(kind);
+    }
+
+    void push_tok_adv_one_cond(
+            char c, 
+            TokenKind matched, 
+            TokenKind not_matched) {
+        if (*(this->current + 1) == c) {
+            this->current++;
+            this->push_tok_adv_one(matched);
+        } else {
+            this->push_tok_adv_one(not_matched);
+        }
     }
 
     void run() {
@@ -126,7 +139,10 @@ struct Lexer {
                 } break;
 
                 case ':': {
-                    this->push_tok_adv_one(TokenKind::colon);
+                    this->push_tok_adv_one_cond(
+                            ':', 
+                            TokenKind::double_colon, 
+                            TokenKind::colon);
                 } break;
 
                 case ';': {

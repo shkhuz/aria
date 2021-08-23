@@ -33,7 +33,7 @@ LIBS_LIB_CMD :=
 #CMD_ARGS := examples/single.ar 
 #CMD_ARGS := examples/pub_test.ar 
 # CMD_ARGS := examples/test.ar 
-CMD_ARGS := examples/lex_test.ar 
+CMD_ARGS := examples/test.ar 
 
 all: clean check
 	$(MAKE) all_2

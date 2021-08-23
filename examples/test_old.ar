@@ -1,0 +1,94 @@
+// RESOLVER TEST
+// proc main() void {
+//     let mut args: string = 12;
+//     call(self);
+//     proc code() *game {
+//         let input;
+//     }
+//     let args = args;
+
+//     proc code(identifier: string, identifier: u8) {
+//         let identifier = 100;
+//     }
+//     proc call() {
+//         hello;
+//     }
+// }
+
+// ANALYZER TEST
+// proc main() {
+//     proc hello(a: usize, b: usize, c: usize) *u64 {
+//         {
+//         }
+//     }
+
+//     let val: u64 = hello(1, 2, 3);
+// }
+
+// CODE GENERATOR TEST
+import coolmod;
+
+// as of yet, compile-time variable values are not checked
+// for overflow.
+proc main(a: u8) {
+    // let b: usize = 12;
+    // coolmod::init(--b);
+    // let val = 256;
+    // let va = 256;
+    // let vl = 256;
+    // let al = 256;
+    // let vall = 256;
+    // let vd = -438737748478473847873847384784738437;
+    // let v: *u64;
+    // let i = a;
+    // i = 1;
+    // const dd: *u8 = pointer();
+    // b = -b;
+
+    // coolmod::init(--128);
+    // vl = 12;
+}
+
+proc code_me(a: u8, b: usize, c: i8) {
+    // const aa: u8 = -128;
+    // b = -a;
+    // return b;
+    // const i = 1;
+    // *(&i) = 1;
+    // const p = &i;
+    // *p = 12;
+    const vv: void;
+    const i = {
+        const int: i8 = vv + 1 as u8;
+        int + (-1 - int + { const a = 12; pointer(); 123 })
+    };
+
+    let p = &i;
+    p = 2 + p;
+    *p = vv as i8;
+
+    {p as bool}
+}
+
+// proc pointer(p: *u8) *const *const u8 {
+//     const i = -p;
+//     let a: u8 = 129 - 1;
+//     const b = 2;
+//     const c: u8 = a + b;
+//     &p
+// }
+proc pointer() {
+    const good = true;
+    const b: i8 = -true;
+    const i = &good as void;
+
+    const value = 10;
+    const from = if good {
+    } else if good {
+
+    } else if good {
+
+    } else {
+        value
+    };
+}

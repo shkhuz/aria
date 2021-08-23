@@ -76,6 +76,14 @@ struct Resolver {
 
     void cpush_in_scope(Stmt* stmt) {
         Token* identifier = stmt->main_token;
+        BuiltinTypeKind kind = builtin_type::str_to_kind(identifier->lexeme);
+        if (kind != BuiltinTypeKind::none) {
+            msg::error(
+                    identifier,
+                    "cannot use type as an identifier");
+            return;
+        }
+
         bool search_error = false;
         ScopeStatus status = search_in_current_scope_rec(identifier);
         if (status.kind == ScopeStatusKind::local) {
@@ -148,6 +156,31 @@ struct Resolver {
         }
     }
 
+    Stmt* assert_in_current_scope_rec(Expr* expr) {
+        assert(expr->kind == ExprKind::symbol);
+        ScopeStatus status = 
+            this->search_in_current_scope_rec(expr->main_token);
+        if (status.kind == ScopeStatusKind::unresolved) {
+            msg::error(
+                    expr->main_token,
+                    "unresolved symbol `",
+                    expr->main_token->lexeme,
+                    "`");
+            return nullptr;
+        }
+        return status.stmt;
+    }
+
+    Stmt* assert_symbol_in_scope(Expr* expr) {
+        assert(expr->kind == ExprKind::symbol);
+        assert(expr->symbol.static_accessor.accessors.size() == 0);
+        return this->assert_in_current_scope_rec(expr);
+    }
+
+    void symbol(Expr* expr) {
+        expr->symbol.ref = this->assert_symbol_in_scope(expr);
+    }
+
     void scoped_block(Expr* expr, bool create_new_scope) {
         Scope* scope = nullptr;
         if (create_new_scope) {
@@ -171,6 +204,10 @@ struct Resolver {
 
     void expr(Expr* expr) {
         switch (expr->kind) {
+            case ExprKind::symbol: {
+                this->symbol(expr);
+            } break;
+
             case ExprKind::scoped_block: {
                 this->scoped_block(expr, true);
             } break;

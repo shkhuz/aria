@@ -199,9 +199,38 @@ struct Parser {
         );
     }
 
+    StaticAccessor static_accessor() {
+        std::vector<Token*> accessors;
+        bool from_global_scope = false;
+        Token* head = nullptr;
+
+        while (true) {
+            if (this->current()->kind == TokenKind::identifier &&
+                this->next()->kind == TokenKind::double_colon) {
+                if (!head) head = this->current();
+                accessors.push_back(this->current());
+                this->goto_next_token();
+                this->goto_next_token();
+            } else break;
+        }
+
+        return StaticAccessor {
+            accessors,
+            from_global_scope,
+            head,
+        };
+    }
+
+    Expr* symbol() {
+        StaticAccessor static_accessor = this->static_accessor();
+        Token* identifier = this->expect_identifier("identifier");
+        BuiltinTypeKind kind = builtin_type::str_to_kind(identifier->lexeme);
+        return symbol_new(static_accessor, identifier);
+    }
+
     Expr* atom_expr() {
-        if (this->match(TokenKind::identifier)) {
-            return symbol_new(this->previous());
+        if (this->current()->kind == TokenKind::identifier) {
+            return this->symbol();
         } else if (this->match(TokenKind::lbrace)) {
             return this->scoped_block(this->previous());
         } else {

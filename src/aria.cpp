@@ -19,6 +19,7 @@ enum class TokenKind {
     lbrace,
     rbrace,
     colon,
+    double_colon,
     semicolon,
     comma,
     star,
@@ -122,14 +123,16 @@ enum class ExprKind {
     scoped_block,
 };
 
-/* struct StaticAccessor { */
-/*     std::vector<Token*> accessors; */
-/*     bool from_global_scope; */
-/* }; */
+struct StaticAccessor {
+    std::vector<Token*> accessors;
+    bool from_global_scope;
+    Token* head;
+};
 
 struct Symbol {
-    /* StaticAccessor* static_accessor; */
+    StaticAccessor static_accessor;
     Token* identifier;
+    Stmt* ref;
 };
 
 struct ScopedBlock {
@@ -248,9 +251,14 @@ Type* ptr_type_new(
     return type;
 }
 
-Expr* symbol_new(Token* identifier) {
-    Expr* expr = new Expr(ExprKind::symbol, identifier);
+Expr* symbol_new(
+        StaticAccessor static_accessor,
+        Token* identifier) {
+    Expr* expr = new Expr(ExprKind::symbol, 
+            static_accessor.head ? static_accessor.head : identifier);
+    expr->symbol.static_accessor = static_accessor;
     expr->symbol.identifier = identifier;
+    expr->symbol.ref = nullptr;
     return expr;
 }
 
