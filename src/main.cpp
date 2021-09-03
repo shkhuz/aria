@@ -4,6 +4,7 @@
 #include <lex.cpp>
 #include <parse.cpp>
 #include <resolve.cpp>
+#include <check.cpp>
 
 char* g_exec_path;
 
@@ -77,11 +78,6 @@ int main(int argc, char* argv[]) {
         Lexer lexer(srcfile);
         lexer.run();
         if (lexer.error && !parsing_error) parsing_error = true;
-        else {
-            for (auto& tok: lexer.srcfile->tokens) {
-                stderr_print(*tok, "\n");
-            }
-        }
 
         Parser parser(srcfile);
         parser.run();
@@ -96,4 +92,12 @@ int main(int argc, char* argv[]) {
         if (resolver.error && !resolving_error) resolving_error = true;
     }
     if (resolving_error) msg::terminate_compilation();
+
+    bool checking_error = false;
+    for (auto& srcfile: srcfiles) {
+        Checker checker(srcfile);
+        checker.run();
+        if (checker.error && !checking_error) checking_error = true;
+    }
+    if (checking_error) msg::terminate_compilation();
 }

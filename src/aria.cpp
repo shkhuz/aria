@@ -116,6 +116,16 @@ struct Type {
     Type(TypeKind kind, Token* main_token)
         : kind(kind), main_token(main_token) {
     }
+
+    Type* get_child() {
+        switch (this->kind) {
+            case TypeKind::builtin:
+                return nullptr;
+
+            case TypeKind::ptr:
+                return ptr.child;
+        }
+    }
 };
 
 enum class ExprKind {
@@ -208,6 +218,27 @@ struct Stmt {
     Stmt(StmtKind kind, Token* main_token)
         : kind(kind), main_token(main_token) {
     }
+
+    static Type* get_type(Stmt* stmt) {
+        switch (stmt->kind) {
+            case StmtKind::variable: {
+                return stmt->variable.type;
+            } break;
+
+            case StmtKind::param: {
+                return stmt->param.type;
+            } break;
+
+            case StmtKind::function: {
+                return stmt->function.header.ret_type;
+            } break;
+
+            default: {
+                assert(0);
+            } break;
+        }
+        return nullptr;
+    }
 };
 
 struct Srcfile {
@@ -217,8 +248,30 @@ struct Srcfile {
 };
 
 std::ostream& operator<<(std::ostream& stream, const Token& token) {
-    stream << "Token { " << (size_t)token.kind << ", " << token.lexeme <<
-        ", " << token.line << ", " << token.column << " }";
+    /* stream << "Token { " << (size_t)token.kind << ", " << token.lexeme << */
+    /*     ", " << token.line << ", " << token.column << " }"; */
+    stream << token.lexeme;
+    return stream;
+}
+
+std::ostream& operator<<(std::ostream& stream, const Type& type) {
+    switch (type.kind) {
+        case TypeKind::builtin: {
+            stream << *type.builtin.identifier;
+        } break;
+
+        case TypeKind::ptr: {
+            stream << '*';
+            if (type.ptr.constant) {
+                stream << "const ";
+            }
+            stream << type.ptr.child;
+        } break;
+
+        default: {
+            assert(0);
+        } break;
+    }
     return stream;
 }
 
@@ -230,6 +283,87 @@ namespace builtin_type {
             }
         }
         return BuiltinTypeKind::none;
+    }
+
+    bool is_integer(BuiltinTypeKind kind) {
+        switch (kind) {
+            case BuiltinTypeKind::u8:
+            case BuiltinTypeKind::u16:
+            case BuiltinTypeKind::u32:
+            case BuiltinTypeKind::u64:
+            case BuiltinTypeKind::usize:
+            case BuiltinTypeKind::i8:
+            case BuiltinTypeKind::i16:
+            case BuiltinTypeKind::i32:
+            case BuiltinTypeKind::i64:
+            case BuiltinTypeKind::isize:
+                return true;
+            
+            case BuiltinTypeKind::boolean:
+            case BuiltinTypeKind::void_kind:
+                return false;
+
+            case BuiltinTypeKind::none:
+                assert(0);
+                return false;
+        }
+        return false;
+    }
+
+    size_t bytes(BuiltinType* type) {
+        switch (type->kind) {
+            case BuiltinTypeKind::u8:
+            case BuiltinTypeKind::i8:
+                return 1;
+
+            case BuiltinTypeKind::u16:
+            case BuiltinTypeKind::i16:
+                return 2;
+
+            case BuiltinTypeKind::u32:
+            case BuiltinTypeKind::i32:
+                return 4;
+
+            case BuiltinTypeKind::u64:
+            case BuiltinTypeKind::i64:
+            case BuiltinTypeKind::usize:
+            case BuiltinTypeKind::isize:
+            case BuiltinTypeKind::boolean:
+                return 8;
+
+            case BuiltinTypeKind::void_kind:
+                return 0;
+
+            case BuiltinTypeKind::none:
+                assert(0);
+                return 0;
+        }
+        return 0;
+    }
+
+    bool is_signed(BuiltinTypeKind kind) {
+        switch (kind) {
+            case BuiltinTypeKind::u8:
+            case BuiltinTypeKind::u16:
+            case BuiltinTypeKind::u32:
+            case BuiltinTypeKind::u64:
+            case BuiltinTypeKind::usize:
+                return false;
+
+            case BuiltinTypeKind::i8:
+            case BuiltinTypeKind::i16:
+            case BuiltinTypeKind::i32:
+            case BuiltinTypeKind::i64:
+            case BuiltinTypeKind::isize:
+                return true;
+
+            case BuiltinTypeKind::boolean:
+            case BuiltinTypeKind::void_kind:
+            case BuiltinTypeKind::none:
+                assert(0);
+                return false;
+        }
+        return false;
     }
 }
 
