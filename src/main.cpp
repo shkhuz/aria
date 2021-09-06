@@ -1,4 +1,5 @@
 #include <aria_core.cpp>
+#include <bigint.cpp>
 #include <aria.cpp>
 #include <error_msg.cpp>
 #include <lex.cpp>

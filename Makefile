@@ -12,8 +12,8 @@ OBJ_FILES := $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(CPP_FILES)))
 OBJ_FILES += $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(ASM_FILES)))
 BIN_FILE := $(BIN_DIR)/$(PROJECT)
 
-CC := clang++
-LD := clang++
+CC := g++
+LD := g++
 # CC := gcc
 # LD := gcc
 
@@ -23,7 +23,7 @@ ifeq ($(warn), yes)
 else
 	WARN_CPPFLAGS := -Wno-switch -Wno-unused-variable -Wno-unused-parameter
 endif
-CPPFLAGS := $(PREPROCESSOR_DEFINES) -I$(SRC_DIR) -I. -Wall -Wextra -Wshadow $(WARN_CPPFLAGS) -std=c++11 -m64 -g -O0
+CPPFLAGS := $(PREPROCESSOR_DEFINES) -I$(SRC_DIR) -I. -Wall -Wextra $(WARN_CPPFLAGS) -std=c++11 -m64 -g -O0
 ASMFLAGS := -felf64
 LDFLAGS :=
 LIBS_INC_DIR_CMD :=

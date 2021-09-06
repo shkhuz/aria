@@ -8,6 +8,17 @@
 // }
 fn h2__3wew__1234567890__(a: usize, b: u8) {
     let i: u8 = a;
-    let j = b;
-    let unsigned = b;
+    let j: usize = b;
+    let unsigned: i8;
+
+    // let x = 1;
+    // (1) Type* -> pointer to Type
+    // (2) Type** -> pointer to Type* 
+    // let y = x + 2;
+    // let z: u8;
+    // let w = x + z; // x is now u8
+    // but y
+
+    // let i = a + b;
+    //         ni  ni
 }

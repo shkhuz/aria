@@ -212,3 +212,7 @@ namespace msg {
                 args...);
     }
 }
+
+#define error(token, first, ...) \
+    msg::error(token, first, ##__VA_ARGS__); \
+    this->error = true

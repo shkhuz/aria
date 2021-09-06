@@ -150,7 +150,7 @@ struct Parser {
                 "`,`");
     }
 
-    Type* atom_type() {
+    Type** atom_type() {
         Token* identifier = this->expect_identifier("type name");
         BuiltinTypeKind builtin_kind = 
             builtin_type::str_to_kind(identifier->lexeme);
@@ -162,7 +162,7 @@ struct Parser {
         }
     }
 
-    Type* ptr_type() {
+    Type** ptr_type() {
         if (this->match(TokenKind::star)) {
             Token* star = this->previous();
 
@@ -179,7 +179,7 @@ struct Parser {
         return this->atom_type();
     }
 
-    Type* type() {
+    Type** type() {
         return this->ptr_type();
     }
 
@@ -243,8 +243,21 @@ struct Parser {
         return nullptr;
     }
 
+    Expr* binop_expr() {
+        Expr* left = this->atom_expr();
+        while (this->match(TokenKind::plus) ||
+               this->match(TokenKind::minus)) {
+            Token* op = this->previous();
+            left = binop_new(
+                    left, 
+                    this->atom_expr(),
+                    op);
+        }
+        return left;
+    }
+
     Expr* expr() {
-        return atom_expr();
+        return binop_expr();
     }
 
     Stmt* expr_stmt(Expr* expr) {
@@ -268,10 +281,7 @@ struct Parser {
                 child = this->expr();
             }
             this->expect_semicolon();
-            result.stmt = return_new(
-                    keyword, 
-                    child
-            );
+            result.stmt = return_new(keyword, child);
             return result;
         } else if (this->match_keyword("let")) {
             result.stmt = this->variable();
@@ -297,7 +307,7 @@ struct Parser {
             this->check_eof(lparen);
             Token* param_identifier = this->expect_identifier("parameter");
             this->expect_colon();
-            Type* param_type = this->type();
+            Type** param_type = this->type();
             params.push_back(param_new(
                     param_identifier,
                     param_type
@@ -308,7 +318,7 @@ struct Parser {
             }
         }
 
-        Type* ret_type = builtin_type_placeholders.void_kind;
+        Type** ret_type = builtin_type_placeholders.void_kind;
         if (this->current()->kind != TokenKind::lbrace) {
             ret_type = this->type();
         }
@@ -326,7 +336,7 @@ struct Parser {
         }
 
         Token* identifier = this->expect_identifier("variable name");
-        Type* type = nullptr;
+        Type** type = nullptr;
         if (this->match(TokenKind::colon)) {
             type = this->type();
         }
@@ -347,10 +357,10 @@ struct Parser {
 
     Stmt* top_level_stmt(bool error_on_no_match) {
         if (this->match_keyword("fn")) {
-            return function_new(
-                    this->function_header(),
-                    this->scoped_block(this->expect_lbrace())
-            );
+            FunctionHeader header = this->function_header();
+            Token* lbrace = this->expect_lbrace();
+            Expr* body = this->scoped_block(lbrace);
+            return function_new(header, body);
         } else if (this->match_keyword("let")) {
             return this->variable();
         } else if (error_on_no_match) {

@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <assert.h>
+#include <cstring>
 
 #ifdef __linux__
 #include <linux/limits.h>
@@ -40,6 +41,24 @@ template<typename T, typename... Args>
 void stderr_print(T first, Args... args) {
     std::cerr << first;
     stderr_print(args...);
+}
+
+int round_to_next_multiple(int n, int multiple) {
+	if (multiple == 0) return n;
+
+	int remainder = n % multiple;
+	if (remainder == 0) return n;
+
+	return n + multiple - remainder;
+}
+
+size_t get_bits_for_value(u128 n) {
+	size_t count = 0;
+	while (n > 0) {
+		n = n >> 1;
+		count++;
+	}
+	return count;
 }
 
 namespace fio {
@@ -116,7 +135,15 @@ namespace fio {
     }
 }
 
+#define MIN(x, y) ((x) <= (y) ? (x) : (y))
+#define MAX(x, y) ((x) >= (y) ? (x) : (y))
+#define CLAMP_MAX(x, max) MIN(x, max)
+#define CLAMP_MIN(x, min) MAX(x, min)
+
 #define stack_arr_len(arr) (sizeof(arr) / sizeof(*arr))
+#define sizeof_in_bits(x) ((size_t)8 * sizeof(x))
+#define zero_memory(mem, count) (std::memset(mem, 0, count * sizeof(*mem)))
+#define swap_vars(t, a, b) do { t _c = a; a = b; b = _c; } while (0)
 #define COMBINE1(X, Y) X##Y
 #define COMBINE(X,Y) COMBINE1(X,Y)
 #define comptime_map(kt, vt) \

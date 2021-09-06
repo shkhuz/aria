@@ -71,6 +71,7 @@ struct Lexer {
             this->line,
             this->get_start_column(),
             (size_t)(this->current - this->start),
+            { { nullptr } },
         });
     }
 
@@ -89,6 +90,10 @@ struct Lexer {
         } else {
             this->push_tok_adv_one(not_matched);
         }
+    }
+
+    int char_to_digit(char c) {
+        return c - 48;
     }
 
     void run() {
@@ -122,6 +127,42 @@ struct Lexer {
                     this->push_tok(kind);
                 } break;
 
+                case '0': case '1': case '2': case '3': case '4':
+                case '5': case '6': case '7': case '8': case '9': {
+                    bigint* base = new bigint;
+                    bigint_init_u64(base, 10);
+                    bigint* val = new bigint;
+                    bigint_init(val);
+
+                    while (isdigit(*this->current) || *this->current == '_') {
+                        if (*this->current == '_' && 
+                            !isdigit(*(this->current+1))) {
+                            break;
+                        }
+
+                        if (*this->current != '_') {
+                            int digit = this->char_to_digit(*this->current);
+                            bigint* digit_bi = new bigint;
+                            bigint_init_u64(digit_bi, (u64)digit);
+
+                            bigint_mul(val, base, val);
+                            bigint_add(val, digit_bi, val);
+                            /* val = val * base + digit; */
+
+                            bigint_clear(digit_bi);
+                            delete digit_bi;
+                        }
+                        this->current++;
+                    }
+
+                    this->push_tok_adv_one(TokenKind::number);
+                    this->srcfile->tokens[this->srcfile->tokens.size() - 1]
+                        ->number.val = val;
+
+                    bigint_clear(base);
+                    delete base;
+                } break;
+
                 case '(': {
                     this->push_tok_adv_one(TokenKind::lparen);
                 } break;
@@ -151,6 +192,14 @@ struct Lexer {
 
                 case ',': {
                     this->push_tok_adv_one(TokenKind::comma);
+                } break;
+
+                case '+': {
+                    this->push_tok_adv_one(TokenKind::plus);
+                } break;
+
+                case '-': {
+                    this->push_tok_adv_one(TokenKind::minus);
                 } break;
 
                 case '*': {

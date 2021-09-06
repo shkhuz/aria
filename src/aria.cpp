@@ -14,6 +14,7 @@ struct Srcfile;
 enum class TokenKind {
     identifier,
     keyword,
+    number,
     lparen,
     rparen,
     lbrace,
@@ -22,6 +23,8 @@ enum class TokenKind {
     double_colon,
     semicolon,
     comma,
+    plus, 
+    minus,
     star,
     fslash,
     equal,
@@ -34,6 +37,11 @@ struct Token {
     char* start, *end;
     Srcfile* srcfile;
     size_t line, column, char_count;
+    union {
+        struct {
+            bigint* val;
+        } number;
+    };
 
     static bool is_lexeme_eq(Token* a, Token* b) {
         if (a->lexeme == b->lexeme) return true;
@@ -81,18 +89,18 @@ comptime_map(std::string, BuiltinTypeKind) builtin_types_map[] = {
 };
 
 struct {
-    Type* u8;
-    Type* u16;
-    Type* u32;
-    Type* u64;
-    Type* usize;
-    Type* i8;
-    Type* i16;
-    Type* i32;
-    Type* i64;
-    Type* isize;
-    Type* boolean;
-    Type* void_kind;
+    Type** u8;
+    Type** u16;
+    Type** u32;
+    Type** u64;
+    Type** usize;
+    Type** i8;
+    Type** i16;
+    Type** i32;
+    Type** i64;
+    Type** isize;
+    Type** boolean;
+    Type** void_kind;
 } builtin_type_placeholders;
 
 struct BuiltinType {
@@ -102,7 +110,7 @@ struct BuiltinType {
 
 struct PtrType {
     bool constant;
-    Type* child;
+    Type** child;
 };
 
 struct Type {
@@ -117,20 +125,26 @@ struct Type {
         : kind(kind), main_token(main_token) {
     }
 
-    Type* get_child() {
+    Type** get_child() {
         switch (this->kind) {
             case TypeKind::builtin:
                 return nullptr;
 
             case TypeKind::ptr:
                 return ptr.child;
+
+            default:
+                assert(0); 
+                return nullptr;
         }
+        return nullptr;
     }
 };
 
 enum class ExprKind {
     symbol,
     scoped_block,
+    binop,
 };
 
 struct StaticAccessor {
@@ -151,12 +165,18 @@ struct ScopedBlock {
     Expr* value;
 };
 
+struct BinaryOp {
+    Expr* left, *right;
+    Token* op;
+};
+
 struct Expr {
     ExprKind kind;
     Token* main_token;
     union {
         Symbol symbol;
         ScopedBlock scoped_block;
+        BinaryOp binop;
     };
 
     Expr(ExprKind kind, Token* main_token) 
@@ -175,7 +195,7 @@ enum class StmtKind {
 struct FunctionHeader {
     Token* identifier;
     std::vector<Stmt*> params;
-    Type* ret_type;
+    Type** ret_type;
 };
 
 struct Function {
@@ -186,13 +206,13 @@ struct Function {
 struct Variable {
     bool constant;
     Token* identifier;
-    Type* type;
+    Type** type;
     Expr* initializer;
 };
 
 struct Param {
     Token* identifier;
-    Type* type;
+    Type** type;
 };
 
 struct Return {
@@ -219,7 +239,7 @@ struct Stmt {
         : kind(kind), main_token(main_token) {
     }
 
-    static Type* get_type(Stmt* stmt) {
+    static Type** get_type(Stmt* stmt) {
         switch (stmt->kind) {
             case StmtKind::variable: {
                 return stmt->variable.type;
@@ -367,22 +387,26 @@ namespace builtin_type {
     }
 }
 
-Type* builtin_type_new(
+Type** builtin_type_new(
         Token* identifier,
         BuiltinTypeKind kind) {
     Type* type = new Type(TypeKind::builtin, identifier);
     type->builtin.identifier = identifier;
     type->builtin.kind = kind;
-    return type;
+    Type** t = (Type**)malloc(sizeof(t));
+    *t = type;
+    return t;
 }
 
-Type* ptr_type_new(
+Type** ptr_type_new(
         Token* star,
         bool constant,
-        Type* child) {
+        Type** child) {
     Type* type = new Type(TypeKind::ptr, star);
     type->ptr.child = child;
-    return type;
+    Type** t = (Type**)malloc(sizeof(t));
+    *t = type;
+    return t;
 }
 
 Expr* symbol_new(
@@ -407,6 +431,17 @@ Expr* scoped_block_new(
     return expr;
 }
 
+Expr* binop_new(
+        Expr* left, 
+        Expr* right,
+        Token* op) {
+    Expr* expr = new Expr(ExprKind::binop, op);
+    expr->binop.left = left;
+    expr->binop.right = right;
+    expr->binop.op = op;
+    return expr;
+}
+
 Stmt* function_new(
         FunctionHeader header,
         Expr* body) {
@@ -419,7 +454,7 @@ Stmt* function_new(
 Stmt* variable_new(
         bool constant,
         Token* identifier,
-        Type* type,
+        Type** type,
         Expr* initializer) {
     Stmt* stmt = new Stmt(StmtKind::variable, identifier);
     stmt->variable.constant = constant;
@@ -431,7 +466,7 @@ Stmt* variable_new(
 
 Stmt* param_new(
         Token* identifier,
-        Type* type) {
+        Type** type) {
     Stmt* stmt = new Stmt(StmtKind::param, identifier);
     stmt->param.identifier = identifier;
     stmt->param.type = type;
@@ -455,7 +490,7 @@ Stmt* expr_stmt_new(Expr* child) {
     return stmt;
 }
 
-Type* builtin_type_new_placeholder(BuiltinTypeKind kind) {
+Type** builtin_type_new_placeholder(BuiltinTypeKind kind) {
     return builtin_type_new(nullptr, kind);
 }
 

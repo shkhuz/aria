@@ -78,7 +78,7 @@ struct Resolver {
         Token* identifier = stmt->main_token;
         BuiltinTypeKind kind = builtin_type::str_to_kind(identifier->lexeme);
         if (kind != BuiltinTypeKind::none) {
-            msg::error(
+            error(
                     identifier,
                     "cannot use type as an identifier");
             return;
@@ -87,7 +87,7 @@ struct Resolver {
         bool search_error = false;
         ScopeStatus status = search_in_current_scope_rec(identifier);
         if (status.kind == ScopeStatusKind::local) {
-            msg::error(
+            error(
                     identifier,
                     "redeclaration of symbol `",
                     identifier->lexeme,
@@ -141,12 +141,12 @@ struct Resolver {
         }
     }
 
-    void ptr_type(Type* type) {
-        this->type(type->ptr.child);
+    void ptr_type(Type** type) {
+        this->type((*type)->ptr.child);
     }
 
-    void type(Type* type) {
-        switch (type->kind) {
+    void type(Type** type) {
+        switch ((*type)->kind) {
             case TypeKind::builtin: {
             }  break;
 
@@ -161,7 +161,7 @@ struct Resolver {
         ScopeStatus status = 
             this->search_in_current_scope_rec(expr->main_token);
         if (status.kind == ScopeStatusKind::unresolved) {
-            msg::error(
+            error(
                     expr->main_token,
                     "unresolved symbol `",
                     expr->main_token->lexeme,
@@ -202,6 +202,11 @@ struct Resolver {
         }
     }
 
+    void binop(Expr* expr) {
+        this->expr(expr->binop.left);
+        this->expr(expr->binop.right);
+    }
+
     void expr(Expr* expr) {
         switch (expr->kind) {
             case ExprKind::symbol: {
@@ -210,6 +215,10 @@ struct Resolver {
 
             case ExprKind::scoped_block: {
                 this->scoped_block(expr, true);
+            } break;
+
+            case ExprKind::binop: {
+                this->binop(expr);
             } break;
         }
     }
@@ -239,7 +248,7 @@ struct Resolver {
         }
 
         if (!stmt->variable.type && !stmt->variable.initializer) {
-            msg::error(
+            error(
                     stmt->main_token,
                     "type must be annotated or "
                     "an initializer must be provided");
