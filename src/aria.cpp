@@ -285,7 +285,7 @@ std::ostream& operator<<(std::ostream& stream, const Type& type) {
             if (type.ptr.constant) {
                 stream << "const ";
             }
-            stream << type.ptr.child;
+            stream << **type.ptr.child;
         } break;
 
         default: {
@@ -403,6 +403,7 @@ Type** ptr_type_new(
         bool constant,
         Type** child) {
     Type* type = new Type(TypeKind::ptr, star);
+    type->ptr.constant = constant;
     type->ptr.child = child;
     Type** t = (Type**)malloc(sizeof(t));
     *t = type;

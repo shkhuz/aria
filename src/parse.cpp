@@ -167,7 +167,7 @@ struct Parser {
             Token* star = this->previous();
 
             bool constant = false;
-            if (match_keyword("const")) {
+            if (this->match_keyword("const")) {
                 constant = true;
             }
 

@@ -140,12 +140,7 @@ namespace msg {
                 0, 
                 g_error_count, " error(s), ",
                 g_warning_count, " warning(s); aborting compilation");
-        // TODO: for CI build, this is changed to
-        // always return 0.
-        // Uncomment next line.
-        // And comment next-to-next line.
-        /* exit(EXIT_FAILURE); */
-        exit(0);
+        exit(1);
     }
 
     template<typename T, typename... Args>
