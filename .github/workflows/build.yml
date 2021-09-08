@@ -15,3 +15,5 @@ jobs:
     - uses: actions/checkout@v2
     - name: make
       run: make build/bin/aria
+    - name: test
+      run: ./test.sh exisiting-compiler

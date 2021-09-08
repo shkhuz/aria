@@ -1,13 +1,16 @@
-make clean 2>/dev/null >/dev/null
-echo -n "Building the compiler..."
-make build/bin/aria 2>/dev/null >/dev/null
-if [[ $? -ne 0 ]]
-then 
-    echo "FAIL"
-    echo "Compiler cannot be compiled; testing ended prematurely"
-    exit
-else
-    echo "OK"
+if [[ "$1" = "" ]] 
+then
+    make clean 2>/dev/null >/dev/null
+    echo -n "Building the compiler..."
+    make build/bin/aria 2>/dev/null >/dev/null
+    if [[ $? -ne 0 ]]
+    then 
+        echo "FAIL"
+        echo "Compiler cannot be compiled; testing ended prematurely"
+        exit
+    else
+        echo "OK"
+    fi
 fi
 
 ok_count=0
