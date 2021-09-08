@@ -16,4 +16,4 @@ jobs:
     - name: make
       run: make build/bin/aria
     - name: test
-      run: ./test.sh exisiting-compiler
+      run: ./test.sh -e
