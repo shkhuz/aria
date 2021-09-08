@@ -237,7 +237,7 @@ struct Resolver {
 
     void function(Stmt* stmt) {
         scope_new(scope);
-        this->function_header(&stmt->function.header);
+        this->function_header(stmt->function.header);
         this->scoped_block(stmt->function.body, false);
         scope_revert(scope);
     }

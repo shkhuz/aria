@@ -385,3 +385,29 @@ BIGINT_FITS_SIGNED(bigint_fits_i8, INT8_MAX);
 BIGINT_FITS_SIGNED(bigint_fits_i16, INT16_MAX);
 BIGINT_FITS_SIGNED(bigint_fits_i32, INT32_MAX);
 BIGINT_FITS_SIGNED(bigint_fits_i64, INT64_MAX);
+
+bool bigint_fits(const bigint* a, int bytes, bigint_sign sign) {
+    switch (sign) {
+        case BIGINT_SIGN_ZPOS: {
+            switch (bytes) {
+                case 1: return bigint_fits_u8(a);
+                case 2: return bigint_fits_u16(a);
+                case 4: return bigint_fits_u32(a);
+                case 8: return bigint_fits_u64(a);
+                default: assert(0); return false;
+            }
+        } break;
+
+        case BIGINT_SIGN_NEG: {
+            switch (bytes) {
+                case 1: return bigint_fits_i8(a);
+                case 2: return bigint_fits_i16(a);
+                case 4: return bigint_fits_i32(a);
+                case 8: return bigint_fits_i64(a);
+                default: assert(0); return false;
+            }
+        } break;
+    }
+    assert(0);
+    return false;
+}

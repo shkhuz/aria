@@ -1,0 +1,4 @@
+fn get(n: usize)
+{
+    let i = n
+}

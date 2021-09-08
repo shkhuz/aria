@@ -1,9 +1,9 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <vector>
 #include <assert.h>
 #include <cstring>
+#include <vector>
 
 #ifdef __linux__
 #include <linux/limits.h>
@@ -23,6 +23,20 @@ typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
 typedef i64 i128 __attribute__((mode(TI)));
+
+#define MIN(x, y) ((x) <= (y) ? (x) : (y))
+#define MAX(x, y) ((x) >= (y) ? (x) : (y))
+#define CLAMP_MAX(x, max) MIN(x, max)
+#define CLAMP_MIN(x, min) MAX(x, min)
+
+#define stack_arr_len(arr) (sizeof(arr) / sizeof(*arr))
+#define sizeof_in_bits(x) ((size_t)8 * sizeof(x))
+#define zero_memory(mem, count) (std::memset(mem, 0, count * sizeof(*mem)))
+#define swap_vars(t, a, b) do { t _c = a; a = b; b = _c; } while (0)
+#define COMBINE1(X, Y) X##Y
+#define COMBINE(X,Y) COMBINE1(X,Y)
+#define comptime_map(kt, vt) \
+    struct { kt k; vt v; }
 
 #define ANSI_FBOLD    "\x1B[1m"
 #define ANSI_FRED     "\x1B[1;31m"
@@ -135,16 +149,3 @@ namespace fio {
     }
 }
 
-#define MIN(x, y) ((x) <= (y) ? (x) : (y))
-#define MAX(x, y) ((x) >= (y) ? (x) : (y))
-#define CLAMP_MAX(x, max) MIN(x, max)
-#define CLAMP_MIN(x, min) MAX(x, min)
-
-#define stack_arr_len(arr) (sizeof(arr) / sizeof(*arr))
-#define sizeof_in_bits(x) ((size_t)8 * sizeof(x))
-#define zero_memory(mem, count) (std::memset(mem, 0, count * sizeof(*mem)))
-#define swap_vars(t, a, b) do { t _c = a; a = b; b = _c; } while (0)
-#define COMBINE1(X, Y) X##Y
-#define COMBINE(X,Y) COMBINE1(X,Y)
-#define comptime_map(kt, vt) \
-    struct { kt k; vt v; }

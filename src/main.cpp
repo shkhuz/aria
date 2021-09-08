@@ -79,6 +79,9 @@ int main(int argc, char* argv[]) {
         Lexer lexer(srcfile);
         lexer.run();
         if (lexer.error && !parsing_error) parsing_error = true;
+        /* for (auto& tok: srcfile->tokens) { */
+        /*     std::cout << *tok << std::endl; */
+        /* } */
 
         Parser parser(srcfile);
         parser.run();

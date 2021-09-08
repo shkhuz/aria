@@ -1,3 +1,9 @@
+enum class ImplicitCastStatus {
+    ok, 
+    error_handled, 
+    error,
+};
+
 struct Checker {
     Srcfile* srcfile;
     bool error;
@@ -7,9 +13,43 @@ struct Checker {
         this->error = false;
     }
 
-    Type** symbol(Expr* expr) {
+    Type** number(Expr* expr, Type** cast) {
+        if (cast && (*cast)->is_integer()) {
+            if (bigint_fits(
+                        expr->number.val, 
+                        builtin_type::bytes(&(*cast)->builtin), 
+                        builtin_type::is_signed((*cast)->builtin.kind) ? 
+                            BIGINT_SIGN_NEG : 
+                            BIGINT_SIGN_ZPOS)) {
+                return cast;
+            } else {
+                error(
+                        expr->number.number,
+                        "integer cannot be converted to `",
+                        **cast,
+                        "`");
+                return nullptr;
+            }
+        }
+        Type** type = builtin_type_new(expr->number.number, BuiltinTypeKind::not_inferred);
+        (*type)->builtin.val = expr->number.val;
+        return type;
+    }
+
+    Type** symbol(Expr* expr, Type** cast) {
         assert(expr->symbol.ref);
-        return Stmt::get_type(expr->symbol.ref);
+        Type** ty = Stmt::get_type(expr->symbol.ref);
+        if (cast) {
+            if (this->implicit_cast(ty, cast) == ImplicitCastStatus::error) {
+                error(
+                        expr->symbol.identifier,
+                        "cannot cast symbol from `", **ty, "` to `", **cast, "`");
+            } else {
+                *ty = *cast;
+            }
+            return cast;
+        }
+        return ty;
     }
 
     Type** scoped_block(Expr* expr) {
@@ -19,33 +59,52 @@ struct Checker {
         return nullptr;
     }
 
-    Type** binop(Expr* expr) {
-        Type** left_type = this->expr(expr->binop.left);
-        Type** right_type = this->expr(expr->binop.right);
+    Type** binop(Expr* expr, Type** cast) {
+        Type** left_type = this->expr(expr->binop.left, cast);
+        Type** right_type = this->expr(expr->binop.right, cast);
+        if ((*left_type)->is_not_inferred() && 
+                (*right_type)->is_not_inferred()) {
+        } else if (left_type && right_type && 
+                this->implicit_cast(right_type, left_type) == ImplicitCastStatus::error) {
+            error(
+                    expr->binop.op, 
+                    "type mismatch: `", 
+                    **left_type, 
+                    "` and `", 
+                    **right_type, 
+                    "`");
+
+        }
+        return left_type;
     }
 
-    Type** expr(Expr* expr) {
+    Type** expr(Expr* expr, Type** cast) {
         switch (expr->kind) {
+            case ExprKind::number: {
+                return this->number(expr, cast);
+            } break;
+
             case ExprKind::symbol: {
-                return this->symbol(expr);
+                return this->symbol(expr, cast);
             } break;
 
             case ExprKind::scoped_block: {
-                this->scoped_block(expr);
+                return this->scoped_block(expr);
             } break;
 
             case ExprKind::binop: {
-                this->binop(expr);
+                return this->binop(expr, cast);
             } break;
 
             default: {
                 assert(0);
             } break;
         }
+        assert(0);
         return nullptr;
     }
 
-    bool implicit_cast(Type** from, Type** to) {
+    ImplicitCastStatus implicit_cast(Type** from, Type** to) {
         assert(from && to);
         if ((*from)->kind == (*to)->kind) {
             if ((*from)->kind == TypeKind::builtin) {
@@ -55,16 +114,30 @@ struct Checker {
                         builtin_type::bytes(&(*to)->builtin) ||
                         builtin_type::is_signed((*from)->builtin.kind) !=
                         builtin_type::is_signed((*to)->builtin.kind)) {
-                        return false;
+                        return ImplicitCastStatus::error;
                     } else {
-                        return true;
+                        return ImplicitCastStatus::ok;
+                    }
+                } else if ((*from)->builtin.kind == BuiltinTypeKind::not_inferred || 
+                           (*to)->builtin.kind == BuiltinTypeKind::not_inferred) {
+                    if ((*to)->builtin.kind == BuiltinTypeKind::not_inferred) {
+                        swap_vars(Type**, from, to);
+                    }
+                    if (!bigint_fits((*from)->builtin.val, builtin_type::bytes(&(*to)->builtin), builtin_type::is_signed((*to)->builtin.kind) ? BIGINT_SIGN_NEG : BIGINT_SIGN_ZPOS)) {
+                        error(
+                                (*from)->builtin.token, 
+                                "integer cannot be converted to `",
+                                **to, "`");
+                        return ImplicitCastStatus::error_handled;
+                    } else {
+                        return ImplicitCastStatus::ok;
                     }
                 } else if ((*from)->builtin.kind == (*to)->builtin.kind) {
                     if ((*from)->builtin.kind == BuiltinTypeKind::boolean ||
                         (*from)->builtin.kind == BuiltinTypeKind::void_kind) {
-                        return true;
+                        return ImplicitCastStatus::ok;
                     } else {
-                        return false;
+                        return ImplicitCastStatus::error;
                     }
                 }
             } else if ((*from)->kind == TypeKind::ptr) {
@@ -85,25 +158,39 @@ struct Checker {
                 }
             }
         }
-        return false;
+        return ImplicitCastStatus::error;
     }
 
     void function(Stmt* stmt) {
-        this->expr(stmt->function.body);
+        this->expr(stmt->function.body, stmt->function.header->ret_type);
     }
 
     void variable(Stmt* stmt) {
         if (stmt->variable.type && stmt->variable.initializer) {
-            Type** initializer_type = this->expr(stmt->variable.initializer);
+            Type** initializer_type = this->expr(
+                    stmt->variable.initializer,
+                    stmt->variable.type);
             Type** annotated_type = stmt->variable.type;
             if (initializer_type && annotated_type && 
-                    !this->implicit_cast(initializer_type, annotated_type)) {
+                    this->implicit_cast(initializer_type, annotated_type) == ImplicitCastStatus::error) {
                 error(
                         stmt->variable.identifier,
-                        "cannot initialize from `", **initializer_type,
-                        "` to `", **annotated_type, "`");
+                        "cannot initialize from `", 
+                        **initializer_type,
+                        "` to `", 
+                        **annotated_type, 
+                        "`");
             }
-        };
+        } else if (stmt->variable.initializer) {
+            stmt->variable.type = this->expr(
+                    stmt->variable.initializer, 
+                    nullptr);
+        }
+        std::cout << 
+            *stmt->variable.identifier << 
+            ": " << 
+            **stmt->variable.type << 
+            std::endl;
     }
 
     void stmt(Stmt* stmt) {

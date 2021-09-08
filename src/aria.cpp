@@ -101,17 +101,25 @@ struct {
     Type** isize;
     Type** boolean;
     Type** void_kind;
+    Type** not_inferred;
 } builtin_type_placeholders;
 
 struct BuiltinType {
-    Token* identifier;
+    Token* token;
     BuiltinTypeKind kind;
+    union {
+        bigint* val;
+    };
 };
 
 struct PtrType {
     bool constant;
     Type** child;
 };
+
+namespace builtin_type {
+    bool is_integer(BuiltinTypeKind kind);
+}
 
 struct Type {
     TypeKind kind;
@@ -139,9 +147,20 @@ struct Type {
         }
         return nullptr;
     }
+
+    bool is_integer() {
+        return this->kind == TypeKind::builtin && 
+            builtin_type::is_integer(this->builtin.kind);
+    }
+
+    bool is_not_inferred() {
+        return this->kind == TypeKind::builtin &&
+            this->builtin.kind == BuiltinTypeKind::not_inferred;
+    }
 };
 
 enum class ExprKind {
+    number,
     symbol,
     scoped_block,
     binop,
@@ -152,6 +171,11 @@ struct StaticAccessor {
     bool from_global_scope;
     Token* head;
 };
+
+struct Number {
+    Token* number;
+    bigint* val;
+}; 
 
 struct Symbol {
     StaticAccessor static_accessor;
@@ -174,6 +198,7 @@ struct Expr {
     ExprKind kind;
     Token* main_token;
     union {
+        Number number;
         Symbol symbol;
         ScopedBlock scoped_block;
         BinaryOp binop;
@@ -199,7 +224,7 @@ struct FunctionHeader {
 };
 
 struct Function {
-    FunctionHeader header;
+    FunctionHeader* header;
     Expr* body;
 };
 
@@ -250,7 +275,7 @@ struct Stmt {
             } break;
 
             case StmtKind::function: {
-                return stmt->function.header.ret_type;
+                return stmt->function.header->ret_type;
             } break;
 
             default: {
@@ -267,34 +292,6 @@ struct Srcfile {
     std::vector<Stmt*> stmts;
 };
 
-std::ostream& operator<<(std::ostream& stream, const Token& token) {
-    /* stream << "Token { " << (size_t)token.kind << ", " << token.lexeme << */
-    /*     ", " << token.line << ", " << token.column << " }"; */
-    stream << token.lexeme;
-    return stream;
-}
-
-std::ostream& operator<<(std::ostream& stream, const Type& type) {
-    switch (type.kind) {
-        case TypeKind::builtin: {
-            stream << *type.builtin.identifier;
-        } break;
-
-        case TypeKind::ptr: {
-            stream << '*';
-            if (type.ptr.constant) {
-                stream << "const ";
-            }
-            stream << **type.ptr.child;
-        } break;
-
-        default: {
-            assert(0);
-        } break;
-    }
-    return stream;
-}
-
 namespace builtin_type {
     BuiltinTypeKind str_to_kind(const std::string& str) {
         for (size_t i = 0; i < (size_t)BuiltinTypeKind::__len; i++) {
@@ -303,6 +300,17 @@ namespace builtin_type {
             }
         }
         return BuiltinTypeKind::none;
+    }
+
+    std::string kind_to_str(BuiltinTypeKind kind) {
+        if (kind == BuiltinTypeKind::not_inferred) return "<integer>";
+        for (size_t i = 0; i < (size_t)BuiltinTypeKind::__len; i++) {
+            if (builtin_types_map[i].v == kind) {
+                return builtin_types_map[i].k;
+            }
+        }
+        assert(0);
+        return "";
     }
 
     bool is_integer(BuiltinTypeKind kind) {
@@ -321,6 +329,7 @@ namespace builtin_type {
             
             case BuiltinTypeKind::boolean:
             case BuiltinTypeKind::void_kind:
+            case BuiltinTypeKind::not_inferred:
                 return false;
 
             case BuiltinTypeKind::none:
@@ -387,11 +396,39 @@ namespace builtin_type {
     }
 }
 
+std::ostream& operator<<(std::ostream& stream, const Token& token) {
+    /* stream << "Token { " << (size_t)token.kind << ", " << token.lexeme << */
+    /*     ", " << token.line << ", " << token.column << " }"; */
+    stream << token.lexeme;
+    return stream;
+}
+
+std::ostream& operator<<(std::ostream& stream, const Type& type) {
+    switch (type.kind) {
+        case TypeKind::builtin: {
+            stream << builtin_type::kind_to_str(type.builtin.kind);
+        } break;
+
+        case TypeKind::ptr: {
+            stream << '*';
+            if (type.ptr.constant) {
+                stream << "const ";
+            }
+            stream << **type.ptr.child;
+        } break;
+
+        default: {
+            assert(0);
+        } break;
+    }
+    return stream;
+}
+
 Type** builtin_type_new(
-        Token* identifier,
+        Token* token,
         BuiltinTypeKind kind) {
-    Type* type = new Type(TypeKind::builtin, identifier);
-    type->builtin.identifier = identifier;
+    Type* type = new Type(TypeKind::builtin, token);
+    type->builtin.token = token;
     type->builtin.kind = kind;
     Type** t = (Type**)malloc(sizeof(t));
     *t = type;
@@ -408,6 +445,15 @@ Type** ptr_type_new(
     Type** t = (Type**)malloc(sizeof(t));
     *t = type;
     return t;
+}
+
+Expr* number_new(
+        Token* number,
+        bigint* val) {
+    Expr* expr = new Expr(ExprKind::number, number);
+    expr->number.number = number;
+    expr->number.val = val;
+    return expr;
 }
 
 Expr* symbol_new(
@@ -443,10 +489,21 @@ Expr* binop_new(
     return expr;
 }
 
+FunctionHeader* function_header_new(
+        Token* identifier,
+        std::vector<Stmt*> params, 
+        Type** ret_type) {
+    FunctionHeader* header = new FunctionHeader;
+    header->identifier = identifier;
+    header->params = params;
+    header->ret_type = ret_type;
+    return header;
+}
+
 Stmt* function_new(
-        FunctionHeader header,
+        FunctionHeader* header,
         Expr* body) {
-    Stmt* stmt = new Stmt(StmtKind::function, header.identifier);
+    Stmt* stmt = new Stmt(StmtKind::function, header->identifier);
     stmt->function.header = header;
     stmt->function.body = body;
     return stmt;
@@ -520,4 +577,6 @@ void init_builtin_types() {
         builtin_type_new_placeholder(BuiltinTypeKind::boolean);
     builtin_type_placeholders.void_kind = 
         builtin_type_new_placeholder(BuiltinTypeKind::void_kind);
+    builtin_type_placeholders.not_inferred = 
+        builtin_type_new_placeholder(BuiltinTypeKind::not_inferred);
 }

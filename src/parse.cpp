@@ -220,6 +220,11 @@ struct Parser {
             head,
         };
     }
+    
+    Expr* number() {
+        Token* number = this->previous();
+        return number_new(number, number->number.val);
+    }
 
     Expr* symbol() {
         StaticAccessor static_accessor = this->static_accessor();
@@ -229,7 +234,9 @@ struct Parser {
     }
 
     Expr* atom_expr() {
-        if (this->current()->kind == TokenKind::identifier) {
+        if (this->match(TokenKind::number)) {
+            return this->number();
+        } else if (this->current()->kind == TokenKind::identifier) {
             return this->symbol();
         } else if (this->match(TokenKind::lbrace)) {
             return this->scoped_block(this->previous());
@@ -298,7 +305,7 @@ struct Parser {
         return result;
     }
 
-    FunctionHeader function_header() {
+    FunctionHeader* function_header() {
         Token* identifier = this->expect_identifier("procedure name");
         Token* lparen = this->expect_lparen();
 
@@ -322,11 +329,10 @@ struct Parser {
         if (this->current()->kind != TokenKind::lbrace) {
             ret_type = this->type();
         }
-        return FunctionHeader {
+        return function_header_new(
             identifier,
             params,
-            ret_type,
-        };
+            ret_type);
     }
 
     Stmt* variable() {
@@ -357,7 +363,7 @@ struct Parser {
 
     Stmt* top_level_stmt(bool error_on_no_match) {
         if (this->match_keyword("fn")) {
-            FunctionHeader header = this->function_header();
+            FunctionHeader* header = this->function_header();
             Token* lbrace = this->expect_lbrace();
             Expr* body = this->scoped_block(lbrace);
             return function_new(header, body);

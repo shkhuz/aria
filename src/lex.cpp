@@ -155,7 +155,7 @@ struct Lexer {
                         this->current++;
                     }
 
-                    this->push_tok_adv_one(TokenKind::number);
+                    this->push_tok(TokenKind::number);
                     this->srcfile->tokens[this->srcfile->tokens.size() - 1]
                         ->number.val = val;
 
