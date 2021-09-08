@@ -43,3 +43,7 @@ for prog in `find tests/invalid/ -name "*.ar"`; do
 done
 
 echo "$ok_count ok; $fail_count failed"
+if [[ $fail_count -ne 0 ]]
+then
+    exit 1
+fi
