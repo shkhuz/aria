@@ -18,6 +18,8 @@ fn h2__3wew__1234567890__(a: i8, b: u8) {
 
         let x = a + 255;
         let j: *const i8 = x;
+        let k: i8 = 255;
+        let num: usize = k;
 
     // let x = 1;
     // (1) Type* -> pointer to Type

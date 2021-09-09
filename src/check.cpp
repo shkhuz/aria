@@ -14,25 +14,15 @@ struct Checker {
     }
 
     Type** number(Expr* expr, Type** cast) {
-        if (cast && (*cast)->is_integer()) {
-            if (bigint_fits(
-                        expr->number.val, 
-                        builtin_type::bytes(&(*cast)->builtin), 
-                        builtin_type::is_signed((*cast)->builtin.kind) ? 
-                            BIGINT_SIGN_NEG : 
-                            BIGINT_SIGN_ZPOS)) {
-                return cast;
-            } else {
-                error(
-                        expr->number.number,
-                        "integer cannot be converted to `",
-                        **cast,
-                        "`");
-                return nullptr;
-            }
-        }
         Type** type = builtin_type_new(expr->number.number, BuiltinTypeKind::not_inferred);
         (*type)->builtin.val = expr->number.val;
+        if (cast && (*cast)->is_integer()) {
+            if (this->implicit_cast(type, cast) == ImplicitCastStatus::error) {
+                return type;
+            } else {
+                return cast;
+            }
+        }
         return type;
     }
 
@@ -41,13 +31,11 @@ struct Checker {
         Type** ty = Stmt::get_type(expr->symbol.ref);
         if (cast) {
             if (this->implicit_cast(ty, cast) == ImplicitCastStatus::error) {
-                error(
-                        expr->symbol.identifier,
-                        "cannot cast symbol from `", **ty, "` to `", **cast, "`");
+                return ty;
             } else {
                 *ty = *cast;
+                return cast;
             }
-            return cast;
         }
         return ty;
     }
