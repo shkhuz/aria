@@ -6,7 +6,7 @@ BIN_DIR := $(BUILD_DIR)/bin
 OBJ_DIR := $(BUILD_DIR)/obj
 DEPS_DIR := deps
 
-CPP_FILES := src/main.cpp
+CPP_FILES := src/main.cpp src/fmt/format.cc
 ASM_FILES := $(shell find $(SRC_DIR) -name "*.asm")
 OBJ_FILES := $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(CPP_FILES)))
 OBJ_FILES += $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(ASM_FILES)))
@@ -33,7 +33,7 @@ LIBS_LIB_CMD :=
 #CMD_ARGS := examples/single.ar 
 #CMD_ARGS := examples/pub_test.ar 
 # CMD_ARGS := examples/test.ar 
-CMD_ARGS := examples/main.ar 
+CMD_ARGS := examples/cg.ar 
 
 all: clean check
 	$(MAKE) all_2
@@ -49,6 +49,10 @@ $(BIN_FILE): $(OBJ_FILES)
 	$(LD) -o $@ $(OBJ_FILES) $(LIBS_LIB_DIR_CMD) $(LIBS_LIB_CMD) $(LDFLAGS)
 
 $(OBJ_DIR)/%.cpp.o: %.cpp
+	@mkdir -p $(OBJ_DIR)/$(dir $^)
+	$(CC) -c $(CPPFLAGS) $(LIBS_INC_DIR_CMD) -o $@ $^
+
+$(OBJ_DIR)/%.cc.o: %.cc
 	@mkdir -p $(OBJ_DIR)/$(dir $^)
 	$(CC) -c $(CPPFLAGS) $(LIBS_INC_DIR_CMD) -o $@ $^
 

@@ -6,6 +6,7 @@
 #include <parse.cpp>
 #include <resolve.cpp>
 #include <check.cpp>
+#include <x64_codegen.cpp>
 
 char* g_exec_path;
 
@@ -104,4 +105,9 @@ int main(int argc, char* argv[]) {
         if (checker.error && !checking_error) checking_error = true;
     }
     if (checking_error) msg::terminate_compilation();
+
+    for (auto& srcfile: srcfiles) {
+        Cg cg(srcfile);
+        cg.run();
+    }
 }

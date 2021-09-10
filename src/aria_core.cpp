@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <cstring>
 #include <vector>
+#include <fmt/core.h>
 
 #ifdef __linux__
 #include <linux/limits.h>
@@ -46,6 +47,8 @@ typedef i64 i128 __attribute__((mode(TI)));
 #define ANSI_FMAGENTA "\x1B[1;35m"
 #define ANSI_FCYAN    "\x1B[1;36m"
 #define ANSI_RESET    "\x1B[0m"
+
+#define TAB_SIZE 4
 
 void stderr_print() {
 }
