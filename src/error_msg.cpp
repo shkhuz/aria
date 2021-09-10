@@ -1,3 +1,7 @@
+#define ANSI_FERROR_COLOR ANSI_FRED
+#define ANSI_FWARNING_COLOR ANSI_FMAGENTA
+#define ANSI_FNOTE_COLOR ANSI_FCYAN
+
 namespace msg {
     enum class MsgKind {
         root_err, 
@@ -64,16 +68,16 @@ namespace msg {
         switch (kind) {
             case MsgKind::root_err:
             case MsgKind::err:
-                stderr_print(ANSI_FRED "error: " ANSI_RESET);
+                stderr_print(ANSI_FERROR_COLOR "error: " ANSI_RESET);
                 g_error_count++;
                 break;
             case MsgKind::warn:
-                stderr_print(ANSI_FGREEN "warning: " ANSI_RESET);
+                stderr_print(ANSI_FWARNING_COLOR "warning: " ANSI_RESET);
                 g_warning_count++;
                 break;
             case MsgKind::root_note:
             case MsgKind::note:
-                stderr_print(ANSI_FCYAN "note: " ANSI_RESET);
+                stderr_print(ANSI_FNOTE_COLOR "note: " ANSI_RESET);
                 break;
         }
         stderr_print(first);
@@ -88,13 +92,13 @@ namespace msg {
             std::string color = ANSI_RESET;
             switch (kind) {
                 case MsgKind::err:
-                    color = ANSI_FRED;
+                    color = ANSI_FERROR_COLOR;
                     break;
                 case MsgKind::warn:
-                    color = ANSI_FGREEN;
+                    color = ANSI_FWARNING_COLOR;
                     break;
                 case MsgKind::note:
-                    color = ANSI_FCYAN;
+                    color = ANSI_FNOTE_COLOR;
                     break;
                 default:
                     assert(0);
@@ -138,8 +142,11 @@ namespace msg {
                 0, 
                 0, 
                 0, 
-                g_error_count, " error(s), ",
-                g_warning_count, " warning(s); aborting compilation");
+                g_error_count > 0 ? ANSI_FERROR_COLOR : "",
+                g_error_count, " error(s), " ANSI_RESET,
+                g_warning_count > 0 ? ANSI_FWARNING_COLOR : "",
+                g_warning_count, " warning(s)" ANSI_RESET
+                "; aborting compilation");
         exit(1);
     }
 

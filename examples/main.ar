@@ -6,20 +6,24 @@
 //     symb;
 //     sym
 // }
-fn h2__3wew__1234567890__(a: i8, b: u8) {
+fn main(a: i8, b: u8) {
     {
         let i: u8 = a;
         let j: usize = b;
         let unsigned: i8;
     }
 
-        let i: *const i8;
-        // let c: *i8 = i;
+    let i: *const i8;
+    // let c: *i8 = i;
 
-        let x = a + 255;
-        let j: *const i8 = x;
-        let k: i8 = 255;
-        let num: usize = k;
+    let x = a + 255;
+    let j: *const i8 = x;
+    let k: i8 = 255;
+    let num: usize = k;
+
+    {
+        let a: isize;
+    }
 
     // let x = 1;
     // (1) Type* -> pointer to Type
@@ -38,4 +42,6 @@ fn cool() {
     let b = 2;
     let i: usize = a + b;
     let p: *void = a;
+
+    let new_int: usize = 12345678901234567890433334534543543534534543534543534;
 }
