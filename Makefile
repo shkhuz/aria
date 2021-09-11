@@ -1,13 +1,13 @@
 PROJECT := aria
 
 SRC_DIR := src
+THIRDPARTY_DIR := thirdparty
 BUILD_DIR := build
 BIN_DIR := $(BUILD_DIR)/bin
 OBJ_DIR := $(BUILD_DIR)/obj
-DEPS_DIR := deps
 
-CPP_FILES := src/main.cpp src/fmt/format.cc
-ASM_FILES := $(shell find $(SRC_DIR) -name "*.asm")
+CPP_FILES := $(SRC_DIR)/main.cpp $(THIRDPARTY_DIR)/fmt/format.cc
+ASM_FILES := $(shell find $(SRC_DIR)/ -name "*.asm")
 OBJ_FILES := $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(CPP_FILES)))
 OBJ_FILES += $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(ASM_FILES)))
 BIN_FILE := $(BIN_DIR)/$(PROJECT)
@@ -23,7 +23,7 @@ ifeq ($(warn), yes)
 else
 	WARN_CPPFLAGS := -Wno-switch -Wno-unused-variable -Wno-unused-parameter
 endif
-CPPFLAGS := $(PREPROCESSOR_DEFINES) -I$(SRC_DIR) -I. -Wall -Wextra $(WARN_CPPFLAGS) -std=c++11 -m64 -g -O0
+CPPFLAGS := $(PREPROCESSOR_DEFINES) -I$(SRC_DIR) -I$(THIRDPARTY_DIR) -I. -Wall -Wextra $(WARN_CPPFLAGS) -std=c++11 -m64 -g -O0
 ASMFLAGS := -felf64
 LDFLAGS :=
 LIBS_INC_DIR_CMD :=
