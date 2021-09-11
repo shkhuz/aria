@@ -41,11 +41,14 @@ struct Checker {
         return ty;
     }
 
-    Type** scoped_block(Expr* expr) {
+    Type** scoped_block(Expr* expr, Type** cast) {
         for (auto& stmt: expr->scoped_block.stmts) {
             this->stmt(stmt);
         }
-        return nullptr;
+        if (expr->scoped_block.value) {
+            return this->expr(expr->scoped_block.value, cast);
+        }
+        return builtin_type_placeholders.void_kind;
     }
 
     Type** binop(Expr* expr, Type** cast) {
@@ -78,7 +81,7 @@ struct Checker {
             } break;
 
             case ExprKind::scoped_block: {
-                return this->scoped_block(expr);
+                return this->scoped_block(expr, cast);
             } break;
 
             case ExprKind::binop: {
@@ -192,6 +195,10 @@ struct Checker {
         }
     }
 
+    void expr_stmt(Stmt* stmt) {
+        this->expr(stmt->expr_stmt.child, builtin_type_placeholders.void_kind);
+    }
+
     void stmt(Stmt* stmt) {
         switch (stmt->kind) {
             case StmtKind::function: {
@@ -200,6 +207,10 @@ struct Checker {
 
             case StmtKind::variable: {
                 this->variable(stmt);
+            } break;
+
+            case StmtKind::expr_stmt: {
+                this->expr_stmt(stmt);
             } break;
         }
     }

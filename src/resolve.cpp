@@ -80,7 +80,7 @@ struct Resolver {
         if (kind != BuiltinTypeKind::none) {
             error(
                     identifier,
-                    "cannot use type as an identifier");
+                    "cannot use type as a symbol");
             return;
         }
 
@@ -267,6 +267,10 @@ struct Resolver {
         stmt->variable.function = this->current_function;
     }
 
+    void expr_stmt(Stmt* stmt) {
+        this->expr(stmt->expr_stmt.child);
+    }
+
     void stmt(Stmt* stmt, bool ignore_function_level_stmt) {
         switch (stmt->kind) {
             case StmtKind::function: {
@@ -275,6 +279,10 @@ struct Resolver {
 
             case StmtKind::variable: {
                 this->variable(stmt, ignore_function_level_stmt);
+            } break;
+
+            case StmtKind::expr_stmt: {
+                this->expr_stmt(stmt);
             } break;
         }
     }

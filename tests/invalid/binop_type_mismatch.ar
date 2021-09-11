@@ -1,0 +1,127 @@
+// errc: 20 
+fn main()
+{
+    // unsigned + signed
+    {
+        let a: u8;
+        let b: i8;
+        let c = a + b;
+    }
+
+    {
+        let a: u16;
+        let b: i16;
+        let c = a + b;
+    }
+
+    {
+        let a: u32;
+        let b: i32;
+        let c = a + b;
+    }
+
+    {
+        let a: u64;
+        let b: i64;
+        let c = a + b;
+    }
+
+    {
+        let a: usize;
+        let b: isize;
+        let c = a + b;
+    }
+
+    // signed + unsigned
+    {
+        let a: i8;
+        let b: u8;
+        let c = a + b;
+    }
+
+    {
+        let a: i16;
+        let b: u16;
+        let c = a + b;
+    }
+
+    {
+        let a: i32;
+        let b: u32;
+        let c = a + b;
+    }
+
+    {
+        let a: i64;
+        let b: u64;
+        let c = a + b;
+    }
+
+    {
+        let a: isize;
+        let b: usize;
+        let c = a + b;
+    }
+
+    // unsigned + signed (different sizes)
+    {
+        let a: u8;
+        let b: isize;
+        let c = a + b;
+    }
+
+    {
+        let a: u16;
+        let b: i64;
+        let c = a + b;
+    }
+
+    {
+        let a: u32;
+        let b: i16;
+        let c = a + b;
+    }
+
+    {
+        let a: u64;
+        let b: i8;
+        let c = a + b;
+    }
+
+    {
+        let a: usize;
+        let b: i32;
+        let c = a + b;
+    }
+
+    // signed + unsigned (different sizes)
+    {
+        let a: i8;
+        let b: usize;
+        let c = a + b;
+    }
+
+    {
+        let a: i16;
+        let b: u64;
+        let c = a + b;
+    }
+
+    {
+        let a: i32;
+        let b: u16;
+        let c = a + b;
+    }
+
+    {
+        let a: i64;
+        let b: u8;
+        let c = a + b;
+    }
+
+    {
+        let a: isize;
+        let b: u32;
+        let c = a + b;
+    }
+}

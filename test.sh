@@ -43,9 +43,18 @@ compile_file_no_verbose() {
     build/bin/aria $1 2>/dev/null >/dev/null
 }
 
+readonly VALID_VAL=0
+readonly INVALID_VAL=1
+
 build_tests_in_dir() {
     for prog in `find $1 -name "*.ar" | sort`; do
         echo -n "Building $prog..."
+
+        expect_errc=`sed -n -e 's/\/\/\s*errc:\s*//p' $prog`
+        if [[ $expect_errc == "" ]]; then
+            expect_errc=1
+        fi
+
         if [[ -z ${verbose+x} ]]; then
             compile_file_no_verbose $prog
         else 
@@ -57,7 +66,12 @@ build_tests_in_dir() {
             fi
         fi
 
-        if [[ $? -eq $2 ]]; then
+        result=$?
+        if [[ $2 -eq $VALID_VAL ]]; then
+            expect_errc=0
+        fi
+
+        if [[ $result -eq $expect_errc ]]; then
             print_ok
             ((ok_count++))
         else 
@@ -72,8 +86,8 @@ if [[ ! -f build/bin/aria ]]; then
     exit 1
 fi
 
-build_tests_in_dir "tests/valid/" 0
-build_tests_in_dir "tests/invalid/" 1
+build_tests_in_dir "tests/valid/" $VALID_VAL
+build_tests_in_dir "tests/invalid/" $INVALID_VAL
 
 if [[ $fail_count -ne 0 ]]
 then

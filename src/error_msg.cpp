@@ -147,7 +147,7 @@ namespace msg {
                 g_warning_count > 0 ? ANSI_FWARNING_COLOR : "",
                 g_warning_count, " warning(s)" ANSI_RESET
                 "; aborting compilation");
-        exit(1);
+        exit(g_error_count);
     }
 
     template<typename T, typename... Args>

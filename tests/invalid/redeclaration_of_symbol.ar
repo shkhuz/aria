@@ -1,0 +1,9 @@
+fn main() 
+{
+
+}
+
+fn redecl_var(n: usize)
+{
+    let n = n;
+}
