@@ -46,6 +46,17 @@ int main(int argc, char* argv[]) {
     g_exec_path = argv[0];
     init_builtin_types();
 
+    {
+        std::cout << "u8: " << UINT8_MAX << std::endl;
+        std::cout << "u16: " << UINT16_MAX << std::endl;
+        std::cout << "u32: " << UINT32_MAX << std::endl;
+        std::cout << "u64: " << UINT64_MAX << std::endl;
+        std::cout << "i8: " << INT8_MAX << std::endl;
+        std::cout << "i16: " << INT16_MAX << std::endl;
+        std::cout << "i32: " << INT32_MAX << std::endl;
+        std::cout << "i64: " << INT64_MAX << std::endl;
+    }
+
     if (argc < 2) {
         msg::default_msg(
                 msg::MsgKind::root_err,

@@ -35,6 +35,22 @@ struct Cg {
         asmp("global {}", stmt->function.header->identifier->lexeme);
         asmlb(stmt->function.header->identifier->lexeme);
         asmw("push rbp");
+        asmw("mov rbp, rsp");
+
+        printf("stack size: %d\n", stmt->function.stack_vars_size);
+        int stack_vars_size_aln16 = 0;
+        if (stmt->function.stack_vars_size != 0) {
+            stack_vars_size_aln16 = 
+                round_to_next_multiple(stmt->function.stack_vars_size, 16);
+            asmp("sub rsp, {}", stack_vars_size_aln16);
+        }
+
+        if (stmt->function.stack_vars_size != 0) {
+            asmp("add rsp, {}", stack_vars_size_aln16);
+        }
+        asmlb(".L_ret");
+        asmw("ret");
+        asmw("");
     }
 
     void stmt(Stmt* stmt) {

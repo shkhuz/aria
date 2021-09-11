@@ -236,10 +236,12 @@ struct Resolver {
     }
 
     void function(Stmt* stmt) {
+        this->current_function = stmt;
         scope_new(scope);
         this->function_header(stmt->function.header);
         this->scoped_block(stmt->function.body, false);
         scope_revert(scope);
+        this->current_function = nullptr;
     }
 
     void variable(Stmt* stmt, bool ignore_function_level_stmt) {
@@ -261,6 +263,8 @@ struct Resolver {
         if (stmt->variable.initializer) {
             this->expr(stmt->variable.initializer);
         }
+
+        stmt->variable.function = this->current_function;
     }
 
     void stmt(Stmt* stmt, bool ignore_function_level_stmt) {

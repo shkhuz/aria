@@ -117,8 +117,11 @@ struct PtrType {
     Type** child;
 };
 
+const int ptr_size = 8;
+
 namespace builtin_type {
     bool is_integer(BuiltinTypeKind kind);
+    size_t bytes(BuiltinType* type);
 }
 
 struct Type {
@@ -156,6 +159,20 @@ struct Type {
     bool is_not_inferred() {
         return this->kind == TypeKind::builtin &&
             this->builtin.kind == BuiltinTypeKind::not_inferred;
+    }
+
+    size_t bytes() {
+        switch (this->kind) {
+            case TypeKind::builtin: {
+                return builtin_type::bytes(&this->builtin);
+            } break;
+
+            case TypeKind::ptr: {
+                return ptr_size;
+            } break;
+        }
+        assert(0);
+        return 0;
     }
 };
 
@@ -226,6 +243,7 @@ struct FunctionHeader {
 struct Function {
     FunctionHeader* header;
     Expr* body;
+    int stack_vars_size;
 };
 
 struct Variable {
@@ -233,6 +251,7 @@ struct Variable {
     Token* identifier;
     Type** type;
     Expr* initializer;
+    Stmt* function;
 };
 
 struct Param {
@@ -506,6 +525,7 @@ Stmt* function_new(
     Stmt* stmt = new Stmt(StmtKind::function, header->identifier);
     stmt->function.header = header;
     stmt->function.body = body;
+    stmt->function.stack_vars_size = 0;
     return stmt;
 }
 
@@ -519,6 +539,7 @@ Stmt* variable_new(
     stmt->variable.identifier = identifier;
     stmt->variable.type = type;
     stmt->variable.initializer = initializer;
+    stmt->variable.function = nullptr;
     return stmt;
 }
 

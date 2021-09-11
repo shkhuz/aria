@@ -44,7 +44,7 @@ compile_file_no_verbose() {
 }
 
 build_tests_in_dir() {
-    for prog in `find $1 -name "*.ar"`; do
+    for prog in `find $1 -name "*.ar" | sort`; do
         echo -n "Building $prog..."
         if [[ -z ${verbose+x} ]]; then
             compile_file_no_verbose $prog

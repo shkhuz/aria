@@ -6,6 +6,7 @@ enum class ImplicitCastStatus {
 
 struct Checker {
     Srcfile* srcfile;
+    std::vector<Stmt*> not_inferred_variables;
     bool error;
 
     Checker(Srcfile* srcfile) 
@@ -179,6 +180,16 @@ struct Checker {
             ": " << 
             **stmt->variable.type << 
             std::endl;
+
+        if ((*stmt->variable.type)->kind == TypeKind::builtin &&
+            (*stmt->variable.type)->builtin.kind == BuiltinTypeKind::not_inferred) {
+            not_inferred_variables.push_back(stmt);
+        } else {
+            if (stmt->variable.function) {
+                stmt->variable.function->function.stack_vars_size += 
+                    (*stmt->variable.type)->bytes();
+            }
+        }
     }
 
     void stmt(Stmt* stmt) {
@@ -196,6 +207,19 @@ struct Checker {
     void run() {
         for (auto& stmt: this->srcfile->stmts) {
             this->stmt(stmt);
+        }
+        
+        for (auto& var: this->not_inferred_variables) {
+            if ((*var->variable.type)->builtin.kind == BuiltinTypeKind::not_inferred) {
+                if (implicit_cast(var->variable.type, builtin_type_placeholders.i32) == ImplicitCastStatus::error) {
+                    assert(0);
+                }
+                *(var->variable.type) = *(builtin_type_placeholders.i32);
+            }
+            if (var->variable.function) {
+                var->variable.function->function.stack_vars_size += 
+                    (*var->variable.type)->bytes();
+            }
         }
     }
 };

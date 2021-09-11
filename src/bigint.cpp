@@ -344,37 +344,35 @@ bigint_err bigint_mul(const bigint* a, const bigint* b, bigint* c) {
     return err;
 }
 
-#define BIGINT_FITS_UNSIGNED(name, type)                                        \
-    bool name(const bigint* a) {                                                \
-        if (a->used > 2 || bigint_isneg(a)) {                                   \
-            return false;                                                       \
-        }                                                                       \
-        u128 n = (a->used == 2) ? a->d[0] + a->d[1] : a->d[0];                  \
-        if (get_bits_for_value(n) <= sizeof_in_bits(type)) {                    \
-            return true;                                                        \
-        }                                                                       \
-        return false;                                                           \
-    }                                                                           \
+#define BIGINT_FITS_UNSIGNED(name, type) \
+    bool name(const bigint* a) { \
+        if (a->used > 2 || (a->used == 2 && (a->d[1] & 0xfffffffffffffff0) != 0) || bigint_isneg(a)) { \
+            return false; \
+        } \
+        u128 n = ((a->d[1] << 60) | a->d[0]); \
+        if (get_bits_for_value(n) <= sizeof_in_bits(type)) { \
+            return true; \
+        } \
+        return false; \
+    }
 
-#define BIGINT_FITS_SIGNED(name, max)                                           \
-    bool name(const bigint* a) {                                                \
-        if (a->used > 2) {                                                      \
-            return false;                                                       \
-        }                                                                       \
-        u128 n = (a->used == 2) ? a->d[0] + a->d[1] : a->d[0];                  \
-        /* printf("sign: %d, n: %lu, d[0]: %lu, d[1]: %lu\n", */                \
-        /*         a->sign, (u64)n, a->d[0], a->d[1]); */                       \
-        if (bigint_isneg(a)) {                                                  \
-            if (n > (((u128)(max))+1)) {                                        \
-                return false;                                                   \
-            }                                                                   \
-        } else {                                                                \
-            if (n > (u128)(max)) {                                              \
-                return false;                                                   \
-            }                                                                   \
-        }                                                                       \
-        return true;                                                            \
-    }                                                                           \
+#define BIGINT_FITS_SIGNED(name, max) \
+    bool name(const bigint* a) { \
+        if (a->used > 2 || (a->used == 2 && (a->d[1] & 0xfffffffffffffff0) != 0)) { \
+            return false; \
+        } \
+        u128 n = ((a->d[1] << 60) | a->d[0]); \
+        if (bigint_isneg(a)) { \
+            if (n > (((u128)(max))+1)) { \
+                return false; \
+            } \
+        } else { \
+            if (n > (u128)(max)) { \
+                return false; \
+            } \
+        } \
+        return true; \
+    }
 
 BIGINT_FITS_UNSIGNED(bigint_fits_u8, u8);
 BIGINT_FITS_UNSIGNED(bigint_fits_u16, u16);
