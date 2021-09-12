@@ -210,6 +210,7 @@ struct ScopedBlock {
 struct UnaryOp {
     Expr* child;
     Token* op;
+    bigint* val;
 };
 
 struct BinaryOp {
@@ -432,15 +433,15 @@ std::ostream& operator<<(std::ostream& stream, const Token& token) {
 std::ostream& operator<<(std::ostream& stream, const Type& type) {
     switch (type.kind) {
         case TypeKind::builtin: {
-            stream << builtin_type::kind_to_str(type.builtin.kind);
+            stream << ANSI_FCYAN << builtin_type::kind_to_str(type.builtin.kind) << ANSI_RESET;
         } break;
 
         case TypeKind::ptr: {
-            stream << '*';
+            stream << ANSI_FCYAN << '*';
             if (type.ptr.constant) {
                 stream << "const ";
             }
-            stream << **type.ptr.child;
+            stream << **type.ptr.child << ANSI_RESET;
         } break;
 
         default: {
@@ -510,6 +511,7 @@ Expr* unop_new(
     Expr* expr = new Expr(ExprKind::unop, op);
     expr->unop.child = child;
     expr->unop.op = op;
+    expr->unop.val = nullptr;
     return expr;
 }
 

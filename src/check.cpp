@@ -54,42 +54,86 @@ struct Checker {
     }
 
     Type** unop(Expr* expr, Type** cast) {
-        /* Type** child_type = this->expr(expr->unop.child, cast); */
-        /* if ((*left_type)->is_not_inferred() && */ 
-        /*         (*right_type)->is_not_inferred()) { */
-        /* } else if (left_type && right_type && */ 
-        /*         this->implicit_cast(right_type, left_type) == ImplicitCastStatus::error) { */
-        /*     error( */
-        /*             expr->binop.op, */ 
-        /*             "type mismatch: `", */ 
-        /*             **left_type, */ 
-        /*             "` and `", */ 
-        /*             **right_type, */ 
-        /*             "`"); */
+        Type** child_type = this->expr(expr->unop.child, nullptr);
+        if (child_type) {
+            if ((*child_type)->is_not_inferred()) {
+                expr->unop.val = new bigint;
+                bigint_init(expr->unop.val);
+                bigint_neg((*child_type)->builtin.val, expr->unop.val);
 
-        /* } */
-        /* return left_type; */
+                Type** new_type = builtin_type_new(expr->unop.op, BuiltinTypeKind::not_inferred);
+                (*new_type)->builtin.val = expr->unop.val;
+                if (cast) {
+                    if (this->implicit_cast(new_type, cast) == ImplicitCastStatus::error) {
+                        assert(0);
+                    }
+                    return cast;
+                } else { 
+                    return new_type;
+                }
+            } else if ((*child_type)->is_integer()) {
+                if (builtin_type::is_signed((*child_type)->builtin.kind)) {
+                    if (cast) {
+                        if (this->implicit_cast(child_type, cast) == ImplicitCastStatus::error) {
+                            error(
+                                    expr->unop.op,
+                                    "type mismatch: `",
+                                    **child_type,
+                                    "` and `",
+                                    **cast,
+                                    "`");
+                            // TODO: should we return nullptr?
+                            return cast;
+                        } else {
+                            return cast;
+                        }
+                    } else {
+                        return child_type;
+                    }
+                } else {
+                    error(
+                            expr->unop.op,
+                            "unary `-` cannot operate on unsigned type `", **child_type, "`");
+                    return nullptr;
+                }
+            } else {
+                error(
+                        expr->unop.op,
+                        "unary `-` cannot operate on type `", **child_type, "`");
+                return nullptr;
+            }
+        } else {
+            return nullptr;
+        }
+        assert(0);
+        return nullptr;
     }
 
     Type** binop(Expr* expr, Type** cast) {
         Type** left_type = this->expr(expr->binop.left, cast);
         Type** right_type = this->expr(expr->binop.right, cast);
-        std::cout << "binop: " << **left_type << " + " << **right_type << std::endl;
-        if ((*left_type)->is_not_inferred() && 
-            (*right_type)->is_not_inferred()) {
-            *left_type = *right_type;
-        } else if (left_type && right_type && 
-                this->implicit_cast(right_type, left_type) == ImplicitCastStatus::error) {
-            error(
-                    expr->binop.op, 
-                    "type mismatch: `", 
-                    **left_type, 
-                    "` and `", 
-                    **right_type, 
-                    "`");
-
+        if (left_type && right_type) {
+            if ((*left_type)->is_not_inferred() && 
+                (*right_type)->is_not_inferred()) {
+                *left_type = *right_type;
+                // TODO: do we return left_type or make a new type?
+            } else if (this->implicit_cast(right_type, left_type) == ImplicitCastStatus::error) {
+                error(
+                        expr->binop.op, 
+                        "type mismatch: `", 
+                        **left_type, 
+                        "` and `", 
+                        **right_type, 
+                        "`");
+                // TODO: should we return nullptr?
+                return left_type;
+            }
+            return left_type;
+        } else {
+            return nullptr;
         }
-        return left_type;
+        assert(0);
+        return nullptr;
     }
 
     Type** expr(Expr* expr, Type** cast) {
@@ -207,19 +251,24 @@ struct Checker {
                     stmt->variable.initializer, 
                     nullptr);
         }
-        std::cout << 
-            *stmt->variable.identifier << 
-            ": " << 
-            **stmt->variable.type << 
-            std::endl;
 
-        if ((*stmt->variable.type)->kind == TypeKind::builtin &&
-            (*stmt->variable.type)->builtin.kind == BuiltinTypeKind::not_inferred) {
-            not_inferred_variables.push_back(stmt);
-        } else {
-            if (stmt->variable.function) {
-                stmt->variable.function->function.stack_vars_size += 
-                    (*stmt->variable.type)->bytes();
+        if (stmt->variable.type) {
+            std::cout << 
+                *stmt->variable.identifier << 
+                ": " << 
+                **stmt->variable.type << 
+                std::endl;
+        }
+
+        if (stmt->variable.type) {
+            if ((*stmt->variable.type)->kind == TypeKind::builtin &&
+                (*stmt->variable.type)->builtin.kind == BuiltinTypeKind::not_inferred) {
+                not_inferred_variables.push_back(stmt);
+            } else {
+                if (stmt->variable.function) {
+                    stmt->variable.function->function.stack_vars_size += 
+                        (*stmt->variable.type)->bytes();
+                }
             }
         }
     }

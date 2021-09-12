@@ -59,4 +59,10 @@ fn main()
         let b: isize;
         let c = a + b;
     }
+
+    {
+        let a = 1;
+        let b = -1;
+        let c = a + b;
+    }
 }

@@ -251,7 +251,7 @@ struct Parser {
     }
 
     Expr* unop_expr() {
-        if (this->match(TokenKind::plus) || this->match(TokenKind::minus)) {
+        if (this->match(TokenKind::minus)) {
             Token* op = this->previous();
             Expr* child = this->unop_expr();
             return unop_new(child, op);
