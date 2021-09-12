@@ -34,6 +34,8 @@ struct Checker {
             if (this->implicit_cast(ty, cast) == ImplicitCastStatus::error) {
                 return ty;
             } else {
+                // TODO: debug this and make sure this does the symbol thing as
+                // expected.
                 *ty = *cast;
                 return cast;
             }
@@ -51,11 +53,31 @@ struct Checker {
         return builtin_type_placeholders.void_kind;
     }
 
+    Type** unop(Expr* expr, Type** cast) {
+        /* Type** child_type = this->expr(expr->unop.child, cast); */
+        /* if ((*left_type)->is_not_inferred() && */ 
+        /*         (*right_type)->is_not_inferred()) { */
+        /* } else if (left_type && right_type && */ 
+        /*         this->implicit_cast(right_type, left_type) == ImplicitCastStatus::error) { */
+        /*     error( */
+        /*             expr->binop.op, */ 
+        /*             "type mismatch: `", */ 
+        /*             **left_type, */ 
+        /*             "` and `", */ 
+        /*             **right_type, */ 
+        /*             "`"); */
+
+        /* } */
+        /* return left_type; */
+    }
+
     Type** binop(Expr* expr, Type** cast) {
         Type** left_type = this->expr(expr->binop.left, cast);
         Type** right_type = this->expr(expr->binop.right, cast);
+        std::cout << "binop: " << **left_type << " + " << **right_type << std::endl;
         if ((*left_type)->is_not_inferred() && 
-                (*right_type)->is_not_inferred()) {
+            (*right_type)->is_not_inferred()) {
+            *left_type = *right_type;
         } else if (left_type && right_type && 
                 this->implicit_cast(right_type, left_type) == ImplicitCastStatus::error) {
             error(
@@ -84,6 +106,10 @@ struct Checker {
                 return this->scoped_block(expr, cast);
             } break;
 
+            case ExprKind::unop: {
+                return this->unop(expr, cast);
+            } break;
+
             case ExprKind::binop: {
                 return this->binop(expr, cast);
             } break;
@@ -100,6 +126,7 @@ struct Checker {
         assert(from && to);
         if ((*from)->kind == (*to)->kind) {
             if ((*from)->kind == TypeKind::builtin) {
+
                 if (builtin_type::is_integer((*from)->builtin.kind) &&
                     builtin_type::is_integer((*to)->builtin.kind)) {
                     if (builtin_type::bytes(&(*from)->builtin) >
@@ -122,6 +149,7 @@ struct Checker {
                                 **to, "`");
                         return ImplicitCastStatus::error_handled;
                     } else {
+                        **from = **to;
                         return ImplicitCastStatus::ok;
                     }
                 } else if ((*from)->builtin.kind == (*to)->builtin.kind) {
@@ -132,15 +160,16 @@ struct Checker {
                         return ImplicitCastStatus::error;
                     }
                 }
+
             } else if ((*from)->kind == TypeKind::ptr) {
                 // There are four cases:
                 //           to           C = const
-                //      |---------|       M = mutable
+                //      +---+-----+       M = mutable
                 //      |   | C M |       O = okay to cast
-                //      |---------|       ! = cannot cast
+                //      +---+-----+       ! = cannot cast
                 // from | C | O ! |
                 //      | M | O O |
-                //      |---------|
+                //      +---+-----+
                 // 
                 // These four cases are handled by this one line:
                 if (!(*from)->ptr.constant || (*to)->ptr.constant) {
@@ -221,6 +250,7 @@ struct Checker {
         }
         
         for (auto& var: this->not_inferred_variables) {
+            std::cout << "(new) " << *var->variable.identifier << ": " << **var->variable.type << std::endl; 
             if ((*var->variable.type)->builtin.kind == BuiltinTypeKind::not_inferred) {
                 if (implicit_cast(var->variable.type, builtin_type_placeholders.i32) == ImplicitCastStatus::error) {
                     assert(0);

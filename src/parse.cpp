@@ -250,14 +250,22 @@ struct Parser {
         return nullptr;
     }
 
+    Expr* unop_expr() {
+        if (this->match(TokenKind::plus) || this->match(TokenKind::minus)) {
+            Token* op = this->previous();
+            Expr* child = this->unop_expr();
+            return unop_new(child, op);
+        }
+        return this->atom_expr();
+    }
+
     Expr* binop_expr() {
-        Expr* left = this->atom_expr();
-        while (this->match(TokenKind::plus) ||
-               this->match(TokenKind::minus)) {
+        Expr* left = this->unop_expr();
+        while (this->match(TokenKind::plus) || this->match(TokenKind::minus)) {
             Token* op = this->previous();
             left = binop_new(
                     left, 
-                    this->atom_expr(),
+                    this->unop_expr(),
                     op);
         }
         return left;

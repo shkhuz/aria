@@ -180,6 +180,7 @@ enum class ExprKind {
     number,
     symbol,
     scoped_block,
+    unop,
     binop,
 };
 
@@ -206,6 +207,11 @@ struct ScopedBlock {
     Expr* value;
 };
 
+struct UnaryOp {
+    Expr* child;
+    Token* op;
+};
+
 struct BinaryOp {
     Expr* left, *right;
     Token* op;
@@ -218,6 +224,7 @@ struct Expr {
         Number number;
         Symbol symbol;
         ScopedBlock scoped_block;
+        UnaryOp unop;
         BinaryOp binop;
     };
 
@@ -494,6 +501,15 @@ Expr* scoped_block_new(
     expr->scoped_block.lbrace = lbrace;
     expr->scoped_block.stmts = stmts;
     expr->scoped_block.value = value;
+    return expr;
+}
+
+Expr* unop_new(
+        Expr* child, 
+        Token* op) {
+    Expr* expr = new Expr(ExprKind::unop, op);
+    expr->unop.child = child;
+    expr->unop.op = op;
     return expr;
 }
 

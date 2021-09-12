@@ -202,6 +202,10 @@ struct Resolver {
         }
     }
 
+    void unop(Expr* expr) {
+        this->expr(expr->unop.child);
+    }
+
     void binop(Expr* expr) {
         this->expr(expr->binop.left);
         this->expr(expr->binop.right);
@@ -215,6 +219,10 @@ struct Resolver {
 
             case ExprKind::scoped_block: {
                 this->scoped_block(expr, true);
+            } break;
+
+            case ExprKind::unop: {
+                this->unop(expr);
             } break;
 
             case ExprKind::binop: {
