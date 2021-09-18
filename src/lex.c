@@ -1,0 +1,142 @@
+#include "lex.h"
+#include "buf.h"
+#include "stri.h"
+#include "msg.h"
+
+static void _vlex_fatal_error(
+        LexContext* l,
+        size_t column,
+        size_t char_count,
+        const char* fmt,
+        va_list ap);
+static void lex_fatal_error_from_start(LexContext* l, const char* fmt, ...);
+static void lex_fatal_error_from_current(LexContext* l, const char* fmt, ...);
+static void lex_push_tok(LexContext* l, TokenKind kind);
+static size_t lex_get_column(LexContext* l, char* c);
+static size_t lex_get_column_from_start(LexContext* l);
+static size_t lex_get_column_from_current(LexContext* l);
+
+void lex(LexContext* l) {
+    l->srcfile->tokens = null;
+    l->start = l->srcfile->handle->contents;
+    l->current = l->start;
+    l->last_newline = l->start;
+    l->line = 1;
+    l->error = false;
+
+    for (;;) {
+        l->start = l->current;
+        switch (*l->current) {
+            case 'a': case 'b': case 'c': case 'd': case 'e':
+            case 'f': case 'g': case 'h': case 'i': case 'j':
+            case 'k': case 'l': case 'm': case 'n': case 'o':
+            case 'p': case 'q': case 'r': case 's': case 't':
+            case 'u': case 'v': case 'w': case 'x': case 'y':
+            case 'z': case 'A': case 'B': case 'C': case 'D':
+            case 'E': case 'F': case 'G': case 'H': case 'I':
+            case 'J': case 'K': case 'L': case 'M': case 'N':
+            case 'O': case 'P': case 'Q': case 'R': case 'S':
+            case 'T': case 'U': case 'V': case 'W': case 'X':
+            case 'Y': case 'Z': case '_': {
+                TokenKind kind = TOKEN_KIND_IDENTIFIER;
+                while (isalnum(*l->current) || *l->current == '_')
+                    l->current++;
+                lex_push_tok(l, kind);
+            } break;
+
+            case ' ':
+            case '\t':
+            case '\r': {
+                l->current++;
+            } break;
+
+            case '\n': {
+                l->last_newline = l->current;
+                l->current++;
+                l->line++;
+            } break;
+
+            case '\0': {
+                lex_push_tok(l, TOKEN_KIND_EOF);
+            } return;
+
+            default: {
+                lex_fatal_error_from_current(
+                        l,
+                        "invalid character `%c`",
+                        *l->current);
+                l->current++;
+            } break;
+        }
+    }
+}
+
+void lex_push_tok(LexContext* l, TokenKind kind) {
+    ALLOC_WITH_TYPE(token, Token);
+    token->kind = kind;
+    token->lexeme = kind == TOKEN_KIND_EOF ? "EOF" : strni(l->start, l->current);
+    token->start = l->start;
+    token->end = l->current;
+    token->srcfile = l->srcfile;
+    token->line = l->line;
+    token->column = lex_get_column_from_start(l);
+    token->char_count = l->current - l->start;
+    buf_push(l->srcfile->tokens, token);
+}
+
+size_t lex_get_column(LexContext* l, char* c) {
+    size_t column = c - l->last_newline;
+    if (l->line == 1) 
+        column++;
+    return column;
+}
+
+size_t lex_get_column_from_start(LexContext* l) {
+    return lex_get_column(l, l->start);
+}
+
+size_t lex_get_column_from_current(LexContext* l) {
+    return lex_get_column(l, l->current);
+}
+
+void _vlex_fatal_error(
+        LexContext* l,
+        size_t column,
+        size_t char_count,
+        const char* fmt,
+        va_list ap) {
+    l->error = true;
+    vdefault_msg(
+            MSG_KIND_ERROR,
+            l->srcfile,
+            l->line,
+            column,
+            char_count,
+            fmt,
+            ap);
+    // TODO: should we terminate compilation or continue?
+}
+
+void lex_fatal_error_from_start(LexContext* l, const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    _vlex_fatal_error(
+            l,
+            lex_get_column_from_start(l),
+            l->current - l->start,
+            fmt,
+            ap);
+    va_end(ap);
+}
+
+void lex_fatal_error_from_current(LexContext* l, const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    _vlex_fatal_error(
+            l,
+            lex_get_column_from_current(l),
+            1,
+            fmt,
+            ap);
+    va_end(ap);
+}

@@ -1,0 +1,14 @@
+// errc: 10
+fn main()
+{
+    let a: u8 = -1;
+    let b: u16 = -1;
+    let c: u32 = -1;
+    let d: u64 = -1;
+    let e: usize = -1;
+    let f: i8 = -129;
+    let g: i16 = -32769;
+    let h: i32 = -2147483649;
+    let i: i64 = -9223372036854775809;
+    let j: isize = -9223372036854775809;
+}

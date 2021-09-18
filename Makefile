@@ -1,87 +1,33 @@
-PROJECT := aria
+C_FILES := $(shell find src -type f -name "*.c")
+H_FILES := $(shell find src -type f -name "*.h")
+OBJ_FILES := $(addprefix obj/, $(addsuffix .o, $(C_FILES)))
+EXE_FILE := ariac
+#CMD_ARGS := examples/cg.ar
+CMD_ARGS := examples/lex.ar
 
-SRC_DIR := src
-THIRDPARTY_DIR := thirdparty
-BUILD_DIR := build
-BIN_DIR := $(BUILD_DIR)/bin
-OBJ_DIR := $(BUILD_DIR)/obj
-
-CPP_FILES := $(SRC_DIR)/main.cpp $(THIRDPARTY_DIR)/fmt/format.cc
-ASM_FILES := $(shell find $(SRC_DIR)/ -name "*.asm")
-OBJ_FILES := $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(CPP_FILES)))
-OBJ_FILES += $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(ASM_FILES)))
-BIN_FILE := $(BIN_DIR)/$(PROJECT)
-
-CC := g++
-LD := g++
-# CC := clang++
-# LD := clang++
-
-PREPROCESSOR_DEFINES := -DTAB_COUNT=4 -DAST_TAB_COUNT=4
-ifeq ($(warn), yes)
-	WARN_CPPFLAGS := 
+ifeq ($(prod), y)
+	CFLAGS_OPTIMIZE := -O3
 else
-	WARN_CPPFLAGS := -Wno-switch -Wno-unused-variable -Wno-unused-parameter
+	CFLAGS_OPTIMIZE := -g -O0
 endif
-CPPFLAGS := $(PREPROCESSOR_DEFINES) -I$(SRC_DIR) -I$(THIRDPARTY_DIR) -I. -Wall -Wextra $(WARN_CPPFLAGS) -std=c++11 -m64 -g -O0
-ASMFLAGS := -felf64
-LDFLAGS :=
-LIBS_INC_DIR_CMD :=
-LIBS_LIB_DIR_CMD :=
-LIBS_LIB_CMD :=
-#CMD_ARGS := examples/test.ar examples/single.ar examples/usage.ar
-#CMD_ARGS := examples/single.ar 
-#CMD_ARGS := examples/pub_test.ar 
-# CMD_ARGS := examples/test.ar 
-CMD_ARGS := examples/cg.ar 
 
-all: clean check
-	$(MAKE) all_2
+CC := gcc
+LD := gcc
 
-all_2: $(BIN_FILE) 
-	$(BIN_FILE) $(CMD_ARGS)
+run: $(EXE_FILE)
+	./$^ $(CMD_ARGS)
 
-debug: $(BIN_FILE)
-	gdb --args $(BIN_FILE) $(CMD_ARGS)
-
-$(BIN_FILE): $(OBJ_FILES)
+$(EXE_FILE): $(OBJ_FILES)
 	@mkdir -p $(dir $@)
-	$(LD) -o $@ $(OBJ_FILES) $(LIBS_LIB_DIR_CMD) $(LIBS_LIB_CMD) $(LDFLAGS)
+	$(LD) -o $@ $(OBJ_FILES)
 
-$(OBJ_DIR)/%.cpp.o: %.cpp
-	@mkdir -p $(OBJ_DIR)/$(dir $^)
-	$(CC) -c $(CPPFLAGS) $(LIBS_INC_DIR_CMD) -o $@ $^
+obj/%.c.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) -c $(CFLAGS_OPTIMIZE) -o $@ -Wall -Wextra -Wshadow $^
 
-$(OBJ_DIR)/%.cc.o: %.cc
-	@mkdir -p $(OBJ_DIR)/$(dir $^)
-	$(CC) -c $(CPPFLAGS) $(LIBS_INC_DIR_CMD) -o $@ $^
-
-$(OBJ_DIR)/%.c.o: %.c
-	@mkdir -p $(OBJ_DIR)/$(dir $^)
-	$(CC) -c $(CFLAGS) $(LIBS_INC_DIR_CMD) -o $@ $^
-
-$(OBJ_DIR)/%.asm.o: %.asm
-	@mkdir -p $(OBJ_DIR)/$(dir $^)
-	nasm $(ASMFLAGS) -o $@ $^
+debug: $(EXE_FILE)
+	gdb --args $^ $(CMD_ARGS)
 
 clean:
-	rm -f $(OBJ_FILES)
-	rm -rf $(OBJ_DIR)
-	rm -f $(BIN_FILE)
-	rm -fd $(BIN_DIR)
-	rm -fd $(BUILD_DIR)
-	rm -f a.out
+	rm -rf obj/ $(EXE_FILE)
 
-check: clean
-	./scripts/check_parse_c_file.sh
-
-loc:
-	find $(SRC_DIR) \
-		-name "*.cpp" -or \
-		-name "*.hpp" -or \
-		-name "*.h" -or \
-		-name "*.c" -or \
-		-name "*.asm" \
-	| xargs cat | wc -l
-
-.PHONY: all debug clean check loc

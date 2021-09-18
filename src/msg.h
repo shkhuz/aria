@@ -1,0 +1,59 @@
+#ifndef MSG_H
+#define MSG_H
+
+#include "core.h"
+#include "aria.h"
+
+#define ANSI_FERROR_COLOR ANSI_FRED
+#define ANSI_FWARNING_COLOR ANSI_FMAGENTA
+#define ANSI_FNOTE_COLOR ANSI_FCYAN
+
+typedef enum {
+    MSG_KIND_ROOT_ERROR,
+    MSG_KIND_ROOT_NOTE,
+    MSG_KIND_ERROR,
+    MSG_KIND_WARNING,
+    MSG_KIND_NOTE,
+} MsgKind;
+
+void vdefault_msg(
+        MsgKind kind, 
+        Srcfile* srcfile, 
+        size_t line, 
+        size_t column, 
+        size_t char_count, 
+        const char* fmt,
+        va_list ap);
+
+void default_msg(
+        MsgKind kind, 
+        Srcfile* srcfile, 
+        size_t line, 
+        size_t column, 
+        size_t char_count, 
+        const char* fmt,
+        ...);
+
+void terminate_compilation();
+
+void default_msg_from_tok(
+        MsgKind kind,
+        Token* token,
+        const char* fmt,
+        ...);
+
+void _error(
+        Token* token,
+        const char* fmt, 
+        ...);
+
+#define error(token, first, ...) \
+    _error(token, first, ##__VA_ARGS__); \
+    self->error = true
+
+void fatal_error(
+        Token* token,
+        const char* fmt,
+        ...);
+
+#endif
