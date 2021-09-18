@@ -14,6 +14,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: make
-      run: make build/bin/aria
-    - name: test
-      run: ./test.sh -e
+      run: make ariac
+    # - name: test
+    #   run: ./test.sh -e
