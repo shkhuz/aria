@@ -52,7 +52,7 @@ typedef i64 i128 __attribute__((mode(TI)));
 #define ALLOC_WITH_TYPE(name, type) type* name = aria_malloc(sizeof(type))
 #define ALLOC_WITH_TYPE_ASSIGN(name, type) name = aria_malloc(sizeof(type))
 #define ZERO_MEMORY(mem, count) (memset(mem, 0, count * sizeof(*mem)))
-#define STACK_ARR_LEN(arr) (sizeof(arr) / sizeof(*arr))
+#define ARR_LEN(arr) (sizeof(arr) / sizeof(*arr))
 #define SIZEOF_IN_BITS(x) ((size_t)8 * sizeof(x))
 #define SWAP_VARS(t, a, b) do { t _c = a; a = b; b = _c; } while (0)
 #define COMBINE1(X, Y) X##Y

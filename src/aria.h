@@ -15,6 +15,9 @@ typedef struct {
 
 typedef enum {
     TOKEN_KIND_IDENTIFIER,
+    TOKEN_KIND_KEYWORD,
+    TOKEN_KIND_PLUS,
+    TOKEN_KIND_MINUS,
     TOKEN_KIND_EOF,
 } TokenKind;
 
@@ -33,6 +36,10 @@ typedef struct {
 
 struct Stmt {
 };
+
+extern char** aria_keywords;
+
+void init_keywords();
 
 void _aria_fprintf(
         const char* calleefile, 

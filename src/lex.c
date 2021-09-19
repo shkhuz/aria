@@ -3,15 +3,23 @@
 #include "stri.h"
 #include "msg.h"
 
-static void _vlex_fatal_error(
+static bool ascii_errored_table[128];
+
+static void _vlex_error(
         LexContext* l,
         size_t column,
         size_t char_count,
         const char* fmt,
         va_list ap);
-static void lex_fatal_error_from_start(LexContext* l, const char* fmt, ...);
-static void lex_fatal_error_from_current(LexContext* l, const char* fmt, ...);
+static void lex_error_from_start(LexContext* l, const char* fmt, ...);
+static void lex_error_from_current(LexContext* l, const char* fmt, ...);
 static void lex_push_tok(LexContext* l, TokenKind kind);
+static void lex_push_tok_adv(LexContext* l, TokenKind kind);
+static void lex_push_tok_adv_cond(
+        LexContext* l, 
+        char c, 
+        TokenKind matched,
+        TokenKind not_matched);
 static size_t lex_get_column(LexContext* l, char* c);
 static size_t lex_get_column_from_start(LexContext* l);
 static size_t lex_get_column_from_current(LexContext* l);
@@ -41,6 +49,12 @@ void lex(LexContext* l) {
                 TokenKind kind = TOKEN_KIND_IDENTIFIER;
                 while (isalnum(*l->current) || *l->current == '_')
                     l->current++;
+                for (size_t i = 0; i < buf_len(aria_keywords); i++) {
+                    if (stri(aria_keywords[i]) == strni(l->start, l->current)) {
+                        kind = TOKEN_KIND_KEYWORD;
+                        break;
+                    }
+                }
                 lex_push_tok(l, kind);
             } break;
 
@@ -60,11 +74,18 @@ void lex(LexContext* l) {
                 lex_push_tok(l, TOKEN_KIND_EOF);
             } return;
 
+            case '+': lex_push_tok_adv(l, TOKEN_KIND_PLUS); break;
+            case '-': lex_push_tok_adv(l, TOKEN_KIND_MINUS); break;
+
             default: {
-                lex_fatal_error_from_current(
-                        l,
-                        "invalid character `%c`",
-                        *l->current);
+                if (*l->current >= 0 && 
+                    !ascii_errored_table[(size_t)*l->current]) {
+                    lex_error_from_current(
+                            l,
+                            "invalid character `%c`",
+                            *l->current);
+                    ascii_errored_table[(size_t)*l->current] = true;
+                }
                 l->current++;
             } break;
         }
@@ -84,6 +105,25 @@ void lex_push_tok(LexContext* l, TokenKind kind) {
     buf_push(l->srcfile->tokens, token);
 }
 
+void lex_push_tok_adv(LexContext* l, TokenKind kind) {
+    l->current++;
+    lex_push_tok(l, kind);
+}
+
+void lex_push_tok_adv_cond(
+        LexContext* l, 
+        char c, 
+        TokenKind matched,
+        TokenKind not_matched) {
+    if (*(l->current+1) == c) {
+        l->current++;
+        lex_push_tok_adv(l, matched);
+    }
+    else {
+        lex_push_tok_adv(l, not_matched);
+    }
+}
+
 size_t lex_get_column(LexContext* l, char* c) {
     size_t column = c - l->last_newline;
     if (l->line == 1) 
@@ -99,7 +139,7 @@ size_t lex_get_column_from_current(LexContext* l) {
     return lex_get_column(l, l->current);
 }
 
-void _vlex_fatal_error(
+void _vlex_error(
         LexContext* l,
         size_t column,
         size_t char_count,
@@ -117,10 +157,10 @@ void _vlex_fatal_error(
     // TODO: should we terminate compilation or continue?
 }
 
-void lex_fatal_error_from_start(LexContext* l, const char* fmt, ...) {
+void lex_error_from_start(LexContext* l, const char* fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    _vlex_fatal_error(
+    _vlex_error(
             l,
             lex_get_column_from_start(l),
             l->current - l->start,
@@ -129,10 +169,10 @@ void lex_fatal_error_from_start(LexContext* l, const char* fmt, ...) {
     va_end(ap);
 }
 
-void lex_fatal_error_from_current(LexContext* l, const char* fmt, ...) {
+void lex_error_from_current(LexContext* l, const char* fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    _vlex_fatal_error(
+    _vlex_error(
             l,
             lex_get_column_from_current(l),
             1,

@@ -50,6 +50,8 @@ Srcfile* read_srcfile(
 
 int main(int argc, char* argv[]) {
     g_exec_path = argv[0];
+    init_keywords();
+
     if (argc < 2) {
         default_msg(
                 MSG_KIND_ROOT_ERROR,

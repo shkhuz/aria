@@ -1,4 +1,12 @@
 #include "aria.h"
+#include "buf.h"
+
+char** aria_keywords;
+
+void init_keywords() {
+    buf_push(aria_keywords, "fn");
+    buf_push(aria_keywords, "let");
+}
 
 void _aria_fprintf(
         const char* calleefile, 
@@ -14,7 +22,6 @@ void _aria_fprintf(
         if (fmt[i] == '{') {
             bool found_rbrace = false;
             i++;
-
             switch (fmt[i]) {
                 case 'q': {
                     i++;
@@ -105,5 +112,5 @@ void fprint_type(FILE* file, Type* type) {
 }
 
 void fprintf_token(FILE* file, Token* token) {
-    fprintf(file, "%s", token->lexeme);
+    fprintf(file, "{ %s, %d }", token->lexeme, token->kind);
 }
