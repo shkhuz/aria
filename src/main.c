@@ -4,6 +4,7 @@
 #include "buf.h"
 #include "msg.h"
 #include "lex.h"
+#include "parse.h"
 
 char* g_exec_path;
 
@@ -50,7 +51,7 @@ Srcfile* read_srcfile(
 
 int main(int argc, char* argv[]) {
     g_exec_path = argv[0];
-    init_keywords();
+    init_ds();
 
     if (argc < 2) {
         default_msg(
@@ -88,12 +89,20 @@ int main(int argc, char* argv[]) {
         LexContext l;
         l.srcfile = srcfiles[i];
         lex(&l);
-        if (l.error && !parsing_error) parsing_error = true;
+        if (l.error) {
+            parsing_error = true;
+            continue;
+        }
         else {
             buf_loop(srcfiles[i]->tokens, j) {
                 aria_printf("token: {tk}\n", srcfiles[i]->tokens[j]);
             }
         }
+
+        ParseContext p;
+        p.srcfile = srcfiles[i];
+        parse(&p);
+        if (p.error) parsing_error = true;
     }
     if (parsing_error) terminate_compilation();
 }

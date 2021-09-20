@@ -227,6 +227,40 @@ void fatal_error(
     terminate_compilation();
 }
 
+void warning(
+        Token* token,
+        const char* fmt, 
+        ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vdefault_msg(
+            MSG_KIND_WARNING,
+            token->srcfile,
+            token->line,
+            token->column,
+            token->char_count,
+            fmt, 
+            ap);
+    va_end(ap);
+}
+
+void note(
+        Token* token,
+        const char* fmt, 
+        ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vdefault_msg(
+            MSG_KIND_NOTE,
+            token->srcfile,
+            token->line,
+            token->column,
+            token->char_count,
+            fmt, 
+            ap);
+    va_end(ap);
+}
+
 /* template<typename T, typename... Args> */
 /* void warning( */
 /*         Token* token, */

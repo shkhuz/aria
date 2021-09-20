@@ -51,6 +51,16 @@ void _error(
     _error(token, first, ##__VA_ARGS__); \
     self->error = true
 
+void warning(
+        Token* token,
+        const char* fmt, 
+        ...);
+
+void note(
+        Token* token,
+        const char* fmt, 
+        ...);
+
 void fatal_error(
         Token* token,
         const char* fmt,

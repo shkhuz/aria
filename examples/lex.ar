@@ -1,1 +1,5 @@
-iden tifier haha +- fn let 
+fn main(
+    iden: u8, 
+    df: isize,) {
+}
+

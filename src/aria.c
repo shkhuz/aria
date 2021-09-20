@@ -1,11 +1,112 @@
 #include "aria.h"
 #include "buf.h"
+#include "stri.h"
 
 char** aria_keywords;
 
-void init_keywords() {
+BuiltinTypeMap builtin_type_map[_BUILTIN_TYPE_KIND_COUNT] = {
+    { "u8", BUILTIN_TYPE_KIND_U8 },
+    { "u16", BUILTIN_TYPE_KIND_U16 },
+    { "u32", BUILTIN_TYPE_KIND_U32 },
+    { "u64", BUILTIN_TYPE_KIND_U64 },
+    { "usize", BUILTIN_TYPE_KIND_USIZE },
+    { "i8", BUILTIN_TYPE_KIND_I8 },
+    { "i16", BUILTIN_TYPE_KIND_I16 },
+    { "i32", BUILTIN_TYPE_KIND_I32 },
+    { "i64", BUILTIN_TYPE_KIND_I64 },
+    { "isize", BUILTIN_TYPE_KIND_ISIZE },
+    { "void", BUILTIN_TYPE_KIND_VOID },
+};
+
+BuiltinTypePlaceholders builtin_type_placeholders;
+
+static Type* builtin_type_placeholder_new(BuiltinTypeKind kind) {
+    return builtin_type_new(null, kind);
+}
+
+void init_ds() {
     buf_push(aria_keywords, "fn");
     buf_push(aria_keywords, "let");
+    buf_push(aria_keywords, "const");
+
+    builtin_type_placeholders.u8 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U8);
+    builtin_type_placeholders.u16 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U16);
+    builtin_type_placeholders.u32 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U32);
+    builtin_type_placeholders.u64 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U64);
+    builtin_type_placeholders.usize = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_USIZE);
+    builtin_type_placeholders.i8 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I8);
+    builtin_type_placeholders.i16 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I16);
+    builtin_type_placeholders.i32 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I32);
+    builtin_type_placeholders.i64 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I64);
+    builtin_type_placeholders.isize = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_ISIZE);
+    builtin_type_placeholders.void_type = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_VOID);
+}
+
+BuiltinTypeKind builtin_type_str_to_kind(char* str) {
+    for (size_t i = 0; i < _BUILTIN_TYPE_KIND_COUNT; i++) {
+        if (stri(builtin_type_map[i].k) == stri(str)) {
+            return builtin_type_map[i].v;
+        }
+    }
+    return BUILTIN_TYPE_KIND_NONE;
+}
+
+Type* builtin_type_new(Token* token, BuiltinTypeKind kind) {
+    ALLOC_WITH_TYPE(type, Type);
+    type->kind = TYPE_KIND_BUILTIN;
+    type->main_token = token;
+    type->builtin.token = token;
+    type->builtin.kind = kind;
+    return type;
+}
+
+Type* ptr_type_new(Token* star, bool constant, Type* child) {
+    ALLOC_WITH_TYPE(type, Type);
+    type->kind = TYPE_KIND_PTR;
+    type->main_token = star;
+    type->ptr.constant = constant;
+    type->ptr.child = child;
+    return type;
+}
+
+FunctionHeader* function_header_new(
+        Token* identifier, 
+        Stmt** params, 
+        Type* return_type) {
+    ALLOC_WITH_TYPE(header, FunctionHeader);
+    header->identifier = identifier;
+    header->params = params;
+    header->return_type = return_type;
+    return header;
+}
+
+Stmt* function_stmt_new(FunctionHeader* header, Expr* body) {
+    ALLOC_WITH_TYPE(stmt, Stmt);
+    stmt->kind = STMT_KIND_FUNCTION;
+    stmt->main_token = header->identifier;
+    stmt->function.header = header;
+    stmt->function.body = body;
+    stmt->function.stack_vars_size = 0;
+    return stmt;
+}
+
+Stmt* param_stmt_new(Token* identifier, Type* type) {
+    ALLOC_WITH_TYPE(stmt, Stmt);
+    stmt->kind = STMT_KIND_PARAM;
+    stmt->main_token = identifier;
+    stmt->param.identifier = identifier;
+    stmt->param.type = type;
+    return stmt;
+}
+
+Expr* block_expr_new(Token* lbrace, Stmt** stmts, Expr* value) {
+    ALLOC_WITH_TYPE(expr, Expr);
+    expr->kind = EXPR_KIND_BLOCK;
+    expr->main_token = lbrace;
+    expr->block.lbrace = lbrace;
+    expr->block.stmts = stmts;
+    expr->block.value = value;
+    return expr;
 }
 
 void _aria_fprintf(
@@ -105,10 +206,6 @@ void _aria_fprintf(
 }
 
 void fprint_type(FILE* file, Type* type) {
-    if (type->ptr) {
-        putc('*', file);
-    }
-    fprintf(file, "%s", type->name);
 }
 
 void fprintf_token(FILE* file, Token* token) {
