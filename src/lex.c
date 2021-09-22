@@ -79,11 +79,21 @@ void lex(LexContext* l) {
             case '(': lex_push_tok_adv(l, TOKEN_KIND_LPAREN); break;
             case ')': lex_push_tok_adv(l, TOKEN_KIND_RPAREN); break;
             case ':': lex_push_tok_adv(l, TOKEN_KIND_COLON); break;
+            case ';': lex_push_tok_adv(l, TOKEN_KIND_SEMICOLON); break;
             case ',': lex_push_tok_adv(l, TOKEN_KIND_COMMA); break;
+            case '=': lex_push_tok_adv_cond(l, '=', TOKEN_KIND_DOUBLE_EQUAL, TOKEN_KIND_EQUAL); break;
             case '+': lex_push_tok_adv(l, TOKEN_KIND_PLUS); break;
             case '-': lex_push_tok_adv(l, TOKEN_KIND_MINUS); break;
             case '*': lex_push_tok_adv(l, TOKEN_KIND_STAR); break;
-            case '/': lex_push_tok_adv(l, TOKEN_KIND_FSLASH); break;
+            case '/': {
+                if (*(l->current+1) == '/') {
+                    while (*l->current != '\n' && *l->current != '\0')
+                        l->current++;
+                }
+                else {
+                    lex_push_tok_adv(l, TOKEN_KIND_FSLASH);
+                }
+            } break;
 
             default: {
                 if (*l->current >= 0 && 

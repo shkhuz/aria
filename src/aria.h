@@ -23,7 +23,10 @@ typedef enum {
     TOKEN_KIND_LPAREN,
     TOKEN_KIND_RPAREN,
     TOKEN_KIND_COLON,
+    TOKEN_KIND_SEMICOLON,
     TOKEN_KIND_COMMA,
+    TOKEN_KIND_EQUAL,
+    TOKEN_KIND_DOUBLE_EQUAL,
     TOKEN_KIND_PLUS,
     TOKEN_KIND_MINUS,
     TOKEN_KIND_STAR,
@@ -185,6 +188,7 @@ extern char** aria_keywords;
 
 void init_ds();
 
+bool is_token_lexeme_eq(Token* a, Token* b);
 BuiltinTypeKind builtin_type_str_to_kind(char* str);
 
 Type* builtin_type_new(Token* token, BuiltinTypeKind kind);
@@ -194,7 +198,13 @@ FunctionHeader* function_header_new(
         Stmt** params, 
         Type* return_type);
 Stmt* function_stmt_new(FunctionHeader* header, Expr* body);
+Stmt* variable_stmt_new(
+        bool constant,
+        Token* identifier,
+        Type* type,
+        Expr* initializer);
 Stmt* param_stmt_new(Token* identifier, Type* type);
+Stmt* expr_stmt_new(Expr* child);
 Expr* block_expr_new(Token* lbrace, Stmt** stmts, Expr* value);
 
 void _aria_fprintf(

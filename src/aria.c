@@ -28,6 +28,7 @@ void init_ds() {
     buf_push(aria_keywords, "fn");
     buf_push(aria_keywords, "let");
     buf_push(aria_keywords, "const");
+    buf_push(aria_keywords, "mut");
 
     builtin_type_placeholders.u8 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U8);
     builtin_type_placeholders.u16 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U16);
@@ -40,6 +41,13 @@ void init_ds() {
     builtin_type_placeholders.i64 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I64);
     builtin_type_placeholders.isize = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_ISIZE);
     builtin_type_placeholders.void_type = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_VOID);
+}
+
+bool is_token_lexeme_eq(Token* a, Token* b) {
+    if (stri(a->lexeme) == stri(b->lexeme)) {
+        return true;
+    }
+    return false;
 }
 
 BuiltinTypeKind builtin_type_str_to_kind(char* str) {
@@ -90,12 +98,35 @@ Stmt* function_stmt_new(FunctionHeader* header, Expr* body) {
     return stmt;
 }
 
+Stmt* variable_stmt_new(
+        bool constant,
+        Token* identifier,
+        Type* type,
+        Expr* initializer) {
+    ALLOC_WITH_TYPE(stmt, Stmt);
+    stmt->kind = STMT_KIND_VARIABLE;
+    stmt->main_token = identifier;
+    stmt->variable.constant = constant;
+    stmt->variable.identifier = identifier;
+    stmt->variable.type = type;
+    stmt->variable.initializer = initializer;
+    return stmt;
+}
+
 Stmt* param_stmt_new(Token* identifier, Type* type) {
     ALLOC_WITH_TYPE(stmt, Stmt);
     stmt->kind = STMT_KIND_PARAM;
     stmt->main_token = identifier;
     stmt->param.identifier = identifier;
     stmt->param.type = type;
+    return stmt;
+}
+
+Stmt* expr_stmt_new(Expr* child) {
+    ALLOC_WITH_TYPE(stmt, Stmt);
+    stmt->kind = STMT_KIND_EXPR;
+    stmt->main_token = child->main_token;
+    stmt->expr.child = child;
     return stmt;
 }
 

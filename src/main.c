@@ -5,6 +5,7 @@
 #include "msg.h"
 #include "lex.h"
 #include "parse.h"
+#include "resolve.h"
 
 char* g_exec_path;
 
@@ -94,9 +95,9 @@ int main(int argc, char* argv[]) {
             continue;
         }
         else {
-            buf_loop(srcfiles[i]->tokens, j) {
-                aria_printf("token: {tk}\n", srcfiles[i]->tokens[j]);
-            }
+            /* buf_loop(srcfiles[i]->tokens, j) { */
+            /*     aria_printf("token: {tk}\n", srcfiles[i]->tokens[j]); */
+            /* } */
         }
 
         ParseContext p;
@@ -105,4 +106,13 @@ int main(int argc, char* argv[]) {
         if (p.error) parsing_error = true;
     }
     if (parsing_error) terminate_compilation();
+
+    bool resolving_error = false;
+    buf_loop(srcfiles, i) {
+        ResolveContext r;
+        r.srcfile = srcfiles[i];
+        resolve(&r);
+        if (r.error) resolving_error = true;
+    }
+    if (resolving_error) terminate_compilation();
 }

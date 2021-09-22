@@ -42,14 +42,15 @@ void default_msg_from_tok(
         const char* fmt,
         ...);
 
-void _error(
+void error(
         Token* token,
         const char* fmt, 
         ...);
 
-#define error(token, first, ...) \
-    _error(token, first, ##__VA_ARGS__); \
-    self->error = true
+void fatal_error(
+        Token* token,
+        const char* fmt,
+        ...);
 
 void warning(
         Token* token,
@@ -59,11 +60,6 @@ void warning(
 void note(
         Token* token,
         const char* fmt, 
-        ...);
-
-void fatal_error(
-        Token* token,
-        const char* fmt,
         ...);
 
 #endif

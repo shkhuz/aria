@@ -1,5 +1,16 @@
 fn main(
     iden: u8, 
-    df: isize,) {
-}
+    df: isize,
+    ) {
+    let i: u8;
+    let b: void = {
+        let b = {
+            let a = {
 
+            };
+            let a;
+            { { let c; } }
+        };
+    };
+}
+fn main() {}

@@ -193,7 +193,7 @@ void default_msg_from_tok(
     va_end(ap);
 }
 
-void _error(
+void error(
         Token* token,
         const char* fmt, 
         ...) {
@@ -260,28 +260,3 @@ void note(
             ap);
     va_end(ap);
 }
-
-/* template<typename T, typename... Args> */
-/* void warning( */
-/*         Token* token, */
-/*         T first, */
-/*         Args... args) { */
-/*     default_msg( */
-/*             MSG_KIND_WARNING, */
-/*             token, */
-/*             first, */
-/*             args...); */
-/* } */
-
-/* template<typename T, typename... Args> */
-/* void note( */
-/*         Token* token, */
-/*         T first, */
-/*         Args... args) { */
-/*     default_msg( */
-/*             MSG_KIND_NOTE, */
-/*             token, */
-/*             first, */
-/*             args...); */
-/* } */
-
