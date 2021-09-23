@@ -3,6 +3,9 @@
 
 #include "core.h"
 #include "file_io.h"
+#include "bigint.h"
+
+#define TAB_SIZE 4
 
 typedef struct Token Token;
 typedef struct Type Type;
@@ -18,6 +21,7 @@ typedef struct {
 typedef enum {
     TOKEN_KIND_IDENTIFIER,
     TOKEN_KIND_KEYWORD,
+    TOKEN_KIND_INTEGER,
     TOKEN_KIND_LBRACE,
     TOKEN_KIND_RBRACE,
     TOKEN_KIND_LPAREN,
@@ -40,6 +44,11 @@ struct Token {
     char* start, *end;
     Srcfile* srcfile;
     size_t line, column, char_count;
+    union {
+        struct {
+            bigint* val;
+        } integer;
+    };
 };
 
 typedef enum {
@@ -58,6 +67,7 @@ typedef enum {
     BUILTIN_TYPE_KIND_I32,
     BUILTIN_TYPE_KIND_I64,
     BUILTIN_TYPE_KIND_ISIZE,
+    BUILTIN_TYPE_KIND_BOOLEAN,
     BUILTIN_TYPE_KIND_VOID,
     _BUILTIN_TYPE_KIND_COUNT,
     BUILTIN_TYPE_KIND_NONE,
@@ -94,7 +104,7 @@ typedef struct {
     Type* child;
 } PtrType;
 
-#define PTR_SIZE 8
+#define PTR_SIZE_BYTES 8
 
 struct Type {
     TypeKind kind;
@@ -106,9 +116,15 @@ struct Type {
 };
 
 typedef enum {
+    EXPR_KIND_INTEGER,
     EXPR_KIND_SYMBOL,
     EXPR_KIND_BLOCK,
 } ExprKind;
+
+typedef struct {
+    Token* integer;
+    bigint* val;
+} IntegerExpr;
 
 typedef struct {
     Token* identifier;
@@ -125,6 +141,7 @@ struct Expr {
     ExprKind kind;
     Token* main_token;
     union {
+        IntegerExpr integer;
         SymbolExpr symbol;
         BlockExpr block;
     };
@@ -190,6 +207,13 @@ void init_ds();
 
 bool is_token_lexeme_eq(Token* a, Token* b);
 BuiltinTypeKind builtin_type_str_to_kind(char* str);
+char* builtin_type_kind_to_str(BuiltinTypeKind kind);
+bool builtin_type_is_integer(BuiltinTypeKind kind);
+bool builtin_type_is_signed(BuiltinTypeKind kind);
+size_t builtin_type_bytes(BuiltinTypeKind kind);
+Type* type_get_child(Type* type);
+bool type_is_integer(Type* type);
+size_t type_bytes(Type* type);
 
 Type* builtin_type_new(Token* token, BuiltinTypeKind kind);
 Type* ptr_type_new(Token* star, bool constant, Type* child);
@@ -205,7 +229,15 @@ Stmt* variable_stmt_new(
         Expr* initializer);
 Stmt* param_stmt_new(Token* identifier, Type* type);
 Stmt* expr_stmt_new(Expr* child);
+Expr* integer_expr_new(Token* integer, bigint* val);
 Expr* block_expr_new(Token* lbrace, Stmt** stmts, Expr* value);
+
+void _aria_vfprintf(
+        const char* calleefile, 
+        size_t calleeline, 
+        FILE* file, 
+        const char* fmt, 
+        va_list ap);
 
 void _aria_fprintf(
         const char* calleefile, 
@@ -214,13 +246,16 @@ void _aria_fprintf(
         const char* fmt, 
         ...);
 
+#define aria_vfprintf(file, fmt, ap) \
+    _aria_vfprintf( __FILE__, __LINE__, file, fmt, ap)
+
 #define aria_fprintf(file, fmt, ...) \
     _aria_fprintf( __FILE__, __LINE__, file, fmt, ##__VA_ARGS__)
 
 #define aria_printf(fmt, ...) \
     _aria_fprintf(__FILE__, __LINE__, stdout, fmt, ##__VA_ARGS__)
 
-void fprint_type(FILE* file, Type* type);
+void fprintf_type(FILE* file, Type* type);
 void fprintf_token(FILE* file, Token* token);
 
 #endif

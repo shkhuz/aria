@@ -18,6 +18,7 @@ static StmtOrExpr parse_function_level_node(ParseContext* p);
 static Stmt* parse_expr_stmt(ParseContext* p, Expr* expr);
 static Expr* parse_expr(ParseContext* p);
 static Expr* parse_atom_expr(ParseContext* p);
+static Expr* parse_integer_expr(ParseContext* p);
 static Expr* parse_block_expr(ParseContext* p, Token* lbrace);
 static Type* parse_type(ParseContext* p);
 static Type* parse_ptr_type(ParseContext* p);
@@ -159,16 +160,24 @@ Expr* parse_expr(ParseContext* p) {
 }
 
 Expr* parse_atom_expr(ParseContext* p) {
-    if (parse_match(p, TOKEN_KIND_LBRACE)) {
+    if (parse_match(p, TOKEN_KIND_INTEGER)) {
+        return parse_integer_expr(p);
+    }
+    else if (parse_match(p, TOKEN_KIND_LBRACE)) {
         return parse_block_expr(p, parse_previous(p));
     }
     else {
         fatal_error(
                 parse_current(p),
-                "`%s` is invalid here",
+                "`{s}` is invalid here",
                 parse_current(p)->lexeme);
     }
     return null;
+}
+
+Expr* parse_integer_expr(ParseContext* p) {
+    Token* integer = parse_previous(p);
+    return integer_expr_new(integer, integer->integer.val);
 }
 
 Expr* parse_block_expr(ParseContext* p, Token* lbrace) {
@@ -258,7 +267,7 @@ void parse_check_eof(ParseContext* p, Token* pair) {
     if (parse_current(p)->kind == TOKEN_KIND_EOF) {
         note(
                 pair,
-                "while matching `%s`...",
+                "while matching `{s}`...",
                 pair->lexeme);
         fatal_error(parse_current(p), "unexpected end of file");
     }
@@ -288,7 +297,7 @@ Token* parse_expect_keyword(ParseContext* p, char* keyword) {
 
     fatal_error(
             parse_current(p), 
-            "expected keyword `%s`, got `%s`",
+            "expected keyword `{s}`, got `{s}`",
             keyword,
             parse_current(p)->lexeme);
     return null;
@@ -301,7 +310,7 @@ Token* parse_expect(ParseContext* p, TokenKind kind, char* expect) {
 
     fatal_error(
             parse_current(p),
-            "expected %s, got `%s`",
+            "expected {s}, got `{s}`",
             expect,
             parse_current(p)->lexeme);
     return null;

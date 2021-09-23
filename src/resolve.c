@@ -116,14 +116,14 @@ void resolve_cpush_in_scope(ResolveContext* r, Stmt* stmt) {
     if (search_result.status == SCOPE_LOCAL) {
         resolve_error(
                 identifier,
-                "redeclaration of symbol `%s`",
+                "redeclaration of symbol `{s}`",
                 identifier->lexeme);
         search_error = true;
     }
     else if (search_result.status == SCOPE_PARENT) {
         warning(
                 identifier,
-                "`%s` shadows symbol",
+                "`{s}` shadows symbol",
                 identifier->lexeme);
     }
 

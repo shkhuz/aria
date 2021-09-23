@@ -58,6 +58,43 @@ void lex(LexContext* l) {
                 lex_push_tok(l, kind);
             } break;
 
+            case '0': case '1': case '2': case '3': case '4':
+            case '5': case '6': case '7': case '8': case '9': {
+                // TODO: refactor these out so that they are
+                // not allocated every time. Constants can be allocated
+                // once.
+                ALLOC_WITH_TYPE(base, bigint);
+                bigint_init_u64(base, 10);
+                ALLOC_WITH_TYPE(digit_bi, bigint);
+                bigint_init(digit_bi);
+
+                ALLOC_WITH_TYPE(val, bigint);
+                bigint_init(val);
+
+                while (isdigit(*l->current) || *l->current == '_') {
+                    if (*l->current == '_' && !isdigit(*(l->current+1))) {
+                        break;
+                    }
+
+                    if (*l->current != '_') {
+                        int digit = char_to_digit(*l->current);
+                        bigint_init_u64(digit_bi, (u64)digit);
+                        bigint_mul(val, base, val);
+                        bigint_add(val, digit_bi, val);
+                        bigint_clear(digit_bi);
+                    }
+                    l->current++;
+                }
+
+                lex_push_tok(l, TOKEN_KIND_INTEGER);
+                l->srcfile->tokens[buf_len(l->srcfile->tokens)-1]
+                    ->integer.val = val;
+
+                bigint_clear(base);
+                free(base);
+                free(digit_bi);
+            } break;
+
             case ' ':
             case '\t':
             case '\r': {

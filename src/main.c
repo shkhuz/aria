@@ -6,6 +6,8 @@
 #include "lex.h"
 #include "parse.h"
 #include "resolve.h"
+#include "check.h"
+#include "code_gen.h"
 
 char* g_exec_path;
 
@@ -95,9 +97,9 @@ int main(int argc, char* argv[]) {
             continue;
         }
         else {
-            /* buf_loop(srcfiles[i]->tokens, j) { */
-            /*     aria_printf("token: {tk}\n", srcfiles[i]->tokens[j]); */
-            /* } */
+            buf_loop(srcfiles[i]->tokens, j) {
+                aria_printf("token: {tk}\n", srcfiles[i]->tokens[j]);
+            }
         }
 
         ParseContext p;
@@ -115,4 +117,19 @@ int main(int argc, char* argv[]) {
         if (r.error) resolving_error = true;
     }
     if (resolving_error) terminate_compilation();
+
+    bool checking_error = false;
+    buf_loop(srcfiles, i) {
+        CheckContext c;
+        c.srcfile = srcfiles[i];
+        check(&c);
+        if (c.error) checking_error = true;
+    }
+    if (checking_error) terminate_compilation();
+
+    buf_loop(srcfiles, i) {
+        CodeGenContext c;
+        c.srcfile = srcfiles[i];
+        code_gen(&c);
+    }
 }

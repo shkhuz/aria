@@ -15,6 +15,7 @@ BuiltinTypeMap builtin_type_map[_BUILTIN_TYPE_KIND_COUNT] = {
     { "i32", BUILTIN_TYPE_KIND_I32 },
     { "i64", BUILTIN_TYPE_KIND_I64 },
     { "isize", BUILTIN_TYPE_KIND_ISIZE },
+    { "bool", BUILTIN_TYPE_KIND_BOOLEAN },
     { "void", BUILTIN_TYPE_KIND_VOID },
 };
 
@@ -57,6 +58,129 @@ BuiltinTypeKind builtin_type_str_to_kind(char* str) {
         }
     }
     return BUILTIN_TYPE_KIND_NONE;
+}
+
+char* builtin_type_kind_to_str(BuiltinTypeKind kind) {
+    for (size_t i = 0; i < _BUILTIN_TYPE_KIND_COUNT; i++) {
+        if (builtin_type_map[i].v == kind) {
+            return builtin_type_map[i].k;
+        }
+    }
+    assert(0);
+    return "";
+}
+
+bool builtin_type_is_integer(BuiltinTypeKind kind) {
+    switch (kind) {
+        case BUILTIN_TYPE_KIND_U8:
+        case BUILTIN_TYPE_KIND_U16:
+        case BUILTIN_TYPE_KIND_U32:
+        case BUILTIN_TYPE_KIND_U64:
+        case BUILTIN_TYPE_KIND_USIZE:
+        case BUILTIN_TYPE_KIND_I8:
+        case BUILTIN_TYPE_KIND_I16:
+        case BUILTIN_TYPE_KIND_I32:
+        case BUILTIN_TYPE_KIND_I64:
+        case BUILTIN_TYPE_KIND_ISIZE:
+            return true;
+        
+        case BUILTIN_TYPE_KIND_BOOLEAN:
+        case BUILTIN_TYPE_KIND_VOID:
+            return false;
+
+        case BUILTIN_TYPE_KIND_NONE:
+            assert(0);
+            return false;
+    }
+    return false;
+}
+
+bool builtin_type_is_signed(BuiltinTypeKind kind) {
+    switch (kind) {
+        case BUILTIN_TYPE_KIND_U8:
+        case BUILTIN_TYPE_KIND_U16:
+        case BUILTIN_TYPE_KIND_U32:
+        case BUILTIN_TYPE_KIND_U64:
+        case BUILTIN_TYPE_KIND_USIZE:
+            return false;
+
+        case BUILTIN_TYPE_KIND_I8:
+        case BUILTIN_TYPE_KIND_I16:
+        case BUILTIN_TYPE_KIND_I32:
+        case BUILTIN_TYPE_KIND_I64:
+        case BUILTIN_TYPE_KIND_ISIZE:
+            return true;
+        
+        case BUILTIN_TYPE_KIND_BOOLEAN:
+        case BUILTIN_TYPE_KIND_VOID:
+        case BUILTIN_TYPE_KIND_NONE:
+            assert(0);
+            return false;
+    }
+    return false;
+}
+
+size_t builtin_type_bytes(BuiltinTypeKind kind) {
+    switch (kind) {
+        case BUILTIN_TYPE_KIND_U8:
+        case BUILTIN_TYPE_KIND_I8:
+            return 1;
+
+        case BUILTIN_TYPE_KIND_U16:
+        case BUILTIN_TYPE_KIND_I16:
+            return 2;
+
+        case BUILTIN_TYPE_KIND_U32:
+        case BUILTIN_TYPE_KIND_I32:
+            return 4;
+
+        case BUILTIN_TYPE_KIND_U64:
+        case BUILTIN_TYPE_KIND_I64:
+        case BUILTIN_TYPE_KIND_USIZE:
+        case BUILTIN_TYPE_KIND_ISIZE:
+        case BUILTIN_TYPE_KIND_BOOLEAN:
+            return 8;
+
+        case BUILTIN_TYPE_KIND_VOID:
+            return 0;
+
+        case BUILTIN_TYPE_KIND_NONE:
+            assert(0);
+            return 0;
+    }
+    return 0;
+}
+
+Type* type_get_child(Type* type) {
+    switch (type->kind) {
+        case TYPE_KIND_BUILTIN:
+            return null;
+
+        case TYPE_KIND_PTR:
+            return type->ptr.child;
+    }
+    return null;
+}
+
+bool type_is_integer(Type* type) {
+    if (type->kind == TYPE_KIND_BUILTIN && builtin_type_is_integer(type->builtin.kind)) {
+        return true;
+    }
+    return false;
+}
+
+size_t type_bytes(Type* type) {
+    switch (type->kind) {
+        case TYPE_KIND_BUILTIN: {
+            return builtin_type_bytes(type->builtin.kind);
+        } break;
+
+        case TYPE_KIND_PTR: {
+            return PTR_SIZE_BYTES;
+        } break;
+    }
+    assert(0);
+    return 0;
 }
 
 Type* builtin_type_new(Token* token, BuiltinTypeKind kind) {
@@ -130,6 +254,15 @@ Stmt* expr_stmt_new(Expr* child) {
     return stmt;
 }
 
+Expr* integer_expr_new(Token* integer, bigint* val) {
+    ALLOC_WITH_TYPE(expr, Expr);
+    expr->kind = EXPR_KIND_INTEGER;
+    expr->main_token = integer;
+    expr->integer.integer = integer;
+    expr->integer.val = val;
+    return expr;
+}
+
 Expr* block_expr_new(Token* lbrace, Stmt** stmts, Expr* value) {
     ALLOC_WITH_TYPE(expr, Expr);
     expr->kind = EXPR_KIND_BLOCK;
@@ -140,14 +273,14 @@ Expr* block_expr_new(Token* lbrace, Stmt** stmts, Expr* value) {
     return expr;
 }
 
-void _aria_fprintf(
+void _aria_vfprintf(
         const char* calleefile, 
         size_t calleeline, 
         FILE* file, 
         const char* fmt, 
-        ...) {
-    va_list ap;
-    va_start(ap, fmt);
+        va_list ap) {
+    va_list aq;
+    va_copy(aq, ap);
 
     size_t fmtlen = strlen(fmt);
     for (size_t i = 0; i < fmtlen; i++) {
@@ -159,11 +292,11 @@ void _aria_fprintf(
                     i++;
                     switch (fmt[i]) {
                         case 'i': {
-                            fprintf(file, "%li", va_arg(ap, int64_t));
+                            fprintf(file, "%li", va_arg(aq, int64_t));
                         } break;
 
                         case 'u': {
-                            fprintf(file, "%lu", va_arg(ap, uint64_t));
+                            fprintf(file, "%lu", va_arg(aq, uint64_t));
                         } break;
 
                         default: {
@@ -183,25 +316,25 @@ void _aria_fprintf(
                     i++;
                     if (fmt[i] == 'k') {
                         i++;
-                        fprintf_token(file, va_arg(ap, Token*));
+                        fprintf_token(file, va_arg(aq, Token*));
                     }
                     else {
-                        fprint_type(file, va_arg(ap, Type*));
+                        fprintf_type(file, va_arg(aq, Type*));
                     }
                 } break;
 
                 case 'c': {
                     i++;
-                    fprintf(file, "%c", va_arg(ap, int));
+                    fprintf(file, "%c", va_arg(aq, int));
                 } break;
 
                 case 's': {
                     i++;
-                    fprintf(file, "%s", va_arg(ap, char*));
+                    fprintf(file, "%s", va_arg(aq, char*));
                 } break;
 
                 case '}': {
-                    fprintf(file, "%d", va_arg(ap, int));
+                    fprintf(file, "%d", va_arg(aq, int));
                     found_rbrace = true; 
                 } break;
 
@@ -233,10 +366,35 @@ void _aria_fprintf(
         }
     }
 
+    va_end(aq);
+}
+
+void _aria_fprintf(
+        const char* calleefile, 
+        size_t calleeline, 
+        FILE* file, 
+        const char* fmt, 
+        ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    _aria_vfprintf(calleefile, calleeline, file, fmt, ap);
     va_end(ap);
 }
 
-void fprint_type(FILE* file, Type* type) {
+void fprintf_type(FILE* file, Type* type) {
+    switch (type->kind) {
+        case TYPE_KIND_BUILTIN: {
+            fprintf(file, "%s", builtin_type_kind_to_str(type->builtin.kind));
+        } break;
+
+        case TYPE_KIND_PTR: {
+            fputc('*', file);
+            if (type->ptr.constant) {
+                fprintf(file, "const ");
+            }
+            fprintf_type(file, type->ptr.child);
+        } break;
+    }
 }
 
 void fprintf_token(FILE* file, Token* token) {

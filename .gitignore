@@ -1,8 +1,8 @@
 build/
+bin/
 obj/
 .dev/
 .gdb_history
 *.o
 a.out
-ariac
 gitcommit

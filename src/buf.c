@@ -44,22 +44,30 @@ void _buf_remove(const void* buf, size_t idx, size_t elem_size) {
     hdr->len = len - 1;
 }
 
-char* _buf_printf(char* buf, const char* fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
+char* _buf_vprintf(char* buf, const char* fmt, va_list ap) {
+    va_list aq;
+    va_copy(aq, ap);
     size_t cap = buf_cap(buf) - buf_len(buf);
-    size_t n = 1 + vsnprintf(buf_end(buf), cap, fmt, ap);
-    va_end(ap);
+    size_t n = 1 + vsnprintf(buf_end(buf), cap, fmt, aq);
+    va_end(aq);
 
     if (n > cap) {
         buf_fit(buf, n + buf_len(buf));
-        va_start(ap, fmt);
+        va_copy(aq, ap);
         size_t new_cap = buf_cap(buf) - buf_len(buf);
-        n = 1 + vsnprintf(buf_end(buf), new_cap, fmt, ap);
+        n = 1 + vsnprintf(buf_end(buf), new_cap, fmt, aq);
         assert(n <= new_cap);
-        va_end(ap);
+        va_end(aq);
     }
 
     _buf_hdr(buf)->len += n - 1;
     return buf;
+}
+
+char* _buf_printf(char* buf, const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    char* res = _buf_vprintf(buf, fmt, ap);
+    va_end(ap);
+    return res;
 }

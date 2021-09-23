@@ -1,7 +1,5 @@
 #include "msg.h"
 
-#define TAB_COUNT 4
-
 static size_t g_error_count;
 static size_t g_warning_count;
 
@@ -13,7 +11,7 @@ static bool is_root_msg(MsgKind kind) {
 }
 
 static void stderr_print_tab() {
-    for (int i = 0; i < TAB_COUNT; i++) {
+    for (int i = 0; i < TAB_SIZE; i++) {
         fputc(' ', stderr);
     }
 }
@@ -44,7 +42,7 @@ void vdefault_msg(
         char* c = src_line;
         while (*c != '\n' && *c != '\0') {
             if (*c == '\t' && (size_t)(c - src_line) < column) {
-                column_new += TAB_COUNT - 1;
+                column_new += TAB_SIZE - 1;
             }
             c++;
             src_line_length++;
@@ -80,7 +78,7 @@ void vdefault_msg(
             fprintf(stderr, ANSI_FNOTE_COLOR "note: " ANSI_RESET);
             break;
     }
-    vfprintf(stderr, fmt, ap);
+    aria_vfprintf(stderr, fmt, ap);
 
     fprintf(stderr, "\n");
     if (!is_root_msg(kind)) {
@@ -166,7 +164,7 @@ void terminate_compilation() {
             0, 
             0, 
             0, 
-            "%s%lu error(s)%s, %s%lu warning(s)%s; aborting compilation",
+            "{s}{qu} error(s){s}, {s}{qu} warning(s){s}; aborting compilation",
             g_error_count > 0 ? ANSI_FERROR_COLOR : "",
             g_error_count, 
             ANSI_RESET,

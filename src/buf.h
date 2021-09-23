@@ -28,6 +28,7 @@ typedef struct {
 
 #define buf_remove(b, n)   ((b) ? _buf_remove(b, n, sizeof(*(b))) : 0)
 
+#define buf_vprintf(b, ...) ((b) = _buf_vprintf((b), __VA_ARGS__))
 #define buf_printf(b, ...) ((b) = _buf_printf((b), __VA_ARGS__))
 #define buf_loop(b, c) \
     for (size_t c = 0; c < buf_len(b); ++c)
@@ -37,6 +38,7 @@ typedef struct {
 void* _buf_grow(const void* buf, size_t new_len, size_t elem_size);
 void _buf_shrink(const void* buf, size_t size);
 void _buf_remove(const void* buf, size_t idx, size_t elem_size);
-char* buf__printf(char* buf, const char* fmt, ...);
+char* _buf_vprintf(char* buf, const char* fmt, va_list ap);
+char* _buf_printf(char* buf, const char* fmt, ...);
 
 #endif

@@ -1,7 +1,8 @@
 C_FILES := $(shell find src -type f -name "*.c")
 H_FILES := $(shell find src -type f -name "*.h")
 OBJ_FILES := $(addprefix obj/, $(addsuffix .o, $(C_FILES)))
-EXE_FILE := ariac
+EXE_FILE := bin/ariac
+CFLAGS := -Wall -Wextra -Wshadow #-Wno-switch -Wno-unused-function -Wno-unused-parameter
 #CMD_ARGS := examples/cg.ar
 CMD_ARGS := examples/lex.ar
 
@@ -23,11 +24,11 @@ $(EXE_FILE): $(OBJ_FILES)
 
 obj/%.c.o: %.c
 	@mkdir -p $(dir $@)
-	$(CC) -c $(CFLAGS_OPTIMIZE) -o $@ -Wall -Wextra -Wshadow $^
+	$(CC) -c $(CFLAGS_OPTIMIZE) -o $@ $(CFLAGS) $^
 
 debug: $(EXE_FILE)
 	gdb --args $^ $(CMD_ARGS)
 
 clean:
-	rm -rf obj/ $(EXE_FILE)
+	rm -rf obj/ bin/
 
