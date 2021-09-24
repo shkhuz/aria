@@ -15,7 +15,7 @@
 // }
 // fn main() {}
 
-fn main(argc: usize) u8 {
+fn main(argc: usize) usize {
     let a: u8 = 1_2_3;
     let b: u16 = 1_2_3;
     let c: u32 = 1_2_3;
@@ -30,5 +30,9 @@ fn main(argc: usize) u8 {
         i
     };
     // let v: void = main;
-    8
+    call(call(a))
+}
+
+fn call(a: usize) usize {
+    a
 }

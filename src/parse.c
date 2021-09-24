@@ -20,6 +20,10 @@ static Expr* parse_expr(ParseContext* p);
 static Expr* parse_atom_expr(ParseContext* p);
 static Expr* parse_integer_expr(ParseContext* p);
 static Expr* parse_symbol_expr(ParseContext* p, Token* identifier);
+static Expr* parse_function_call_expr(
+        ParseContext* p, 
+        Expr* callee, 
+        Token* lparen);
 static Expr* parse_block_expr(ParseContext* p, Token* lbrace);
 static Type* parse_type(ParseContext* p);
 static Type* parse_ptr_type(ParseContext* p);
@@ -166,7 +170,13 @@ Expr* parse_atom_expr(ParseContext* p) {
         return parse_integer_expr(p);
     }
     else if (parse_match(p, TOKEN_KIND_IDENTIFIER)) {
-        return parse_symbol_expr(p, parse_previous(p));
+        Expr* symbol = parse_symbol_expr(p, parse_previous(p));
+        if (parse_match(p, TOKEN_KIND_LPAREN)) {
+            return parse_function_call_expr(p, symbol, parse_previous(p));
+        }
+        else {
+            return symbol;
+        }
     }
     else if (parse_match(p, TOKEN_KIND_LBRACE)) {
         return parse_block_expr(p, parse_previous(p));
@@ -187,6 +197,23 @@ Expr* parse_integer_expr(ParseContext* p) {
 
 Expr* parse_symbol_expr(ParseContext* p, Token* identifier) {
     return symbol_expr_new(identifier);
+}
+
+Expr* parse_function_call_expr(
+        ParseContext* p, 
+        Expr* callee, 
+        Token* lparen) {
+    
+    Expr** args = null;
+    while (!parse_match(p, TOKEN_KIND_RPAREN)) {
+        parse_check_eof(p, lparen);
+        Expr* arg = parse_expr(p);
+        buf_push(args, arg);
+        if (parse_current(p)->kind != TOKEN_KIND_RPAREN) {
+            parse_expect_comma(p);
+        }
+    }
+    return function_call_expr_new(callee, args, parse_previous(p));
 }
 
 Expr* parse_block_expr(ParseContext* p, Token* lbrace) {

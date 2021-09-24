@@ -48,6 +48,7 @@ static void resolve_variable_stmt(
 static void resolve_expr_stmt(ResolveContext* r, Stmt* stmt);
 static void resolve_expr(ResolveContext* r, Expr* expr);
 static void resolve_symbol_expr(ResolveContext* r, Expr* expr);
+static void resolve_function_call_expr(ResolveContext* r, Expr* expr);
 static void resolve_block_expr(
         ResolveContext* r, 
         Expr* expr, 
@@ -180,6 +181,10 @@ void resolve_expr(ResolveContext* r, Expr* expr) {
         case EXPR_KIND_SYMBOL: {
             resolve_symbol_expr(r, expr);
         } break;
+
+        case EXPR_KIND_FUNCTION_CALL: {
+            resolve_function_call_expr(r, expr);
+        } break;
         
         case EXPR_KIND_BLOCK: {
             resolve_block_expr(r, expr, true);
@@ -190,6 +195,28 @@ void resolve_expr(ResolveContext* r, Expr* expr) {
 void resolve_symbol_expr(ResolveContext* r, Expr* expr) {
     expr->symbol.ref = 
         resolve_assert_symbol_is_in_current_scope_rec(r, expr->main_token);
+}
+
+void resolve_function_call_expr(ResolveContext* r, Expr* expr) { 
+    if (expr->function_call.callee->kind != EXPR_KIND_SYMBOL) {
+        resolve_error(
+                expr->main_token,
+                "callee must be an identifier");
+        return;
+    }
+
+    resolve_symbol_expr(r, expr->function_call.callee);
+    if (expr->function_call.callee->symbol.ref &&
+        expr->function_call.callee->symbol.ref->kind !=
+            STMT_KIND_FUNCTION) {
+        resolve_error(
+                expr->main_token,
+                "callee is not a function");
+    }
+
+    buf_loop(expr->function_call.args, i) {
+        resolve_expr(r, expr->function_call.args[i]);
+    }
 }
 
 void resolve_block_expr(
@@ -303,7 +330,7 @@ Stmt* resolve_assert_symbol_is_in_current_scope_rec(
     if (search_result.status == SCOPE_UNRESOLVED) {
         resolve_error(
                 token,
-                "unresolved symbol `%s`",
+                "unresolved symbol `{s}`",
                 token->lexeme);
         return null;
     }

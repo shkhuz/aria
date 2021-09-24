@@ -6,9 +6,11 @@
 static void code_gen_stmt(CodeGenContext* c, Stmt* stmt);
 static void code_gen_function_stmt(CodeGenContext* c, Stmt* stmt);
 static void code_gen_variable_stmt(CodeGenContext* c, Stmt* stmt);
+static void code_gen_expr_stmt(CodeGenContext* c, Stmt* stmt);
 static void code_gen_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_integer_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_symbol_expr(CodeGenContext* c, Expr* expr);
+static void code_gen_function_call_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_block_expr(CodeGenContext* c, Expr* expr);
 static char* code_gen_get_asm_type_specifier(size_t bytes);
 static char* code_gen_get_rax_register_by_size(size_t bytes);
@@ -43,6 +45,10 @@ void code_gen_stmt(CodeGenContext* c, Stmt* stmt) {
 
         case STMT_KIND_VARIABLE: {
             code_gen_variable_stmt(c, stmt);
+        } break;
+
+        case STMT_KIND_EXPR: {
+            code_gen_expr_stmt(c, stmt);
         } break;
     }
 }
@@ -86,6 +92,10 @@ void code_gen_variable_stmt(CodeGenContext* c, Stmt* stmt) {
     }
 }
 
+void code_gen_expr_stmt(CodeGenContext* c, Stmt* stmt) {
+    code_gen_expr(c, stmt->expr.child);
+}
+
 void code_gen_expr(CodeGenContext* c, Expr* expr) {
     switch (expr->kind) {
         case EXPR_KIND_INTEGER: {
@@ -94,6 +104,10 @@ void code_gen_expr(CodeGenContext* c, Expr* expr) {
 
         case EXPR_KIND_SYMBOL: {
             code_gen_symbol_expr(c, expr);
+        } break;
+
+        case EXPR_KIND_FUNCTION_CALL: {
+            code_gen_function_call_expr(c, expr);
         } break;
 
         case EXPR_KIND_BLOCK: {
@@ -134,6 +148,21 @@ void code_gen_symbol_expr(CodeGenContext* c, Expr* expr) {
             assert(0);
         } break;
     }
+}
+
+void code_gen_function_call_expr(CodeGenContext* c, Expr* expr) {
+    Expr** args = expr->function_call.args;
+    buf_loop(args, i) {
+        code_gen_expr(c, args[i]);
+        code_gen_asmp(
+                c,
+                "mov %s, rax",
+                code_gen_get_arg_register_by_idx(i));
+    }
+    code_gen_asmp(
+            c, 
+            "call %s", 
+            expr->function_call.callee->symbol.identifier->lexeme);
 }
 
 void code_gen_block_expr(CodeGenContext* c, Expr* expr) {

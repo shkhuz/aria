@@ -19,6 +19,7 @@ static void check_expr_stmt(CheckContext* c, Stmt* stmt);
 static Type* check_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_integer_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_symbol_expr(CheckContext* c, Expr* expr);
+static Type* check_function_call_expr(CheckContext* c, Expr* expr);
 static Type* check_block_expr(CheckContext* c, Expr* expr, Type* cast);
 static ImplicitCastStatus check_implicit_cast(
         CheckContext* c, 
@@ -116,6 +117,10 @@ Type* check_expr(CheckContext* c, Expr* expr, Type* cast) {
             return check_symbol_expr(c, expr);
         } break;
 
+        case EXPR_KIND_FUNCTION_CALL: {
+            return check_function_call_expr(c, expr);
+        } break;
+
         case EXPR_KIND_BLOCK: {
             return check_block_expr(c, expr, cast);
         } break;
@@ -155,6 +160,50 @@ Type* check_symbol_expr(CheckContext* c, Expr* expr) {
                 "internal_error: function ptr not implemented");
         return null;
     }
+}
+
+Type* check_function_call_expr(CheckContext* c, Expr* expr) {
+    Expr** args = expr->function_call.args;
+    size_t arg_len = buf_len(args);
+    assert(expr->function_call.callee->symbol.ref->kind == STMT_KIND_FUNCTION);
+    Stmt** params = expr->function_call.callee->symbol.ref->function.header->params;
+    size_t param_len = buf_len(params);
+    Type* callee_return_type = expr->function_call.callee->symbol.ref->function.header->return_type;
+
+    if (arg_len != param_len) {
+        if (arg_len < param_len) {
+            check_error(
+                    expr->function_call.rparen,
+                    "expected argument of type `{t}`",
+                    params[arg_len]->param.type);
+            note(
+                    params[arg_len]->param.identifier,
+                    "...parameter declared here");
+        }
+        else {
+            check_error(
+                    args[param_len]->main_token,
+                    "extra argument(s) supplied");
+        }
+        return callee_return_type;
+    }
+
+    buf_loop(args, i) {
+        Type* param_type = params[i]->param.type;
+        Type* arg_type = check_expr(c, args[i], param_type);
+        if (arg_type && param_type && 
+            check_implicit_cast(c, arg_type, param_type) == IMPLICIT_CAST_ERROR) {
+            check_error(
+                    args[i]->main_token,
+                    "argument type `{t}` cannot be converted to `{t}`",
+                    arg_type,
+                    param_type);
+            note(
+                    param_type->main_token,
+                    "...parameter type annotated here");
+        }
+    }
+    return callee_return_type;
 }
 
 Type* check_block_expr(CheckContext* c, Expr* expr, Type* cast) {

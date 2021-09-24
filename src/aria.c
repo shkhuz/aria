@@ -293,6 +293,16 @@ Expr* symbol_expr_new(Token* identifier) {
     return expr;
 }
 
+Expr* function_call_expr_new(Expr* callee, Expr** args, Token* rparen) {
+    ALLOC_WITH_TYPE(expr, Expr);
+    expr->kind = EXPR_KIND_FUNCTION_CALL;
+    expr->main_token = callee->main_token;
+    expr->function_call.callee = callee;
+    expr->function_call.args = args;
+    expr->function_call.rparen = rparen;
+    return expr;
+}
+
 Expr* block_expr_new(Token* lbrace, Stmt** stmts, Expr* value) {
     ALLOC_WITH_TYPE(expr, Expr);
     expr->kind = EXPR_KIND_BLOCK;

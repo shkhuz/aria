@@ -118,6 +118,7 @@ struct Type {
 typedef enum {
     EXPR_KIND_INTEGER,
     EXPR_KIND_SYMBOL,
+    EXPR_KIND_FUNCTION_CALL,
     EXPR_KIND_BLOCK,
 } ExprKind;
 
@@ -132,6 +133,12 @@ typedef struct {
 } SymbolExpr;
 
 typedef struct {
+    Expr* callee;
+    Expr** args;
+    Token* rparen;
+} FunctionCallExpr;
+
+typedef struct {
     Token* lbrace;
     Stmt** stmts;
     Expr* value;
@@ -143,6 +150,7 @@ struct Expr {
     union {
         IntegerExpr integer;
         SymbolExpr symbol;
+        FunctionCallExpr function_call;
         BlockExpr block;
     };
 };
@@ -234,6 +242,7 @@ Stmt* param_stmt_new(Token* identifier, Type* type, size_t idx);
 Stmt* expr_stmt_new(Expr* child);
 Expr* integer_expr_new(Token* integer, bigint* val);
 Expr* symbol_expr_new(Token* identifier);
+Expr* function_call_expr_new(Expr* callee, Expr** args, Token* rparen);
 Expr* block_expr_new(Token* lbrace, Stmt** stmts, Expr* value);
 
 void _aria_vfprintf(
