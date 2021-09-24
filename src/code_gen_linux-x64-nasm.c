@@ -6,11 +6,13 @@
 static void code_gen_stmt(CodeGenContext* c, Stmt* stmt);
 static void code_gen_function_stmt(CodeGenContext* c, Stmt* stmt);
 static void code_gen_variable_stmt(CodeGenContext* c, Stmt* stmt);
-static char* code_gen_get_asm_type_specifier(size_t bytes);
-static char* code_gen_get_rax_register_by_size(size_t bytes);
 static void code_gen_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_integer_expr(CodeGenContext* c, Expr* expr);
+static void code_gen_symbol_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_block_expr(CodeGenContext* c, Expr* expr);
+static char* code_gen_get_asm_type_specifier(size_t bytes);
+static char* code_gen_get_rax_register_by_size(size_t bytes);
+static char* code_gen_get_arg_register_by_idx(size_t idx);
 static void code_gen_asmp(CodeGenContext* c, char* fmt, ...);
 static void code_gen_asmw(CodeGenContext* c, char* str);
 static void code_gen_asmlb(CodeGenContext* c, char* label);
@@ -26,10 +28,11 @@ void code_gen(CodeGenContext* c) {
     buf_push(c->asm_code, '\0');
     fputs(c->asm_code, stdout);
 
-/*     FILE* file = fopen("bin/tmp_asm.asm", "w"); */
-/*     fwrite(c->asm_code, buf_len(c->asm_code)-1, sizeof(char), file); */
-/*     fclose(file); */
-/*     system("nasm -felf64 bin/tmp_asm.asm"); */
+    /* FILE* file = fopen("bin/tmp_asm.asm", "w"); */
+    /* fwrite(c->asm_code, buf_len(c->asm_code)-1, sizeof(char), file); */
+    /* fclose(file); */
+    /* system("nasm -felf64 bin/tmp_asm.asm"); */
+    /* system("gcc -o bin/tmp bin/tmp_asm.o"); */
 }
 
 void code_gen_stmt(CodeGenContext* c, Stmt* stmt) {
@@ -68,16 +71,77 @@ void code_gen_function_stmt(CodeGenContext* c, Stmt* stmt) {
 }
 
 void code_gen_variable_stmt(CodeGenContext* c, Stmt* stmt) {
-    if (stmt->variable.initializer) {
-        size_t bytes = type_bytes(stmt->variable.type);
+    size_t bytes = type_bytes(stmt->variable.type);
+    c->last_stack_offset += bytes;
+    stmt->variable.stack_offset = c->last_stack_offset;
+
+    if (stmt->variable.initializer && bytes != 0) {
         code_gen_expr(c, stmt->variable.initializer);
-        c->last_stack_offset += bytes;
         code_gen_asmp(
                 c,
                 "mov %s [rbp - %lu], %s",
                 code_gen_get_asm_type_specifier(bytes),
-                c->last_stack_offset,
+                stmt->variable.stack_offset,
                 code_gen_get_rax_register_by_size(bytes));
+    }
+}
+
+void code_gen_expr(CodeGenContext* c, Expr* expr) {
+    switch (expr->kind) {
+        case EXPR_KIND_INTEGER: {
+            code_gen_integer_expr(c, expr);
+        } break;
+
+        case EXPR_KIND_SYMBOL: {
+            code_gen_symbol_expr(c, expr);
+        } break;
+
+        case EXPR_KIND_BLOCK: {
+            code_gen_block_expr(c, expr);
+        } break;
+    }
+}
+
+void code_gen_integer_expr(CodeGenContext* c, Expr* expr) {
+    code_gen_asmp(c, "mov rax, %s", expr->integer.integer->lexeme);
+}
+
+void code_gen_symbol_expr(CodeGenContext* c, Expr* expr) {
+    Stmt* ref = expr->symbol.ref;
+    switch (ref->kind) { 
+        case STMT_KIND_VARIABLE: {
+            if (ref->variable.parent_func) {
+                // TODO: cache `bytes`
+                size_t bytes = type_bytes(ref->variable.type);
+                code_gen_asmp(
+                        c,
+                        "mov %s, %s [rbp - %lu]",
+                        code_gen_get_rax_register_by_size(bytes),
+                        code_gen_get_asm_type_specifier(bytes),
+                        ref->variable.stack_offset);
+            }
+            else assert(0);
+        } break;
+
+        case STMT_KIND_PARAM: {
+            code_gen_asmp(
+                    c,
+                    "mov rax, %s",
+                    code_gen_get_arg_register_by_idx(ref->param.idx));
+        } break;
+
+        case STMT_KIND_FUNCTION: {
+            assert(0);
+        } break;
+    }
+}
+
+void code_gen_block_expr(CodeGenContext* c, Expr* expr) {
+    buf_loop(expr->block.stmts, i) {
+        code_gen_stmt(c, expr->block.stmts[i]);
+    }
+    if (expr->block.value) {
+        code_gen_expr(c, expr->block.value);
     }
 }
 
@@ -103,28 +167,17 @@ char* code_gen_get_rax_register_by_size(size_t bytes) {
     return null;
 }
 
-void code_gen_expr(CodeGenContext* c, Expr* expr) {
-    switch (expr->kind) {
-        case EXPR_KIND_INTEGER: {
-            code_gen_integer_expr(c, expr);
-        } break;
-        case EXPR_KIND_BLOCK: {
-            code_gen_block_expr(c, expr);
-        } break;
+char* code_gen_get_arg_register_by_idx(size_t idx) {
+    switch (idx) {
+        case 0: return "rdi";
+        case 1: return "rsi";
+        case 2: return "rdx";
+        case 3: return "rcx";
+        case 4: return "r8";
+        case 5: return "r9";
     }
-}
-
-void code_gen_integer_expr(CodeGenContext* c, Expr* expr) {
-    code_gen_asmp(c, "mov rax, %s", expr->integer.integer->lexeme);
-}
-
-void code_gen_block_expr(CodeGenContext* c, Expr* expr) {
-    buf_loop(expr->block.stmts, i) {
-        code_gen_stmt(c, expr->block.stmts[i]);
-    }
-    if (expr->block.value) {
-        code_gen_expr(c, expr->block.value);
-    }
+    assert(0);
+    return null;
 }
 
 void code_gen_asmp(CodeGenContext* c, char* fmt, ...) {

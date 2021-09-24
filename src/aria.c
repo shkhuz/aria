@@ -183,6 +183,24 @@ size_t type_bytes(Type* type) {
     return 0;
 }
 
+Type* stmt_get_type(Stmt* stmt) {
+    switch (stmt->kind) {
+        case STMT_KIND_VARIABLE: {
+            return stmt->variable.type;
+        } break;
+
+        case STMT_KIND_PARAM: {
+            return stmt->param.type;
+        } break;
+        
+        case STMT_KIND_FUNCTION: {
+            return stmt->function.header->return_type;
+        } break;
+    }
+    assert(0);
+    return null;
+}
+
 Type* builtin_type_new(Token* token, BuiltinTypeKind kind) {
     ALLOC_WITH_TYPE(type, Type);
     type->kind = TYPE_KIND_BUILTIN;
@@ -234,15 +252,18 @@ Stmt* variable_stmt_new(
     stmt->variable.identifier = identifier;
     stmt->variable.type = type;
     stmt->variable.initializer = initializer;
+    stmt->variable.parent_func = null;
+    stmt->variable.stack_offset = 0;
     return stmt;
 }
 
-Stmt* param_stmt_new(Token* identifier, Type* type) {
+Stmt* param_stmt_new(Token* identifier, Type* type, size_t idx) {
     ALLOC_WITH_TYPE(stmt, Stmt);
     stmt->kind = STMT_KIND_PARAM;
     stmt->main_token = identifier;
     stmt->param.identifier = identifier;
     stmt->param.type = type;
+    stmt->param.idx = idx;
     return stmt;
 }
 
@@ -260,6 +281,15 @@ Expr* integer_expr_new(Token* integer, bigint* val) {
     expr->main_token = integer;
     expr->integer.integer = integer;
     expr->integer.val = val;
+    return expr;
+}
+
+Expr* symbol_expr_new(Token* identifier) {
+    ALLOC_WITH_TYPE(expr, Expr);
+    expr->kind = EXPR_KIND_SYMBOL;
+    expr->main_token = identifier;
+    expr->symbol.identifier = identifier;
+    expr->symbol.ref = null;
     return expr;
 }
 

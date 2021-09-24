@@ -2,7 +2,7 @@ C_FILES := $(shell find src -type f -name "*.c")
 H_FILES := $(shell find src -type f -name "*.h")
 OBJ_FILES := $(addprefix obj/, $(addsuffix .o, $(C_FILES)))
 EXE_FILE := bin/ariac
-CFLAGS := -Wall -Wextra -Wshadow #-Wno-switch -Wno-unused-function -Wno-unused-parameter
+CFLAGS := -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter
 #CMD_ARGS := examples/cg.ar
 CMD_ARGS := examples/lex.ar
 

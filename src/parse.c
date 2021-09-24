@@ -19,6 +19,7 @@ static Stmt* parse_expr_stmt(ParseContext* p, Expr* expr);
 static Expr* parse_expr(ParseContext* p);
 static Expr* parse_atom_expr(ParseContext* p);
 static Expr* parse_integer_expr(ParseContext* p);
+static Expr* parse_symbol_expr(ParseContext* p, Token* identifier);
 static Expr* parse_block_expr(ParseContext* p, Token* lbrace);
 static Type* parse_type(ParseContext* p);
 static Type* parse_ptr_type(ParseContext* p);
@@ -76,6 +77,7 @@ FunctionHeader* parse_function_header(ParseContext* p) {
     Token* lparen = parse_expect_lparen(p);
 
     Stmt** params = null;
+    size_t param_idx = 0;
     while (!parse_match(p, TOKEN_KIND_RPAREN)) {
         parse_check_eof(p, lparen);
         Token* param_identifier = parse_expect_identifier(p, "parameter");
@@ -83,12 +85,12 @@ FunctionHeader* parse_function_header(ParseContext* p) {
         Type* param_type = parse_type(p);
         buf_push(
                 params, 
-                param_stmt_new(param_identifier, param_type));
+                param_stmt_new(param_identifier, param_type, param_idx));
 
         if (parse_current(p)->kind != TOKEN_KIND_RPAREN) {
             parse_expect_comma(p);
         }
-
+        param_idx++;
     }
 
     Type* return_type = builtin_type_placeholders.void_type;
@@ -163,6 +165,9 @@ Expr* parse_atom_expr(ParseContext* p) {
     if (parse_match(p, TOKEN_KIND_INTEGER)) {
         return parse_integer_expr(p);
     }
+    else if (parse_match(p, TOKEN_KIND_IDENTIFIER)) {
+        return parse_symbol_expr(p, parse_previous(p));
+    }
     else if (parse_match(p, TOKEN_KIND_LBRACE)) {
         return parse_block_expr(p, parse_previous(p));
     }
@@ -178,6 +183,10 @@ Expr* parse_atom_expr(ParseContext* p) {
 Expr* parse_integer_expr(ParseContext* p) {
     Token* integer = parse_previous(p);
     return integer_expr_new(integer, integer->integer.val);
+}
+
+Expr* parse_symbol_expr(ParseContext* p, Token* identifier) {
+    return symbol_expr_new(identifier);
 }
 
 Expr* parse_block_expr(ParseContext* p, Token* lbrace) {

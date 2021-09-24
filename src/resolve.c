@@ -34,10 +34,6 @@ static void resolve_pre_decl_stmt(
         ResolveContext* r, 
         Stmt* stmt, 
         bool ignore_function_level_stmt);
-static void resolve_cpush_in_scope(ResolveContext* r, Stmt* stmt);
-static ScopeSearchResult resolve_search_in_current_scope_rec(
-        ResolveContext* r, 
-        Token* identifier);
 static void resolve_stmt(
         ResolveContext* r, 
         Stmt* stmt, 
@@ -51,12 +47,20 @@ static void resolve_variable_stmt(
         bool ignore_function_level_stmt);
 static void resolve_expr_stmt(ResolveContext* r, Stmt* stmt);
 static void resolve_expr(ResolveContext* r, Expr* expr);
+static void resolve_symbol_expr(ResolveContext* r, Expr* expr);
 static void resolve_block_expr(
         ResolveContext* r, 
         Expr* expr, 
         bool create_new_scope);
 static void resolve_type(ResolveContext* r, Type* type);
 static void resolve_ptr_type(ResolveContext* r, Type* type);
+static void resolve_cpush_in_scope(ResolveContext* r, Stmt* stmt);
+static ScopeSearchResult resolve_search_in_current_scope_rec(
+        ResolveContext* r, 
+        Token* identifier);
+static Stmt* resolve_assert_symbol_is_in_current_scope_rec(
+        ResolveContext* r, 
+        Token* token);
 static Scope* scope_new(Scope* parent);
 
 void resolve(ResolveContext* r) {
@@ -98,68 +102,6 @@ void resolve_pre_decl_stmt(
             }
         } break;
     }
-}
-
-void resolve_cpush_in_scope(ResolveContext* r, Stmt* stmt) {
-    Token* identifier = stmt->main_token;
-    BuiltinTypeKind kind = builtin_type_str_to_kind(identifier->lexeme);
-    if (kind != BUILTIN_TYPE_KIND_NONE) {
-        resolve_error(
-                identifier,
-                "cannot use type as a symbol");
-        return;
-    }
-
-    bool search_error = false;
-    ScopeSearchResult search_result = 
-        resolve_search_in_current_scope_rec(r, identifier);
-    if (search_result.status == SCOPE_LOCAL) {
-        resolve_error(
-                identifier,
-                "redeclaration of symbol `{s}`",
-                identifier->lexeme);
-        search_error = true;
-    }
-    else if (search_result.status == SCOPE_PARENT) {
-        warning(
-                identifier,
-                "`{s}` shadows symbol",
-                identifier->lexeme);
-    }
-
-    if (search_result.status == SCOPE_LOCAL || 
-        search_result.status == SCOPE_PARENT) {
-        note(
-                search_result.stmt->main_token,
-                "...previously declared here");
-    }
-
-    if (search_error) return;
-    buf_push(r->current_scope->stmts, stmt);
-}
-
-ScopeSearchResult resolve_search_in_current_scope_rec(
-        ResolveContext* r, 
-        Token* identifier) {
-
-    ScopeSearchResult result;
-    result.status = SCOPE_UNRESOLVED;
-    result.stmt = null;
-    Scope* scope = r->current_scope;
-    while (scope != null) {
-        buf_loop(scope->stmts, i) {
-            if (is_token_lexeme_eq(identifier, scope->stmts[i]->main_token)) {
-                if (scope == r->current_scope) 
-                    result.status = SCOPE_LOCAL;
-                else
-                    result.status = SCOPE_PARENT;
-                result.stmt = scope->stmts[i];
-                return result;
-            }
-        }
-        scope = scope->parent;
-    }
-    return result;
 }
 
 void resolve_stmt(
@@ -235,10 +177,19 @@ void resolve_expr_stmt(ResolveContext* r, Stmt* stmt) {
 
 void resolve_expr(ResolveContext* r, Expr* expr) {
     switch (expr->kind) {
+        case EXPR_KIND_SYMBOL: {
+            resolve_symbol_expr(r, expr);
+        } break;
+        
         case EXPR_KIND_BLOCK: {
             resolve_block_expr(r, expr, true);
         } break;
     }
+}
+
+void resolve_symbol_expr(ResolveContext* r, Expr* expr) {
+    expr->symbol.ref = 
+        resolve_assert_symbol_is_in_current_scope_rec(r, expr->main_token);
 }
 
 void resolve_block_expr(
@@ -279,6 +230,84 @@ void resolve_type(ResolveContext* r, Type* type) {
 
 void resolve_ptr_type(ResolveContext* r, Type* type) {
     resolve_type(r, type->ptr.child);
+}
+
+void resolve_cpush_in_scope(ResolveContext* r, Stmt* stmt) {
+    Token* identifier = stmt->main_token;
+    BuiltinTypeKind kind = builtin_type_str_to_kind(identifier->lexeme);
+    if (kind != BUILTIN_TYPE_KIND_NONE) {
+        resolve_error(
+                identifier,
+                "cannot use type as a symbol");
+        return;
+    }
+
+    bool search_error = false;
+    ScopeSearchResult search_result = 
+        resolve_search_in_current_scope_rec(r, identifier);
+    if (search_result.status == SCOPE_LOCAL) {
+        resolve_error(
+                identifier,
+                "redeclaration of symbol `{s}`",
+                identifier->lexeme);
+        search_error = true;
+    }
+    else if (search_result.status == SCOPE_PARENT) {
+        warning(
+                identifier,
+                "`{s}` shadows symbol",
+                identifier->lexeme);
+    }
+
+    if (search_result.status == SCOPE_LOCAL || 
+        search_result.status == SCOPE_PARENT) {
+        note(
+                search_result.stmt->main_token,
+                "...previously declared here");
+    }
+
+    if (search_error) return;
+    buf_push(r->current_scope->stmts, stmt);
+}
+
+ScopeSearchResult resolve_search_in_current_scope_rec(
+        ResolveContext* r, 
+        Token* identifier) {
+
+    ScopeSearchResult result;
+    result.status = SCOPE_UNRESOLVED;
+    result.stmt = null;
+    Scope* scope = r->current_scope;
+    while (scope != null) {
+        buf_loop(scope->stmts, i) {
+            if (is_token_lexeme_eq(identifier, scope->stmts[i]->main_token)) {
+                if (scope == r->current_scope) 
+                    result.status = SCOPE_LOCAL;
+                else
+                    result.status = SCOPE_PARENT;
+                result.stmt = scope->stmts[i];
+                return result;
+            }
+        }
+        scope = scope->parent;
+    }
+    return result;
+}
+
+Stmt* resolve_assert_symbol_is_in_current_scope_rec(
+        ResolveContext* r, 
+        Token* token) {
+
+    ScopeSearchResult search_result = 
+        resolve_search_in_current_scope_rec(r, token);
+    if (search_result.status == SCOPE_UNRESOLVED) {
+        resolve_error(
+                token,
+                "unresolved symbol `%s`",
+                token->lexeme);
+        return null;
+    }
+    return search_result.stmt;
 }
 
 Scope* scope_new(Scope* parent) {

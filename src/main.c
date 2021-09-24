@@ -96,11 +96,11 @@ int main(int argc, char* argv[]) {
             parsing_error = true;
             continue;
         }
-        else {
-            buf_loop(srcfiles[i]->tokens, j) {
-                aria_printf("token: {tk}\n", srcfiles[i]->tokens[j]);
-            }
-        }
+        /* else { */
+        /*     buf_loop(srcfiles[i]->tokens, j) { */
+        /*         aria_printf("token: {tk}\n", srcfiles[i]->tokens[j]); */
+        /*     } */
+        /* } */
 
         ParseContext p;
         p.srcfile = srcfiles[i];

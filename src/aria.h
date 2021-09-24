@@ -173,11 +173,13 @@ typedef struct {
     Type* type;
     Expr* initializer;
     Stmt* parent_func;
+    size_t stack_offset;
 } VariableStmt;
 
 typedef struct {
     Token* identifier;
     Type* type;
+    size_t idx;
 } ParamStmt;
 
 typedef struct {
@@ -214,6 +216,7 @@ size_t builtin_type_bytes(BuiltinTypeKind kind);
 Type* type_get_child(Type* type);
 bool type_is_integer(Type* type);
 size_t type_bytes(Type* type);
+Type* stmt_get_type(Stmt* stmt);
 
 Type* builtin_type_new(Token* token, BuiltinTypeKind kind);
 Type* ptr_type_new(Token* star, bool constant, Type* child);
@@ -227,9 +230,10 @@ Stmt* variable_stmt_new(
         Token* identifier,
         Type* type,
         Expr* initializer);
-Stmt* param_stmt_new(Token* identifier, Type* type);
+Stmt* param_stmt_new(Token* identifier, Type* type, size_t idx);
 Stmt* expr_stmt_new(Expr* child);
 Expr* integer_expr_new(Token* integer, bigint* val);
+Expr* symbol_expr_new(Token* identifier);
 Expr* block_expr_new(Token* lbrace, Stmt** stmts, Expr* value);
 
 void _aria_vfprintf(

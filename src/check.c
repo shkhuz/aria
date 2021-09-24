@@ -18,6 +18,7 @@ static void check_variable_stmt(CheckContext* c, Stmt* stmt);
 static void check_expr_stmt(CheckContext* c, Stmt* stmt);
 static Type* check_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_integer_expr(CheckContext* c, Expr* expr, Type* cast);
+static Type* check_symbol_expr(CheckContext* c, Expr* expr);
 static Type* check_block_expr(CheckContext* c, Expr* expr, Type* cast);
 static ImplicitCastStatus check_implicit_cast(
         CheckContext* c, 
@@ -111,6 +112,10 @@ Type* check_expr(CheckContext* c, Expr* expr, Type* cast) {
             return check_integer_expr(c, expr, cast);
         } break;
 
+        case EXPR_KIND_SYMBOL: {
+            return check_symbol_expr(c, expr);
+        } break;
+
         case EXPR_KIND_BLOCK: {
             return check_block_expr(c, expr, cast);
         } break;
@@ -136,6 +141,20 @@ Type* check_integer_expr(CheckContext* c, Expr* expr, Type* cast) {
                 cast);
     }
     return null;
+}
+
+Type* check_symbol_expr(CheckContext* c, Expr* expr) {
+    assert(expr->symbol.ref);
+    if (expr->symbol.ref->kind != STMT_KIND_FUNCTION) {
+        Type* type = stmt_get_type(expr->symbol.ref);
+        return type;
+    }
+    else {
+        check_error(
+                expr->main_token, 
+                "internal_error: function ptr not implemented");
+        return null;
+    }
 }
 
 Type* check_block_expr(CheckContext* c, Expr* expr, Type* cast) {
