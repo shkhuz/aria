@@ -97,7 +97,7 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
                 null);
     }
 
-    if (stmt->variable.parent_func) {
+    if (stmt->variable.parent_func && stmt->variable.type) {
         stmt->variable.parent_func->function.stack_vars_size += 
             type_bytes(stmt->variable.type);
     }
@@ -143,7 +143,7 @@ Type* check_integer_expr(CheckContext* c, Expr* expr, Type* cast) {
         check_error(
                 expr->integer.integer,
                 "integer cannot be converted to `{t}`",
-                cast);
+                cast_def);
     }
     return null;
 }

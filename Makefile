@@ -3,6 +3,7 @@ H_FILES := $(shell find src -type f -name "*.h")
 OBJ_FILES := $(addprefix obj/, $(addsuffix .o, $(C_FILES)))
 EXE_FILE := bin/ariac
 CFLAGS := -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter
+LDFLAGS := 
 #CMD_ARGS := examples/cg.ar
 CMD_ARGS := examples/lex.ar
 
@@ -20,11 +21,11 @@ run: $(EXE_FILE)
 
 $(EXE_FILE): $(OBJ_FILES)
 	@mkdir -p $(dir $@)
-	$(LD) -o $@ $(OBJ_FILES)
+	$(LD) -o $@ $(LDFLAGS) $(OBJ_FILES)
 
 obj/%.c.o: %.c
 	@mkdir -p $(dir $@)
-	$(CC) -c $(CFLAGS_OPTIMIZE) -o $@ $(CFLAGS) $^
+	$(CC) -c $(CFLAGS) $(CFLAGS_OPTIMIZE) -o $@ $^
 
 debug: $(EXE_FILE)
 	gdb --args $^ $(CMD_ARGS)

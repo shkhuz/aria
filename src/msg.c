@@ -105,7 +105,7 @@ void vdefault_msg(
                *src_line_to_print != '\0') {
             if ((size_t)(src_line_to_print - beg_of_src_line) == 
                     (column - 1)) {
-                fprintf(stderr, color);
+                fprintf(stderr, "%s", color);
             } 
             if (*src_line_to_print == '\t') 
                 stderr_print_tab();
@@ -126,7 +126,7 @@ void vdefault_msg(
         for (size_t c = 0; c < column_new - 1; c++) {
             fprintf(stderr, " ");
         }
-        fprintf(stderr, color);
+        fprintf(stderr, "%s", color);
         for (size_t c = 0; c < char_count_new; c++) {
             fprintf(stderr, "^");
         }
