@@ -22,7 +22,6 @@ static void code_gen_push_tabs(CodeGenContext* c);
 
 void code_gen(CodeGenContext* c) {
     c->asm_code = null;
-    c->last_stack_offset = 0;
 
     buf_loop(c->srcfile->stmts, i) {
         code_gen_stmt(c, c->srcfile->stmts[i]);
@@ -70,7 +69,7 @@ void code_gen_function_stmt(CodeGenContext* c, Stmt* stmt) {
     if (stmt->function.stack_vars_size != 0) {
         code_gen_asmp(c, "add rsp, %lu", stack_vars_size_align16);
     }
-    code_gen_asmlb(c, ".L_ret");
+    code_gen_asmlb(c, ".Lret");
     code_gen_asmw(c, "pop rbp");
     code_gen_asmw(c, "ret");
     code_gen_asmw(c, "");
@@ -78,9 +77,6 @@ void code_gen_function_stmt(CodeGenContext* c, Stmt* stmt) {
 
 void code_gen_variable_stmt(CodeGenContext* c, Stmt* stmt) {
     size_t bytes = type_bytes(stmt->variable.type);
-    c->last_stack_offset += bytes;
-    stmt->variable.stack_offset = c->last_stack_offset;
-
     if (stmt->variable.initializer && bytes != 0) {
         code_gen_expr(c, stmt->variable.initializer);
         code_gen_asmp(

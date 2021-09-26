@@ -15,24 +15,32 @@
 // }
 // fn main() {}
 
-fn main(argc: usize) usize {
-    let a: u8 = 1_2_3;
-    let b: u16 = 1_2_3;
-    let c: u32 = 1_2_3;
-    let d: u64 = 1_2_3;
-    let e: i8 = 1_2_3;
-    let f: i16 = 1_2_3;
-    let g: i32 = 1_2_3;
-    let h: i64 = 1_2_3;
-    let i: *const void;
-    let z = {
-        let c = 1;
-        i
-    };
-    // let v: void = main;
-    call(call(a))
-}
+// fn main(argc: usize) usize {
+//     let a: u8 = 1_2_3;
+//     let b: u16 = 1_2_3;
+//     let c: u32 = 1_2_3;
+//     let d: u64 = 1_2_3;
+//     let e: i8 = 1_2_3;
+//     let f: i16 = 1_2_3;
+//     let g: i32 = 1_2_3;
+//     let h: i64 = 1_2_3;
+//     let i: *const void;
+//     let z = {
+//         let c = 1;
+//         i
+//     };
+//     // let v: void = main;
+//     call(call(a))
+// }
 
-fn call(a: usize) usize {
-    a
+// fn call(a: usize) usize {
+//     a
+// }
+
+fn main() {
+    let a: u8 = 1;
+    let b: u64 = 2;
+    let c: u16 = 3;
+    let e: u64 = 4;
+    let d: void;
 }

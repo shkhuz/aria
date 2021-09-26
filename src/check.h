@@ -7,6 +7,7 @@
 typedef struct {
     Srcfile* srcfile;
     bool error;
+    size_t last_stack_offset;
 } CheckContext;
 
 void check(CheckContext* c);

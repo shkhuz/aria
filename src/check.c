@@ -28,6 +28,7 @@ static ImplicitCastStatus check_implicit_cast(
 
 void check(CheckContext* c) {
     c->error = false;
+    c->last_stack_offset = 0;
 
     buf_loop(c->srcfile->stmts, i) {
         check_stmt(c, c->srcfile->stmts[i]);
@@ -98,8 +99,13 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
     }
 
     if (stmt->variable.parent_func && stmt->variable.type) {
-        stmt->variable.parent_func->function.stack_vars_size += 
-            type_bytes(stmt->variable.type);
+        size_t bytes = type_bytes(stmt->variable.type);
+        c->last_stack_offset += bytes;
+        c->last_stack_offset = 
+            round_to_next_multiple(c->last_stack_offset, bytes);
+        stmt->variable.stack_offset = c->last_stack_offset;
+        stmt->variable.parent_func->function.stack_vars_size = 
+            c->last_stack_offset;
     }
 }
 
