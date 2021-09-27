@@ -1,15 +1,15 @@
     section .text
-    global _start
+;    global _start
     global write_str
     global write_char
     global exit
-    extern main
+;    extern main
 
-_start:
-    xor rax, rax
-    call main
-    mov rdi, rax
-    call exit
+;_start:
+;    xor rax, rax
+;    call main
+;    mov rdi, rax
+;    call exit
 
 ; writes a string to stdout
 ; rdi = pointer to string

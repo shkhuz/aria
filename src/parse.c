@@ -12,6 +12,7 @@ typedef struct {
 } StmtOrExpr;
 
 static Stmt* parse_top_level_stmt(ParseContext* p, bool error_on_no_match);
+static Stmt* parse_function_stmt(ParseContext* p, bool is_extern);
 static FunctionHeader* parse_function_header(ParseContext* p);
 static Stmt* parse_variable_stmt(ParseContext* p);
 static StmtOrExpr parse_function_level_node(ParseContext* p);
@@ -59,11 +60,11 @@ void parse(ParseContext* p) {
 }
 
 Stmt* parse_top_level_stmt(ParseContext* p, bool error_on_no_match) {
-    if (parse_match_keyword(p, "fn")) {
-        FunctionHeader* header = parse_function_header(p);
-        Token* lbrace = parse_expect_lbrace(p);
-        Expr* body = parse_block_expr(p, lbrace);
-        return function_stmt_new(header, body);
+    if (parse_match_keyword(p, "extern")) {
+        return parse_function_stmt(p, true);
+    }  
+    else if (parse_match_keyword(p, "fn")) {
+        return parse_function_stmt(p, false);
     }
     else if (parse_match_keyword(p, "let")) {
         return parse_variable_stmt(p);
@@ -74,6 +75,23 @@ Stmt* parse_top_level_stmt(ParseContext* p, bool error_on_no_match) {
                 "invalid token in top-level");
     }
     return null;
+}
+
+Stmt* parse_function_stmt(ParseContext* p, bool is_extern) {
+    if (is_extern) {
+        parse_expect_keyword(p, "fn");
+    }
+    FunctionHeader* header = parse_function_header(p);
+    Token* lbrace = null;
+    Expr* body = null;
+    if (parse_match(p, TOKEN_KIND_LBRACE)) {
+        lbrace = parse_previous(p);
+        body = parse_block_expr(p, lbrace);
+    } 
+    else {
+        parse_expect_semicolon(p);
+    }
+    return function_stmt_new(header, body, is_extern);
 }
 
 FunctionHeader* parse_function_header(ParseContext* p) {
@@ -98,7 +116,8 @@ FunctionHeader* parse_function_header(ParseContext* p) {
     }
 
     Type* return_type = builtin_type_placeholders.void_type;
-    if (parse_current(p)->kind != TOKEN_KIND_LBRACE) {
+    if (parse_current(p)->kind != TOKEN_KIND_LBRACE &&
+        parse_current(p)->kind != TOKEN_KIND_SEMICOLON) {
         return_type = parse_type(p);
     }
 

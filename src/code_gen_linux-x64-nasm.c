@@ -33,7 +33,7 @@ void code_gen(CodeGenContext* c) {
     /* fwrite(c->asm_code, buf_len(c->asm_code)-1, sizeof(char), file); */
     /* fclose(file); */
     /* system("nasm -felf64 bin/tmp_asm.asm"); */
-    /* system("gcc -o bin/tmp bin/tmp_asm.o"); */
+    /* system("gcc -g -no-pie -o bin/tmp bin/tmp_asm.o examples/std.c"); */
 }
 
 void code_gen_stmt(CodeGenContext* c, Stmt* stmt) {
@@ -53,26 +53,53 @@ void code_gen_stmt(CodeGenContext* c, Stmt* stmt) {
 }
 
 void code_gen_function_stmt(CodeGenContext* c, Stmt* stmt) {
-    code_gen_asmp(c, "global %s", stmt->function.header->identifier->lexeme);
-    code_gen_asmlb(c, stmt->function.header->identifier->lexeme);
-    code_gen_asmw(c, "push rbp");
-    code_gen_asmw(c, "mov rbp, rsp");
+    if (stmt->function.is_extern) {
+        code_gen_asmp(c, "extern %s", stmt->function.header->identifier->lexeme);
+    } 
+    else {
+        code_gen_asmp(c, "global %s", stmt->function.header->identifier->lexeme);
+        code_gen_asmlb(c, stmt->function.header->identifier->lexeme);
+        code_gen_asmw(c, "push rbp");
+        code_gen_asmw(c, "mov rbp, rsp");
 
-    size_t stack_vars_size_align16 = 0;
-    if (stmt->function.stack_vars_size != 0) {
-        stack_vars_size_align16 = 
-            round_to_next_multiple(stmt->function.stack_vars_size, 16);
-        code_gen_asmp(c, "sub rsp, %lu", stack_vars_size_align16);
-    }
-    code_gen_block_expr(c, stmt->function.body);
+        Stmt** params = stmt->function.header->params;
+        for (size_t i = 0; i < MIN(buf_len(params), 6); i++) {
+            stmt->function.stack_vars_size += PTR_SIZE_BYTES;
+            stmt->function.stack_vars_size = 
+                round_to_next_multiple(
+                        stmt->function.stack_vars_size, 
+                        PTR_SIZE_BYTES);
+            params[i]->param.stack_offset = 
+                stmt->function.stack_vars_size;
+        }
 
-    if (stmt->function.stack_vars_size != 0) {
-        code_gen_asmp(c, "add rsp, %lu", stack_vars_size_align16);
+        size_t stack_vars_size_align16 = 0;
+        if (stmt->function.stack_vars_size != 0) {
+            stack_vars_size_align16 = 
+                round_to_next_multiple(stmt->function.stack_vars_size, 16);
+            code_gen_asmp(c, "sub rsp, %lu", stack_vars_size_align16);
+        }
+        
+        buf_loop(params, i) {
+            if (i < 6) {
+                code_gen_asmp(
+                        c, 
+                        "mov qword [rbp - %lu], %s",
+                        params[i]->param.stack_offset, 
+                        code_gen_get_arg_register_by_idx(i));
+            }
+        }
+
+        code_gen_block_expr(c, stmt->function.body);
+
+        code_gen_asmlb(c, ".Lret");
+        if (stmt->function.stack_vars_size != 0) {
+            code_gen_asmp(c, "add rsp, %lu", stack_vars_size_align16);
+        }
+        code_gen_asmw(c, "pop rbp");
+        code_gen_asmw(c, "ret");
+        code_gen_asmw(c, "");
     }
-    code_gen_asmlb(c, ".Lret");
-    code_gen_asmw(c, "pop rbp");
-    code_gen_asmw(c, "ret");
-    code_gen_asmw(c, "");
 }
 
 void code_gen_variable_stmt(CodeGenContext* c, Stmt* stmt) {
@@ -134,10 +161,18 @@ void code_gen_symbol_expr(CodeGenContext* c, Expr* expr) {
         } break;
 
         case STMT_KIND_PARAM: {
-            code_gen_asmp(
-                    c,
-                    "mov rax, %s",
-                    code_gen_get_arg_register_by_idx(ref->param.idx));
+            if (ref->param.idx < 6) {
+                code_gen_asmp(
+                        c,
+                        "mov rax, qword [rbp - %lu]",
+                        ref->param.stack_offset);
+            }
+            else {
+                code_gen_asmp(
+                        c, 
+                        "mov rax, qword [rbp + %lu]",
+                        16 + ((ref->param.idx-6) * PTR_SIZE_BYTES));
+            }
         } break;
 
         case STMT_KIND_FUNCTION: {
@@ -148,17 +183,31 @@ void code_gen_symbol_expr(CodeGenContext* c, Expr* expr) {
 
 void code_gen_function_call_expr(CodeGenContext* c, Expr* expr) {
     Expr** args = expr->function_call.args;
-    buf_loop(args, i) {
+    size_t const args_len = buf_len(args);
+    size_t reg_args_len = MIN(args_len, 6);
+    for (size_t i = 0; i < reg_args_len; i++) {
         code_gen_expr(c, args[i]);
         code_gen_asmp(
                 c,
                 "mov %s, rax",
                 code_gen_get_arg_register_by_idx(i));
     }
+    if (reg_args_len < args_len) {
+        for (size_t i = args_len-1; i >= reg_args_len; i--) {
+            code_gen_expr(c, args[i]);
+            code_gen_asmp(c, "push rax");
+        }
+    }
     code_gen_asmp(
             c, 
             "call %s", 
             expr->function_call.callee->symbol.identifier->lexeme);
+    if (reg_args_len < args_len) {
+        code_gen_asmp(
+                c,
+                "add rsp, %lu",
+                (args_len - reg_args_len) * PTR_SIZE_BYTES);
+    }
 }
 
 void code_gen_block_expr(CodeGenContext* c, Expr* expr) {

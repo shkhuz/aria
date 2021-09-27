@@ -172,6 +172,7 @@ typedef struct {
 typedef struct {
     FunctionHeader* header;
     Expr* body;
+    bool is_extern;
     size_t stack_vars_size;
 } FunctionStmt;
 
@@ -187,7 +188,9 @@ typedef struct {
 typedef struct {
     Token* identifier;
     Type* type;
+    Stmt* parent_func;
     size_t idx;
+    size_t stack_offset;
 } ParamStmt;
 
 typedef struct {
@@ -232,7 +235,7 @@ FunctionHeader* function_header_new(
         Token* identifier, 
         Stmt** params, 
         Type* return_type);
-Stmt* function_stmt_new(FunctionHeader* header, Expr* body);
+Stmt* function_stmt_new(FunctionHeader* header, Expr* body, bool is_extern);
 Stmt* variable_stmt_new(
         bool constant,
         Token* identifier,

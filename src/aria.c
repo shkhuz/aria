@@ -30,6 +30,7 @@ void init_ds() {
     buf_push(aria_keywords, "let");
     buf_push(aria_keywords, "const");
     buf_push(aria_keywords, "mut");
+    buf_push(aria_keywords, "extern");
 
     builtin_type_placeholders.u8 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U8);
     builtin_type_placeholders.u16 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U16);
@@ -230,12 +231,13 @@ FunctionHeader* function_header_new(
     return header;
 }
 
-Stmt* function_stmt_new(FunctionHeader* header, Expr* body) {
+Stmt* function_stmt_new(FunctionHeader* header, Expr* body, bool is_extern) {
     ALLOC_WITH_TYPE(stmt, Stmt);
     stmt->kind = STMT_KIND_FUNCTION;
     stmt->main_token = header->identifier;
     stmt->function.header = header;
     stmt->function.body = body;
+    stmt->function.is_extern = is_extern;
     stmt->function.stack_vars_size = 0;
     return stmt;
 }
@@ -263,7 +265,9 @@ Stmt* param_stmt_new(Token* identifier, Type* type, size_t idx) {
     stmt->main_token = identifier;
     stmt->param.identifier = identifier;
     stmt->param.type = type;
+    stmt->param.parent_func = null;
     stmt->param.idx = idx;
+    stmt->param.stack_offset = 0;
     return stmt;
 }
 

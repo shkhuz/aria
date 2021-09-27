@@ -52,23 +52,22 @@ void check_stmt(CheckContext* c, Stmt* stmt) {
 }
 
 void check_function_stmt(CheckContext* c, Stmt* stmt) {
-    Type* body_type = check_block_expr(
-            c, 
-            stmt->function.body, 
-            stmt->function.header->return_type);
-    printf(
-            "%s() stack size: %lu\n", 
-            stmt->function.header->identifier->lexeme,
-            stmt->function.stack_vars_size);
-    Type* return_type = stmt->function.header->return_type;
-    if (body_type && return_type) {
-        if (check_implicit_cast(c, body_type, return_type) == 
-                IMPLICIT_CAST_ERROR) {
-            check_error(
-                    stmt->function.body->main_token,
-                    "function annotated `{t}`, but returned `{t}`",
-                    return_type,
-                    body_type);
+    c->last_stack_offset = 0;
+    if (!stmt->function.is_extern) {
+        Type* body_type = check_block_expr(
+                c, 
+                stmt->function.body, 
+                stmt->function.header->return_type);
+        Type* return_type = stmt->function.header->return_type;
+        if (body_type && return_type) {
+            if (check_implicit_cast(c, body_type, return_type) == 
+                    IMPLICIT_CAST_ERROR) {
+                check_error(
+                        stmt->function.body->main_token,
+                        "function annotated `{t}`, but returned `{t}`",
+                        return_type,
+                        body_type);
+            }
         }
     }
 }

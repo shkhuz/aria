@@ -41,6 +41,50 @@ fn main() {
     let a: u8 = 1;
     let b: u64 = 2;
     let c: u16 = 3;
-    let e: u64 = 4;
-    let d: void;
+    let d: u8 = 4;
+    let e: u32 = 5;
+    let f: i32 = 6;
+    let g: i64 = 7;
+    let h: i8 = 8;
+    give_ints(
+        a,
+        b,
+        c,
+        d,
+        e,
+        f,
+        g,
+        h);
+    tests();
 }
+
+fn give_ints(a: u8, b: u64, c: u16, d: u8, e: u32, f: i32, g: i64, h: i8) {
+    { let x: u64; }
+    { let x: u64; }
+    { let x: u64; }
+    { let x: u64; }
+    { let x: u64; }
+    { let x: u64; }
+    { let x: u64; }
+    { let x: u64; }
+    { let x: u64; }
+    { let x: u64; }
+    { let x: u64; }
+    { let x: u64; }
+    print_u64(a);
+    print_u64(b);
+    print_u64(c);
+    print_u64(d);
+    print_u64(e);
+    print_i64(f);
+    print_i64(g);
+    print_i64(h);
+}
+
+fn tests() {
+    print_u64(add(add(add(add(1)))));
+}
+
+extern fn print_u64(n: u64);
+extern fn print_i64(n: i64);
+extern fn add(n: u64) u64;
