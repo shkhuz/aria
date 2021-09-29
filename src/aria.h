@@ -90,7 +90,9 @@ typedef struct {
     Type* i32;
     Type* i64;
     Type* isize;
+    Type* boolean;
     Type* void_type;
+    Type* void_ptr;
 } BuiltinTypePlaceholders;
 extern BuiltinTypePlaceholders builtin_type_placeholders;
 
@@ -117,15 +119,28 @@ struct Type {
 
 typedef enum {
     EXPR_KIND_INTEGER,
+    EXPR_KIND_CONSTANT,
     EXPR_KIND_SYMBOL,
     EXPR_KIND_FUNCTION_CALL,
     EXPR_KIND_BLOCK,
+    EXPR_KIND_IF,
 } ExprKind;
 
 typedef struct {
     Token* integer;
     bigint* val;
 } IntegerExpr;
+
+typedef enum {
+    CONSTANT_KIND_BOOLEAN_TRUE,
+    CONSTANT_KIND_BOOLEAN_FALSE,
+    CONSTANT_KIND_NULL,
+} ConstantKind;
+
+typedef struct {
+    Token* keyword;
+    ConstantKind kind;
+} ConstantExpr;
 
 typedef struct {
     Token* identifier;
@@ -139,19 +154,39 @@ typedef struct {
 } FunctionCallExpr;
 
 typedef struct {
-    Token* lbrace;
     Stmt** stmts;
     Expr* value;
+    Token* rbrace;
 } BlockExpr;
+
+typedef enum {
+    IF_BRANCH_IF,
+    IF_BRANCH_ELSEIF,
+    IF_BRANCH_ELSE,
+} IfBranchKind;
+
+typedef struct {
+    Expr* cond;
+    Expr* body;
+    IfBranchKind kind;
+} IfBranch;
+
+typedef struct {
+    IfBranch* ifbr;
+    IfBranch** elseifbr;
+    IfBranch* elsebr;
+} IfExpr;
 
 struct Expr {
     ExprKind kind;
     Token* main_token;
     union {
         IntegerExpr integer;
+        ConstantExpr constant;
         SymbolExpr symbol;
         FunctionCallExpr function_call;
         BlockExpr block;
+        IfExpr iff;
     };
 };
 
@@ -244,9 +279,20 @@ Stmt* variable_stmt_new(
 Stmt* param_stmt_new(Token* identifier, Type* type, size_t idx);
 Stmt* expr_stmt_new(Expr* child);
 Expr* integer_expr_new(Token* integer, bigint* val);
+Expr* constant_expr_new(Token* keyword, ConstantKind kind);
 Expr* symbol_expr_new(Token* identifier);
 Expr* function_call_expr_new(Expr* callee, Expr** args, Token* rparen);
-Expr* block_expr_new(Token* lbrace, Stmt** stmts, Expr* value);
+Expr* block_expr_new(
+        Stmt** stmts, 
+        Expr* value, 
+        Token* lbrace, 
+        Token* rbrace);
+IfBranch* if_branch_new(Expr* cond, Expr* body, IfBranchKind kind);
+Expr* if_expr_new(
+        Token* if_keyword, 
+        IfBranch* ifbr, 
+        IfBranch** elseifbr, 
+        IfBranch* elsebr);
 
 void _aria_vfprintf(
         const char* calleefile, 

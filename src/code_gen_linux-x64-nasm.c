@@ -9,6 +9,7 @@ static void code_gen_variable_stmt(CodeGenContext* c, Stmt* stmt);
 static void code_gen_expr_stmt(CodeGenContext* c, Stmt* stmt);
 static void code_gen_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_integer_expr(CodeGenContext* c, Expr* expr);
+static void code_gen_constant_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_symbol_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_function_call_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_block_expr(CodeGenContext* c, Expr* expr);
@@ -141,6 +142,22 @@ void code_gen_expr(CodeGenContext* c, Expr* expr) {
 
 void code_gen_integer_expr(CodeGenContext* c, Expr* expr) {
     code_gen_asmp(c, "mov rax, %s", expr->integer.integer->lexeme);
+}
+
+void code_gen_constant_expr(CodeGenContext* c, Expr* expr) {
+    switch (expr->constant.kind) {
+        case CONSTANT_KIND_BOOLEAN_TRUE: {
+            code_gen_asmp(c, "mov rax, 1");
+        } break;
+
+        case CONSTANT_KIND_BOOLEAN_FALSE: {
+            code_gen_asmp(c, "mov rax, 0");
+        } break;
+
+        case CONSTANT_KIND_NULL: {
+            code_gen_asmp(c, "mov rax, 0");
+        } break;
+    }
 }
 
 void code_gen_symbol_expr(CodeGenContext* c, Expr* expr) {

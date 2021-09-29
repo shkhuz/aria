@@ -26,6 +26,8 @@ static Expr* parse_function_call_expr(
         Expr* callee, 
         Token* lparen);
 static Expr* parse_block_expr(ParseContext* p, Token* lbrace);
+static Expr* parse_if_expr(ParseContext* p, Token* if_keyword);
+static IfBranch* parse_if_branch(ParseContext* p, IfBranchKind kind);
 static Type* parse_type(ParseContext* p);
 static Type* parse_ptr_type(ParseContext* p);
 static Type* parse_atom_type(ParseContext* p);
@@ -174,7 +176,8 @@ StmtOrExpr parse_function_level_node(ParseContext* p) {
 
 Stmt* parse_expr_stmt(ParseContext* p, Expr* expr) {
     assert(expr);
-    if (expr->kind != EXPR_KIND_BLOCK) {
+    if (expr->kind != EXPR_KIND_BLOCK &&
+        expr->kind != EXPR_KIND_IF) {
         parse_expect_semicolon(p);
     }
     return expr_stmt_new(expr);
@@ -188,6 +191,15 @@ Expr* parse_atom_expr(ParseContext* p) {
     if (parse_match(p, TOKEN_KIND_INTEGER)) {
         return parse_integer_expr(p);
     }
+    else if (parse_match_keyword(p, "true")) {
+        return constant_expr_new(parse_previous(p), CONSTANT_KIND_BOOLEAN_TRUE);
+    }
+    else if (parse_match_keyword(p, "false")) {
+        return constant_expr_new(parse_previous(p), CONSTANT_KIND_BOOLEAN_FALSE);
+    }
+    else if (parse_match_keyword(p, "null")) {
+        return constant_expr_new(parse_previous(p), CONSTANT_KIND_NULL);
+    }
     else if (parse_match(p, TOKEN_KIND_IDENTIFIER)) {
         Expr* symbol = parse_symbol_expr(p, parse_previous(p));
         if (parse_match(p, TOKEN_KIND_LPAREN)) {
@@ -199,6 +211,9 @@ Expr* parse_atom_expr(ParseContext* p) {
     }
     else if (parse_match(p, TOKEN_KIND_LBRACE)) {
         return parse_block_expr(p, parse_previous(p));
+    }
+    else if (parse_match_keyword(p, "if")) {
+        return parse_if_expr(p, parse_previous(p));
     }
     else {
         fatal_error(
@@ -248,7 +263,56 @@ Expr* parse_block_expr(ParseContext* p, Token* lbrace) {
             value = meta.expr;
         }
     }
-    return block_expr_new(lbrace, stmts, value);
+    Token* rbrace = parse_previous(p);
+    return block_expr_new(
+            stmts, 
+            value, 
+            lbrace, 
+            rbrace);
+}
+
+Expr* parse_if_expr(ParseContext* p, Token* if_keyword) {
+    IfBranch* ifbr = parse_if_branch(p, IF_BRANCH_IF);
+    IfBranch** elseifbr = null;
+    IfBranch* elsebr = null;
+
+    bool elsebr_exists = false;
+    for (;;) {
+        if (parse_match_keyword(p, "else")) {
+            if (parse_match_keyword(p, "if")) {
+                buf_push(elseifbr, parse_if_branch(p, IF_BRANCH_ELSEIF));
+            }
+            else {
+                elsebr_exists = true;
+                break;
+            }
+        }
+        else {
+            break;
+        }
+    }
+
+    if (elsebr_exists) {
+        elsebr = parse_if_branch(p, IF_BRANCH_ELSE);
+    }
+    return if_expr_new(
+            if_keyword,
+            ifbr,
+            elseifbr,
+            elsebr);
+}
+
+IfBranch* parse_if_branch(ParseContext* p, IfBranchKind kind) {
+    Expr* cond = null;
+    if (kind != IF_BRANCH_ELSE) {
+        cond = parse_expr(p);
+    }
+
+    Expr* body = parse_block_expr(p, parse_expect_lbrace(p));
+    return if_branch_new(
+            cond,
+            body,
+            kind);
 }
 
 Type* parse_type(ParseContext* p) {

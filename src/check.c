@@ -18,9 +18,12 @@ static void check_variable_stmt(CheckContext* c, Stmt* stmt);
 static void check_expr_stmt(CheckContext* c, Stmt* stmt);
 static Type* check_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_integer_expr(CheckContext* c, Expr* expr, Type* cast);
+static Type* check_constant_expr(CheckContext* c, Expr* expr);
 static Type* check_symbol_expr(CheckContext* c, Expr* expr);
 static Type* check_function_call_expr(CheckContext* c, Expr* expr);
 static Type* check_block_expr(CheckContext* c, Expr* expr, Type* cast);
+static Type* check_if_expr(CheckContext* c, Expr* expr, Type* cast);
+static Type* check_if_branch(CheckContext* c, IfBranch* br, Type* cast);
 static ImplicitCastStatus check_implicit_cast(
         CheckContext* c, 
         Type* from, 
@@ -63,7 +66,7 @@ void check_function_stmt(CheckContext* c, Stmt* stmt) {
             if (check_implicit_cast(c, body_type, return_type) == 
                     IMPLICIT_CAST_ERROR) {
                 check_error(
-                        stmt->function.body->main_token,
+                        stmt->function.body->block.value->main_token,
                         "function annotated `{t}`, but returned `{t}`",
                         return_type,
                         body_type);
@@ -109,13 +112,17 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
 }
 
 void check_expr_stmt(CheckContext* c, Stmt* stmt) {
-    check_expr(c, stmt->expr.child, builtin_type_placeholders.void_type);
+    check_expr(c, stmt->expr.child, null);
 }
 
 Type* check_expr(CheckContext* c, Expr* expr, Type* cast) {
     switch (expr->kind) {
         case EXPR_KIND_INTEGER: {
             return check_integer_expr(c, expr, cast);
+        } break;
+
+        case EXPR_KIND_CONSTANT: {
+            return check_constant_expr(c, expr);
         } break;
 
         case EXPR_KIND_SYMBOL: {
@@ -128,6 +135,10 @@ Type* check_expr(CheckContext* c, Expr* expr, Type* cast) {
 
         case EXPR_KIND_BLOCK: {
             return check_block_expr(c, expr, cast);
+        } break;
+
+        case EXPR_KIND_IF: {
+            return check_if_expr(c, expr, cast);
         } break;
     }
     assert(0);
@@ -150,6 +161,21 @@ Type* check_integer_expr(CheckContext* c, Expr* expr, Type* cast) {
                 "integer cannot be converted to `{t}`",
                 cast_def);
     }
+    return null;
+}
+
+Type* check_constant_expr(CheckContext* c, Expr* expr) {
+    switch (expr->constant.kind) {
+        case CONSTANT_KIND_BOOLEAN_TRUE:
+        case CONSTANT_KIND_BOOLEAN_FALSE: {
+            return builtin_type_placeholders.boolean;
+        } break;
+
+        case CONSTANT_KIND_NULL: {
+            return builtin_type_placeholders.void_ptr;
+        } break;
+    }
+    assert(0);
     return null;
 }
 
@@ -219,6 +245,109 @@ Type* check_block_expr(CheckContext* c, Expr* expr, Type* cast) {
         return check_expr(c, expr->block.value, cast);
     }
     return builtin_type_placeholders.void_type;
+}
+
+Type* check_if_expr(CheckContext* c, Expr* expr, Type* cast) {
+    // Get branch types
+    Type* ifbr_type = check_if_branch(
+            c, 
+            expr->iff.ifbr,
+            cast);
+    Type** elseifbr_types = null;
+    buf_loop(expr->iff.elseifbr, i) {
+        buf_push(elseifbr_types, check_if_branch(
+                    c,
+                    expr->iff.elseifbr[i],
+                    cast));
+    }
+    Type* elsebr_type = null;
+    if (expr->iff.elsebr) {
+        elsebr_type = check_if_branch(
+                c, 
+                expr->iff.elsebr,
+                cast);
+    }
+
+    // Verify branch types
+    // TODO: make it so that branch that pass in this "verify" stage are 
+    // processed in "compare" stage, even if other branches fail
+    if (!ifbr_type) {
+        return null;
+    }
+    buf_loop(expr->iff.elseifbr, i) {
+        if (expr->iff.elseifbr[i] && !elseifbr_types[i]) {
+            return null;
+        }
+    }
+    if (expr->iff.elsebr && !elsebr_type) {
+        return null;
+    }
+
+    if (!expr->iff.ifbr->body->block.value && !expr->iff.elsebr) {
+        check_error(
+                expr->main_token,
+                "`else` is mandatory when value is used");
+        // TODO: should we return??
+    }
+
+    // Compare branch types
+    bool err= true;
+    buf_loop(elseifbr_types, i) {
+        if (check_implicit_cast(c, elseifbr_types[i], ifbr_type) == IMPLICIT_CAST_ERROR) {
+            Token* errtok = null;
+            if (expr->iff.elseifbr[i]->body->block.value) {
+                errtok = expr->iff.elseifbr[i]->body->block.value->main_token;
+            } 
+            else {
+                errtok = expr->iff.elseifbr[i]->body->block.rbrace;
+            }
+
+            check_error(
+                    errtok,
+                    "`if` returns `{t}`, but `else-if` returns `{t}`",
+                    ifbr_type,
+                    elseifbr_types[i]);
+            err = true;
+        }
+    }
+
+    if (expr->iff.elsebr) {
+        if (check_implicit_cast(c, elsebr_type, ifbr_type) == IMPLICIT_CAST_ERROR) {
+            Token* errtok = null;
+            if (expr->iff.elsebr->body->block.value) {
+                errtok = expr->iff.elsebr->body->block.value->main_token;
+            } 
+            else {
+                errtok = expr->iff.elsebr->body->block.rbrace;
+            }
+
+            check_error(
+                    errtok,
+                    "`if` returns `{t}`, but `else` returns `{t}`",
+                    ifbr_type,
+                    elsebr_type);
+            err = true;
+        }
+    }
+
+    if (err) return null;
+    return ifbr_type;
+}
+
+Type* check_if_branch(CheckContext* c, IfBranch* br, Type* cast) {
+    if (br->cond) {
+        Type* cond_type = check_expr(c, br->cond, null);
+        if (cond_type && check_implicit_cast(
+                    c, 
+                    cond_type, 
+                    builtin_type_placeholders.boolean) == IMPLICIT_CAST_ERROR) {
+            check_error(
+                    br->cond->main_token,
+                    "branch condition should be `bool` but got `{t}`",
+                    cond_type);
+        }
+    }
+    return check_block_expr(c, br->body, cast);
 }
 
 ImplicitCastStatus check_implicit_cast(

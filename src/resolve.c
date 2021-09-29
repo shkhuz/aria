@@ -53,6 +53,8 @@ static void resolve_block_expr(
         ResolveContext* r, 
         Expr* expr, 
         bool create_new_scope);
+static void resolve_if_expr(ResolveContext* r, Expr* expr);
+static void resolve_if_branch(ResolveContext* r, IfBranch* br);
 static void resolve_type(ResolveContext* r, Type* type);
 static void resolve_ptr_type(ResolveContext* r, Type* type);
 static void resolve_cpush_in_scope(ResolveContext* r, Stmt* stmt);
@@ -192,6 +194,10 @@ void resolve_expr(ResolveContext* r, Expr* expr) {
         case EXPR_KIND_BLOCK: {
             resolve_block_expr(r, expr, true);
         } break;
+
+        case EXPR_KIND_IF: {
+            resolve_if_expr(r, expr);
+        } break;
     }
 }
 
@@ -245,6 +251,23 @@ void resolve_block_expr(
     if (create_new_scope) {
         scope_pop(scope);
     }
+}
+
+void resolve_if_expr(ResolveContext* r, Expr* expr) {
+    resolve_if_branch(r, expr->iff.ifbr);
+    buf_loop(expr->iff.elseifbr, i) {
+        resolve_if_branch(r, expr->iff.elseifbr[i]);
+    }
+    if (expr->iff.elsebr) {
+        resolve_if_branch(r, expr->iff.elsebr);
+    }
+}
+
+void resolve_if_branch(ResolveContext* r, IfBranch* br) {
+    if (br->cond) {
+        resolve_expr(r, br->cond);
+    }
+    resolve_expr(r, br->body);
 }
 
 void resolve_type(ResolveContext* r, Type* type) {

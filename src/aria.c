@@ -25,12 +25,21 @@ static Type* builtin_type_placeholder_new(BuiltinTypeKind kind) {
     return builtin_type_new(null, kind);
 }
 
+static Type* ptr_type_placeholder_new(bool constant, Type* child) {
+    return ptr_type_new(null, constant, child); 
+}
+
 void init_ds() {
     buf_push(aria_keywords, "fn");
     buf_push(aria_keywords, "let");
     buf_push(aria_keywords, "const");
     buf_push(aria_keywords, "mut");
     buf_push(aria_keywords, "extern");
+    buf_push(aria_keywords, "if");
+    buf_push(aria_keywords, "else");
+    buf_push(aria_keywords, "true");
+    buf_push(aria_keywords, "false");
+    buf_push(aria_keywords, "null");
 
     builtin_type_placeholders.u8 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U8);
     builtin_type_placeholders.u16 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U16);
@@ -42,7 +51,11 @@ void init_ds() {
     builtin_type_placeholders.i32 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I32);
     builtin_type_placeholders.i64 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I64);
     builtin_type_placeholders.isize = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_ISIZE);
+    builtin_type_placeholders.boolean = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_BOOLEAN);
     builtin_type_placeholders.void_type = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_VOID);
+    builtin_type_placeholders.void_ptr = ptr_type_placeholder_new(
+            false, 
+            builtin_type_placeholder_new(BUILTIN_TYPE_KIND_VOID));
 }
 
 bool is_token_lexeme_eq(Token* a, Token* b) {
@@ -288,6 +301,15 @@ Expr* integer_expr_new(Token* integer, bigint* val) {
     return expr;
 }
 
+Expr* constant_expr_new(Token* keyword, ConstantKind kind) {
+    ALLOC_WITH_TYPE(expr, Expr);
+    expr->kind = EXPR_KIND_CONSTANT;
+    expr->main_token = keyword;
+    expr->constant.keyword = keyword;
+    expr->constant.kind = kind;
+    return expr;
+}
+
 Expr* symbol_expr_new(Token* identifier) {
     ALLOC_WITH_TYPE(expr, Expr);
     expr->kind = EXPR_KIND_SYMBOL;
@@ -307,13 +329,39 @@ Expr* function_call_expr_new(Expr* callee, Expr** args, Token* rparen) {
     return expr;
 }
 
-Expr* block_expr_new(Token* lbrace, Stmt** stmts, Expr* value) {
+Expr* block_expr_new(
+        Stmt** stmts, 
+        Expr* value, 
+        Token* lbrace, 
+        Token* rbrace) {
     ALLOC_WITH_TYPE(expr, Expr);
     expr->kind = EXPR_KIND_BLOCK;
     expr->main_token = lbrace;
-    expr->block.lbrace = lbrace;
     expr->block.stmts = stmts;
     expr->block.value = value;
+    expr->block.rbrace = rbrace;
+    return expr;
+}
+
+IfBranch* if_branch_new(Expr* cond, Expr* body, IfBranchKind kind) {
+    ALLOC_WITH_TYPE(br, IfBranch);
+    br->cond = cond;
+    br->body = body;
+    br->kind = kind;
+    return br;
+}
+
+Expr* if_expr_new(
+        Token* if_keyword, 
+        IfBranch* ifbr, 
+        IfBranch** elseifbr, 
+        IfBranch* elsebr) {
+    ALLOC_WITH_TYPE(expr, Expr);
+    expr->kind = EXPR_KIND_IF;
+    expr->main_token = if_keyword;
+    expr->iff.ifbr = ifbr;
+    expr->iff.elseifbr = elseifbr;
+    expr->iff.elsebr = elsebr;
     return expr;
 }
 
