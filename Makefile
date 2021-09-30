@@ -1,7 +1,7 @@
 C_FILES := $(shell find src -type f -name "*.c")
 H_FILES := $(shell find src -type f -name "*.h")
-OBJ_FILES := $(addprefix obj/, $(addsuffix .o, $(C_FILES)))
-EXE_FILE := bin/ariac
+OBJ_FILES := $(addprefix build/obj/, $(addsuffix .o, $(C_FILES)))
+EXE_FILE := build/ariac
 CFLAGS := -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter
 LDFLAGS := 
 #CMD_ARGS := examples/cg.ar
@@ -23,7 +23,7 @@ $(EXE_FILE): $(OBJ_FILES)
 	@mkdir -p $(dir $@)
 	$(LD) -o $@ $(LDFLAGS) $(OBJ_FILES)
 
-obj/%.c.o: %.c
+build/obj/%.c.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) -c $(CFLAGS) $(CFLAGS_OPTIMIZE) -o $@ $^
 

@@ -25,7 +25,7 @@ if [[ $existing_compiler -ne 1 ]]
 then
     make clean 2>/dev/null >/dev/null
     echo -n "Building the compiler..."
-    make bin/ariac 2>/dev/null >/dev/null
+    make build/ariac 2>/dev/null >/dev/null
     if [[ $? -ne 0 ]]
     then 
         print_fail
@@ -40,7 +40,7 @@ ok_count=0
 fail_count=0
 
 compile_file_no_verbose() {
-    bin/ariac $1 2>/dev/null >/dev/null
+    build/ariac $1 2>/dev/null >/dev/null
 }
 
 readonly VALID_VAL=0
@@ -60,7 +60,7 @@ build_tests_in_dir() {
         else 
             if [[ $verbose = "" ]] || [[ $verbose = $prog ]]; then
                 echo ""
-                bin/ariac $prog >/dev/null
+                build/ariac $prog >/dev/null
             else 
                 compile_file_no_verbose $prog
             fi
@@ -81,7 +81,7 @@ build_tests_in_dir() {
     done
 }
 
-if [[ ! -f bin/ariac ]]; then
+if [[ ! -f build/ariac ]]; then
     echo "Compiler not found; testing ended prematurely"
     exit 1
 fi

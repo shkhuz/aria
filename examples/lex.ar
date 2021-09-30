@@ -56,18 +56,6 @@ fn main() {
         g,
         h);
     tests();
-
-    if 1 {
-        1
-    } else if 2 {
-    } else {
-    }
-
-    if 1 {
-        1
-    } else if 2 {
-    } else {
-    }
 }
 
 fn give_ints(a: u8, b: u64, c: u16, d: u8, e: u32, f: i32, g: i64, h: i8) {
@@ -94,7 +82,14 @@ fn give_ints(a: u8, b: u64, c: u16, d: u8, e: u32, f: i32, g: i64, h: i8) {
 }
 
 fn tests() {
-    print_u64(add(add(add(add(1)))));
+    // test rax, rax
+    // jz .L
+    if false {
+        print_u64(add(add(add(add(1)))));
+    } else {
+        print_u64(add(add(add(add(9)))));
+    }
+    print_u64(0);
 }
 
 extern fn print_u64(n: u64);

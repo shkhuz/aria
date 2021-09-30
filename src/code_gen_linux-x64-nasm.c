@@ -13,6 +13,8 @@ static void code_gen_constant_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_symbol_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_function_call_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_block_expr(CodeGenContext* c, Expr* expr);
+static void code_gen_if_expr(CodeGenContext* c, Expr* expr);
+static void code_gen_if_branch(CodeGenContext* c, IfBranch* br);
 static char* code_gen_get_asm_type_specifier(size_t bytes);
 static char* code_gen_get_rax_register_by_size(size_t bytes);
 static char* code_gen_get_arg_register_by_idx(size_t idx);
@@ -126,6 +128,10 @@ void code_gen_expr(CodeGenContext* c, Expr* expr) {
             code_gen_integer_expr(c, expr);
         } break;
 
+        case EXPR_KIND_CONSTANT: {
+            code_gen_constant_expr(c, expr);
+        } break;
+
         case EXPR_KIND_SYMBOL: {
             code_gen_symbol_expr(c, expr);
         } break;
@@ -136,6 +142,10 @@ void code_gen_expr(CodeGenContext* c, Expr* expr) {
 
         case EXPR_KIND_BLOCK: {
             code_gen_block_expr(c, expr);
+        } break;
+
+        case EXPR_KIND_IF: {
+            code_gen_if_expr(c, expr);
         } break;
     }
 }
@@ -233,6 +243,28 @@ void code_gen_block_expr(CodeGenContext* c, Expr* expr) {
     }
     if (expr->block.value) {
         code_gen_expr(c, expr->block.value);
+    }
+}
+
+void code_gen_if_expr(CodeGenContext* c, Expr* expr) {
+    code_gen_asmw(c, "; -- if --");
+    code_gen_if_branch(c, expr->iff.ifbr);
+    code_gen_if_branch(c, expr->iff.elsebr);
+    code_gen_asmlb(c, ".Lendif");
+}
+
+void code_gen_if_branch(CodeGenContext* c, IfBranch* br) {
+    if (br->kind == IF_BRANCH_ELSE) {
+        code_gen_asmlb(c, ".Lelse");
+    }
+    if (br->kind != IF_BRANCH_ELSE) {
+        code_gen_expr(c, br->cond);
+        code_gen_asmw(c, "test rax, rax");
+        code_gen_asmp(c, "jz .Lelse");
+    }
+    code_gen_block_expr(c, br->body);
+    if (br->kind != IF_BRANCH_ELSE) {
+        code_gen_asmp(c, "jmp .Lendif");
     }
 }
 
