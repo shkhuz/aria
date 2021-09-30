@@ -82,6 +82,7 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
                 stmt->variable.initializer,
                 stmt->variable.type);
         Type* annotated_type = stmt->variable.type;
+        stmt->variable.initializer_type = initializer_type;
         if (initializer_type && annotated_type) {
             if (check_implicit_cast(c, initializer_type, annotated_type) == 
                 IMPLICIT_CAST_ERROR) {
@@ -98,6 +99,7 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
                 c, 
                 stmt->variable.initializer,
                 null);
+        stmt->variable.initializer_type = stmt->variable.type;
     }
 
     if (stmt->variable.parent_func && stmt->variable.type) {
@@ -222,6 +224,7 @@ Type* check_function_call_expr(CheckContext* c, Expr* expr) {
     buf_loop(args, i) {
         Type* param_type = params[i]->param.type;
         Type* arg_type = check_expr(c, args[i], param_type);
+        args[i]->type = arg_type;
         if (arg_type && param_type && 
             check_implicit_cast(c, arg_type, param_type) == IMPLICIT_CAST_ERROR) {
             check_error(

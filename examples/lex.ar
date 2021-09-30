@@ -71,32 +71,32 @@ fn give_ints(a: u8, b: u64, c: u16, d: u8, e: u32, f: i32, g: i64, h: i8) {
     { let x: u64; }
     { let x: u64; }
     { let x: u64; }
-    print_u64(a);
-    print_u64(b);
-    print_u64(c);
-    print_u64(d);
-    print_u64(e);
-    print_i64(f);
-    print_i64(g);
-    print_i64(h);
+    write_u64(a);
+    write_u64(b);
+    write_u64(c);
+    write_u64(d);
+    write_u64(e);
+    write_i64(f);
+    write_i64(g);
+    write_i64(h);
 }
 
 fn tests() {
     if false {
-        print_u64(add(add(add(add(1)))));
+        write_u64(add(add(add(add(1)))));
     } else {
-        print_u64(add(add(add(add(9)))));
+        write_u64(add(add(add(add(9)))));
     }
-    print_u64(0);
+    write_u64(0);
     let i: u64 = if true {
         1
     } else {
         2
     };
 
-    print_u64(i);
+    write_u64(i);
 }
 
-extern fn print_u64(n: u64);
-extern fn print_i64(n: i64);
+extern fn write_u64(n: u64);
+extern fn write_i64(n: i64);
 extern fn add(n: u64) u64;

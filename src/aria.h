@@ -180,6 +180,7 @@ typedef struct {
 struct Expr {
     ExprKind kind;
     Token* main_token;
+    Type* type;
     union {
         IntegerExpr integer;
         ConstantExpr constant;
@@ -215,6 +216,7 @@ typedef struct {
     bool constant;
     Token* identifier;
     Type* type;
+    Type* initializer_type;
     Expr* initializer;
     Stmt* parent_func;
     size_t stack_offset;

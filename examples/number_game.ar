@@ -1,10 +1,24 @@
 fn main() {
     srand(time(null));
-    print_u64(rand8());
+    let newline: u8 = 10;
+    {
+        let i = rand8();
+        let s: u64 = i;
+        write_u64(s);
+    }
+    write_char(newline);
+
+    {
+        let i: i8 = 1;
+        let s: i64 = i;
+        write_i64(s);
+    }
+    write_char(newline);
 }
 
 extern fn srand(seed: i32);
 extern fn time(ptr: *void) i32;
 extern fn rand8() u8;
-extern fn print_u64(n: u64);
-extern fn print_i64(n: i64);
+extern fn write_u64(n: u64);
+extern fn write_i64(n: i64);
+extern fn write_char(c: u8);

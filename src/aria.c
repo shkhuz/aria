@@ -266,6 +266,7 @@ Stmt* variable_stmt_new(
     stmt->variable.constant = constant;
     stmt->variable.identifier = identifier;
     stmt->variable.type = type;
+    stmt->variable.initializer_type = null;
     stmt->variable.initializer = initializer;
     stmt->variable.parent_func = null;
     stmt->variable.stack_offset = 0;
@@ -296,6 +297,7 @@ Expr* integer_expr_new(Token* integer, bigint* val) {
     ALLOC_WITH_TYPE(expr, Expr);
     expr->kind = EXPR_KIND_INTEGER;
     expr->main_token = integer;
+    expr->type = null;
     expr->integer.integer = integer;
     expr->integer.val = val;
     return expr;
@@ -305,6 +307,7 @@ Expr* constant_expr_new(Token* keyword, ConstantKind kind) {
     ALLOC_WITH_TYPE(expr, Expr);
     expr->kind = EXPR_KIND_CONSTANT;
     expr->main_token = keyword;
+    expr->type = null;
     expr->constant.keyword = keyword;
     expr->constant.kind = kind;
     return expr;
@@ -314,6 +317,7 @@ Expr* symbol_expr_new(Token* identifier) {
     ALLOC_WITH_TYPE(expr, Expr);
     expr->kind = EXPR_KIND_SYMBOL;
     expr->main_token = identifier;
+    expr->type = null;
     expr->symbol.identifier = identifier;
     expr->symbol.ref = null;
     return expr;
@@ -323,6 +327,7 @@ Expr* function_call_expr_new(Expr* callee, Expr** args, Token* rparen) {
     ALLOC_WITH_TYPE(expr, Expr);
     expr->kind = EXPR_KIND_FUNCTION_CALL;
     expr->main_token = callee->main_token;
+    expr->type = null;
     expr->function_call.callee = callee;
     expr->function_call.args = args;
     expr->function_call.rparen = rparen;
@@ -337,6 +342,7 @@ Expr* block_expr_new(
     ALLOC_WITH_TYPE(expr, Expr);
     expr->kind = EXPR_KIND_BLOCK;
     expr->main_token = lbrace;
+    expr->type = null;
     expr->block.stmts = stmts;
     expr->block.value = value;
     expr->block.rbrace = rbrace;
@@ -359,6 +365,7 @@ Expr* if_expr_new(
     ALLOC_WITH_TYPE(expr, Expr);
     expr->kind = EXPR_KIND_IF;
     expr->main_token = if_keyword;
+    expr->type = null;
     expr->iff.ifbr = ifbr;
     expr->iff.elseifbr = elseifbr;
     expr->iff.elsebr = elsebr;

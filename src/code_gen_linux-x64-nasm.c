@@ -23,6 +23,7 @@ static void code_gen_distinct_if_label(
         IfBranchKind kind, 
         Token* token,
         bool is_definition);
+static void code_gen_zs_extend(CodeGenContext* c, Type* from, Type* to);
 static char* code_gen_get_asm_type_specifier(size_t bytes);
 static char* code_gen_get_rax_register_by_size(size_t bytes);
 static char* code_gen_get_arg_register_by_idx(size_t idx);
@@ -120,6 +121,7 @@ void code_gen_variable_stmt(CodeGenContext* c, Stmt* stmt) {
     size_t bytes = type_bytes(stmt->variable.type);
     if (stmt->variable.initializer && bytes != 0) {
         code_gen_expr(c, stmt->variable.initializer);
+        code_gen_zs_extend(c, stmt->variable.initializer_type, stmt->variable.type);
         code_gen_asmp(
                 c,
                 "mov %s [rbp - %lu], %s",
@@ -196,6 +198,7 @@ void code_gen_symbol_expr(CodeGenContext* c, Expr* expr) {
                         ref->variable.stack_offset);
             }
             else assert(0);
+            /* code_gen_zs_extend(c, expr->type, ref->variable.type); */
         } break;
 
         case STMT_KIND_PARAM: {
@@ -211,6 +214,7 @@ void code_gen_symbol_expr(CodeGenContext* c, Expr* expr) {
                         "mov rax, qword [rbp + %lu]",
                         16 + ((ref->param.idx-6) * PTR_SIZE_BYTES));
             }
+            /* code_gen_zs_extend(c, expr->type, ref->param.type); */
         } break;
 
         case STMT_KIND_FUNCTION: {
@@ -221,10 +225,12 @@ void code_gen_symbol_expr(CodeGenContext* c, Expr* expr) {
 
 void code_gen_function_call_expr(CodeGenContext* c, Expr* expr) {
     Expr** args = expr->function_call.args;
+    Stmt** params = expr->function_call.callee->symbol.ref->function.header->params;
     size_t const args_len = buf_len(args);
     size_t reg_args_len = MIN(args_len, 6);
     for (size_t i = 0; i < reg_args_len; i++) {
         code_gen_expr(c, args[i]);
+        code_gen_zs_extend(c, args[i]->type, params[i]->param.type);
         code_gen_asmp(
                 c,
                 "mov %s, rax",
@@ -233,6 +239,7 @@ void code_gen_function_call_expr(CodeGenContext* c, Expr* expr) {
     if (reg_args_len < args_len) {
         for (size_t i = args_len-1; i >= reg_args_len; i--) {
             code_gen_expr(c, args[i]);
+            code_gen_zs_extend(c, args[i]->type, params[i]->param.type);
             code_gen_asmp(c, "push rax");
         }
     }
@@ -308,6 +315,29 @@ void code_gen_distinct_if_label(
                 fmt,
                 token->line, 
                 token->column);
+    }
+}
+
+void code_gen_zs_extend(CodeGenContext* c, Type* from, Type* to) {
+    assert(from && to);
+    if (from->kind == TYPE_KIND_BUILTIN && to->kind == TYPE_KIND_BUILTIN) {
+        size_t from_bytes = type_bytes(from);
+        size_t to_bytes = type_bytes(to);
+        if (from_bytes == to_bytes) {
+            return;
+        }
+        else {
+            bool is_signed = builtin_type_is_signed(from->builtin.kind);
+            char* fmt = null;
+            // TODO: should the dest be fixed (8 bytes) or variable?
+            if (is_signed) fmt = "movsx %s, %s";
+            else fmt = "movzx %s, %s";
+            code_gen_asmp(
+                    c,
+                    fmt,
+                    code_gen_get_rax_register_by_size(to_bytes),
+                    code_gen_get_rax_register_by_size(from_bytes));
+        }
     }
 }
 
