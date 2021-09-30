@@ -291,7 +291,7 @@ Type* check_if_expr(CheckContext* c, Expr* expr, Type* cast) {
     }
 
     // Compare branch types
-    bool err= true;
+    bool err = false;
     buf_loop(elseifbr_types, i) {
         if (check_implicit_cast(c, elseifbr_types[i], ifbr_type) == IMPLICIT_CAST_ERROR) {
             Token* errtok = null;

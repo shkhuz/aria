@@ -1,0 +1,10 @@
+fn main() {
+    let i = if false {
+        1
+    } else {
+        2
+    };
+    print_u64(i);
+}
+
+extern fn print_u64(n: u64);
