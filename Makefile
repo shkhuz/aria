@@ -31,5 +31,5 @@ debug: $(EXE_FILE)
 	gdb --args $^ $(CMD_ARGS)
 
 clean:
-	rm -rf obj/ bin/
+	rm -rf build/
 

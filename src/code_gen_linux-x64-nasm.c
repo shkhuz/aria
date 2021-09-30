@@ -32,11 +32,11 @@ void code_gen(CodeGenContext* c) {
     buf_push(c->asm_code, '\0');
     fputs(c->asm_code, stdout);
 
-    FILE* file = fopen("build/tmp_asm.asm", "w");
+    FILE* file = fopen("build/tmp.asm", "w");
     fwrite(c->asm_code, buf_len(c->asm_code)-1, sizeof(char), file);
     fclose(file);
-    system("nasm -felf64 build/tmp_asm.asm");
-    system("gcc -g -no-pie -o build/tmp build/tmp_asm.o examples/std.c");
+    system("nasm -felf64 build/tmp.asm");
+    system("gcc -g -no-pie -o build/tmp build/tmp.o examples/std.c");
 }
 
 void code_gen_stmt(CodeGenContext* c, Stmt* stmt) {
