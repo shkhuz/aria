@@ -14,13 +14,24 @@ static void code_gen_symbol_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_function_call_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_block_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_if_expr(CodeGenContext* c, Expr* expr);
-static void code_gen_if_branch(CodeGenContext* c, IfBranch* br);
+static void code_gen_if_branch(
+        CodeGenContext* c, 
+        IfBranch* br,
+        Token* token);
+static void code_gen_distinct_if_label(
+        CodeGenContext* c, 
+        IfBranchKind kind, 
+        Token* token,
+        bool is_definition);
 static char* code_gen_get_asm_type_specifier(size_t bytes);
 static char* code_gen_get_rax_register_by_size(size_t bytes);
 static char* code_gen_get_arg_register_by_idx(size_t idx);
 static void code_gen_asmp(CodeGenContext* c, char* fmt, ...);
+static void code_gen_tasmp(CodeGenContext* c, char* fmt, ...);
 static void code_gen_asmw(CodeGenContext* c, char* str);
-static void code_gen_asmlb(CodeGenContext* c, char* label);
+static void code_gen_nasmw(CodeGenContext* c, char* str);
+static void code_gen_asmplb(CodeGenContext* c, char* labelfmt, ...);
+static void code_gen_asmwlb(CodeGenContext* c, char* label);
 static void code_gen_push_tabs(CodeGenContext* c);
 
 void code_gen(CodeGenContext* c) {
@@ -61,7 +72,7 @@ void code_gen_function_stmt(CodeGenContext* c, Stmt* stmt) {
     } 
     else {
         code_gen_asmp(c, "global %s", stmt->function.header->identifier->lexeme);
-        code_gen_asmlb(c, stmt->function.header->identifier->lexeme);
+        code_gen_asmwlb(c, stmt->function.header->identifier->lexeme);
         code_gen_asmw(c, "push rbp");
         code_gen_asmw(c, "mov rbp, rsp");
 
@@ -95,7 +106,7 @@ void code_gen_function_stmt(CodeGenContext* c, Stmt* stmt) {
 
         code_gen_block_expr(c, stmt->function.body);
 
-        code_gen_asmlb(c, ".Lret");
+        code_gen_asmwlb(c, ".Lret");
         if (stmt->function.stack_vars_size != 0) {
             code_gen_asmp(c, "add rsp, %lu", stack_vars_size_align16);
         }
@@ -248,23 +259,55 @@ void code_gen_block_expr(CodeGenContext* c, Expr* expr) {
 
 void code_gen_if_expr(CodeGenContext* c, Expr* expr) {
     code_gen_asmw(c, "; -- if --");
-    code_gen_if_branch(c, expr->iff.ifbr);
-    code_gen_if_branch(c, expr->iff.elsebr);
-    code_gen_asmlb(c, ".Lendif");
+    code_gen_if_branch(c, expr->iff.ifbr, expr->main_token);
+    code_gen_if_branch(c, expr->iff.elsebr, expr->main_token);
+    code_gen_distinct_if_label(c, IF_BRANCH_IF, expr->main_token, true);
 }
 
-void code_gen_if_branch(CodeGenContext* c, IfBranch* br) {
+void code_gen_if_branch(
+        CodeGenContext* c, 
+        IfBranch* br, 
+        Token* token) {
     if (br->kind == IF_BRANCH_ELSE) {
-        code_gen_asmlb(c, ".Lelse");
+        code_gen_distinct_if_label(c, br->kind, token, true);
     }
     if (br->kind != IF_BRANCH_ELSE) {
         code_gen_expr(c, br->cond);
         code_gen_asmw(c, "test rax, rax");
-        code_gen_asmp(c, "jz .Lelse");
+        code_gen_nasmw(c, "jz ");
+        code_gen_distinct_if_label(c, IF_BRANCH_ELSE, token, false);
     }
     code_gen_block_expr(c, br->body);
     if (br->kind != IF_BRANCH_ELSE) {
-        code_gen_asmp(c, "jmp .Lendif");
+        code_gen_nasmw(c, "jmp ");
+        code_gen_distinct_if_label(c, IF_BRANCH_IF, token, false);
+    }
+}
+
+void code_gen_distinct_if_label(
+        CodeGenContext* c, 
+        IfBranchKind kind, 
+        Token* token,
+        bool is_definition) {
+    char* fmt = null;
+    switch (kind) {
+        case IF_BRANCH_IF: fmt = ".Lendif_%lu_%lu"; break;
+        case IF_BRANCH_ELSEIF: fmt = ".Lelseif_%lu_%lu"; break;
+        case IF_BRANCH_ELSE: fmt = ".Lelse_%lu_%lu"; break;
+        default: assert(0); break;
+    }
+    if (is_definition) {
+        code_gen_asmplb(
+                c, 
+                fmt,
+                token->line, 
+                token->column);
+    } else {
+        code_gen_tasmp(
+                c, 
+                fmt,
+                token->line, 
+                token->column);
     }
 }
 
@@ -312,13 +355,36 @@ void code_gen_asmp(CodeGenContext* c, char* fmt, ...) {
     va_end(ap);
 }
 
+// No tabs at beginning
+void code_gen_tasmp(CodeGenContext* c, char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    buf_vprintf(c->asm_code, fmt, ap);
+    buf_push(c->asm_code, '\n');
+    va_end(ap);
+}
+
 void code_gen_asmw(CodeGenContext* c, char* str) {
     code_gen_push_tabs(c);
     buf_write(c->asm_code, str);
     buf_push(c->asm_code, '\n');
 }
 
-void code_gen_asmlb(CodeGenContext* c, char* label) {
+// No newline at end
+void code_gen_nasmw(CodeGenContext* c, char* str) {
+    code_gen_push_tabs(c);
+    buf_write(c->asm_code, str);
+}
+
+void code_gen_asmplb(CodeGenContext* c, char* labelfmt, ...) {
+    va_list ap;
+    va_start(ap, labelfmt);
+    buf_vprintf(c->asm_code, labelfmt, ap);
+    buf_write(c->asm_code, ":\n");
+    va_end(ap);
+}
+
+void code_gen_asmwlb(CodeGenContext* c, char* label) {
     buf_printf(c->asm_code, "%s:\n", label);
 }
 

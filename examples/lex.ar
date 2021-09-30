@@ -82,19 +82,18 @@ fn give_ints(a: u8, b: u64, c: u16, d: u8, e: u32, f: i32, g: i64, h: i8) {
 }
 
 fn tests() {
-    // test rax, rax
-    // jz .L
-    // if false {
-    //     print_u64(add(add(add(add(1)))));
-    // } else {
-    //     print_u64(add(add(add(add(9)))));
-    // }
-    // print_u64(0);
-    let i: u64 = if false {
+    if false {
+        print_u64(add(add(add(add(1)))));
+    } else {
+        print_u64(add(add(add(add(9)))));
+    }
+    print_u64(0);
+    let i: u64 = if true {
         1
     } else {
         2
     };
+
     print_u64(i);
 }
 
