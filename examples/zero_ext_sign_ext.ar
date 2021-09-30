@@ -1,0 +1,7 @@
+fn main() {
+    let i: u8 = 1;
+    let v: i64 = 34535354535345;
+    print_u64(i);
+} 
+
+extern fn print_u64(n: u64);

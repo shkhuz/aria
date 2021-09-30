@@ -1,0 +1,10 @@
+fn main() {
+    srand(time(null));
+    print_u64(rand8());
+}
+
+extern fn srand(seed: i32);
+extern fn time(ptr: *void) i32;
+extern fn rand8() u8;
+extern fn print_u64(n: u64);
+extern fn print_i64(n: i64);

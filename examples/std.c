@@ -1,14 +1,25 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 void print_i64(int64_t n) {
     printf("%lu", n);
 }
+
 void print_u64(uint64_t n) {
     printf("%lu", n);
 }
+
 uint64_t add(uint64_t n) {
     return n + 1;
+}
+
+void write_char(int8_t c) {
+    fputc((char)c, stdout);
+}
+
+uint8_t rand8() {
+    return rand();
 }
 
 /* void give_ints( int a, char c ,long b ,int d ,int e ,char f ,long g ,int h) { */
