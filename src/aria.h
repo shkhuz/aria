@@ -124,6 +124,7 @@ typedef enum {
     EXPR_KIND_FUNCTION_CALL,
     EXPR_KIND_BLOCK,
     EXPR_KIND_IF,
+    EXPR_KIND_WHILE,
 } ExprKind;
 
 typedef struct {
@@ -177,10 +178,16 @@ typedef struct {
     IfBranch* elsebr;
 } IfExpr;
 
+typedef struct {
+    Expr* cond;
+    Expr* body;
+} WhileExpr;
+
 struct Expr {
     ExprKind kind;
     Token* main_token;
     Type* type;
+    Stmt* parent_func;
     union {
         IntegerExpr integer;
         ConstantExpr constant;
@@ -188,6 +195,7 @@ struct Expr {
         FunctionCallExpr function_call;
         BlockExpr block;
         IfExpr iff;
+        WhileExpr whilelp;
     };
 };
 
@@ -210,6 +218,8 @@ typedef struct {
     Expr* body;
     bool is_extern;
     size_t stack_vars_size;
+    size_t ifidx;
+    size_t whileidx;
 } FunctionStmt;
 
 typedef struct {
@@ -218,14 +228,12 @@ typedef struct {
     Type* type;
     Type* initializer_type;
     Expr* initializer;
-    Stmt* parent_func;
     size_t stack_offset;
 } VariableStmt;
 
 typedef struct {
     Token* identifier;
     Type* type;
-    Stmt* parent_func;
     size_t idx;
     size_t stack_offset;
 } ParamStmt;
@@ -242,6 +250,7 @@ typedef struct {
 struct Stmt {
     StmtKind kind;
     Token* main_token;
+    Stmt* parent_func;
     union {
         FunctionStmt function;
         VariableStmt variable;
@@ -295,6 +304,7 @@ Expr* if_expr_new(
         IfBranch* ifbr, 
         IfBranch** elseifbr, 
         IfBranch* elsebr);
+Expr* while_expr_new(Token* while_keyword, Expr* cond, Expr* body);
 
 void _aria_vfprintf(
         const char* calleefile, 

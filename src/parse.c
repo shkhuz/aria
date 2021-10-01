@@ -28,6 +28,7 @@ static Expr* parse_function_call_expr(
 static Expr* parse_block_expr(ParseContext* p, Token* lbrace);
 static Expr* parse_if_expr(ParseContext* p, Token* if_keyword);
 static IfBranch* parse_if_branch(ParseContext* p, IfBranchKind kind);
+static Expr* parse_while_expr(ParseContext* p, Token* while_keyword);
 static Type* parse_type(ParseContext* p);
 static Type* parse_ptr_type(ParseContext* p);
 static Type* parse_atom_type(ParseContext* p);
@@ -215,6 +216,9 @@ Expr* parse_atom_expr(ParseContext* p) {
     else if (parse_match_keyword(p, "if")) {
         return parse_if_expr(p, parse_previous(p));
     }
+    else if (parse_match_keyword(p, "while")) {
+        return parse_while_expr(p, parse_previous(p));
+    }
     else {
         fatal_error(
                 parse_current(p),
@@ -313,6 +317,15 @@ IfBranch* parse_if_branch(ParseContext* p, IfBranchKind kind) {
             cond,
             body,
             kind);
+}
+
+Expr* parse_while_expr(ParseContext* p, Token* while_keyword) {
+    Expr* cond = parse_expr(p);
+    Expr* body = parse_block_expr(p, parse_expect_lbrace(p));
+    return while_expr_new(
+            while_keyword, 
+            cond,
+            body);
 }
 
 Type* parse_type(ParseContext* p) {

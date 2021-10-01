@@ -24,6 +24,7 @@ static Type* check_function_call_expr(CheckContext* c, Expr* expr);
 static Type* check_block_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_if_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_if_branch(CheckContext* c, IfBranch* br, Type* cast);
+static Type* check_while_expr(CheckContext* c, Expr* expr, Type* cast);
 static ImplicitCastStatus check_implicit_cast(
         CheckContext* c, 
         Type* from, 
@@ -109,13 +110,13 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
         stmt->variable.initializer_type = stmt->variable.type;
     }
 
-    if (stmt->variable.parent_func && stmt->variable.type) {
+    if (stmt->parent_func && stmt->variable.type) {
         size_t bytes = type_bytes(stmt->variable.type);
         c->last_stack_offset += bytes;
         c->last_stack_offset = 
             round_to_next_multiple(c->last_stack_offset, bytes);
         stmt->variable.stack_offset = c->last_stack_offset;
-        stmt->variable.parent_func->function.stack_vars_size = 
+        stmt->parent_func->function.stack_vars_size = 
             c->last_stack_offset;
     }
 }
@@ -148,6 +149,10 @@ Type* check_expr(CheckContext* c, Expr* expr, Type* cast) {
 
         case EXPR_KIND_IF: {
             return check_if_expr(c, expr, cast);
+        } break;
+
+        case EXPR_KIND_WHILE: {
+            return check_while_expr(c, expr, cast);
         } break;
     }
     assert(0);
@@ -293,7 +298,7 @@ Type* check_if_expr(CheckContext* c, Expr* expr, Type* cast) {
         return null;
     }
 
-    if (!expr->iff.ifbr->body->block.value && !expr->iff.elsebr) {
+    if (expr->iff.ifbr->body->block.value && !expr->iff.elsebr) {
         check_error(
                 expr->main_token,
                 "`else` is mandatory when value is used");
@@ -358,6 +363,20 @@ Type* check_if_branch(CheckContext* c, IfBranch* br, Type* cast) {
         }
     }
     return check_block_expr(c, br->body, cast);
+}
+
+Type* check_while_expr(CheckContext* c, Expr* expr, Type* cast) {
+    Type* cond_type = check_expr(c, expr->whilelp.cond, null);
+    if (cond_type && check_implicit_cast(
+                c,
+                cond_type,
+                builtin_type_placeholders.boolean) == IMPLICIT_CAST_ERROR) {
+        check_error(
+                expr->whilelp.cond->main_token,
+                "loop condition should be `bool` but got `{t}`",
+                cond_type);
+    }
+    return check_block_expr(c, expr->whilelp.body, cast);
 }
 
 ImplicitCastStatus check_implicit_cast(

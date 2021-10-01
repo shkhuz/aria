@@ -37,6 +37,7 @@ void init_ds() {
     buf_push(aria_keywords, "extern");
     buf_push(aria_keywords, "if");
     buf_push(aria_keywords, "else");
+    buf_push(aria_keywords, "while");
     buf_push(aria_keywords, "true");
     buf_push(aria_keywords, "false");
     buf_push(aria_keywords, "null");
@@ -248,10 +249,13 @@ Stmt* function_stmt_new(FunctionHeader* header, Expr* body, bool is_extern) {
     ALLOC_WITH_TYPE(stmt, Stmt);
     stmt->kind = STMT_KIND_FUNCTION;
     stmt->main_token = header->identifier;
+    stmt->parent_func = null;
     stmt->function.header = header;
     stmt->function.body = body;
     stmt->function.is_extern = is_extern;
     stmt->function.stack_vars_size = 0;
+    stmt->function.ifidx = 0;
+    stmt->function.whileidx = 0;
     return stmt;
 }
 
@@ -263,12 +267,12 @@ Stmt* variable_stmt_new(
     ALLOC_WITH_TYPE(stmt, Stmt);
     stmt->kind = STMT_KIND_VARIABLE;
     stmt->main_token = identifier;
+    stmt->parent_func = null;
     stmt->variable.constant = constant;
     stmt->variable.identifier = identifier;
     stmt->variable.type = type;
     stmt->variable.initializer_type = null;
     stmt->variable.initializer = initializer;
-    stmt->variable.parent_func = null;
     stmt->variable.stack_offset = 0;
     return stmt;
 }
@@ -277,9 +281,9 @@ Stmt* param_stmt_new(Token* identifier, Type* type, size_t idx) {
     ALLOC_WITH_TYPE(stmt, Stmt);
     stmt->kind = STMT_KIND_PARAM;
     stmt->main_token = identifier;
+    stmt->parent_func = null;
     stmt->param.identifier = identifier;
     stmt->param.type = type;
-    stmt->param.parent_func = null;
     stmt->param.idx = idx;
     stmt->param.stack_offset = 0;
     return stmt;
@@ -289,6 +293,7 @@ Stmt* expr_stmt_new(Expr* child) {
     ALLOC_WITH_TYPE(stmt, Stmt);
     stmt->kind = STMT_KIND_EXPR;
     stmt->main_token = child->main_token;
+    stmt->parent_func = null;
     stmt->expr.child = child;
     return stmt;
 }
@@ -298,6 +303,7 @@ Expr* integer_expr_new(Token* integer, bigint* val) {
     expr->kind = EXPR_KIND_INTEGER;
     expr->main_token = integer;
     expr->type = null;
+    expr->parent_func = null;
     expr->integer.integer = integer;
     expr->integer.val = val;
     return expr;
@@ -308,6 +314,7 @@ Expr* constant_expr_new(Token* keyword, ConstantKind kind) {
     expr->kind = EXPR_KIND_CONSTANT;
     expr->main_token = keyword;
     expr->type = null;
+    expr->parent_func = null;
     expr->constant.keyword = keyword;
     expr->constant.kind = kind;
     return expr;
@@ -318,6 +325,7 @@ Expr* symbol_expr_new(Token* identifier) {
     expr->kind = EXPR_KIND_SYMBOL;
     expr->main_token = identifier;
     expr->type = null;
+    expr->parent_func = null;
     expr->symbol.identifier = identifier;
     expr->symbol.ref = null;
     return expr;
@@ -328,6 +336,7 @@ Expr* function_call_expr_new(Expr* callee, Expr** args, Token* rparen) {
     expr->kind = EXPR_KIND_FUNCTION_CALL;
     expr->main_token = callee->main_token;
     expr->type = null;
+    expr->parent_func = null;
     expr->function_call.callee = callee;
     expr->function_call.args = args;
     expr->function_call.rparen = rparen;
@@ -343,6 +352,7 @@ Expr* block_expr_new(
     expr->kind = EXPR_KIND_BLOCK;
     expr->main_token = lbrace;
     expr->type = null;
+    expr->parent_func = null;
     expr->block.stmts = stmts;
     expr->block.value = value;
     expr->block.rbrace = rbrace;
@@ -366,9 +376,21 @@ Expr* if_expr_new(
     expr->kind = EXPR_KIND_IF;
     expr->main_token = if_keyword;
     expr->type = null;
+    expr->parent_func = null;
     expr->iff.ifbr = ifbr;
     expr->iff.elseifbr = elseifbr;
     expr->iff.elsebr = elsebr;
+    return expr;
+}
+
+Expr* while_expr_new(Token* while_keyword, Expr* cond, Expr* body) {
+    ALLOC_WITH_TYPE(expr, Expr);
+    expr->kind = EXPR_KIND_WHILE;
+    expr->main_token = while_keyword;
+    expr->type = null;
+    expr->parent_func = null;
+    expr->whilelp.cond = cond;
+    expr->whilelp.body = body;
     return expr;
 }
 

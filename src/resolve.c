@@ -55,6 +55,7 @@ static void resolve_block_expr(
         bool create_new_scope);
 static void resolve_if_expr(ResolveContext* r, Expr* expr);
 static void resolve_if_branch(ResolveContext* r, IfBranch* br);
+static void resolve_while_expr(ResolveContext* r, Expr* expr);
 static void resolve_type(ResolveContext* r, Type* type);
 static void resolve_ptr_type(ResolveContext* r, Type* type);
 static void resolve_cpush_in_scope(ResolveContext* r, Stmt* stmt);
@@ -69,7 +70,7 @@ static Scope* scope_new(Scope* parent);
 void resolve(ResolveContext* r) {
     r->global_scope = scope_new(null);
     r->current_scope = r->global_scope;
-    r->current_function = null;
+    r->current_func = null;
     r->error = false;
 
     buf_loop(r->srcfile->stmts, i) {
@@ -111,7 +112,7 @@ void resolve_stmt(
         ResolveContext* r, 
         Stmt* stmt, 
         bool ignore_function_level_stmt) {
-
+    stmt->parent_func = r->current_func;
     switch (stmt->kind) {
         case STMT_KIND_FUNCTION: {
             resolve_function_stmt(r, stmt);
@@ -128,14 +129,14 @@ void resolve_stmt(
 }
 
 void resolve_function_stmt(ResolveContext* r, Stmt* stmt) {
-    if (!stmt->function.is_extern) r->current_function = stmt;
+    if (!stmt->function.is_extern) r->current_func = stmt;
     scope_push(scope);
     resolve_function_header(r, stmt->function.header);
     if (!stmt->function.is_extern) {
         resolve_block_expr(r, stmt->function.body, false);
     }
     scope_pop(scope);
-    if (!stmt->function.is_extern) r->current_function = null;
+    if (!stmt->function.is_extern) r->current_func = null;
 }
 
 void resolve_function_header(ResolveContext* r, FunctionHeader* header) {
@@ -148,7 +149,6 @@ void resolve_function_header(ResolveContext* r, FunctionHeader* header) {
 void resolve_param_stmt(ResolveContext* r, Stmt* stmt) {
     resolve_cpush_in_scope(r, stmt);
     resolve_type(r, stmt->param.type);
-    stmt->param.parent_func = r->current_function;
 }
 
 void resolve_variable_stmt(
@@ -174,7 +174,6 @@ void resolve_variable_stmt(
     if (stmt->variable.initializer) {
         resolve_expr(r, stmt->variable.initializer);
     }
-    stmt->variable.parent_func = r->current_function;
 }
 
 void resolve_expr_stmt(ResolveContext* r, Stmt* stmt) {
@@ -182,6 +181,7 @@ void resolve_expr_stmt(ResolveContext* r, Stmt* stmt) {
 }
 
 void resolve_expr(ResolveContext* r, Expr* expr) {
+    expr->parent_func = r->current_func;
     switch (expr->kind) {
         case EXPR_KIND_SYMBOL: {
             resolve_symbol_expr(r, expr);
@@ -197,6 +197,10 @@ void resolve_expr(ResolveContext* r, Expr* expr) {
 
         case EXPR_KIND_IF: {
             resolve_if_expr(r, expr);
+        } break;
+
+        case EXPR_KIND_WHILE: {
+            resolve_while_expr(r, expr);
         } break;
     }
 }
@@ -268,6 +272,11 @@ void resolve_if_branch(ResolveContext* r, IfBranch* br) {
         resolve_expr(r, br->cond);
     }
     resolve_expr(r, br->body);
+}
+
+void resolve_while_expr(ResolveContext* r, Expr* expr) {
+    resolve_expr(r, expr->whilelp.cond);
+    resolve_expr(r, expr->whilelp.body);
 }
 
 void resolve_type(ResolveContext* r, Type* type) {

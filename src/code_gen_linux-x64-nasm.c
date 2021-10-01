@@ -3,6 +3,13 @@
 #include "stri.h"
 #include "msg.h"
 
+typedef void (*AsmpFunc)(CodeGenContext*, char*, ...);
+
+typedef enum {
+    WHILE_LOOP_ASM_COND,
+    WHILE_LOOP_ASM_END,
+} WhileLoopAsmLabel;
+
 static void code_gen_stmt(CodeGenContext* c, Stmt* stmt);
 static void code_gen_function_stmt(CodeGenContext* c, Stmt* stmt);
 static void code_gen_variable_stmt(CodeGenContext* c, Stmt* stmt);
@@ -16,13 +23,23 @@ static void code_gen_block_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_if_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_if_branch(
         CodeGenContext* c, 
-        IfBranch* br,
-        Token* token);
+        IfBranch* br, 
+        IfBranchKind nextbr_kind,
+        size_t idx,
+        size_t elseifidx);
 static void code_gen_distinct_if_label(
         CodeGenContext* c, 
         IfBranchKind kind, 
-        Token* token,
+        size_t idx,
+        size_t elseifidx,
         bool is_definition);
+static void code_gen_while_expr(CodeGenContext* c, Expr* expr);
+static void code_gen_distinct_while_label(
+        CodeGenContext* c,
+        WhileLoopAsmLabel whilelb_kind,
+        size_t idx,
+        bool is_definition);
+static AsmpFunc code_gen_get_asmp_func(bool is_definition);
 static void code_gen_zs_extend(CodeGenContext* c, Type* from, Type* to);
 static char* code_gen_get_asm_type_specifier(size_t bytes);
 static char* code_gen_get_rax_register_by_size(size_t bytes);
@@ -164,6 +181,10 @@ void code_gen_expr(CodeGenContext* c, Expr* expr) {
         case EXPR_KIND_IF: {
             code_gen_if_expr(c, expr);
         } break;
+
+        case EXPR_KIND_WHILE: {
+            code_gen_while_expr(c, expr);
+        } break;
     }
 }
 
@@ -191,7 +212,7 @@ void code_gen_symbol_expr(CodeGenContext* c, Expr* expr) {
     Stmt* ref = expr->symbol.ref;
     switch (ref->kind) { 
         case STMT_KIND_VARIABLE: {
-            if (ref->variable.parent_func) {
+            if (ref->parent_func) {
                 // TODO: cache `bytes`
                 size_t bytes = type_bytes(ref->variable.type);
                 code_gen_asmp(
@@ -270,55 +291,128 @@ void code_gen_block_expr(CodeGenContext* c, Expr* expr) {
 
 void code_gen_if_expr(CodeGenContext* c, Expr* expr) {
     code_gen_asmw(c, "; -- if --");
-    code_gen_if_branch(c, expr->iff.ifbr, expr->main_token);
-    code_gen_if_branch(c, expr->iff.elsebr, expr->main_token);
-    code_gen_distinct_if_label(c, IF_BRANCH_IF, expr->main_token, true);
+    size_t idx = expr->parent_func->function.ifidx++;
+    IfBranchKind ifbr_next;
+    if (expr->iff.elseifbr) {
+        ifbr_next = IF_BRANCH_ELSEIF;
+    }
+    else if (expr->iff.elsebr) {
+        ifbr_next = IF_BRANCH_ELSE;
+    } 
+    else {
+        ifbr_next = IF_BRANCH_IF;
+    }
+    code_gen_if_branch(c, expr->iff.ifbr, ifbr_next, idx, 0);
+
+    buf_loop(expr->iff.elseifbr, i) {
+        IfBranchKind elseifbr_next;
+        if (i < buf_len(expr->iff.elseifbr)-1) {
+            elseifbr_next = IF_BRANCH_ELSEIF;
+        }
+        else if (expr->iff.elsebr) {
+            elseifbr_next = IF_BRANCH_ELSE;
+        }
+        else {
+            elseifbr_next = IF_BRANCH_IF;
+        }
+        code_gen_if_branch(
+                c, 
+                expr->iff.elseifbr[i], 
+                elseifbr_next, 
+                idx,
+                i);
+    }
+
+    if (expr->iff.elsebr) {
+        code_gen_if_branch(c, expr->iff.elsebr, IF_BRANCH_IF, idx, 0);
+    }
+
+    code_gen_distinct_if_label(c, IF_BRANCH_IF, idx, 0, true);
 }
 
 void code_gen_if_branch(
         CodeGenContext* c, 
         IfBranch* br, 
-        Token* token) {
-    if (br->kind == IF_BRANCH_ELSE) {
-        code_gen_distinct_if_label(c, br->kind, token, true);
+        IfBranchKind nextbr_kind,
+        size_t idx,
+        size_t elseifidx) {
+    if (br->kind != IF_BRANCH_IF) {
+        code_gen_distinct_if_label(c, br->kind, idx, elseifidx, true);
     }
+
     if (br->kind != IF_BRANCH_ELSE) {
         code_gen_expr(c, br->cond);
         code_gen_asmw(c, "test rax, rax");
         code_gen_nasmw(c, "jz ");
-        code_gen_distinct_if_label(c, IF_BRANCH_ELSE, token, false);
+        if (br->kind == IF_BRANCH_ELSEIF) elseifidx++;
+        code_gen_distinct_if_label(c, nextbr_kind, idx, elseifidx, false);
     }
+
     code_gen_block_expr(c, br->body);
     if (br->kind != IF_BRANCH_ELSE) {
         code_gen_nasmw(c, "jmp ");
-        code_gen_distinct_if_label(c, IF_BRANCH_IF, token, false);
+        code_gen_distinct_if_label(c, IF_BRANCH_IF, idx, 0, false);
     }
 }
 
 void code_gen_distinct_if_label(
         CodeGenContext* c, 
         IfBranchKind kind, 
-        Token* token,
+        size_t idx,
+        size_t elseifidx,
         bool is_definition) {
     char* fmt = null;
     switch (kind) {
-        case IF_BRANCH_IF: fmt = ".Lendif_%lu_%lu"; break;
-        case IF_BRANCH_ELSEIF: fmt = ".Lelseif_%lu_%lu"; break;
-        case IF_BRANCH_ELSE: fmt = ".Lelse_%lu_%lu"; break;
-        default: assert(0); break;
+        case IF_BRANCH_IF: fmt = ".Lendif%lu"; break;
+        case IF_BRANCH_ELSEIF: fmt = ".Lelseif%lu_%lu"; break;
+        case IF_BRANCH_ELSE: fmt = ".Lelse%lu"; break;
     }
+
+    AsmpFunc asmp_func = code_gen_get_asmp_func(is_definition);
+    if (kind == IF_BRANCH_ELSEIF) {
+        asmp_func(c, fmt, idx, elseifidx);
+    }
+    else {
+        asmp_func(c, fmt, idx);
+    }
+}
+
+void code_gen_while_expr(CodeGenContext* c, Expr* expr) {
+    size_t idx = expr->parent_func->function.whileidx++;
+    code_gen_distinct_while_label(c, WHILE_LOOP_ASM_COND, idx, true);
+
+    code_gen_expr(c, expr->whilelp.cond);
+    code_gen_asmw(c, "test rax, rax");
+    code_gen_nasmw(c, "jz ");
+    code_gen_distinct_while_label(c, WHILE_LOOP_ASM_END, idx, false);
+
+    code_gen_block_expr(c, expr->whilelp.body);
+    code_gen_nasmw(c, "jmp ");
+    code_gen_distinct_while_label(c, WHILE_LOOP_ASM_COND, idx, false);
+    code_gen_distinct_while_label(c, WHILE_LOOP_ASM_END, idx, true);
+}
+
+void code_gen_distinct_while_label(
+        CodeGenContext* c,
+        WhileLoopAsmLabel whilelb_kind,
+        size_t idx,
+        bool is_definition) {
+    char* fmt = null;
+    switch (whilelb_kind) {
+        case WHILE_LOOP_ASM_COND: fmt = ".Lwhilecond%lu"; break;
+        case WHILE_LOOP_ASM_END: fmt = ".Lendwhile%lu"; break;
+    }
+
+    AsmpFunc asmp_func = code_gen_get_asmp_func(is_definition);
+    asmp_func(c, fmt, idx);
+}
+
+AsmpFunc code_gen_get_asmp_func(bool is_definition) {
     if (is_definition) {
-        code_gen_asmplb(
-                c, 
-                fmt,
-                token->line, 
-                token->column);
-    } else {
-        code_gen_tasmp(
-                c, 
-                fmt,
-                token->line, 
-                token->column);
+        return code_gen_asmplb;
+    } 
+    else {
+        return code_gen_tasmp;
     }
 }
 

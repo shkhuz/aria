@@ -13,7 +13,7 @@ typedef struct {
     Srcfile* srcfile;
     Scope* global_scope;
     Scope* current_scope;
-    Stmt* current_function;
+    Stmt* current_func;
     bool error;
 } ResolveContext;
 
