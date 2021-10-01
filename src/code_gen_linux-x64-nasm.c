@@ -106,6 +106,10 @@ void code_gen_function_stmt(CodeGenContext* c, Stmt* stmt) {
         }
 
         code_gen_block_expr(c, stmt->function.body);
+        code_gen_zs_extend(
+                c, 
+                stmt->function.body->type, 
+                stmt->function.header->return_type);
 
         code_gen_asmwlb(c, ".Lret");
         if (stmt->function.stack_vars_size != 0) {

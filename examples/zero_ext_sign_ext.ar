@@ -1,7 +1,7 @@
 fn main() {
-    let i: u8 = 1;
-    let v: i64 = 34535354535345;
-    write_u64(i);
+    write_u64({ let i: i64 = 345345334243; get() });
 } 
+
+fn get() u64 { let i: u8 = 255; i }
 
 extern fn write_u64(n: u64);

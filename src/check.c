@@ -62,11 +62,18 @@ void check_function_stmt(CheckContext* c, Stmt* stmt) {
                 stmt->function.body, 
                 stmt->function.header->return_type);
         Type* return_type = stmt->function.header->return_type;
+        stmt->function.body->type = body_type;
         if (body_type && return_type) {
-            if (check_implicit_cast(c, body_type, return_type) == 
-                    IMPLICIT_CAST_ERROR) {
+            if (check_implicit_cast(c, body_type, return_type) == IMPLICIT_CAST_ERROR) {
+                Token* errtok = null;
+                if (stmt->function.body->block.value) {
+                    errtok = stmt->function.body->block.value->main_token;
+                }
+                else {
+                    errtok = stmt->function.header->return_type->main_token;
+                }
                 check_error(
-                        stmt->function.body->block.value->main_token,
+                        errtok,
                         "function annotated `{t}`, but returned `{t}`",
                         return_type,
                         body_type);

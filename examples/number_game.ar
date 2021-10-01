@@ -1,6 +1,7 @@
 fn main() {
     srand(time(null));
     let newline: u8 = 10;
+
     {
         let i = rand8();
         let s: u64 = i;
