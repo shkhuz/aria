@@ -195,15 +195,15 @@ void code_gen_integer_expr(CodeGenContext* c, Expr* expr) {
 void code_gen_constant_expr(CodeGenContext* c, Expr* expr) {
     switch (expr->constant.kind) {
         case CONSTANT_KIND_BOOLEAN_TRUE: {
-            code_gen_asmp(c, "mov rax, 1");
+            code_gen_asmp(c, "mov eax, 1");
         } break;
 
         case CONSTANT_KIND_BOOLEAN_FALSE: {
-            code_gen_asmp(c, "mov rax, 0");
+            code_gen_asmp(c, "mov eax, 0");
         } break;
 
         case CONSTANT_KIND_NULL: {
-            code_gen_asmp(c, "mov rax, 0");
+            code_gen_asmp(c, "mov eax, 0");
         } break;
     }
 }
@@ -418,14 +418,16 @@ AsmpFunc code_gen_get_asmp_func(bool is_definition) {
 
 void code_gen_zs_extend(CodeGenContext* c, Type* from, Type* to) {
     assert(from && to);
-    if (from->kind == TYPE_KIND_BUILTIN && to->kind == TYPE_KIND_BUILTIN) {
+    if (from->kind == TYPE_KIND_BUILTIN && to->kind == TYPE_KIND_BUILTIN && 
+        type_is_integer(from) && type_is_integer(to)) {
+        bool is_signed = builtin_type_is_signed(from->builtin.kind);
         size_t from_bytes = type_bytes(from);
         size_t to_bytes = type_bytes(to);
-        if (from_bytes == to_bytes) {
+        if (from_bytes == to_bytes ||
+            (!is_signed && from_bytes == 4 && to_bytes == 8)) {
             return;
         }
         else {
-            bool is_signed = builtin_type_is_signed(from->builtin.kind);
             char* fmt = null;
             // TODO: should the dest be fixed (8 bytes) or variable?
             if (is_signed) fmt = "movsx %s, %s";

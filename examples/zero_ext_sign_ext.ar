@@ -1,9 +1,16 @@
 fn main() {
-    let b: bool = true;
+    let b: bool = false;
     while b {
         write_u64({ let i: u64 = 17; i });
     }
+
+    get();
 } 
+
+fn get() u64 {
+    let i: u32 = 1;
+    i
+}
 
 // fn get() u64 { 
 //     let i: u8 = if false { 

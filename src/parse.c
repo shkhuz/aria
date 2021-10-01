@@ -178,7 +178,8 @@ StmtOrExpr parse_function_level_node(ParseContext* p) {
 Stmt* parse_expr_stmt(ParseContext* p, Expr* expr) {
     assert(expr);
     if (expr->kind != EXPR_KIND_BLOCK &&
-        expr->kind != EXPR_KIND_IF) {
+        expr->kind != EXPR_KIND_IF &&
+        expr->kind != EXPR_KIND_WHILE) {
         parse_expect_semicolon(p);
     }
     return expr_stmt_new(expr);
