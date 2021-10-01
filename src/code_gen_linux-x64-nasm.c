@@ -123,10 +123,10 @@ void code_gen_function_stmt(CodeGenContext* c, Stmt* stmt) {
         }
 
         code_gen_block_expr(c, stmt->function.body);
-        code_gen_zs_extend(
-                c, 
-                stmt->function.body->type, 
-                stmt->function.header->return_type);
+        /* code_gen_zs_extend( */
+        /*         c, */ 
+        /*         stmt->function.body->type, */ 
+        /*         stmt->function.header->return_type); */
 
         code_gen_asmwlb(c, ".Lret");
         if (stmt->function.stack_vars_size != 0) {
@@ -142,7 +142,7 @@ void code_gen_variable_stmt(CodeGenContext* c, Stmt* stmt) {
     size_t bytes = type_bytes(stmt->variable.type);
     if (stmt->variable.initializer && bytes != 0) {
         code_gen_expr(c, stmt->variable.initializer);
-        code_gen_zs_extend(c, stmt->variable.initializer_type, stmt->variable.type);
+        /* code_gen_zs_extend(c, stmt->variable.initializer_type, stmt->variable.type); */
         code_gen_asmp(
                 c,
                 "mov %s [rbp - %lu], %s",
@@ -223,7 +223,7 @@ void code_gen_symbol_expr(CodeGenContext* c, Expr* expr) {
                         ref->variable.stack_offset);
             }
             else assert(0);
-            /* code_gen_zs_extend(c, expr->type, ref->variable.type); */
+            code_gen_zs_extend(c, ref->variable.type, expr->type);
         } break;
 
         case STMT_KIND_PARAM: {
@@ -239,7 +239,7 @@ void code_gen_symbol_expr(CodeGenContext* c, Expr* expr) {
                         "mov rax, qword [rbp + %lu]",
                         16 + ((ref->param.idx-6) * PTR_SIZE_BYTES));
             }
-            /* code_gen_zs_extend(c, expr->type, ref->param.type); */
+            code_gen_zs_extend(c, ref->variable.type, expr->type);
         } break;
 
         case STMT_KIND_FUNCTION: {
@@ -417,7 +417,7 @@ AsmpFunc code_gen_get_asmp_func(bool is_definition) {
 }
 
 void code_gen_zs_extend(CodeGenContext* c, Type* from, Type* to) {
-    assert(from && to);
+    if (!from || !to) return;
     if (from->kind == TYPE_KIND_BUILTIN && to->kind == TYPE_KIND_BUILTIN && 
         type_is_integer(from) && type_is_integer(to)) {
         bool is_signed = builtin_type_is_signed(from->builtin.kind);

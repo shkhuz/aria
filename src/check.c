@@ -18,9 +18,9 @@ static void check_variable_stmt(CheckContext* c, Stmt* stmt);
 static void check_expr_stmt(CheckContext* c, Stmt* stmt);
 static Type* check_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_integer_expr(CheckContext* c, Expr* expr, Type* cast);
-static Type* check_constant_expr(CheckContext* c, Expr* expr);
-static Type* check_symbol_expr(CheckContext* c, Expr* expr);
-static Type* check_function_call_expr(CheckContext* c, Expr* expr);
+static Type* check_constant_expr(CheckContext* c, Expr* expr, Type* cast);
+static Type* check_symbol_expr(CheckContext* c, Expr* expr, Type* cast);
+static Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_block_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_if_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_if_branch(CheckContext* c, IfBranch* br, Type* cast);
@@ -132,15 +132,15 @@ Type* check_expr(CheckContext* c, Expr* expr, Type* cast) {
         } break;
 
         case EXPR_KIND_CONSTANT: {
-            return check_constant_expr(c, expr);
+            return check_constant_expr(c, expr, cast);
         } break;
 
         case EXPR_KIND_SYMBOL: {
-            return check_symbol_expr(c, expr);
+            return check_symbol_expr(c, expr, cast);
         } break;
 
         case EXPR_KIND_FUNCTION_CALL: {
-            return check_function_call_expr(c, expr);
+            return check_function_call_expr(c, expr, cast);
         } break;
 
         case EXPR_KIND_BLOCK: {
@@ -178,24 +178,26 @@ Type* check_integer_expr(CheckContext* c, Expr* expr, Type* cast) {
     return null;
 }
 
-Type* check_constant_expr(CheckContext* c, Expr* expr) {
+Type* check_constant_expr(CheckContext* c, Expr* expr, Type* cast) {
+    Type* type = null;
     switch (expr->constant.kind) {
         case CONSTANT_KIND_BOOLEAN_TRUE:
         case CONSTANT_KIND_BOOLEAN_FALSE: {
-            return builtin_type_placeholders.boolean;
+            type = builtin_type_placeholders.boolean;
         } break;
 
         case CONSTANT_KIND_NULL: {
-            return builtin_type_placeholders.void_ptr;
+            type = builtin_type_placeholders.void_ptr;
         } break;
     }
-    assert(0);
-    return null;
+    expr->type = cast;
+    return type;
 }
 
-Type* check_symbol_expr(CheckContext* c, Expr* expr) {
+Type* check_symbol_expr(CheckContext* c, Expr* expr, Type* cast) {
     assert(expr->symbol.ref);
     if (expr->symbol.ref->kind != STMT_KIND_FUNCTION) {
+        expr->type = cast;
         Type* type = stmt_get_type(expr->symbol.ref);
         return type;
     }
@@ -207,13 +209,15 @@ Type* check_symbol_expr(CheckContext* c, Expr* expr) {
     }
 }
 
-Type* check_function_call_expr(CheckContext* c, Expr* expr) {
+Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
     Expr** args = expr->function_call.args;
     size_t arg_len = buf_len(args);
     assert(expr->function_call.callee->symbol.ref->kind == STMT_KIND_FUNCTION);
+
     Stmt** params = expr->function_call.callee->symbol.ref->function.header->params;
     size_t param_len = buf_len(params);
     Type* callee_return_type = expr->function_call.callee->symbol.ref->function.header->return_type;
+    expr->type = cast;
 
     if (arg_len != param_len) {
         if (arg_len < param_len) {

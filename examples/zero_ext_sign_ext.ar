@@ -1,5 +1,5 @@
 fn main() {
-    let b: bool = false;
+    let b: bool = true;
     while b {
         write_u64({ let i: u64 = 17; i });
     }
@@ -7,59 +7,55 @@ fn main() {
     get();
 } 
 
-fn get() u64 {
-    let i: u32 = 1;
-    i
+fn get() u64 { 
+    let i: u8 = if false { 
+        255 
+    } else if false {
+        200
+    } else if false {
+        200
+    } else if false {
+        200
+    } else if true {
+        128
+    } else { 
+        0 
+    }; 
+    let j: u8 = if false { 
+        255 
+    } else if false {
+        200
+    } else if false {
+        200
+    } else if false {
+        200
+    } else if true {
+        128
+    } else { 
+        0 
+    }; 
+    j
 }
 
-// fn get() u64 { 
-//     let i: u8 = if false { 
-//         255 
-//     } else if false {
-//         200
-//     } else if false {
-//         200
-//     } else if false {
-//         200
-//     } else if true {
-//         128
-//     } else { 
-//         0 
-//     }; 
-//     let j: u8 = if false { 
-//         255 
-//     } else if false {
-//         200
-//     } else if false {
-//         200
-//     } else if false {
-//         200
-//     } else if true {
-//         128
-//     } else { 
-//         0 
-//     }; 
-//     j
-// }
+fn test() {
+    if true {
+        true
+    } else if false {
+        false
+    } else {
+        false
+    }
 
-// fn test() {
-//     if true {
-//         true
-//     } else if false {
-//         false
-//     } else {
-//         false
-//     }
+    if true {
+        true
+    } else {
+        false
+    }
 
-//     if true {
-//         true
-//     } else {
-//         false
-//     }
-
-//     if true {
-//         write_u64(1);
-//     }
-// }
+    if true {
+        write_u64(1);
+    }
+}
 
 extern fn write_u64(n: u64);
+extern fn write_i64(n: i64);
