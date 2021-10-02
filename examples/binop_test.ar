@@ -1,19 +1,16 @@
 fn main() {
     // let i = { let i: i32 = 1; i } + { let i: i32 = 255; i };
     // write_i64(i);
-    // uint8_t i = 1;
-    // uint16_t j = 2;
-    // printf("%lu", i + j);
     {
         let i: u8 = 1;
         let j: u16 = 2;
-        writeln_u64(i + j + j);
-        let k = i + j + 2;
-        writeln_u64(k + 3 + 1 + 2);
+        let k = i + j + 3;
+        writeln_u64(k);
+        writeln_u64(k - 1 - 1 - 2 - 1);
     }
 
     {
-        let i: u32 = if false {
+        let i: u8 = if false {
             1
         } else {
             2

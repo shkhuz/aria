@@ -1,4 +1,4 @@
-#include "code_gen.h"
+#include "code_gen_linux-x64-nasm.h"
 #include "buf.h"
 #include "stri.h"
 #include "msg.h"
@@ -45,6 +45,7 @@ static void code_gen_zs_extend(CodeGenContext* c, Type* from, Type* to);
 static char* code_gen_get_asm_type_specifier(size_t bytes);
 static char* code_gen_get_rax_register_by_size(size_t bytes);
 static char* code_gen_get_rcx_register_by_size(size_t bytes);
+static char* code_gen_get_acc_register_by_size(CodeGenContext* c, size_t bytes);
 static char* code_gen_get_arg_register_by_idx(size_t idx);
 static void code_gen_asmp(CodeGenContext* c, char* fmt, ...);
 static void code_gen_tasmp(CodeGenContext* c, char* fmt, ...);
@@ -56,6 +57,7 @@ static void code_gen_push_tabs(CodeGenContext* c);
 
 void code_gen(CodeGenContext* c) {
     c->asm_code = null;
+    c->acc_reg = REGISTER_RAX;
 
     buf_loop(c->srcfile->stmts, i) {
         code_gen_stmt(c, c->srcfile->stmts[i]);
@@ -195,23 +197,26 @@ void code_gen_expr(CodeGenContext* c, Expr* expr) {
 }
 
 void code_gen_integer_expr(CodeGenContext* c, Expr* expr) {
-    code_gen_asmp(c, "mov rax, %s", expr->integer.integer->lexeme);
+    code_gen_asmp(
+            c, 
+            "mov %s, %s", 
+            code_gen_get_acc_register_by_size(c, 8),
+            expr->integer.integer->lexeme);
 }
 
 void code_gen_constant_expr(CodeGenContext* c, Expr* expr) {
+    int value = 0;
     switch (expr->constant.kind) {
         case CONSTANT_KIND_BOOLEAN_TRUE: {
-            code_gen_asmp(c, "mov eax, 1");
-        } break;
-
-        case CONSTANT_KIND_BOOLEAN_FALSE: {
-            code_gen_asmp(c, "mov eax, 0");
-        } break;
-
-        case CONSTANT_KIND_NULL: {
-            code_gen_asmp(c, "mov eax, 0");
+            value = 1;
         } break;
     }
+
+    code_gen_asmp(
+            c, 
+            "mov %s, %d",
+            code_gen_get_acc_register_by_size(c, 4),
+            value);
 }
 
 void code_gen_symbol_expr(CodeGenContext* c, Expr* expr) {
@@ -224,7 +229,7 @@ void code_gen_symbol_expr(CodeGenContext* c, Expr* expr) {
                 code_gen_asmp(
                         c,
                         "mov %s, %s [rbp - %lu]",
-                        code_gen_get_rax_register_by_size(bytes),
+                        code_gen_get_acc_register_by_size(c, bytes),
                         code_gen_get_asm_type_specifier(bytes),
                         ref->variable.stack_offset);
             }
@@ -236,13 +241,15 @@ void code_gen_symbol_expr(CodeGenContext* c, Expr* expr) {
             if (ref->param.idx < 6) {
                 code_gen_asmp(
                         c,
-                        "mov rax, qword [rbp - %lu]",
+                        "mov %s, qword [rbp - %lu]",
+                        code_gen_get_acc_register_by_size(c, 8),
                         ref->param.stack_offset);
             }
             else {
                 code_gen_asmp(
                         c, 
-                        "mov rax, qword [rbp + %lu]",
+                        "mov %s, qword [rbp + %lu]",
+                        code_gen_get_acc_register_by_size(c, 8),
                         16 + ((ref->param.idx-6) * PTR_SIZE_BYTES));
             }
             code_gen_zs_extend(c, ref->variable.type, expr->type);
@@ -264,14 +271,15 @@ void code_gen_function_call_expr(CodeGenContext* c, Expr* expr) {
         code_gen_zs_extend(c, args[i]->type, params[i]->param.type);
         code_gen_asmp(
                 c,
-                "mov %s, rax",
-                code_gen_get_arg_register_by_idx(i));
+                "mov %s, %s",
+                code_gen_get_arg_register_by_idx(i),
+                code_gen_get_acc_register_by_size(c, 8));
     }
     if (reg_args_len < args_len) {
         for (size_t i = args_len-1; i >= reg_args_len; i--) {
             code_gen_expr(c, args[i]);
             code_gen_zs_extend(c, args[i]->type, params[i]->param.type);
-            code_gen_asmp(c, "push rax");
+            code_gen_asmp(c, "push %s", code_gen_get_acc_register_by_size(c, 8));
         }
     }
     code_gen_asmp(
@@ -288,7 +296,11 @@ void code_gen_function_call_expr(CodeGenContext* c, Expr* expr) {
 
 void code_gen_binop_expr(CodeGenContext* c, Expr* expr) {
     if (type_is_apint(expr->binop.left_type) && type_is_apint(expr->binop.right_type)) {
-        code_gen_asmp(c, "mov rax, %lu ; simplified", bigint_get_lsd(expr->type->builtin.apint));
+        code_gen_asmp(
+                c, 
+                "mov %s, %lu ; simplified", 
+                code_gen_get_acc_register_by_size(c, 8),
+                bigint_get_lsd(expr->type->builtin.apint));
     }
     else {
         Type* bigger_type = null;
@@ -305,19 +317,25 @@ void code_gen_binop_expr(CodeGenContext* c, Expr* expr) {
         }
         size_t const bigger_bytes = type_bytes(bigger_type);
 
+        c->acc_reg = REGISTER_RAX;
         code_gen_expr(c, expr->binop.left);
         if (!type_is_apint(expr->binop.left_type)) {
             code_gen_zs_extend(c, expr->binop.left_type, bigger_type);
         }
         code_gen_asmw(c, "push rax");
+
+        c->acc_reg = REGISTER_RCX;
         code_gen_expr(c, expr->binop.right);
         if (!type_is_apint(expr->binop.right_type)) {
             code_gen_zs_extend(c, expr->binop.right_type, bigger_type);
         }
-        code_gen_asmw(c, "pop rcx");
+        c->acc_reg = REGISTER_RAX;
+
+        code_gen_asmw(c, "pop rax");
         code_gen_asmp(
                 c, 
-                "add %s, %s",
+                "%s %s, %s",
+                (expr->binop.op->kind == TOKEN_KIND_PLUS ? "add" : "sub"),
                 code_gen_get_rax_register_by_size(bigger_bytes),
                 code_gen_get_rcx_register_by_size(bigger_bytes));
     }
@@ -386,7 +404,11 @@ void code_gen_if_branch(
 
     if (br->kind != IF_BRANCH_ELSE) {
         code_gen_expr(c, br->cond);
-        code_gen_asmw(c, "test rax, rax");
+        code_gen_asmp(
+                c, 
+                "test %s, %s", 
+                code_gen_get_acc_register_by_size(c, 8),
+                code_gen_get_acc_register_by_size(c, 8));
         code_gen_nasmw(c, "jz ");
         if (br->kind == IF_BRANCH_ELSEIF) elseifidx++;
         code_gen_distinct_if_label(c, nextbr_kind, idx, elseifidx, false);
@@ -427,7 +449,11 @@ void code_gen_while_expr(CodeGenContext* c, Expr* expr) {
     code_gen_distinct_while_label(c, WHILE_LOOP_ASM_COND, idx, true);
 
     code_gen_expr(c, expr->whilelp.cond);
-    code_gen_asmw(c, "test rax, rax");
+    code_gen_asmp(
+            c, 
+            "test %s, %s", 
+            code_gen_get_acc_register_by_size(c, 8),
+            code_gen_get_acc_register_by_size(c, 8));
     code_gen_nasmw(c, "jz ");
     code_gen_distinct_while_label(c, WHILE_LOOP_ASM_END, idx, false);
 
@@ -492,12 +518,12 @@ void code_gen_zs_extend(CodeGenContext* c, Type* from, Type* to) {
                 code_gen_asmp(
                         c,
                         fmt,
-                        code_gen_get_rax_register_by_size(to_bytes),
-                        code_gen_get_rax_register_by_size(from_bytes));
+                        code_gen_get_acc_register_by_size(c, to_bytes),
+                        code_gen_get_acc_register_by_size(c, from_bytes));
             }
         }
         else {
-            printf("hadas\n");
+            assert(0);
         }
     }
 }
@@ -530,6 +556,15 @@ char* code_gen_get_rcx_register_by_size(size_t bytes) {
         case 2: return "cx";
         case 4: return "ecx";
         case 8: return "rcx";
+    }
+    assert(0);
+    return null;
+}
+
+char* code_gen_get_acc_register_by_size(CodeGenContext* c, size_t bytes) {
+    switch (c->acc_reg) {
+        case REGISTER_RAX: return code_gen_get_rax_register_by_size(bytes);
+        case REGISTER_RCX: return code_gen_get_rcx_register_by_size(bytes);
     }
     assert(0);
     return null;

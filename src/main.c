@@ -7,7 +7,7 @@
 #include "parse.h"
 #include "resolve.h"
 #include "check.h"
-#include "code_gen.h"
+#include "code_gen_linux-x64-nasm.h"
 
 char* g_exec_path;
 

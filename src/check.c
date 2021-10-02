@@ -111,7 +111,7 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
                 null,
                 true);
         stmt->variable.initializer_type = stmt->variable.type;
-        if (type_is_apint(stmt->variable.type)) {
+        if (stmt->variable.type && type_is_apint(stmt->variable.type)) {
             if (check_implicit_cast(c, stmt->variable.type, builtin_type_placeholders.i32) == 
                 IMPLICIT_CAST_ERROR) {
                 check_error(
@@ -319,7 +319,12 @@ Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast) {
                 ALLOC_WITH_TYPE(res, bigint);
                 bigint_init(res);
                 bigint_copy(left_type->builtin.apint, res);
-                bigint_add(res, right_type->builtin.apint, res);
+                if (expr->binop.op->kind == TOKEN_KIND_PLUS) {
+                    bigint_add(res, right_type->builtin.apint, res);
+                } 
+                else {
+                    bigint_sub(res, right_type->builtin.apint, res);
+                }
                 Type* resty = builtin_type_new(expr->main_token, BUILTIN_TYPE_KIND_APINT);
                 resty->builtin.apint = res;
                 expr->type = resty;
@@ -341,9 +346,8 @@ Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast) {
                 }
                 else {
                     check_error(
-                            expr->main_token,
-                            "%s operand cannot be converted to `{t}`",
-                            (is_left_apint ? "left" : "right"),
+                            apint_type->main_token,
+                            "expression cannot be converted to `{t}`",
                             int_type);
                     return null;
                 }
