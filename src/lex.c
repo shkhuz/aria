@@ -50,7 +50,8 @@ void lex(LexContext* l) {
                 while (isalnum(*l->current) || *l->current == '_')
                     l->current++;
                 for (size_t i = 0; i < buf_len(aria_keywords); i++) {
-                    if (stri(aria_keywords[i]) == strni(l->start, l->current)) {
+                    /* if (stri(aria_keywords[i]) == strni(l->start, l->current)) { */
+                    if (strncmp(aria_keywords[i], l->start, strlen(aria_keywords[i])) == 0) {
                         kind = TOKEN_KIND_KEYWORD;
                         break;
                     }

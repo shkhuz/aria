@@ -1,0 +1,15 @@
+fn main() {
+    // let i = { let i: i32 = 1; i } + { let i: i32 = 255; i };
+    // write_i64(i);
+    // uint8_t i = 1;
+    // uint16_t j = 2;
+    // printf("%lu", i + j);
+    let i: u8 = 1;
+    let j: u16 = 2;
+    let v = 453454354;
+    let k = i + j;
+    write_u64(k);
+}
+
+extern fn write_i64(n: i64);
+extern fn write_u64(n: u64);

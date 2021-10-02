@@ -18,6 +18,7 @@ static Stmt* parse_variable_stmt(ParseContext* p);
 static StmtOrExpr parse_function_level_node(ParseContext* p);
 static Stmt* parse_expr_stmt(ParseContext* p, Expr* expr);
 static Expr* parse_expr(ParseContext* p);
+static Expr* parse_binop_arith_term(ParseContext* p);
 static Expr* parse_atom_expr(ParseContext* p);
 static Expr* parse_integer_expr(ParseContext* p);
 static Expr* parse_symbol_expr(ParseContext* p, Token* identifier);
@@ -186,7 +187,18 @@ Stmt* parse_expr_stmt(ParseContext* p, Expr* expr) {
 }
 
 Expr* parse_expr(ParseContext* p) {
-    return parse_atom_expr(p);
+    return parse_binop_arith_term(p);
+}
+
+Expr* parse_binop_arith_term(ParseContext* p) {
+    Expr* left = parse_atom_expr(p);
+    while (parse_match(p, TOKEN_KIND_PLUS) ||
+           parse_match(p, TOKEN_KIND_MINUS)) {
+        Token* op = parse_previous(p);
+        Expr* right = parse_atom_expr(p);
+        left = binop_expr_new(left, right, op);
+    }
+    return left;
 }
 
 Expr* parse_atom_expr(ParseContext* p) {
@@ -416,7 +428,8 @@ bool parse_match(ParseContext* p, TokenKind kind) {
 
 bool parse_match_keyword(ParseContext* p, char* keyword) {
     if (parse_current(p)->kind == TOKEN_KIND_KEYWORD && 
-        stri(parse_current(p)->lexeme) == stri(keyword)) {
+        /* stri(parse_current(p)->lexeme) == stri(keyword)) { */
+        strcmp(parse_current(p)->lexeme, keyword) == 0) {
         parse_goto_next_token(p);
         return true;
     }

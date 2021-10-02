@@ -21,6 +21,7 @@ static Type* check_integer_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_constant_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_symbol_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast);
+static Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_block_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_if_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_if_branch(CheckContext* c, IfBranch* br, Type* cast);
@@ -143,6 +144,10 @@ Type* check_expr(CheckContext* c, Expr* expr, Type* cast) {
             return check_function_call_expr(c, expr, cast);
         } break;
 
+        case EXPR_KIND_BINOP: {
+            return check_binop_expr(c, expr, cast);
+        } break;
+
         case EXPR_KIND_BLOCK: {
             return check_block_expr(c, expr, cast);
         } break;
@@ -160,20 +165,18 @@ Type* check_expr(CheckContext* c, Expr* expr, Type* cast) {
 }
 
 Type* check_integer_expr(CheckContext* c, Expr* expr, Type* cast) {
-    Type* cast_def = cast;
-    if (!cast_def) cast_def = builtin_type_placeholders.i32;
-
-    if (type_is_integer(cast_def) && bigint_fits(
+    if (!cast) cast = builtin_type_placeholders.i32;
+    if (type_is_integer(cast) && bigint_fits(
                 expr->integer.val, 
-                builtin_type_bytes(cast_def->builtin.kind), 
-                builtin_type_is_signed(cast_def->builtin.kind))) {
-        return cast_def;
+                builtin_type_bytes(cast->builtin.kind), 
+                builtin_type_is_signed(cast->builtin.kind))) {
+        return cast;
     }
     else {
         check_error(
                 expr->integer.integer,
                 "integer cannot be converted to `{t}`",
-                cast_def);
+                cast);
     }
     return null;
 }
@@ -240,7 +243,7 @@ Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
     buf_loop(args, i) {
         Type* param_type = params[i]->param.type;
         Type* arg_type = check_expr(c, args[i], param_type);
-        args[i]->type = arg_type;
+        /* args[i]->type = arg_type; */
         if (arg_type && param_type && 
             check_implicit_cast(c, arg_type, param_type) == IMPLICIT_CAST_ERROR) {
             check_error(
@@ -254,6 +257,48 @@ Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
         }
     }
     return callee_return_type;
+}
+
+Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast) {
+    Type* left_type = check_expr(c, expr->binop.left, null);
+    expr->binop.left_type = left_type;
+    Type* right_type = check_expr(c, expr->binop.right, null);
+    expr->binop.right_type = right_type;
+    expr->type = cast;
+
+    if (left_type && right_type) {
+        if (type_is_integer(left_type) && type_is_integer(right_type)) {
+            ImplicitCastStatus status;
+            bool return_left = true;
+            if (type_bytes(left_type) > type_bytes(right_type)) {
+                status = check_implicit_cast(c, right_type, left_type);
+            }
+            else {
+                status = check_implicit_cast(c, left_type, right_type);
+                return_left = false;
+            }
+            if (status == IMPLICIT_CAST_ERROR) {
+                check_error(
+                        expr->main_token,
+                        "implicit cast error: `{t}` and `{t}`",
+                        left_type,
+                        right_type);
+            }
+            else if (return_left) {
+                return left_type;
+            } else {
+                return right_type;
+            }
+        }
+        else {
+            check_error(
+                    expr->main_token,
+                    "operator `+` given `{t}` and `{t}`, but requires integer operands",
+                    left_type,
+                    right_type);
+        }
+    }
+    return null;
 }
 
 Type* check_block_expr(CheckContext* c, Expr* expr, Type* cast) {

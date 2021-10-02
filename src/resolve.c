@@ -49,6 +49,7 @@ static void resolve_expr_stmt(ResolveContext* r, Stmt* stmt);
 static void resolve_expr(ResolveContext* r, Expr* expr);
 static void resolve_symbol_expr(ResolveContext* r, Expr* expr);
 static void resolve_function_call_expr(ResolveContext* r, Expr* expr);
+static void resolve_binop_expr(ResolveContext* r, Expr* expr);
 static void resolve_block_expr(
         ResolveContext* r, 
         Expr* expr, 
@@ -190,6 +191,10 @@ void resolve_expr(ResolveContext* r, Expr* expr) {
         case EXPR_KIND_FUNCTION_CALL: {
             resolve_function_call_expr(r, expr);
         } break;
+
+        case EXPR_KIND_BINOP: {
+            resolve_binop_expr(r, expr);
+        } break;
         
         case EXPR_KIND_BLOCK: {
             resolve_block_expr(r, expr, true);
@@ -230,6 +235,11 @@ void resolve_function_call_expr(ResolveContext* r, Expr* expr) {
     buf_loop(expr->function_call.args, i) {
         resolve_expr(r, expr->function_call.args[i]);
     }
+}
+
+void resolve_binop_expr(ResolveContext* r, Expr* expr) {
+    resolve_expr(r, expr->binop.left);
+    resolve_expr(r, expr->binop.right);
 }
 
 void resolve_block_expr(

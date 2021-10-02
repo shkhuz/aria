@@ -19,6 +19,7 @@ static void code_gen_integer_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_constant_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_symbol_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_function_call_expr(CodeGenContext* c, Expr* expr);
+static void code_gen_binop_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_block_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_if_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_if_branch(
@@ -43,6 +44,7 @@ static AsmpFunc code_gen_get_asmp_func(bool is_definition);
 static void code_gen_zs_extend(CodeGenContext* c, Type* from, Type* to);
 static char* code_gen_get_asm_type_specifier(size_t bytes);
 static char* code_gen_get_rax_register_by_size(size_t bytes);
+static char* code_gen_get_rcx_register_by_size(size_t bytes);
 static char* code_gen_get_arg_register_by_idx(size_t idx);
 static void code_gen_asmp(CodeGenContext* c, char* fmt, ...);
 static void code_gen_tasmp(CodeGenContext* c, char* fmt, ...);
@@ -61,11 +63,11 @@ void code_gen(CodeGenContext* c) {
     buf_push(c->asm_code, '\0');
     fputs(c->asm_code, stdout);
 
-    FILE* file = fopen("build/tmp.asm", "w");
-    fwrite(c->asm_code, buf_len(c->asm_code)-1, sizeof(char), file);
-    fclose(file);
-    system("nasm -felf64 build/tmp.asm");
-    system("gcc -g -no-pie -o build/tmp build/tmp.o examples/std.c");
+    /* FILE* file = fopen("build/tmp.asm", "w"); */
+    /* fwrite(c->asm_code, buf_len(c->asm_code)-1, sizeof(char), file); */
+    /* fclose(file); */
+    /* system("nasm -felf64 build/tmp.asm"); */
+    /* system("gcc -g -no-pie -o build/tmp build/tmp.o examples/std.c"); */
 }
 
 void code_gen_stmt(CodeGenContext* c, Stmt* stmt) {
@@ -174,6 +176,10 @@ void code_gen_expr(CodeGenContext* c, Expr* expr) {
             code_gen_function_call_expr(c, expr);
         } break;
 
+        case EXPR_KIND_BINOP: {
+            code_gen_binop_expr(c, expr);
+        } break;
+
         case EXPR_KIND_BLOCK: {
             code_gen_block_expr(c, expr);
         } break;
@@ -280,6 +286,34 @@ void code_gen_function_call_expr(CodeGenContext* c, Expr* expr) {
     }
 }
 
+void code_gen_binop_expr(CodeGenContext* c, Expr* expr) {
+    Type* bigger_type = null;
+    size_t const left_bytes = type_bytes(expr->binop.left_type);
+    size_t const right_bytes = type_bytes(expr->binop.right_type);
+    if (expr->type) {
+        bigger_type = expr->type;
+    }
+    else if (left_bytes > right_bytes) {
+        bigger_type = expr->binop.left_type;
+    }
+    else {
+        bigger_type = expr->binop.right_type;
+    }
+    size_t const bigger_bytes = type_bytes(bigger_type);
+
+    code_gen_expr(c, expr->binop.left);
+    code_gen_zs_extend(c, expr->binop.left_type, bigger_type);
+    code_gen_asmw(c, "push rax");
+    code_gen_expr(c, expr->binop.right);
+    code_gen_zs_extend(c, expr->binop.right_type, bigger_type);
+    code_gen_asmw(c, "pop rcx");
+    code_gen_asmp(
+            c, 
+            "add %s, %s",
+            code_gen_get_rax_register_by_size(bigger_bytes),
+            code_gen_get_rcx_register_by_size(bigger_bytes));
+}
+
 void code_gen_block_expr(CodeGenContext* c, Expr* expr) {
     buf_loop(expr->block.stmts, i) {
         code_gen_stmt(c, expr->block.stmts[i]);
@@ -290,7 +324,8 @@ void code_gen_block_expr(CodeGenContext* c, Expr* expr) {
 }
 
 void code_gen_if_expr(CodeGenContext* c, Expr* expr) {
-    code_gen_asmw(c, "; -- if --");
+    /* code_gen_asmw(c, "; -- if --"); */
+    code_gen_asmw(c, "");
     size_t idx = expr->parent_func->function.ifidx++;
     IfBranchKind ifbr_next;
     if (expr->iff.elseifbr) {
@@ -378,6 +413,7 @@ void code_gen_distinct_if_label(
 }
 
 void code_gen_while_expr(CodeGenContext* c, Expr* expr) {
+    code_gen_asmw(c, "");
     size_t idx = expr->parent_func->function.whileidx++;
     code_gen_distinct_while_label(c, WHILE_LOOP_ASM_COND, idx, true);
 
@@ -458,6 +494,17 @@ char* code_gen_get_rax_register_by_size(size_t bytes) {
         case 2: return "ax";
         case 4: return "eax";
         case 8: return "rax";
+    }
+    assert(0);
+    return null;
+}
+
+char* code_gen_get_rcx_register_by_size(size_t bytes) {
+    switch (bytes) {
+        case 1: return "cl";
+        case 2: return "cx";
+        case 4: return "ecx";
+        case 8: return "rcx";
     }
     assert(0);
     return null;

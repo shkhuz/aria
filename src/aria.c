@@ -60,7 +60,8 @@ void init_ds() {
 }
 
 bool is_token_lexeme_eq(Token* a, Token* b) {
-    if (stri(a->lexeme) == stri(b->lexeme)) {
+    /* if (stri(a->lexeme) == stri(b->lexeme)) { */
+    if (strcmp(a->lexeme, b->lexeme) == 0) {
         return true;
     }
     return false;
@@ -68,7 +69,8 @@ bool is_token_lexeme_eq(Token* a, Token* b) {
 
 BuiltinTypeKind builtin_type_str_to_kind(char* str) {
     for (size_t i = 0; i < _BUILTIN_TYPE_KIND_COUNT; i++) {
-        if (stri(builtin_type_map[i].k) == stri(str)) {
+        /* if (stri(builtin_type_map[i].k) == stri(str)) { */
+        if (strcmp(builtin_type_map[i].k, str) == 0) {
             return builtin_type_map[i].v;
         }
     }
@@ -340,6 +342,20 @@ Expr* function_call_expr_new(Expr* callee, Expr** args, Token* rparen) {
     expr->function_call.callee = callee;
     expr->function_call.args = args;
     expr->function_call.rparen = rparen;
+    return expr;
+}
+
+Expr* binop_expr_new(Expr* left, Expr* right, Token* op) {
+    ALLOC_WITH_TYPE(expr, Expr);
+    expr->kind = EXPR_KIND_BINOP;
+    expr->main_token = op;
+    expr->type = null;
+    expr->parent_func = null;
+    expr->binop.left = left;
+    expr->binop.right = right;
+    expr->binop.op = op;
+    expr->binop.left_type = null;
+    expr->binop.right_type = null;
     return expr;
 }
 

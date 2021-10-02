@@ -14,10 +14,6 @@ void write_char(int8_t c) {
     fputc((char)c, stdout);
 }
 
-uint64_t add(uint64_t n) {
-    return n + 1;
-}
-
 uint8_t rand8() {
     return rand();
 }
