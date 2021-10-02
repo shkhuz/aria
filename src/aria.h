@@ -70,6 +70,7 @@ typedef enum {
     BUILTIN_TYPE_KIND_BOOLEAN,
     BUILTIN_TYPE_KIND_VOID,
     _BUILTIN_TYPE_KIND_COUNT,
+    BUILTIN_TYPE_KIND_APINT,
     BUILTIN_TYPE_KIND_NONE,
 } BuiltinTypeKind;
 
@@ -99,6 +100,9 @@ extern BuiltinTypePlaceholders builtin_type_placeholders;
 typedef struct {
     Token* token;
     BuiltinTypeKind kind;
+    union {
+        bigint* apint;
+    };
 } BuiltinType;
 
 typedef struct {
@@ -278,10 +282,12 @@ bool is_token_lexeme_eq(Token* a, Token* b);
 BuiltinTypeKind builtin_type_str_to_kind(char* str);
 char* builtin_type_kind_to_str(BuiltinTypeKind kind);
 bool builtin_type_is_integer(BuiltinTypeKind kind);
+bool builtin_type_is_apint(BuiltinTypeKind kind);
 bool builtin_type_is_signed(BuiltinTypeKind kind);
-size_t builtin_type_bytes(BuiltinTypeKind kind);
+size_t builtin_type_bytes(BuiltinType* type);
 Type* type_get_child(Type* type);
 bool type_is_integer(Type* type);
+bool type_is_apint(Type* type);
 size_t type_bytes(Type* type);
 Type* stmt_get_type(Stmt* stmt);
 

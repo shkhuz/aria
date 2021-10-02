@@ -78,6 +78,7 @@ BuiltinTypeKind builtin_type_str_to_kind(char* str) {
 }
 
 char* builtin_type_kind_to_str(BuiltinTypeKind kind) {
+    if (kind == BUILTIN_TYPE_KIND_APINT) return "{integer}";
     for (size_t i = 0; i < _BUILTIN_TYPE_KIND_COUNT; i++) {
         if (builtin_type_map[i].v == kind) {
             return builtin_type_map[i].k;
@@ -103,11 +104,38 @@ bool builtin_type_is_integer(BuiltinTypeKind kind) {
         
         case BUILTIN_TYPE_KIND_BOOLEAN:
         case BUILTIN_TYPE_KIND_VOID:
+        case BUILTIN_TYPE_KIND_APINT:
             return false;
 
         case BUILTIN_TYPE_KIND_NONE:
             assert(0);
             return false;
+    }
+    return false;
+}
+
+bool builtin_type_is_apint(BuiltinTypeKind kind) {
+    switch (kind) {
+        case BUILTIN_TYPE_KIND_U8:
+        case BUILTIN_TYPE_KIND_U16:
+        case BUILTIN_TYPE_KIND_U32:
+        case BUILTIN_TYPE_KIND_U64:
+        case BUILTIN_TYPE_KIND_USIZE:
+        case BUILTIN_TYPE_KIND_I8:
+        case BUILTIN_TYPE_KIND_I16:
+        case BUILTIN_TYPE_KIND_I32:
+        case BUILTIN_TYPE_KIND_I64:
+        case BUILTIN_TYPE_KIND_ISIZE:
+        case BUILTIN_TYPE_KIND_BOOLEAN:
+        case BUILTIN_TYPE_KIND_VOID:
+            return false;
+
+        case BUILTIN_TYPE_KIND_NONE:
+            assert(0);
+            return false;
+        
+        case BUILTIN_TYPE_KIND_APINT:
+            return true;
     }
     return false;
 }
@@ -129,6 +157,7 @@ bool builtin_type_is_signed(BuiltinTypeKind kind) {
             return true;
         
         case BUILTIN_TYPE_KIND_BOOLEAN:
+        case BUILTIN_TYPE_KIND_APINT:
         case BUILTIN_TYPE_KIND_VOID:
         case BUILTIN_TYPE_KIND_NONE:
             assert(0);
@@ -137,8 +166,8 @@ bool builtin_type_is_signed(BuiltinTypeKind kind) {
     return false;
 }
 
-size_t builtin_type_bytes(BuiltinTypeKind kind) {
-    switch (kind) {
+size_t builtin_type_bytes(BuiltinType* type) {
+    switch (type->kind) {
         case BUILTIN_TYPE_KIND_U8:
         case BUILTIN_TYPE_KIND_I8:
             return 1;
@@ -160,6 +189,16 @@ size_t builtin_type_bytes(BuiltinTypeKind kind) {
 
         case BUILTIN_TYPE_KIND_VOID:
             return 0;
+
+        case BUILTIN_TYPE_KIND_APINT: {
+            u64 n = bigint_get_lsd(type->apint);
+            size_t bits = get_bits_for_value(n);
+            if (bits <= 8) bits = 8;
+            else if (bits <= 16) bits = 16;
+            else if (bits <= 32) bits = 32;
+            else if (bits <= 64) bits = 64;
+            return bits / 8;
+        } break;
 
         case BUILTIN_TYPE_KIND_NONE:
             assert(0);
@@ -186,10 +225,17 @@ bool type_is_integer(Type* type) {
     return false;
 }
 
+bool type_is_apint(Type* type) {
+    if (type->kind == TYPE_KIND_BUILTIN && builtin_type_is_apint(type->builtin.kind)) {
+        return true;
+    }
+    return false;
+}
+
 size_t type_bytes(Type* type) {
     switch (type->kind) {
         case TYPE_KIND_BUILTIN: {
-            return builtin_type_bytes(type->builtin.kind);
+            return builtin_type_bytes(&type->builtin);
         } break;
 
         case TYPE_KIND_PTR: {
@@ -224,6 +270,7 @@ Type* builtin_type_new(Token* token, BuiltinTypeKind kind) {
     type->main_token = token;
     type->builtin.token = token;
     type->builtin.kind = kind;
+    type->builtin.apint = null;
     return type;
 }
 

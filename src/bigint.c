@@ -372,3 +372,11 @@ bool bigint_fits(const bigint* a, int bytes, bigint_sign sign) {
     return false;
 }
 
+u64 bigint_get_lsd(const bigint* a) {
+    u128 n = ((a->d[1] << BIGINT_DIGIT_BIT) | a->d[0]);
+    if (get_bits_for_value(n) <= 64) {
+        return (u64)n;
+    }
+    assert(0);
+    return 0;
+}

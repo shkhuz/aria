@@ -73,5 +73,6 @@ BIGINT_FITS_FUNC(bigint_fits_i16);
 BIGINT_FITS_FUNC(bigint_fits_i32);
 BIGINT_FITS_FUNC(bigint_fits_i64);
 bool bigint_fits(const bigint* a, int bytes, bigint_sign sign);
+u64 bigint_get_lsd(const bigint* a);
 
 #endif

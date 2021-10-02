@@ -63,11 +63,11 @@ void code_gen(CodeGenContext* c) {
     buf_push(c->asm_code, '\0');
     fputs(c->asm_code, stdout);
 
-    /* FILE* file = fopen("build/tmp.asm", "w"); */
-    /* fwrite(c->asm_code, buf_len(c->asm_code)-1, sizeof(char), file); */
-    /* fclose(file); */
-    /* system("nasm -felf64 build/tmp.asm"); */
-    /* system("gcc -g -no-pie -o build/tmp build/tmp.o examples/std.c"); */
+    FILE* file = fopen("build/tmp.asm", "w");
+    fwrite(c->asm_code, buf_len(c->asm_code)-1, sizeof(char), file);
+    fclose(file);
+    system("nasm -felf64 build/tmp.asm");
+    system("gcc -g -no-pie -o build/tmp build/tmp.o examples/std.c");
 }
 
 void code_gen_stmt(CodeGenContext* c, Stmt* stmt) {
@@ -287,31 +287,40 @@ void code_gen_function_call_expr(CodeGenContext* c, Expr* expr) {
 }
 
 void code_gen_binop_expr(CodeGenContext* c, Expr* expr) {
-    Type* bigger_type = null;
-    size_t const left_bytes = type_bytes(expr->binop.left_type);
-    size_t const right_bytes = type_bytes(expr->binop.right_type);
-    if (expr->type) {
-        bigger_type = expr->type;
-    }
-    else if (left_bytes > right_bytes) {
-        bigger_type = expr->binop.left_type;
+    if (type_is_apint(expr->binop.left_type) && type_is_apint(expr->binop.right_type)) {
+        code_gen_asmp(c, "mov rax, %lu ; simplified", bigint_get_lsd(expr->type->builtin.apint));
     }
     else {
-        bigger_type = expr->binop.right_type;
-    }
-    size_t const bigger_bytes = type_bytes(bigger_type);
+        Type* bigger_type = null;
+        size_t const left_bytes = type_bytes(expr->binop.left_type);
+        size_t const right_bytes = type_bytes(expr->binop.right_type);
+        if (expr->type) {
+            bigger_type = expr->type;
+        }
+        else if (left_bytes > right_bytes) {
+            bigger_type = expr->binop.left_type;
+        }
+        else {
+            bigger_type = expr->binop.right_type;
+        }
+        size_t const bigger_bytes = type_bytes(bigger_type);
 
-    code_gen_expr(c, expr->binop.left);
-    code_gen_zs_extend(c, expr->binop.left_type, bigger_type);
-    code_gen_asmw(c, "push rax");
-    code_gen_expr(c, expr->binop.right);
-    code_gen_zs_extend(c, expr->binop.right_type, bigger_type);
-    code_gen_asmw(c, "pop rcx");
-    code_gen_asmp(
-            c, 
-            "add %s, %s",
-            code_gen_get_rax_register_by_size(bigger_bytes),
-            code_gen_get_rcx_register_by_size(bigger_bytes));
+        code_gen_expr(c, expr->binop.left);
+        if (!type_is_apint(expr->binop.left_type)) {
+            code_gen_zs_extend(c, expr->binop.left_type, bigger_type);
+        }
+        code_gen_asmw(c, "push rax");
+        code_gen_expr(c, expr->binop.right);
+        if (!type_is_apint(expr->binop.right_type)) {
+            code_gen_zs_extend(c, expr->binop.right_type, bigger_type);
+        }
+        code_gen_asmw(c, "pop rcx");
+        code_gen_asmp(
+                c, 
+                "add %s, %s",
+                code_gen_get_rax_register_by_size(bigger_bytes),
+                code_gen_get_rcx_register_by_size(bigger_bytes));
+    }
 }
 
 void code_gen_block_expr(CodeGenContext* c, Expr* expr) {
@@ -454,25 +463,41 @@ AsmpFunc code_gen_get_asmp_func(bool is_definition) {
 
 void code_gen_zs_extend(CodeGenContext* c, Type* from, Type* to) {
     if (!from || !to) return;
-    if (from->kind == TYPE_KIND_BUILTIN && to->kind == TYPE_KIND_BUILTIN && 
-        type_is_integer(from) && type_is_integer(to)) {
-        bool is_signed = builtin_type_is_signed(from->builtin.kind);
-        size_t from_bytes = type_bytes(from);
-        size_t to_bytes = type_bytes(to);
-        if (from_bytes == to_bytes ||
-            (!is_signed && from_bytes == 4 && to_bytes == 8)) {
-            return;
+    if (from->kind == TYPE_KIND_BUILTIN && to->kind == TYPE_KIND_BUILTIN) {
+        bool is_from_apint = type_is_apint(from);
+        bool is_to_apint = type_is_apint(to);
+        if (is_from_apint && is_to_apint) {
+            assert(0);
+        }
+        else if ((type_is_integer(from) && type_is_integer(to)) ||
+                 (is_from_apint || is_to_apint)) {
+            Type* int_type = from;
+            Type* apint_type = to;
+            if (is_from_apint) { 
+                SWAP_VARS(Type*, int_type, apint_type);
+            }
+
+            bool is_signed = builtin_type_is_signed(int_type->builtin.kind);
+            size_t from_bytes = type_bytes(from);
+            size_t to_bytes = type_bytes(to);
+            if (from_bytes == to_bytes ||
+                (!is_signed && from_bytes == 4 && to_bytes == 8)) {
+                return;
+            }
+            else {
+                char* fmt = null;
+                // TODO: should the dest be fixed (8 bytes) or variable?
+                if (is_signed) fmt = "movsx %s, %s";
+                else fmt = "movzx %s, %s";
+                code_gen_asmp(
+                        c,
+                        fmt,
+                        code_gen_get_rax_register_by_size(to_bytes),
+                        code_gen_get_rax_register_by_size(from_bytes));
+            }
         }
         else {
-            char* fmt = null;
-            // TODO: should the dest be fixed (8 bytes) or variable?
-            if (is_signed) fmt = "movsx %s, %s";
-            else fmt = "movzx %s, %s";
-            code_gen_asmp(
-                    c,
-                    fmt,
-                    code_gen_get_rax_register_by_size(to_bytes),
-                    code_gen_get_rax_register_by_size(from_bytes));
+            printf("hadas\n");
         }
     }
 }

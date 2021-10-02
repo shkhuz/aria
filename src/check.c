@@ -16,8 +16,8 @@ static void check_stmt(CheckContext* c, Stmt* stmt);
 static void check_function_stmt(CheckContext* c, Stmt* stmt);
 static void check_variable_stmt(CheckContext* c, Stmt* stmt);
 static void check_expr_stmt(CheckContext* c, Stmt* stmt);
-static Type* check_expr(CheckContext* c, Expr* expr, Type* cast);
-static Type* check_integer_expr(CheckContext* c, Expr* expr, Type* cast);
+static Type* check_expr(CheckContext* c, Expr* expr, Type* cast, bool cast_to_definitive_type);
+static Type* check_integer_expr(CheckContext* c, Expr* expr, Type* cast, bool cast_to_definitive_type);
 static Type* check_constant_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_symbol_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast);
@@ -89,7 +89,8 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
         Type* initializer_type = check_expr(
                 c,
                 stmt->variable.initializer,
-                stmt->variable.type);
+                stmt->variable.type, 
+                true);
         Type* annotated_type = stmt->variable.type;
         stmt->variable.initializer_type = initializer_type;
         if (initializer_type && annotated_type) {
@@ -107,8 +108,20 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
         stmt->variable.type = check_expr(
                 c, 
                 stmt->variable.initializer,
-                null);
+                null,
+                true);
         stmt->variable.initializer_type = stmt->variable.type;
+        if (type_is_apint(stmt->variable.type)) {
+            if (check_implicit_cast(c, stmt->variable.type, builtin_type_placeholders.i32) == 
+                IMPLICIT_CAST_ERROR) {
+                check_error(
+                        stmt->variable.identifier,
+                        "cannot initialize from `{t}` to `{t}`",
+                        stmt->variable.type,
+                        builtin_type_placeholders.i32);
+                return;
+            }
+        }
     }
 
     if (stmt->parent_func && stmt->variable.type) {
@@ -123,13 +136,13 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
 }
 
 void check_expr_stmt(CheckContext* c, Stmt* stmt) {
-    check_expr(c, stmt->expr.child, null);
+    check_expr(c, stmt->expr.child, null, true);
 }
 
-Type* check_expr(CheckContext* c, Expr* expr, Type* cast) {
+Type* check_expr(CheckContext* c, Expr* expr, Type* cast, bool cast_to_definitive_type) {
     switch (expr->kind) {
         case EXPR_KIND_INTEGER: {
-            return check_integer_expr(c, expr, cast);
+            return check_integer_expr(c, expr, cast, cast_to_definitive_type);
         } break;
 
         case EXPR_KIND_CONSTANT: {
@@ -164,19 +177,28 @@ Type* check_expr(CheckContext* c, Expr* expr, Type* cast) {
     return null;
 }
 
-Type* check_integer_expr(CheckContext* c, Expr* expr, Type* cast) {
-    if (!cast) cast = builtin_type_placeholders.i32;
-    if (type_is_integer(cast) && bigint_fits(
-                expr->integer.val, 
-                builtin_type_bytes(cast->builtin.kind), 
-                builtin_type_is_signed(cast->builtin.kind))) {
-        return cast;
+Type* check_integer_expr(CheckContext* c, Expr* expr, Type* cast, bool cast_to_definitive_type) {
+    if (!cast && !cast_to_definitive_type) {
+        Type* type = builtin_type_new(
+                expr->main_token,
+                BUILTIN_TYPE_KIND_APINT);
+        type->builtin.apint = expr->integer.val;
+        return type;
     }
     else {
-        check_error(
-                expr->integer.integer,
-                "integer cannot be converted to `{t}`",
-                cast);
+        if (!cast) cast = builtin_type_placeholders.i32;
+        if (type_is_integer(cast) && bigint_fits(
+                    expr->integer.val, 
+                    builtin_type_bytes(&cast->builtin), 
+                    builtin_type_is_signed(cast->builtin.kind))) {
+            return cast;
+        }
+        else {
+            check_error(
+                    expr->integer.integer,
+                    "integer cannot be converted to `{t}`",
+                    cast);
+        }
     }
     return null;
 }
@@ -242,7 +264,7 @@ Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
 
     buf_loop(args, i) {
         Type* param_type = params[i]->param.type;
-        Type* arg_type = check_expr(c, args[i], param_type);
+        Type* arg_type = check_expr(c, args[i], param_type, true);
         /* args[i]->type = arg_type; */
         if (arg_type && param_type && 
             check_implicit_cast(c, arg_type, param_type) == IMPLICIT_CAST_ERROR) {
@@ -260,13 +282,15 @@ Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
 }
 
 Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast) {
-    Type* left_type = check_expr(c, expr->binop.left, null);
+    Type* left_type = check_expr(c, expr->binop.left, null, false);
     expr->binop.left_type = left_type;
-    Type* right_type = check_expr(c, expr->binop.right, null);
+    Type* right_type = check_expr(c, expr->binop.right, null, false);
     expr->binop.right_type = right_type;
     expr->type = cast;
 
     if (left_type && right_type) {
+        bool is_left_apint = type_is_apint(left_type);
+        bool is_right_apint = type_is_apint(right_type);
         if (type_is_integer(left_type) && type_is_integer(right_type)) {
             ImplicitCastStatus status;
             bool return_left = true;
@@ -290,12 +314,48 @@ Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast) {
                 return right_type;
             }
         }
+        else if (is_left_apint || is_right_apint) {
+            if (is_left_apint && is_right_apint) {
+                ALLOC_WITH_TYPE(res, bigint);
+                bigint_init(res);
+                bigint_copy(left_type->builtin.apint, res);
+                bigint_add(res, right_type->builtin.apint, res);
+                Type* resty = builtin_type_new(expr->main_token, BUILTIN_TYPE_KIND_APINT);
+                resty->builtin.apint = res;
+                expr->type = resty;
+                return resty;
+            }
+            else {
+                Type* apint_type = left_type;
+                Type* int_type = right_type;
+                if (is_right_apint) {
+                    SWAP_VARS(Type*, apint_type, int_type);
+                }
+                
+                if (bigint_fits(
+                            apint_type->builtin.apint,
+                            builtin_type_bytes(&int_type->builtin),
+                            builtin_type_is_signed(int_type->builtin.kind))) {
+                    expr->type = int_type;
+                    return int_type;
+                }
+                else {
+                    check_error(
+                            expr->main_token,
+                            "%s operand cannot be converted to `{t}`",
+                            (is_left_apint ? "left" : "right"),
+                            int_type);
+                    return null;
+                }
+            }
+        }
         else {
             check_error(
                     expr->main_token,
                     "operator `+` given `{t}` and `{t}`, but requires integer operands",
                     left_type,
                     right_type);
+            return null;
         }
     }
     return null;
@@ -306,7 +366,7 @@ Type* check_block_expr(CheckContext* c, Expr* expr, Type* cast) {
         check_stmt(c, expr->block.stmts[i]);
     }
     if (expr->block.value) {
-        return check_expr(c, expr->block.value, cast);
+        return check_expr(c, expr->block.value, cast, true);
     }
     return builtin_type_placeholders.void_type;
 }
@@ -400,7 +460,7 @@ Type* check_if_expr(CheckContext* c, Expr* expr, Type* cast) {
 
 Type* check_if_branch(CheckContext* c, IfBranch* br, Type* cast) {
     if (br->cond) {
-        Type* cond_type = check_expr(c, br->cond, null);
+        Type* cond_type = check_expr(c, br->cond, null, true);
         if (cond_type && check_implicit_cast(
                     c, 
                     cond_type, 
@@ -408,14 +468,15 @@ Type* check_if_branch(CheckContext* c, IfBranch* br, Type* cast) {
             check_error(
                     br->cond->main_token,
                     "branch condition should be `bool` but got `{t}`",
-                    cond_type);
+                    cond_type,
+                    true);
         }
     }
     return check_block_expr(c, br->body, cast);
 }
 
 Type* check_while_expr(CheckContext* c, Expr* expr, Type* cast) {
-    Type* cond_type = check_expr(c, expr->whilelp.cond, null);
+    Type* cond_type = check_expr(c, expr->whilelp.cond, null, true);
     if (cond_type && check_implicit_cast(
                 c,
                 cond_type,
@@ -438,14 +499,30 @@ ImplicitCastStatus check_implicit_cast(
         if (from->kind == TYPE_KIND_BUILTIN) {
             if (builtin_type_is_integer(from->builtin.kind) &&
                 builtin_type_is_integer(to->builtin.kind)) {
-                if (builtin_type_bytes(from->builtin.kind) > 
-                    builtin_type_bytes(to->builtin.kind) ||
+                if (builtin_type_bytes(&from->builtin) > 
+                    builtin_type_bytes(&to->builtin) ||
                     builtin_type_is_signed(from->builtin.kind) != 
                     builtin_type_is_signed(to->builtin.kind)) {
                     return IMPLICIT_CAST_ERROR;
                 }
                 else {
                     return IMPLICIT_CAST_OK;
+                }
+            }
+            else if (builtin_type_is_apint(from->builtin.kind) || 
+                     builtin_type_is_apint(to->builtin.kind)) {
+                if (builtin_type_is_apint(to->builtin.kind)) {
+                    SWAP_VARS(Type*, from, to);
+                }
+                if (bigint_fits(
+                            from->builtin.apint,
+                            builtin_type_bytes(&to->builtin),
+                            builtin_type_is_signed(to->builtin.kind))) {
+                    from->builtin.kind = to->builtin.kind;
+                    return IMPLICIT_CAST_OK;
+                }
+                else {
+                    return IMPLICIT_CAST_ERROR;
                 }
             }
             else if (from->builtin.kind == to->builtin.kind) {

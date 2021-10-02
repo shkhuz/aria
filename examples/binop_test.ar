@@ -4,12 +4,34 @@ fn main() {
     // uint8_t i = 1;
     // uint16_t j = 2;
     // printf("%lu", i + j);
-    let i: u8 = 1;
-    let j: u16 = 2;
-    let v = 453454354;
-    let k = i + j;
-    write_u64(k);
+    {
+        let i: u8 = 1;
+        let j: u16 = 2;
+        writeln_u64(i + j + j);
+        let k = i + j + 2;
+        writeln_u64(k + 3 + 1 + 2);
+    }
+
+    {
+        let i: u32 = if false {
+            1
+        } else {
+            2
+        };
+        writeln_u64(i);
+    }
+}
+
+fn writeln_u64(n: u64) {
+    write_u64(n);
+    write_char(10);
+}
+
+fn writeln_i64(n: i64) {
+    write_i64(n);
+    write_char(10);
 }
 
 extern fn write_i64(n: i64);
 extern fn write_u64(n: u64);
+extern fn write_char(c: u8);
