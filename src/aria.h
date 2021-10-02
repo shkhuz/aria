@@ -217,6 +217,7 @@ typedef enum {
     STMT_KIND_FUNCTION,
     STMT_KIND_VARIABLE,
     STMT_KIND_PARAM,
+    STMT_KIND_ASSIGN,
     STMT_KIND_RETURN,
     STMT_KIND_EXPR,
 } StmtKind;
@@ -253,6 +254,12 @@ typedef struct {
 } ParamStmt;
 
 typedef struct {
+    Expr* left;
+    Expr* right;
+    Token* op;
+} AssignStmt;
+
+typedef struct {
     Expr* child;
     Stmt* parent_func;
 } ReturnStmt;
@@ -269,6 +276,7 @@ struct Stmt {
         FunctionStmt function;
         VariableStmt variable;
         ParamStmt param;
+        AssignStmt assign;
         ReturnStmt return_stmt;
         ExprStmt expr;
     };
@@ -304,6 +312,7 @@ Stmt* variable_stmt_new(
         Type* type,
         Expr* initializer);
 Stmt* param_stmt_new(Token* identifier, Type* type, size_t idx);
+Stmt* assign_stmt_new(Expr* left, Expr* right, Token* op);
 Stmt* expr_stmt_new(Expr* child);
 Expr* integer_expr_new(Token* integer, bigint* val);
 Expr* constant_expr_new(Token* keyword, ConstantKind kind);

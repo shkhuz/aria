@@ -16,6 +16,10 @@ static Stmt* parse_function_stmt(ParseContext* p, bool is_extern);
 static FunctionHeader* parse_function_header(ParseContext* p);
 static Stmt* parse_variable_stmt(ParseContext* p);
 static StmtOrExpr parse_function_level_node(ParseContext* p);
+static Stmt* parse_assign_stmt(
+        ParseContext* p,
+        Expr* left,
+        Token* op);
 static Stmt* parse_expr_stmt(ParseContext* p, Expr* expr);
 static Expr* parse_expr(ParseContext* p);
 static Expr* parse_binop_arith_term(ParseContext* p);
@@ -172,8 +176,24 @@ StmtOrExpr parse_function_level_node(ParseContext* p) {
         result.expr = expr;
         return result;
     }
+    else if (parse_match(p, TOKEN_KIND_EQUAL)) {
+        result.stmt = parse_assign_stmt(
+                p,
+                expr,
+                parse_previous(p));
+        return result;
+    }
     result.stmt = parse_expr_stmt(p, expr);
     return result;
+}
+
+Stmt* parse_assign_stmt(
+        ParseContext* p,
+        Expr* left,
+        Token* op) {
+    Expr* right = parse_expr(p);
+    parse_expect_semicolon(p);
+    return assign_stmt_new(left, right, op);
 }
 
 Stmt* parse_expr_stmt(ParseContext* p, Expr* expr) {

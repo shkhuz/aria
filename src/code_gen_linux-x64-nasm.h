@@ -9,6 +9,11 @@ typedef enum {
     REGISTER_RCX,
 } RegisterKind;
 
+typedef enum {
+    REGISTER_ACC,
+    REGISTER_ARG,
+} RegisterGroupKind;
+
 typedef struct {
     Srcfile* srcfile;
     char* asm_code;

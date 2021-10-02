@@ -338,6 +338,17 @@ Stmt* param_stmt_new(Token* identifier, Type* type, size_t idx) {
     return stmt;
 }
 
+Stmt* assign_stmt_new(Expr* left, Expr* right, Token* op) {
+    ALLOC_WITH_TYPE(stmt, Stmt);
+    stmt->kind = STMT_KIND_ASSIGN;
+    stmt->main_token = op;
+    stmt->parent_func = null;
+    stmt->assign.left = left;
+    stmt->assign.right = right;
+    stmt->assign.op = op;
+    return stmt;
+}
+
 Stmt* expr_stmt_new(Expr* child) {
     ALLOC_WITH_TYPE(stmt, Stmt);
     stmt->kind = STMT_KIND_EXPR;

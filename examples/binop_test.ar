@@ -4,9 +4,13 @@ fn main() {
     {
         let i: u8 = 1;
         let j: u16 = 2;
-        let k = i + j + 3;
+        let mut k = i + j + 3;
         writeln_u64(k);
         writeln_u64(k - 1 - 1 - 2 - 1);
+        k = 1;
+        writeln_u64(k);
+        k = 9999;
+        writeln_u64(k);
     }
 
     {

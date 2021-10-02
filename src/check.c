@@ -15,6 +15,7 @@ typedef enum {
 static void check_stmt(CheckContext* c, Stmt* stmt);
 static void check_function_stmt(CheckContext* c, Stmt* stmt);
 static void check_variable_stmt(CheckContext* c, Stmt* stmt);
+static void check_assign_stmt(CheckContext* c, Stmt* stmt);
 static void check_expr_stmt(CheckContext* c, Stmt* stmt);
 static Type* check_expr(CheckContext* c, Expr* expr, Type* cast, bool cast_to_definitive_type);
 static Type* check_integer_expr(CheckContext* c, Expr* expr, Type* cast, bool cast_to_definitive_type);
@@ -48,6 +49,10 @@ void check_stmt(CheckContext* c, Stmt* stmt) {
 
         case STMT_KIND_VARIABLE: {
             check_variable_stmt(c, stmt);
+        } break;
+
+        case STMT_KIND_ASSIGN: {
+            check_assign_stmt(c, stmt);
         } break;
 
         case STMT_KIND_EXPR: {
@@ -132,6 +137,20 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
         stmt->variable.stack_offset = c->last_stack_offset;
         stmt->parent_func->function.stack_vars_size = 
             c->last_stack_offset;
+    }
+}
+
+void check_assign_stmt(CheckContext* c, Stmt* stmt) {
+    Type* left_type = stmt_get_type(stmt->assign.left->symbol.ref);
+    Type* right_type = check_expr(c, stmt->assign.right, left_type, true);
+
+    if (left_type && right_type && 
+            check_implicit_cast(c, right_type, left_type) == IMPLICIT_CAST_ERROR) {
+        check_error(
+                stmt->main_token,
+                "cannot assign from `{t}` to `{t}`",
+                right_type,
+                left_type);
     }
 }
 

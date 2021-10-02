@@ -45,6 +45,7 @@ static void resolve_variable_stmt(
         ResolveContext* r,
         Stmt* stmt,
         bool ignore_function_level_stmt);
+static void resolve_assign_stmt(ResolveContext* r, Stmt* stmt);
 static void resolve_expr_stmt(ResolveContext* r, Stmt* stmt);
 static void resolve_expr(ResolveContext* r, Expr* expr);
 static void resolve_symbol_expr(ResolveContext* r, Expr* expr);
@@ -123,6 +124,10 @@ void resolve_stmt(
             resolve_variable_stmt(r, stmt, ignore_function_level_stmt);
         } break;
 
+        case STMT_KIND_ASSIGN: {
+            resolve_assign_stmt(r, stmt);
+        } break;
+
         case STMT_KIND_EXPR: {
             resolve_expr_stmt(r, stmt);
         } break;
@@ -174,6 +179,29 @@ void resolve_variable_stmt(
 
     if (stmt->variable.initializer) {
         resolve_expr(r, stmt->variable.initializer);
+    }
+}
+
+void resolve_assign_stmt(ResolveContext* r, Stmt* stmt) {
+    resolve_expr(r, stmt->assign.left);
+    resolve_expr(r, stmt->assign.right);
+
+    if (stmt->assign.left->kind == EXPR_KIND_SYMBOL && 
+        stmt->assign.left->symbol.ref &&
+        stmt->assign.left->symbol.ref->kind == STMT_KIND_VARIABLE) {
+        if (stmt->assign.left->symbol.ref->variable.constant) {
+            resolve_error(
+                    stmt->main_token,
+                    "cannot modify immutable variable");
+            note(
+                    stmt->assign.left->symbol.ref->main_token,
+                    "...variable defined here");
+        }
+    }
+    else {
+        resolve_error(
+                stmt->main_token,
+                "invalid l-value");
     }
 }
 
