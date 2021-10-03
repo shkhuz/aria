@@ -5,11 +5,6 @@
 #include "aria.h"
 
 typedef enum {
-    REGISTER_RAX,
-    REGISTER_RCX,
-} RegisterKind;
-
-typedef enum {
     REGISTER_ACC,
     REGISTER_ARG,
 } RegisterGroupKind;
@@ -17,7 +12,6 @@ typedef enum {
 typedef struct {
     Srcfile* srcfile;
     char* asm_code;
-    RegisterKind acc_reg;
 } CodeGenContext;
 
 void code_gen(CodeGenContext* c);

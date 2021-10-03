@@ -56,7 +56,6 @@ static size_t code_gen_get_sizeof_symbol_on_stack(Stmt* stmt);
 static char* code_gen_get_asm_type_specifier(size_t bytes);
 static char* code_gen_get_rax_register_by_size(size_t bytes);
 static char* code_gen_get_rcx_register_by_size(size_t bytes);
-static char* code_gen_get_acc_register_by_size(CodeGenContext* c, size_t bytes);
 static char* code_gen_get_arg_register_by_idx(size_t idx);
 static void code_gen_asmp(CodeGenContext* c, char* fmt, ...);
 static void code_gen_tasmp(CodeGenContext* c, char* fmt, ...);
@@ -69,7 +68,6 @@ static void code_gen_push_tabs(CodeGenContext* c);
 
 void code_gen(CodeGenContext* c) {
     c->asm_code = null;
-    c->acc_reg = REGISTER_RAX;
 
     buf_loop(c->srcfile->stmts, i) {
         code_gen_stmt(c, c->srcfile->stmts[i]);
@@ -221,8 +219,7 @@ void code_gen_expr(CodeGenContext* c, Expr* expr) {
 void code_gen_integer_expr(CodeGenContext* c, Expr* expr) {
     code_gen_asmp(
             c, 
-            "mov %s, %s", 
-            code_gen_get_acc_register_by_size(c, 8),
+            "mov rax, %s", 
             expr->integer.integer->lexeme);
 }
 
@@ -236,8 +233,7 @@ void code_gen_constant_expr(CodeGenContext* c, Expr* expr) {
 
     code_gen_asmp(
             c, 
-            "mov %s, %d",
-            code_gen_get_acc_register_by_size(c, 4),
+            "mov eax, %d",
             value);
 }
 
@@ -280,15 +276,14 @@ void code_gen_function_call_expr(CodeGenContext* c, Expr* expr) {
         code_gen_zs_extend(c, args[i]->type, params[i]->param.type);
         code_gen_asmp(
                 c,
-                "mov %s, %s",
-                code_gen_get_arg_register_by_idx(i),
-                code_gen_get_acc_register_by_size(c, 8));
+                "mov %s, rax",
+                code_gen_get_arg_register_by_idx(i));
     }
     if (reg_args_len < args_len) {
         for (size_t i = args_len-1; i >= reg_args_len; i--) {
             code_gen_expr(c, args[i]);
             code_gen_zs_extend(c, args[i]->type, params[i]->param.type);
-            code_gen_asmp(c, "push %s", code_gen_get_acc_register_by_size(c, 8));
+            code_gen_asmw(c, "push rax");
         }
     }
     code_gen_asmp(
@@ -304,11 +299,13 @@ void code_gen_function_call_expr(CodeGenContext* c, Expr* expr) {
 }
 
 void code_gen_binop_expr(CodeGenContext* c, Expr* expr) {
-    if (type_is_apint(expr->binop.left_type) && type_is_apint(expr->binop.right_type)) {
+    if ((expr->binop.op->kind == TOKEN_KIND_PLUS ||
+        expr->binop.op->kind == TOKEN_KIND_MINUS) &&
+        (type_is_apint(expr->binop.left_type) && 
+         type_is_apint(expr->binop.right_type))) {
         code_gen_asmp(
                 c, 
-                "mov %s, %lu ; simplified", 
-                code_gen_get_acc_register_by_size(c, 8),
+                "mov rax, %lu ; simplified", 
                 bigint_get_lsd(expr->type->builtin.apint));
     }
     else {
@@ -326,27 +323,48 @@ void code_gen_binop_expr(CodeGenContext* c, Expr* expr) {
         }
         size_t const bigger_bytes = type_bytes(bigger_type);
 
-        c->acc_reg = REGISTER_RAX;
         code_gen_expr(c, expr->binop.left);
         if (!type_is_apint(expr->binop.left_type)) {
             code_gen_zs_extend(c, expr->binop.left_type, bigger_type);
         }
         code_gen_asmw(c, "push rax");
 
-        c->acc_reg = REGISTER_RCX;
         code_gen_expr(c, expr->binop.right);
         if (!type_is_apint(expr->binop.right_type)) {
             code_gen_zs_extend(c, expr->binop.right_type, bigger_type);
         }
-        c->acc_reg = REGISTER_RAX;
+        code_gen_asmw(c, "pop rcx");
+        code_gen_asmw(c, "xchg rax, rcx");
 
-        code_gen_asmw(c, "pop rax");
-        code_gen_asmp(
-                c, 
-                "%s %s, %s",
-                (expr->binop.op->kind == TOKEN_KIND_PLUS ? "add" : "sub"),
-                code_gen_get_rax_register_by_size(bigger_bytes),
-                code_gen_get_rcx_register_by_size(bigger_bytes));
+        if (expr->binop.op->kind == TOKEN_KIND_PLUS ||
+            expr->binop.op->kind == TOKEN_KIND_MINUS) {
+            code_gen_asmp(
+                    c, 
+                    "%s %s, %s",
+                    (expr->binop.op->kind == TOKEN_KIND_PLUS ? "add" : "sub"),
+                    code_gen_get_rax_register_by_size(bigger_bytes),
+                    code_gen_get_rcx_register_by_size(bigger_bytes));
+        }
+        else if (token_is_cmp_op(expr->binop.op)) {
+            code_gen_asmp(
+                    c, 
+                    "cmp %s, %s",
+                    code_gen_get_rax_register_by_size(bigger_bytes),
+                    code_gen_get_rcx_register_by_size(bigger_bytes));
+            code_gen_asmw(c, "mov eax, 0");
+            
+            char* inst = null; 
+            switch (expr->binop.op->kind) {
+                case TOKEN_KIND_DOUBLE_EQUAL: inst = "sete"; break;
+                case TOKEN_KIND_BANG_EQUAL: inst = "setne"; break;
+                case TOKEN_KIND_LANGBR: inst = "setl"; break;
+                case TOKEN_KIND_LANGBR_EQUAL: inst = "setle"; break;
+                case TOKEN_KIND_RANGBR: inst = "setg"; break;
+                case TOKEN_KIND_RANGBR_EQUAL: inst = "setge"; break;
+                default: assert(0); break;
+            }
+            code_gen_asmp(c, "%s al", inst);
+        }
     }
 }
 
@@ -413,11 +431,7 @@ void code_gen_if_branch(
 
     if (br->kind != IF_BRANCH_ELSE) {
         code_gen_expr(c, br->cond);
-        code_gen_asmp(
-                c, 
-                "test %s, %s", 
-                code_gen_get_acc_register_by_size(c, 8),
-                code_gen_get_acc_register_by_size(c, 8));
+        code_gen_asmw(c, "test rax, rax");
         code_gen_nasmw(c, "jz ");
         if (br->kind == IF_BRANCH_ELSEIF) elseifidx++;
         code_gen_distinct_if_label(c, nextbr_kind, idx, elseifidx, false);
@@ -458,11 +472,7 @@ void code_gen_while_expr(CodeGenContext* c, Expr* expr) {
     code_gen_distinct_while_label(c, WHILE_LOOP_ASM_COND, idx, true);
 
     code_gen_expr(c, expr->whilelp.cond);
-    code_gen_asmp(
-            c, 
-            "test %s, %s", 
-            code_gen_get_acc_register_by_size(c, 8),
-            code_gen_get_acc_register_by_size(c, 8));
+    code_gen_asmw(c, "test rax, rax");
     code_gen_nasmw(c, "jz ");
     code_gen_distinct_while_label(c, WHILE_LOOP_ASM_END, idx, false);
 
@@ -527,8 +537,8 @@ void code_gen_zs_extend(CodeGenContext* c, Type* from, Type* to) {
                 code_gen_asmp(
                         c,
                         fmt,
-                        code_gen_get_acc_register_by_size(c, to_bytes),
-                        code_gen_get_acc_register_by_size(c, from_bytes));
+                        code_gen_get_rax_register_by_size(to_bytes),
+                        code_gen_get_rax_register_by_size(from_bytes));
             }
         }
         else {
@@ -547,8 +557,7 @@ void code_gen_assign_reg_group_to_stack_addr(
     char* reg = null;
     switch (kind) {
         case REGISTER_ACC:
-            reg = code_gen_get_acc_register_by_size(
-                    c, 
+            reg = code_gen_get_rax_register_by_size(
                     code_gen_get_sizeof_symbol_on_stack(stmt));
             break;
         case REGISTER_ARG:
@@ -566,8 +575,7 @@ void code_gen_assign_stack_addr_to_reg_group(
     char* reg = null;
     switch (kind) {
         case REGISTER_ACC:
-            reg = code_gen_get_acc_register_by_size(
-                    c, 
+            reg = code_gen_get_rax_register_by_size(
                     code_gen_get_sizeof_symbol_on_stack(stmt));
             break;
         case REGISTER_ARG:
@@ -647,15 +655,6 @@ char* code_gen_get_rcx_register_by_size(size_t bytes) {
         case 2: return "cx";
         case 4: return "ecx";
         case 8: return "rcx";
-    }
-    assert(0);
-    return null;
-}
-
-char* code_gen_get_acc_register_by_size(CodeGenContext* c, size_t bytes) {
-    switch (c->acc_reg) {
-        case REGISTER_RAX: return code_gen_get_rax_register_by_size(bytes);
-        case REGISTER_RCX: return code_gen_get_rcx_register_by_size(bytes);
     }
     assert(0);
     return null;

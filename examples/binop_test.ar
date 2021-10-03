@@ -10,7 +10,6 @@ fn main() {
         k = 1;
         writeln_u64(k);
         k = 9999;
-        writeln_u64(k);
     }
 
     {

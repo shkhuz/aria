@@ -22,6 +22,7 @@ static Stmt* parse_assign_stmt(
         Token* op);
 static Stmt* parse_expr_stmt(ParseContext* p, Expr* expr);
 static Expr* parse_expr(ParseContext* p);
+static Expr* parse_comparision_expr(ParseContext* p);
 static Expr* parse_binop_arith_term(ParseContext* p);
 static Expr* parse_atom_expr(ParseContext* p);
 static Expr* parse_integer_expr(ParseContext* p);
@@ -207,7 +208,22 @@ Stmt* parse_expr_stmt(ParseContext* p, Expr* expr) {
 }
 
 Expr* parse_expr(ParseContext* p) {
-    return parse_binop_arith_term(p);
+    return parse_comparision_expr(p);
+}
+
+Expr* parse_comparision_expr(ParseContext* p) {
+    Expr* left = parse_binop_arith_term(p);
+    while (parse_match(p, TOKEN_KIND_DOUBLE_EQUAL) ||
+           parse_match(p, TOKEN_KIND_BANG_EQUAL) ||
+           parse_match(p, TOKEN_KIND_LANGBR) ||
+           parse_match(p, TOKEN_KIND_LANGBR_EQUAL) ||
+           parse_match(p, TOKEN_KIND_RANGBR) ||
+           parse_match(p, TOKEN_KIND_RANGBR_EQUAL)) {
+        Token* op = parse_previous(p);
+        Expr* right = parse_binop_arith_term(p);
+        left = binop_expr_new(left, right, op);
+    }
+    return left;
 }
 
 Expr* parse_binop_arith_term(ParseContext* p) {

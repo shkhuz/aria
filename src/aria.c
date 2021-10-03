@@ -264,6 +264,21 @@ Type* stmt_get_type(Stmt* stmt) {
     return null;
 }
 
+bool token_is_cmp_op(Token* token) {
+    switch (token->kind) {
+        case TOKEN_KIND_DOUBLE_EQUAL:
+        case TOKEN_KIND_BANG_EQUAL:
+        case TOKEN_KIND_LANGBR:
+        case TOKEN_KIND_LANGBR_EQUAL:
+        case TOKEN_KIND_RANGBR:
+        case TOKEN_KIND_RANGBR_EQUAL:
+            return true;
+        default:
+            break;
+    }
+    return false;
+}
+
 Type* builtin_type_new(Token* token, BuiltinTypeKind kind) {
     ALLOC_WITH_TYPE(type, Type);
     type->kind = TYPE_KIND_BUILTIN;

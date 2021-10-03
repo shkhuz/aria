@@ -5,8 +5,10 @@ EXE_FILE := build/ariac
 CFLAGS := -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter
 LDFLAGS := 
 # CMD_ARGS := examples/cg.ar
-CMD_ARGS := examples/binop_test.ar
+# CMD_ARGS := examples/binop_test.ar
+# CMD_ARGS := examples/cmp_test.ar
 # CMD_ARGS := examples/lex.ar
+CMD_ARGS := examples/fib.ar
 
 ifeq ($(prod), y)
 	CFLAGS_OPTIMIZE := -O3

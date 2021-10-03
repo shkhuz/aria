@@ -1,0 +1,25 @@
+fn main() {
+    writeln_i64(fib(9));
+}
+
+fn fib(n: i32) i32 {
+    if n <= 1 { 
+        n
+    } else {
+        fib(n-1) + fib(n-2)
+    }
+}
+
+fn writeln_u64(n: u64) {
+    write_u64(n);
+    write_char(10);
+}
+
+fn writeln_i64(n: i64) {
+    write_i64(n);
+    write_char(10);
+}
+
+extern fn write_i64(n: i64);
+extern fn write_u64(n: u64);
+extern fn write_char(c: u8);

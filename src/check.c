@@ -23,6 +23,17 @@ static Type* check_constant_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_symbol_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast);
+static bool check_apint_int_operands(
+        CheckContext* c,
+        Expr* expr,
+        Type* left_type,
+        Type* right_type,
+        bool is_left_apint,
+        bool is_right_apint);
+static void check_apint_fits_into_default_integer_type(
+        CheckContext* c,
+        Expr* apint_expr,
+        Type* apint);
 static Type* check_block_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_if_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_if_branch(CheckContext* c, IfBranch* br, Type* cast);
@@ -306,82 +317,182 @@ Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast) {
     Type* right_type = check_expr(c, expr->binop.right, null, false);
     expr->binop.right_type = right_type;
     expr->type = cast;
+    bool is_left_apint = type_is_apint(left_type);
+    bool is_right_apint = type_is_apint(right_type);
 
     if (left_type && right_type) {
-        bool is_left_apint = type_is_apint(left_type);
-        bool is_right_apint = type_is_apint(right_type);
-        if (type_is_integer(left_type) && type_is_integer(right_type)) {
-            ImplicitCastStatus status;
-            bool return_left = true;
-            if (type_bytes(left_type) > type_bytes(right_type)) {
-                status = check_implicit_cast(c, right_type, left_type);
+        if (expr->binop.op->kind == TOKEN_KIND_PLUS || 
+            expr->binop.op->kind == TOKEN_KIND_MINUS) {
+            if (type_is_integer(left_type) && type_is_integer(right_type)) {
+                ImplicitCastStatus status;
+                bool return_left = true;
+                if (type_bytes(right_type) > type_bytes(left_type)) {
+                    status = check_implicit_cast(c, left_type, right_type);
+                    return_left = false;
+                }
+                else {
+                    status = check_implicit_cast(c, right_type, left_type);
+                }
+                if (status == IMPLICIT_CAST_ERROR) {
+                    check_error(
+                            expr->main_token,
+                            "implicit cast error: `{t}` and `{t}`",
+                            left_type,
+                            right_type);
+                }
+                else if (expr->binop.op->kind == TOKEN_KIND_PLUS ||
+                         expr->binop.op->kind == TOKEN_KIND_MINUS) {
+                    if (return_left) {
+                        return left_type;
+                    } else {
+                        return right_type;
+                    }
+                }
+            }
+            else if (is_left_apint || is_right_apint) {
+                if (is_left_apint && is_right_apint) {
+                    ALLOC_WITH_TYPE(res, bigint);
+                    bigint_init(res);
+                    bigint_copy(left_type->builtin.apint, res);
+                    if (expr->binop.op->kind == TOKEN_KIND_PLUS) {
+                        bigint_add(res, right_type->builtin.apint, res);
+                    } 
+                    else {
+                        bigint_sub(res, right_type->builtin.apint, res);
+                    }
+                    Type* resty = builtin_type_new(expr->main_token, BUILTIN_TYPE_KIND_APINT);
+                    resty->builtin.apint = res;
+                    expr->type = resty;
+                    return resty;
+                }
+                else {
+                    if (check_apint_int_operands(
+                            c,
+                            expr,
+                            left_type,
+                            right_type,
+                            is_left_apint,
+                            is_right_apint)) {
+                        return expr->type;
+                    }
+                    else {
+                        return null;
+                    }
+                }
             }
             else {
-                status = check_implicit_cast(c, left_type, right_type);
-                return_left = false;
-            }
-            if (status == IMPLICIT_CAST_ERROR) {
                 check_error(
                         expr->main_token,
-                        "implicit cast error: `{t}` and `{t}`",
+                        "given `{t}` and `{t}`, but requires integer operands",
                         left_type,
                         right_type);
-            }
-            else if (return_left) {
-                return left_type;
-            } else {
-                return right_type;
+                return null;
             }
         }
-        else if (is_left_apint || is_right_apint) {
-            if (is_left_apint && is_right_apint) {
-                ALLOC_WITH_TYPE(res, bigint);
-                bigint_init(res);
-                bigint_copy(left_type->builtin.apint, res);
-                if (expr->binop.op->kind == TOKEN_KIND_PLUS) {
-                    bigint_add(res, right_type->builtin.apint, res);
-                } 
-                else {
-                    bigint_sub(res, right_type->builtin.apint, res);
+        else if (token_is_cmp_op(expr->binop.op)) {
+            /* if (cast && check_implicit_cast(c, cast, builtin_type_placeholders.boolean) == IMPLICIT_CAST_ERROR) { */
+            /*     check_error( */
+            /*             expr->main_token, */
+            /*             "cannot convert from `{t}` to `bool`", */
+            /*             cast); */
+            /* } */
+
+            if (is_left_apint || is_right_apint) {
+                if (is_left_apint && is_right_apint) {
+                    check_apint_fits_into_default_integer_type(
+                            c,
+                            expr->binop.left,
+                            left_type);
+                    check_apint_fits_into_default_integer_type(
+                            c,
+                            expr->binop.right,
+                            right_type);
                 }
-                Type* resty = builtin_type_new(expr->main_token, BUILTIN_TYPE_KIND_APINT);
-                resty->builtin.apint = res;
-                expr->type = resty;
-                return resty;
+                else {
+                    check_apint_int_operands(
+                            c,
+                            expr,
+                            left_type,
+                            right_type,
+                            is_left_apint,
+                            is_right_apint);
+                }
             }
             else {
-                Type* apint_type = left_type;
-                Type* int_type = right_type;
-                if (is_right_apint) {
-                    SWAP_VARS(Type*, apint_type, int_type);
-                }
-                
-                if (bigint_fits(
-                            apint_type->builtin.apint,
-                            builtin_type_bytes(&int_type->builtin),
-                            builtin_type_is_signed(int_type->builtin.kind))) {
-                    expr->type = int_type;
-                    return int_type;
+                ImplicitCastStatus status;
+                if (type_bytes(right_type) > type_bytes(left_type)) {
+                    status = check_implicit_cast(c, left_type, right_type);
                 }
                 else {
+                    status = check_implicit_cast(c, right_type, left_type);
+                }
+                if (status == IMPLICIT_CAST_ERROR) {
                     check_error(
-                            apint_type->main_token,
-                            "expression cannot be converted to `{t}`",
-                            int_type);
-                    return null;
+                            expr->main_token,
+                            "cannot compare `{t}` and `{t}`",
+                            left_type,
+                            right_type);
                 }
             }
-        }
-        else {
-            check_error(
-                    expr->main_token,
-                    "operator `+` given `{t}` and `{t}`, but requires integer operands",
-                    left_type,
-                    right_type);
-            return null;
+            return builtin_type_placeholders.boolean;
         }
     }
     return null;
+}
+
+bool check_apint_int_operands(
+        CheckContext* c,
+        Expr* expr,
+        Type* left_type,
+        Type* right_type,
+        bool is_left_apint,
+        bool is_right_apint) {
+    Type* apint_type = left_type;
+    Type* int_type = right_type;
+    if (is_right_apint) {
+        SWAP_VARS(Type*, apint_type, int_type);
+    }
+
+    if (!type_is_integer(int_type)) {
+        check_error(
+                (is_right_apint ? 
+                 expr->binop.left->main_token : 
+                 expr->binop.right->main_token),
+                "expression cannot be converted to `{t}`",
+                apint_type);
+        return false;
+    }
+
+    if (bigint_fits(
+                apint_type->builtin.apint,
+                builtin_type_bytes(&int_type->builtin),
+                builtin_type_is_signed(int_type->builtin.kind))) {
+        expr->type = int_type;
+        return true;
+    }
+    else {
+        check_error(
+                apint_type->main_token,
+                "expression cannot be converted to `{t}`",
+                int_type);
+        return false;
+    }
+}
+
+void check_apint_fits_into_default_integer_type(
+        CheckContext* c,
+        Expr* apint_expr,
+        Type* apint) {
+    assert(type_is_apint(apint));
+    if (!bigint_fits(
+                apint->builtin.apint,
+                builtin_type_bytes(&builtin_type_placeholders.i32->builtin),
+                builtin_type_is_signed(builtin_type_placeholders.i32->builtin.kind))) {
+        check_error(
+                apint_expr->main_token,
+                "integer cannot be converted to `{t}`",
+                builtin_type_placeholders.i32);
+    }
 }
 
 Type* check_block_expr(CheckContext* c, Expr* expr, Type* cast) {

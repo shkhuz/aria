@@ -31,6 +31,12 @@ typedef enum {
     TOKEN_KIND_COMMA,
     TOKEN_KIND_EQUAL,
     TOKEN_KIND_DOUBLE_EQUAL,
+    TOKEN_KIND_BANG,
+    TOKEN_KIND_BANG_EQUAL,
+    TOKEN_KIND_LANGBR,
+    TOKEN_KIND_LANGBR_EQUAL,
+    TOKEN_KIND_RANGBR,
+    TOKEN_KIND_RANGBR_EQUAL,
     TOKEN_KIND_PLUS,
     TOKEN_KIND_MINUS,
     TOKEN_KIND_STAR,
@@ -298,6 +304,7 @@ bool type_is_integer(Type* type);
 bool type_is_apint(Type* type);
 size_t type_bytes(Type* type);
 Type* stmt_get_type(Stmt* stmt);
+bool token_is_cmp_op(Token* token);
 
 Type* builtin_type_new(Token* token, BuiltinTypeKind kind);
 Type* ptr_type_new(Token* star, bool constant, Type* child);
