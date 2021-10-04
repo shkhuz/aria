@@ -1,25 +1,38 @@
-fn main() {
+fn main() i32 {
     srand(time(null));
-    let newline: u8 = 10;
 
-    {
-        let i = rand8();
-        let s: u64 = i;
-        write_u64(s);
-    }
-    write_char(newline);
+    let greater = 1;
+    let less = -1;
+    let random_number = rand8();
 
-    {
-        let i: i8 = 1;
-        let s: i64 = i;
-        write_i64(s);
+    let mut input = get_user_input();
+    while input != random_number {
+        if input > random_number {
+            writeln_i64(less);
+        }
+        else if input < random_number {
+            writeln_i64(greater);
+        }
+        input = get_user_input();
     }
-    write_char(newline);
+    writeln_u64(input);
+
+    0
+}
+
+fn get_user_input() u64 {
+    convert_to_u64(read_stdio())
 }
 
 extern fn srand(seed: i32);
 extern fn time(ptr: *void) i32;
 extern fn rand8() u8;
+extern fn writeln_u64(n: u64);
+extern fn writeln_i64(n: i64);
 extern fn write_u64(n: u64);
 extern fn write_i64(n: i64);
 extern fn write_char(c: u8);
+
+extern fn read_stdio() *u8;
+extern fn write_str(str: *u8);
+extern fn convert_to_u64(str: *u8) u64;

@@ -133,6 +133,7 @@ typedef enum {
     EXPR_KIND_SYMBOL,
     EXPR_KIND_FUNCTION_CALL,
     EXPR_KIND_BINOP,
+    EXPR_KIND_UNOP,
     EXPR_KIND_BLOCK,
     EXPR_KIND_IF,
     EXPR_KIND_WHILE,
@@ -174,6 +175,12 @@ typedef struct {
 } BinopExpr;
 
 typedef struct {
+    Expr* child;
+    Token* op;
+    Type* child_type;
+} UnopExpr;
+
+typedef struct {
     Stmt** stmts;
     Expr* value;
     Token* rbrace;
@@ -213,6 +220,7 @@ struct Expr {
         SymbolExpr symbol;
         FunctionCallExpr function_call;
         BinopExpr binop;
+        UnopExpr unop;
         BlockExpr block;
         IfExpr iff;
         WhileExpr whilelp;
@@ -326,6 +334,7 @@ Expr* constant_expr_new(Token* keyword, ConstantKind kind);
 Expr* symbol_expr_new(Token* identifier);
 Expr* function_call_expr_new(Expr* callee, Expr** args, Token* rparen);
 Expr* binop_expr_new(Expr* left, Expr* right, Token* op);
+Expr* unop_expr_new(Expr* child, Token* op);
 Expr* block_expr_new(
         Stmt** stmts, 
         Expr* value, 

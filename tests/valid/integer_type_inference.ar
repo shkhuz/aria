@@ -1,5 +1,5 @@
 fn main() {
-    let a = 1;
-    let b = 127;
+    let a: i8 = 1;
+    let b: i8 = 127;
     let addition: i8 = a + b;
 }

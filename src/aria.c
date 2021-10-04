@@ -219,14 +219,14 @@ Type* type_get_child(Type* type) {
 }
 
 bool type_is_integer(Type* type) {
-    if (type->kind == TYPE_KIND_BUILTIN && builtin_type_is_integer(type->builtin.kind)) {
+    if (type && type->kind == TYPE_KIND_BUILTIN && builtin_type_is_integer(type->builtin.kind)) {
         return true;
     }
     return false;
 }
 
 bool type_is_apint(Type* type) {
-    if (type->kind == TYPE_KIND_BUILTIN && builtin_type_is_apint(type->builtin.kind)) {
+    if (type && type->kind == TYPE_KIND_BUILTIN && builtin_type_is_apint(type->builtin.kind)) {
         return true;
     }
     return false;
@@ -429,6 +429,18 @@ Expr* binop_expr_new(Expr* left, Expr* right, Token* op) {
     expr->binop.op = op;
     expr->binop.left_type = null;
     expr->binop.right_type = null;
+    return expr;
+}
+
+Expr* unop_expr_new(Expr* child, Token* op) {
+    ALLOC_WITH_TYPE(expr, Expr);
+    expr->kind = EXPR_KIND_UNOP;
+    expr->main_token = op;
+    expr->type = null;
+    expr->parent_func = null;
+    expr->unop.child = child;
+    expr->unop.op = op;
+    expr->unop.child_type = null;
     return expr;
 }
 

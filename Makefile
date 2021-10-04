@@ -15,8 +15,8 @@ CC := gcc
 LD := gcc
 
 run: $(EXE_FILE)
-	./$^ -o build/fib examples/fib.ar examples/std.ar
-	./build/fib
+	./$^ -o build/game examples/std.ar examples/number_game.ar
+	./build/game
 
 $(EXE_FILE): $(OBJ_FILES)
 	@mkdir -p $(dir $@)
@@ -27,7 +27,7 @@ build/obj/%.c.o: %.c
 	$(CC) -c $(CFLAGS) $(CFLAGS_OPTIMIZE) -o $@ $^
 
 debug: $(EXE_FILE)
-	gdb --args $^ $(CMD_ARGS)
+	gdb --args $^ examples/unop.ar
 
 clean:
 	rm -rf build/ a.out *.o *.asm

@@ -30,7 +30,7 @@ fn main() {
     }
 
     {
-        let a = 127;
+        let a: i8 = 127;
         let b = -a;
         let c: i8 = a + b;
     }

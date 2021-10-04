@@ -23,6 +23,7 @@ static Type* check_constant_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_symbol_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast);
+static Type* check_unop_expr(CheckContext* c, Expr* expr, Type* cast);
 static bool check_apint_int_operands(
         CheckContext* c,
         Expr* expr,
@@ -191,6 +192,10 @@ Type* check_expr(CheckContext* c, Expr* expr, Type* cast, bool cast_to_definitiv
             return check_binop_expr(c, expr, cast);
         } break;
 
+        case EXPR_KIND_UNOP: {
+            return check_unop_expr(c, expr, cast);
+        } break;
+
         case EXPR_KIND_BLOCK: {
             return check_block_expr(c, expr, cast);
         } break;
@@ -317,10 +322,10 @@ Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast) {
     Type* right_type = check_expr(c, expr->binop.right, null, false);
     expr->binop.right_type = right_type;
     expr->type = cast;
-    bool is_left_apint = type_is_apint(left_type);
-    bool is_right_apint = type_is_apint(right_type);
 
     if (left_type && right_type) {
+        bool is_left_apint = type_is_apint(left_type);
+        bool is_right_apint = type_is_apint(right_type);
         if (expr->binop.op->kind == TOKEN_KIND_PLUS || 
             expr->binop.op->kind == TOKEN_KIND_MINUS) {
             if (type_is_integer(left_type) && type_is_integer(right_type)) {
@@ -360,10 +365,13 @@ Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast) {
                     else {
                         bigint_sub(res, right_type->builtin.apint, res);
                     }
-                    Type* resty = builtin_type_new(expr->main_token, BUILTIN_TYPE_KIND_APINT);
-                    resty->builtin.apint = res;
-                    expr->type = resty;
-                    return resty;
+                    
+                    Type* new_apint = builtin_type_new(
+                            expr->main_token, 
+                            BUILTIN_TYPE_KIND_APINT);
+                    new_apint->builtin.apint = res;
+                    expr->type = new_apint;
+                    return new_apint;
                 }
                 else {
                     if (check_apint_int_operands(
@@ -435,6 +443,49 @@ Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast) {
                 }
             }
             return builtin_type_placeholders.boolean;
+        }
+    }
+    return null;
+}
+
+Type* check_unop_expr(CheckContext* c, Expr* expr, Type* cast) {
+    Type* child_type = check_expr(c, expr->unop.child, null, false);
+    expr->unop.child_type = child_type;
+    expr->type = cast;
+
+    if (child_type) {
+        bool is_child_apint = type_is_apint(child_type);
+        if (expr->unop.op->kind == TOKEN_KIND_MINUS) {
+            if (type_is_integer(child_type)) {
+                if (builtin_type_is_signed(child_type->builtin.kind)) {
+                    return child_type;
+                }
+                else {
+                    check_error(
+                            expr->main_token,
+                            "cannot negate unsigned operand of type `{t}`",
+                            child_type);
+                }
+            }
+            else if (is_child_apint) {
+                ALLOC_WITH_TYPE(res, bigint);
+                bigint_init(res);
+                bigint_copy(child_type->builtin.apint, res);
+                bigint_neg(child_type->builtin.apint, res);
+                
+                Type* new_apint = builtin_type_new(
+                        expr->main_token, 
+                        BUILTIN_TYPE_KIND_APINT);
+                new_apint->builtin.apint = res;
+                expr->type = new_apint;
+                return new_apint;
+            }
+            else {
+                check_error(
+                        expr->main_token,
+                        "given `{t}`, but requires an integer operand",
+                        child_type);
+            }
         }
     }
     return null;

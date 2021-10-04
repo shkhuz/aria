@@ -21,6 +21,8 @@ static void code_gen_constant_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_symbol_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_function_call_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_binop_expr(CodeGenContext* c, Expr* expr);
+static void code_gen_unop_expr(CodeGenContext* c, Expr* expr);
+static void code_gen_bigint(CodeGenContext* c, bigint* a);
 static void code_gen_block_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_if_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_if_branch(
@@ -103,7 +105,7 @@ void code_gen_output_bin(CodeGenContext* c, char* finoutpath) {
         buf_printf(build_cmd, "%s ", c[i].objoutpath);
     }
     buf_printf(build_cmd, "examples/std.c");
-    /* printf("[build] %s\n", build_cmd); */
+    printf("[build] %s\n", build_cmd);
     system(build_cmd);
 }
 
@@ -227,6 +229,10 @@ void code_gen_expr(CodeGenContext* c, Expr* expr) {
             code_gen_binop_expr(c, expr);
         } break;
 
+        case EXPR_KIND_UNOP: {
+            code_gen_unop_expr(c, expr);
+        } break;
+
         case EXPR_KIND_BLOCK: {
             code_gen_block_expr(c, expr);
         } break;
@@ -328,10 +334,7 @@ void code_gen_binop_expr(CodeGenContext* c, Expr* expr) {
         expr->binop.op->kind == TOKEN_KIND_MINUS) &&
         (type_is_apint(expr->binop.left_type) && 
          type_is_apint(expr->binop.right_type))) {
-        code_gen_asmp(
-                c, 
-                "mov rax, %lu ; simplified", 
-                bigint_get_lsd(expr->type->builtin.apint));
+        code_gen_bigint(c, expr->type->builtin.apint);
     }
     else {
         Type* bigger_type = null;
@@ -391,6 +394,43 @@ void code_gen_binop_expr(CodeGenContext* c, Expr* expr) {
             code_gen_asmp(c, "%s al", inst);
         }
     }
+}
+
+void code_gen_unop_expr(CodeGenContext* c, Expr* expr) {
+    if (expr->unop.op->kind == TOKEN_KIND_MINUS &&
+        type_is_apint(expr->unop.child_type)) {
+        code_gen_bigint(c, expr->type->builtin.apint);
+    }
+    else {
+        Type* bigger_type = null;
+        if (expr->type) {
+            bigger_type = expr->type;
+        }
+        else {
+            bigger_type = expr->unop.child_type;
+        }
+        size_t const bigger_bytes = type_bytes(bigger_type);
+
+        code_gen_expr(c, expr->unop.child);
+        if (!type_is_apint(expr->unop.child_type)) {
+            code_gen_zs_extend(c, expr->unop.child_type, bigger_type);
+        }
+        
+        if (expr->unop.op->kind == TOKEN_KIND_MINUS) {
+            code_gen_asmp(
+                    c, 
+                    "neg %s", 
+                    code_gen_get_rax_register_by_size(bigger_bytes));
+        }
+    }
+}
+
+void code_gen_bigint(CodeGenContext* c, bigint* a) {
+    code_gen_asmp(
+            c, 
+            "mov rax, %s%lu", 
+            (a->sign == BIGINT_SIGN_NEG ? "-" : ""),
+            bigint_get_lsd(a));
 }
 
 void code_gen_block_expr(CodeGenContext* c, Expr* expr) {

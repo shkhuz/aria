@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 void write_i64(int64_t n) {
-    printf("%lu", n);
+    printf("%li", n);
 }
 
 void write_u64(uint64_t n) {
@@ -16,6 +16,21 @@ void write_char(int8_t c) {
 
 uint8_t rand8() {
     return rand();
+}
+
+char* read_stdio() {
+    static char buf[256];
+    return fgets(buf, sizeof(buf), stdin);
+}
+
+void write_str(char* str) {
+    fputs(str, stdout);
+}
+
+uint64_t convert_to_u64(char* str) {
+    uint64_t i;
+    sscanf(str, "%lu", &i);
+    return i;
 }
 
 /* void give_ints( int a, char c ,long b ,int d ,int e ,char f ,long g ,int h) { */

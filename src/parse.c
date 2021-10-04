@@ -24,6 +24,7 @@ static Stmt* parse_expr_stmt(ParseContext* p, Expr* expr);
 static Expr* parse_expr(ParseContext* p);
 static Expr* parse_comparision_expr(ParseContext* p);
 static Expr* parse_binop_arith_term(ParseContext* p);
+static Expr* parse_unop_arith_term(ParseContext* p);
 static Expr* parse_atom_expr(ParseContext* p);
 static Expr* parse_integer_expr(ParseContext* p);
 static Expr* parse_symbol_expr(ParseContext* p, Token* identifier);
@@ -227,14 +228,23 @@ Expr* parse_comparision_expr(ParseContext* p) {
 }
 
 Expr* parse_binop_arith_term(ParseContext* p) {
-    Expr* left = parse_atom_expr(p);
+    Expr* left = parse_unop_arith_term(p);
     while (parse_match(p, TOKEN_KIND_PLUS) ||
            parse_match(p, TOKEN_KIND_MINUS)) {
         Token* op = parse_previous(p);
-        Expr* right = parse_atom_expr(p);
+        Expr* right = parse_unop_arith_term(p);
         left = binop_expr_new(left, right, op);
     }
     return left;
+}
+
+Expr* parse_unop_arith_term(ParseContext* p) {
+    if (parse_match(p, TOKEN_KIND_MINUS)) {
+        Token* op = parse_previous(p);
+        Expr* child = parse_unop_arith_term(p);
+        return unop_expr_new(child, op);
+    }
+    return parse_atom_expr(p);
 }
 
 Expr* parse_atom_expr(ParseContext* p) {
