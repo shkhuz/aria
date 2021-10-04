@@ -21,6 +21,7 @@ LD := gcc
 
 run: $(EXE_FILE)
 	./$^ $(CMD_ARGS)
+	./build/tmp
 
 $(EXE_FILE): $(OBJ_FILES)
 	@mkdir -p $(dir $@)

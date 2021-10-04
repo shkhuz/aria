@@ -56,6 +56,13 @@ int main(int argc, char* argv[]) {
     g_exec_path = argv[0];
     init_ds();
 
+    {
+        assert(align_to_pow2(7, 8) == 8);
+        assert(align_to_pow2(1, 16) == 16);
+        assert(align_to_pow2(8, 8) == 8);
+        assert(align_to_pow2(0, 4) == 0);
+    }
+
     if (argc < 2) {
         default_msg(
                 MSG_KIND_ROOT_ERROR,

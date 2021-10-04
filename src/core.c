@@ -13,13 +13,9 @@ void aria_free(void* buf) {
     return free(buf);
 }
 
-size_t round_to_next_multiple(size_t n, size_t multiple) {
-	if (multiple == 0) return n;
-
-	size_t remainder = n % multiple;
-	if (remainder == 0) return n;
-
-	return n + multiple - remainder;
+size_t align_to_pow2(size_t n, size_t pow2) {
+	if (pow2 == 0) return n;
+    return (n + (pow2-1)) & ~(pow2-1);
 }
 
 size_t get_bits_for_value(u128 n) {

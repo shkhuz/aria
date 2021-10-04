@@ -73,7 +73,7 @@ void code_gen(CodeGenContext* c) {
         code_gen_stmt(c, c->srcfile->stmts[i]);
     }
     buf_push(c->asm_code, '\0');
-    fputs(c->asm_code, stdout);
+    /* fputs(c->asm_code, stdout); */
 
     FILE* file = fopen("build/tmp.asm", "w");
     fwrite(c->asm_code, buf_len(c->asm_code)-1, sizeof(char), file);
@@ -116,7 +116,7 @@ void code_gen_function_stmt(CodeGenContext* c, Stmt* stmt) {
         for (size_t i = 0; i < MIN(buf_len(params), 6); i++) {
             stmt->function.stack_vars_size += PTR_SIZE_BYTES;
             stmt->function.stack_vars_size = 
-                round_to_next_multiple(
+                align_to_pow2(
                         stmt->function.stack_vars_size, 
                         PTR_SIZE_BYTES);
             params[i]->param.stack_offset = 
@@ -126,7 +126,7 @@ void code_gen_function_stmt(CodeGenContext* c, Stmt* stmt) {
         size_t stack_vars_size_align16 = 0;
         if (stmt->function.stack_vars_size != 0) {
             stack_vars_size_align16 = 
-                round_to_next_multiple(stmt->function.stack_vars_size, 16);
+                align_to_pow2(stmt->function.stack_vars_size, 16);
             code_gen_asmp(c, "sub rsp, %lu", stack_vars_size_align16);
         }
         

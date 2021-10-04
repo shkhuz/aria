@@ -1,5 +1,6 @@
-fn main() {
+fn main() i32 {
     writeln_i64(fib(9));
+    0
 }
 
 fn fib(n: i32) i32 {

@@ -144,7 +144,7 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
         size_t bytes = type_bytes(stmt->variable.type);
         c->last_stack_offset += bytes;
         c->last_stack_offset = 
-            round_to_next_multiple(c->last_stack_offset, bytes);
+            align_to_pow2(c->last_stack_offset, bytes);
         stmt->variable.stack_offset = c->last_stack_offset;
         stmt->parent_func->function.stack_vars_size = 
             c->last_stack_offset;
