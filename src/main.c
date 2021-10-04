@@ -40,7 +40,7 @@ static Srcfile* read_srcfile(
                     error_line,
                     error_column,
                     error_char_count,
-                    "cannot read source file `" ANSI_FBOLD "%s" ANSI_RESET "`",
+                    "cannot read source file `" ANSI_FBOLD "{s}" ANSI_RESET "`",
                     path);
         } break;
 
@@ -51,7 +51,7 @@ static Srcfile* read_srcfile(
                     error_line,
                     error_column,
                     error_char_count,
-                    "`" ANSI_FBOLD "%s" ANSI_RESET "` is a directory",
+                    "`" ANSI_FBOLD "{s}" ANSI_RESET "` is a directory",
                     path);
         } break;
     }
