@@ -4,11 +4,6 @@ OBJ_FILES := $(addprefix build/obj/, $(addsuffix .o, $(C_FILES)))
 EXE_FILE := build/ariac
 CFLAGS := -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter
 LDFLAGS := 
-# CMD_ARGS := examples/cg.ar
-# CMD_ARGS := examples/binop_test.ar
-# CMD_ARGS := examples/cmp_test.ar
-# CMD_ARGS := examples/lex.ar
-CMD_ARGS := examples/fib.ar
 
 ifeq ($(prod), y)
 	CFLAGS_OPTIMIZE := -O3
@@ -20,8 +15,8 @@ CC := gcc
 LD := gcc
 
 run: $(EXE_FILE)
-	./$^ $(CMD_ARGS)
-	./build/tmp
+	./$^ -o build/fib examples/fib.ar examples/std.ar
+	./build/fib
 
 $(EXE_FILE): $(OBJ_FILES)
 	@mkdir -p $(dir $@)
@@ -35,5 +30,5 @@ debug: $(EXE_FILE)
 	gdb --args $^ $(CMD_ARGS)
 
 clean:
-	rm -rf build/
+	rm -rf build/ a.out *.o *.asm
 

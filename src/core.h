@@ -61,6 +61,13 @@ typedef i64 i128 __attribute__((mode(TI)));
 void* aria_malloc(size_t bytes);
 void* aria_realloc(void* buf, size_t bytes);
 void aria_free(void* buf);
+
+char* aria_strsub(char* str, size_t start, size_t len);
+char* aria_strapp(char* to, char* from);
+char* aria_basename(char* path);
+char* aria_notdir(char* path);
+char* aria_dir(char* path);
+
 size_t align_to_pow2(size_t n, size_t pow2);
 size_t get_bits_for_value(u128 n);
 int char_to_digit(char c);

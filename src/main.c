@@ -8,10 +8,16 @@
 #include "resolve.h"
 #include "check.h"
 #include "code_gen_linux-x64-nasm.h"
+#include <argp.h>
+
+typedef struct {
+    char** inpaths;
+    char* outpath;
+} Arguments;
 
 char* g_exec_path;
 
-Srcfile* read_srcfile(
+static Srcfile* read_srcfile(
         char* path,
         MsgKind error_kind,
         Srcfile* error_srcfile,
@@ -52,33 +58,65 @@ Srcfile* read_srcfile(
     return null;
 }
 
+static void tests() {
+    assert(align_to_pow2(7, 8) == 8);
+    assert(align_to_pow2(1, 16) == 16);
+    assert(align_to_pow2(8, 8) == 8);
+    assert(align_to_pow2(0, 4) == 0);
+
+    assert(strcmp(aria_strsub("Hello world", 6, 5), "world") == 0);
+    assert(strcmp(aria_strsub("Hello world", 4, 3), "o w") == 0);
+    assert(strcmp(aria_strapp("it", " works!"), "it works!") == 0);
+    assert(strcmp(aria_basename("main.ar"), "main") == 0);
+    assert(strcmp(aria_basename("src/examples/main.ar"), "src/examples/main") == 0);
+    assert(strcmp(aria_notdir("main.ar"), "main.ar") == 0);
+    assert(strcmp(aria_notdir("src/examples/main.ar"), "main.ar") == 0);
+    assert(strcmp(aria_dir("src/examples/main.ar"), "src/examples/") == 0);
+    assert(aria_dir("main.ar") == null);
+}
+
+static error_t parse_cmdopts(int key, char* arg, struct argp_state* state) {
+    Arguments* args = state->input;
+    switch (key) {
+        case 'o': {
+            args->outpath = arg;
+        } break;
+
+        case ARGP_KEY_ARG: {
+            buf_push(args->inpaths, arg);
+        } break;
+
+        case ARGP_KEY_END: {
+            if (state->arg_num < 1) {
+                argp_failure(state, 1, 0, "no input file(s)");
+            }
+        } break;
+
+        default: return ARGP_ERR_UNKNOWN;
+    }
+    return 0;
+}
+
 int main(int argc, char* argv[]) {
     g_exec_path = argv[0];
     init_ds();
+    tests();
 
-    {
-        assert(align_to_pow2(7, 8) == 8);
-        assert(align_to_pow2(1, 16) == 16);
-        assert(align_to_pow2(8, 8) == 8);
-        assert(align_to_pow2(0, 4) == 0);
-    }
-
-    if (argc < 2) {
-        default_msg(
-                MSG_KIND_ROOT_ERROR,
-                null,
-                0,
-                0,
-                0,
-                "no input files");
-        terminate_compilation();
-    }
+    Arguments args;
+    args.inpaths = null;
+    args.outpath = "a.out";
+    struct argp_option options[] = {
+        { "output", 'o', "FILE", 0, "Place the output into FILE", 0 },
+        { 0 },
+    };
+    struct argp argp = { options, parse_cmdopts, "FILE...", 0, 0, 0, 0, };
+    argp_parse(&argp, argc, argv, 0, 0, &args);
 
     Srcfile** srcfiles = null;
     bool read_error = false;
-    for (int i = 1; i < argc; i++) {
+    buf_loop(args.inpaths, i) {
         Srcfile* srcfile = read_srcfile(
-                argv[i],
+                args.inpaths[i],
                 MSG_KIND_ROOT_ERROR,
                 null,
                 0,
@@ -134,9 +172,12 @@ int main(int argc, char* argv[]) {
     }
     if (checking_error) terminate_compilation();
 
+    CodeGenContext* gen_ctxs = null;
     buf_loop(srcfiles, i) {
         CodeGenContext c;
         c.srcfile = srcfiles[i];
-        code_gen(&c);
+        code_gen(&c, args.outpath);
+        buf_push(gen_ctxs, c);
     }
+    code_gen_output_bin(gen_ctxs, args.outpath);
 }

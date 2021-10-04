@@ -1,19 +1,13 @@
-struct usize {}
-struct u8 {}
-struct u16 {}
-struct u32 {}
-struct u64 {}
-
-struct void {}
-
-struct Vec {
-    len: usize,
-    cap: usize,
-    items: *void,
+fn writeln_u64(n: u64) {
+    write_u64(n);
+    write_char(10);
 }
 
-struct string {}
+fn writeln_i64(n: i64) {
+    write_i64(n);
+    write_char(10);
+}
 
-struct Args {}
-
-proc get_cmd_args() *const Args {}
+extern fn write_i64(n: i64);
+extern fn write_u64(n: u64);
+extern fn write_char(c: u8);

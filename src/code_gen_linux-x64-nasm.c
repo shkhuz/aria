@@ -66,7 +66,7 @@ static void code_gen_asmplb(CodeGenContext* c, char* labelfmt, ...);
 static void code_gen_asmwlb(CodeGenContext* c, char* label);
 static void code_gen_push_tabs(CodeGenContext* c);
 
-void code_gen(CodeGenContext* c) {
+void code_gen(CodeGenContext* c, char* finoutpath) {
     c->asm_code = null;
 
     buf_loop(c->srcfile->stmts, i) {
@@ -75,11 +75,36 @@ void code_gen(CodeGenContext* c) {
     buf_push(c->asm_code, '\0');
     /* fputs(c->asm_code, stdout); */
 
-    FILE* file = fopen("build/tmp.asm", "w");
+    char* generic_outpath =
+                aria_basename(
+                    aria_notdir(c->srcfile->handle->path));
+    char* path_dir = aria_dir(finoutpath);
+    if (path_dir) {
+        generic_outpath = aria_strapp(path_dir, generic_outpath);
+    }
+
+    char* asmoutpath = aria_strapp(generic_outpath, ".asm");
+    char* objoutpath = aria_strapp(generic_outpath, ".o");
+    c->objoutpath = objoutpath;
+
+    FILE* file = fopen(asmoutpath, "w");
     fwrite(c->asm_code, buf_len(c->asm_code)-1, sizeof(char), file);
     fclose(file);
-    system("nasm -felf64 build/tmp.asm");
-    system("gcc -g -no-pie -o build/tmp build/tmp.o examples/std.c");
+    
+    char* nasm_build_cmd = null;
+    buf_printf(nasm_build_cmd, "nasm -felf64 %s", asmoutpath);
+    system(nasm_build_cmd);
+}
+
+void code_gen_output_bin(CodeGenContext* c, char* finoutpath) {
+    char* build_cmd = null;
+    buf_printf(build_cmd, "gcc -no-pie -o %s ", finoutpath);
+    buf_loop(c, i) {
+        buf_printf(build_cmd, "%s ", c[i].objoutpath);
+    }
+    buf_printf(build_cmd, "examples/std.c");
+    /* printf("[build] %s\n", build_cmd); */
+    system(build_cmd);
 }
 
 void code_gen_stmt(CodeGenContext* c, Stmt* stmt) {
