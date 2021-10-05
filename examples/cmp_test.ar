@@ -1,20 +1,13 @@
-fn main() {
-    let mut i = 10;
-    while i != 1 {
-        writeln_i64(i);
-        i = i - 1;
+fn main() i32 {
+    let i = false;
+    if !i {
+        writeln_i64(1);
     }
+    0
 }
 
-fn writeln_u64(n: u64) {
-    write_u64(n);
-    write_char(10);
-}
-
-fn writeln_i64(n: i64) {
-    write_i64(n);
-    write_char(10);
-}
+extern fn writeln_u64(n: u64);
+extern fn writeln_i64(n: i64);
 
 extern fn write_i64(n: i64);
 extern fn write_u64(n: u64);

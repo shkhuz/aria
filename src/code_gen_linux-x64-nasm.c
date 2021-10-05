@@ -422,6 +422,14 @@ void code_gen_unop_expr(CodeGenContext* c, Expr* expr) {
                     "neg %s", 
                     code_gen_get_rax_register_by_size(bigger_bytes));
         }
+        else if (expr->unop.op->kind == TOKEN_KIND_BANG) {
+            code_gen_asmp(
+                    c, 
+                    "cmp %s, 0",
+                    code_gen_get_rax_register_by_size(bigger_bytes));
+            code_gen_asmw(c, "mov eax, 0");
+            code_gen_asmw(c, "sete al");
+        }
     }
 }
 
@@ -605,6 +613,10 @@ void code_gen_zs_extend(CodeGenContext* c, Type* from, Type* to) {
                         code_gen_get_rax_register_by_size(to_bytes),
                         code_gen_get_rax_register_by_size(from_bytes));
             }
+        }
+        else if (from->builtin.kind == BUILTIN_TYPE_KIND_BOOLEAN &&
+                 to->builtin.kind == BUILTIN_TYPE_KIND_BOOLEAN) {
+            // nothing
         }
         else {
             assert(0);

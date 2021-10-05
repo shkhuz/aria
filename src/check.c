@@ -487,6 +487,18 @@ Type* check_unop_expr(CheckContext* c, Expr* expr, Type* cast) {
                         child_type);
             }
         }
+        else if (expr->unop.op->kind == TOKEN_KIND_BANG) {
+            if (check_implicit_cast(c, child_type, builtin_type_placeholders.boolean)
+                    == IMPLICIT_CAST_ERROR) {
+                check_error(
+                        expr->main_token,
+                        "cannot operate on `{t}`",
+                        child_type);
+            }
+            else {
+                return child_type;
+            }
+        }
     }
     return null;
 }
@@ -697,9 +709,14 @@ ImplicitCastStatus check_implicit_cast(
             else if (builtin_type_is_apint(from->builtin.kind) || 
                      builtin_type_is_apint(to->builtin.kind)) {
                 if (builtin_type_is_apint(to->builtin.kind)) {
+                    // from always points to apint
                     SWAP_VARS(Type*, from, to);
                 }
-                if (bigint_fits(
+
+                if (!type_is_integer(to)) {
+                    return IMPLICIT_CAST_ERROR;
+                }
+                else if (bigint_fits(
                             from->builtin.apint,
                             builtin_type_bytes(&to->builtin),
                             builtin_type_is_signed(to->builtin.kind))) {
