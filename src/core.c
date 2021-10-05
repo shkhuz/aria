@@ -2,6 +2,22 @@
 #include "aria.h"
 #include "buf.h"
 
+char* g_error_color = ANSI_FERROR_COLOR;
+char* g_warning_color = ANSI_FWARNING_COLOR;
+char* g_note_color = ANSI_FNOTE_COLOR;
+char* g_bold_color = ANSI_FBOLD;
+char* g_reset_color = ANSI_RESET;
+
+void init_core() {
+    if (!isatty(2)) {
+        g_error_color = "";
+        g_warning_color = "";
+        g_note_color = "";
+        g_bold_color = "";
+        g_reset_color = "";
+    }
+}
+
 void* aria_malloc(size_t bytes) {
     return malloc(bytes);
 }

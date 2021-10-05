@@ -55,27 +55,27 @@ void vdefault_msg(
     if (!is_root_msg(kind)) {
         fprintf(
                 stderr,
-                ANSI_FBOLD
-                "%s:%lu:%lu: "
-                ANSI_RESET,
+                "%s%s:%lu:%lu: %s",
+                g_bold_color,
                 srcfile->handle->path,
                 line, 
-                column_new);
+                column_new,
+                g_reset_color);
     }
 
     switch (kind) {
         case MSG_KIND_ROOT_ERROR:
         case MSG_KIND_ERROR:
-            fprintf(stderr, ANSI_FERROR_COLOR "error: " ANSI_RESET);
+            fprintf(stderr, "%serror: %s", g_error_color, g_reset_color);
             g_error_count++;
             break;
         case MSG_KIND_WARNING:
-            fprintf(stderr, ANSI_FWARNING_COLOR "warning: " ANSI_RESET);
+            fprintf(stderr, "%swarning: %s", g_warning_color, g_reset_color);
             g_warning_count++;
             break;
         case MSG_KIND_ROOT_NOTE:
         case MSG_KIND_NOTE:
-            fprintf(stderr, ANSI_FNOTE_COLOR "note: " ANSI_RESET);
+            fprintf(stderr, "%snote: %s", g_note_color, g_reset_color);
             break;
     }
     aria_vfprintf(stderr, fmt, ap);
@@ -86,16 +86,16 @@ void vdefault_msg(
         char* beg_of_src_line = src_line;
         int indent = fprintf(stderr, "%6lu | ", line) - 2;
 
-        char* color = ANSI_RESET;
+        char* color = g_reset_color;
         switch (kind) {
             case MSG_KIND_ERROR:
-                color = ANSI_FERROR_COLOR;
+                color = g_error_color;
                 break;
             case MSG_KIND_WARNING:
-                color = ANSI_FWARNING_COLOR;
+                color = g_warning_color;
                 break;
             case MSG_KIND_NOTE:
-                color = ANSI_FNOTE_COLOR;
+                color = g_note_color;
                 break;
             default:
                 assert(0);
@@ -114,7 +114,7 @@ void vdefault_msg(
             src_line_to_print++;
             if ((size_t)(src_line_to_print - beg_of_src_line) == 
                 (column + char_count - 1)) {
-                fprintf(stderr, ANSI_RESET);
+                fprintf(stderr, "%s", g_reset_color);
             }
         }
 
@@ -130,7 +130,7 @@ void vdefault_msg(
         for (size_t c = 0; c < char_count_new; c++) {
             fprintf(stderr, "^");
         }
-        fprintf(stderr, ANSI_RESET "\n");
+        fprintf(stderr, "%s\n", g_reset_color);
     }
     va_end(aq);
 }
@@ -165,12 +165,15 @@ void terminate_compilation() {
             0, 
             0, 
             "{s}{qu} error(s){s}, {s}{qu} warning(s){s}; aborting compilation",
-            g_error_count > 0 ? ANSI_FERROR_COLOR : "",
+            g_error_count > 0 ? g_error_color : "",
             g_error_count, 
-            ANSI_RESET,
-            g_warning_count > 0 ? ANSI_FWARNING_COLOR : "",
+            g_reset_color,
+            g_warning_count > 0 ? g_warning_color : "",
             g_warning_count,
-            ANSI_RESET);
+            g_reset_color);
+    // TODO: don't exit with error code `g_error_count`.
+    // instead make it fixed, and when the user needs the error_count
+    // they can get it using a command line switch.
     exit(g_error_count);
 }
 

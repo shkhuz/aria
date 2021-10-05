@@ -4,10 +4,6 @@
 #include "core.h"
 #include "aria.h"
 
-#define ANSI_FERROR_COLOR ANSI_FRED
-#define ANSI_FWARNING_COLOR ANSI_FMAGENTA
-#define ANSI_FNOTE_COLOR ANSI_FCYAN
-
 typedef enum {
     MSG_KIND_ROOT_ERROR,
     MSG_KIND_ROOT_NOTE,

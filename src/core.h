@@ -45,6 +45,10 @@ typedef i64 i128 __attribute__((mode(TI)));
 #define ANSI_FCYAN    "\x1B[1;36m"
 #define ANSI_RESET    "\x1B[0m"
 
+#define ANSI_FERROR_COLOR ANSI_FRED
+#define ANSI_FWARNING_COLOR ANSI_FMAGENTA
+#define ANSI_FNOTE_COLOR ANSI_FCYAN
+
 #define MIN(x, y) ((x) <= (y) ? (x) : (y))
 #define MAX(x, y) ((x) >= (y) ? (x) : (y))
 #define CLAMP_MAX(x, max) MIN(x, max)
@@ -57,6 +61,14 @@ typedef i64 i128 __attribute__((mode(TI)));
 #define SWAP_VARS(t, a, b) do { t _c = a; a = b; b = _c; } while (0)
 #define COMBINE1(X, Y) X##Y
 #define COMBINE(X,Y) COMBINE1(X,Y)
+
+extern char* g_error_color;
+extern char* g_warning_color;
+extern char* g_note_color;
+extern char* g_bold_color;
+extern char* g_reset_color;
+
+void init_core();
 
 void* aria_malloc(size_t bytes);
 void* aria_realloc(void* buf, size_t bytes);

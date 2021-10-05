@@ -1,6 +1,6 @@
 fn main() i32 {
     let i = false;
-    if !i {
+    if !{} {
         writeln_i64(1);
     }
     0

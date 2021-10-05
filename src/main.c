@@ -40,8 +40,10 @@ static Srcfile* read_srcfile(
                     error_line,
                     error_column,
                     error_char_count,
-                    "cannot read source file `" ANSI_FBOLD "{s}" ANSI_RESET "`",
-                    path);
+                    "cannot read source file `{s}{s}{s}`",
+                    g_bold_color,
+                    path,
+                    g_reset_color);
         } break;
 
         case FILE_ERROR_DIR: {
@@ -51,8 +53,10 @@ static Srcfile* read_srcfile(
                     error_line,
                     error_column,
                     error_char_count,
-                    "`" ANSI_FBOLD "{s}" ANSI_RESET "` is a directory",
-                    path);
+                    "`{s}{s}{s}` is a directory",
+                    g_bold_color,
+                    path,
+                    g_reset_color);
         } break;
     }
     return null;
@@ -99,6 +103,7 @@ static error_t parse_cmdopts(int key, char* arg, struct argp_state* state) {
 
 int main(int argc, char* argv[]) {
     g_exec_path = argv[0];
+    init_core();
     init_ds();
     tests();
 
