@@ -23,6 +23,13 @@ char* read_stdio() {
     return fgets(buf, sizeof(buf), stdin);
 }
 
+uint8_t eof_stdio() {
+    if (feof(stdin)) {
+        return 1;
+    }
+    return 0;
+}
+
 void write_str(char* str) {
     fputs(str, stdout);
 }

@@ -170,6 +170,7 @@ size_t builtin_type_bytes(BuiltinType* type) {
     switch (type->kind) {
         case BUILTIN_TYPE_KIND_U8:
         case BUILTIN_TYPE_KIND_I8:
+        case BUILTIN_TYPE_KIND_BOOLEAN:
             return 1;
 
         case BUILTIN_TYPE_KIND_U16:
@@ -184,7 +185,6 @@ size_t builtin_type_bytes(BuiltinType* type) {
         case BUILTIN_TYPE_KIND_I64:
         case BUILTIN_TYPE_KIND_USIZE:
         case BUILTIN_TYPE_KIND_ISIZE:
-        case BUILTIN_TYPE_KIND_BOOLEAN:
             return 8;
 
         case BUILTIN_TYPE_KIND_VOID:
