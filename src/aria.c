@@ -21,14 +21,6 @@ BuiltinTypeMap builtin_type_map[_BUILTIN_TYPE_KIND_COUNT] = {
 
 BuiltinTypePlaceholders builtin_type_placeholders;
 
-static Type* builtin_type_placeholder_new(BuiltinTypeKind kind) {
-    return builtin_type_new(null, kind);
-}
-
-static Type* ptr_type_placeholder_new(bool constant, Type* child) {
-    return ptr_type_new(null, constant, child); 
-}
-
 void init_ds() {
     buf_push(aria_keywords, "fn");
     buf_push(aria_keywords, "let");
@@ -493,6 +485,14 @@ Expr* while_expr_new(Token* while_keyword, Expr* cond, Expr* body) {
     expr->whilelp.cond = cond;
     expr->whilelp.body = body;
     return expr;
+}
+
+Type* builtin_type_placeholder_new(BuiltinTypeKind kind) {
+    return builtin_type_new(null, kind);
+}
+
+Type* ptr_type_placeholder_new(bool constant, Type* child) {
+    return ptr_type_new(null, constant, child); 
 }
 
 void _aria_vfprintf(

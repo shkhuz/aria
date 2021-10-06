@@ -37,6 +37,8 @@ typedef enum {
     TOKEN_KIND_LANGBR_EQUAL,
     TOKEN_KIND_RANGBR,
     TOKEN_KIND_RANGBR_EQUAL,
+    TOKEN_KIND_AMP,
+    TOKEN_KIND_DOUBLE_AMP,
     TOKEN_KIND_PLUS,
     TOKEN_KIND_MINUS,
     TOKEN_KIND_STAR,
@@ -347,6 +349,9 @@ Expr* if_expr_new(
         IfBranch** elseifbr, 
         IfBranch* elsebr);
 Expr* while_expr_new(Token* while_keyword, Expr* cond, Expr* body);
+
+Type* builtin_type_placeholder_new(BuiltinTypeKind kind);
+Type* ptr_type_placeholder_new(bool constant, Type* child);
 
 void _aria_vfprintf(
         const char* calleefile, 

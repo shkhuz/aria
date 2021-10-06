@@ -123,6 +123,7 @@ void lex(LexContext* l) {
             case '!': lex_push_tok_adv_cond(l, '=', TOKEN_KIND_BANG_EQUAL, TOKEN_KIND_BANG); break;
             case '<': lex_push_tok_adv_cond(l, '=', TOKEN_KIND_LANGBR_EQUAL, TOKEN_KIND_LANGBR); break;
             case '>': lex_push_tok_adv_cond(l, '=', TOKEN_KIND_RANGBR_EQUAL, TOKEN_KIND_RANGBR); break;
+            case '&': lex_push_tok_adv_cond(l, '&', TOKEN_KIND_DOUBLE_AMP, TOKEN_KIND_AMP); break;
             case '+': lex_push_tok_adv(l, TOKEN_KIND_PLUS); break;
             case '-': lex_push_tok_adv(l, TOKEN_KIND_MINUS); break;
             case '*': lex_push_tok_adv(l, TOKEN_KIND_STAR); break;

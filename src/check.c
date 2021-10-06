@@ -398,13 +398,6 @@ Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast) {
             }
         }
         else if (token_is_cmp_op(expr->binop.op)) {
-            /* if (cast && check_implicit_cast(c, cast, builtin_type_placeholders.boolean) == IMPLICIT_CAST_ERROR) { */
-            /*     check_error( */
-            /*             expr->main_token, */
-            /*             "cannot convert from `{t}` to `bool`", */
-            /*             cast); */
-            /* } */
-
             if (is_left_apint || is_right_apint) {
                 if (is_left_apint && is_right_apint) {
                     check_apint_fits_into_default_integer_type(
@@ -497,6 +490,33 @@ Type* check_unop_expr(CheckContext* c, Expr* expr, Type* cast) {
             }
             else {
                 return child_type;
+            }
+        }
+        else if (expr->unop.op->kind == TOKEN_KIND_AMP) {
+            if (check_implicit_cast(c, child_type, builtin_type_placeholders.void_type)
+                    == IMPLICIT_CAST_ERROR) {
+                Stmt* ref = expr->unop.child->symbol.ref;
+                bool constant;
+                switch (ref->kind) {
+                    case STMT_KIND_VARIABLE: { 
+                        constant = ref->variable.constant;
+                    } break;
+
+                    case STMT_KIND_PARAM: {
+                        constant = false;
+                    } break;
+
+                    default: {
+                        assert(0); 
+                    } break;
+                }
+                return ptr_type_placeholder_new(constant, child_type);
+            }
+            else {
+                check_error(
+                        expr->main_token,
+                        "address of `{t}` types are not valid",
+                        child_type);
             }
         }
     }
@@ -664,9 +684,9 @@ Type* check_if_branch(CheckContext* c, IfBranch* br, Type* cast) {
                     builtin_type_placeholders.boolean) == IMPLICIT_CAST_ERROR) {
             check_error(
                     br->cond->main_token,
-                    "branch condition should be `bool` but got `{t}`",
-                    cond_type,
-                    true);
+                    "branch condition should be `{t}` but got `{t}`",
+                    builtin_type_placeholders.boolean,
+                    cond_type);
         }
     }
     return check_block_expr(c, br->body, cast);
@@ -680,7 +700,8 @@ Type* check_while_expr(CheckContext* c, Expr* expr, Type* cast) {
                 builtin_type_placeholders.boolean) == IMPLICIT_CAST_ERROR) {
         check_error(
                 expr->whilelp.cond->main_token,
-                "loop condition should be `bool` but got `{t}`",
+                "loop condition should be `{t}` but got `{t}`",
+                builtin_type_placeholders.boolean,
                 cond_type);
     }
     return check_block_expr(c, expr->whilelp.body, cast);

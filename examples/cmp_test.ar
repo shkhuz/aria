@@ -1,8 +1,11 @@
 fn main() i32 {
     let i = false;
-    if !{} {
+    if !i {
         writeln_i64(1);
     }
+
+    let j = 1;
+    let ptr = &j;
     0
 }
 

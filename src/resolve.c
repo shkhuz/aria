@@ -277,6 +277,13 @@ void resolve_binop_expr(ResolveContext* r, Expr* expr) {
 
 void resolve_unop_expr(ResolveContext* r, Expr* expr) {
     resolve_expr(r, expr->unop.child);
+    if (expr->unop.op->kind == TOKEN_KIND_AMP) {
+        if (expr->unop.child->kind != EXPR_KIND_SYMBOL) {
+            resolve_error(
+                    expr->main_token,
+                    "`&` only accepts l-values as operands");
+        }
+    }
 }
 
 void resolve_block_expr(

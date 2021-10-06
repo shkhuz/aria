@@ -240,7 +240,8 @@ Expr* parse_binop_arith_term(ParseContext* p) {
 
 Expr* parse_unop(ParseContext* p) {
     if (parse_match(p, TOKEN_KIND_MINUS) ||
-        parse_match(p, TOKEN_KIND_BANG)) {
+        parse_match(p, TOKEN_KIND_BANG) ||
+        parse_match(p, TOKEN_KIND_AMP)) {
         Token* op = parse_previous(p);
         Expr* child = parse_unop(p);
         return unop_expr_new(child, op);

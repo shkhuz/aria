@@ -411,9 +411,18 @@ void code_gen_unop_expr(CodeGenContext* c, Expr* expr) {
         }
         size_t const bigger_bytes = type_bytes(bigger_type);
 
-        code_gen_expr(c, expr->unop.child);
-        if (!type_is_apint(expr->unop.child_type)) {
-            code_gen_zs_extend(c, expr->unop.child_type, bigger_type);
+        if (expr->unop.op->kind != TOKEN_KIND_AMP) {
+            code_gen_expr(c, expr->unop.child);
+            if (!type_is_apint(expr->unop.child_type)) {
+                code_gen_zs_extend(c, expr->unop.child_type, bigger_type);
+            }
+        }
+        else {
+            code_gen_nasmw(c, "lea rax, ");
+            code_gen_stack_addr(
+                    c,
+                    expr->unop.child->symbol.ref);
+            code_gen_asmp(c, "");
         }
         
         if (expr->unop.op->kind == TOKEN_KIND_MINUS) {
