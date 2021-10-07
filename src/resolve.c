@@ -52,6 +52,7 @@ static void resolve_symbol_expr(ResolveContext* r, Expr* expr);
 static void resolve_function_call_expr(ResolveContext* r, Expr* expr);
 static void resolve_binop_expr(ResolveContext* r, Expr* expr);
 static void resolve_unop_expr(ResolveContext* r, Expr* expr);
+static void resolve_cast_expr(ResolveContext* r, Expr* expr);
 static void resolve_block_expr(
         ResolveContext* r, 
         Expr* expr, 
@@ -229,6 +230,10 @@ void resolve_expr(ResolveContext* r, Expr* expr) {
             resolve_unop_expr(r, expr);
         } break;
         
+        case EXPR_KIND_CAST: {
+            resolve_cast_expr(r, expr);
+        } break;
+        
         case EXPR_KIND_BLOCK: {
             resolve_block_expr(r, expr, true);
         } break;
@@ -284,6 +289,11 @@ void resolve_unop_expr(ResolveContext* r, Expr* expr) {
                     "`&` only accepts l-values as operands");
         }
     }
+}
+
+void resolve_cast_expr(ResolveContext* r, Expr* expr) {
+    resolve_expr(r, expr->cast.left);
+    resolve_type(r, expr->cast.to);
 }
 
 void resolve_block_expr(

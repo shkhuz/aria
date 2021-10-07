@@ -1,11 +1,15 @@
 fn main() i32 {
-    let i = false;
-    if !i {
-        writeln_i64(1);
-    }
+    // let i = false;
+    // if !i {
+    //     writeln_i64(1);
+    // }
 
-    let j = 1;
-    let ptr = &j;
+    let i = true;
+    let p = &i;
+    let v: u64 = 21332432432432;
+    let j = i as i32;
+    writeln_i64(p as i8);
+
     0
 }
 

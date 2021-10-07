@@ -24,6 +24,7 @@ static Type* check_symbol_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_unop_expr(CheckContext* c, Expr* expr, Type* cast);
+static Type* check_cast_expr(CheckContext* c, Expr* expr, Type* cast);
 static bool check_apint_int_operands(
         CheckContext* c,
         Expr* expr,
@@ -194,6 +195,10 @@ Type* check_expr(CheckContext* c, Expr* expr, Type* cast, bool cast_to_definitiv
 
         case EXPR_KIND_UNOP: {
             return check_unop_expr(c, expr, cast);
+        } break;
+
+        case EXPR_KIND_CAST: {
+            return check_cast_expr(c, expr, cast);
         } break;
 
         case EXPR_KIND_BLOCK: {
@@ -519,6 +524,43 @@ Type* check_unop_expr(CheckContext* c, Expr* expr, Type* cast) {
                         child_type);
             }
         }
+    }
+    return null;
+}
+
+Type* check_cast_expr(CheckContext* c, Expr* expr, Type* cast) {
+    Type* left_type = check_expr(c, expr->cast.left, null, true);
+    expr->cast.left_type = left_type;
+    Type* to_type = expr->cast.to;
+    expr->type = to_type;
+
+    bool is_left_void = type_is_void(left_type);
+    bool is_to_void = type_is_void(to_type);
+
+    if (is_left_void && is_to_void) {
+        return to_type;
+    }
+    else if (is_left_void || is_to_void) {
+        check_error(
+                expr->main_token,
+                "cannot cast from `{t}` to `{t}`",
+                left_type,
+                to_type);
+    }
+    else if (left_type->kind == TYPE_KIND_PTR && to_type->kind == TYPE_KIND_PTR) {
+        if (left_type->ptr.constant && !to_type->ptr.constant) {
+            check_error(
+                    expr->main_token,
+                    "cast to `{t}` discards const-ness of `{t}`",
+                    to_type,
+                    left_type);
+        }
+        else {
+            return to_type;
+        }
+    }
+    else {
+        return to_type;
     }
     return null;
 }

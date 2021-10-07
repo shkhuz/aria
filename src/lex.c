@@ -3,7 +3,7 @@
 #include "stri.h"
 #include "msg.h"
 
-static bool ascii_errored_table[128];
+static bool ascii_error_table[128];
 
 static void _vlex_error(
         LexContext* l,
@@ -139,12 +139,12 @@ void lex(LexContext* l) {
 
             default: {
                 if (*l->current >= 0 && 
-                    !ascii_errored_table[(size_t)*l->current]) {
+                    !ascii_error_table[(size_t)*l->current]) {
                     lex_error_from_current(
                             l,
                             "invalid character `%c`",
                             *l->current);
-                    ascii_errored_table[(size_t)*l->current] = true;
+                    ascii_error_table[(size_t)*l->current] = true;
                 }
                 l->current++;
             } break;

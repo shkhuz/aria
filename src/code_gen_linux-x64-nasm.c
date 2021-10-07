@@ -22,6 +22,7 @@ static void code_gen_symbol_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_function_call_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_binop_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_unop_expr(CodeGenContext* c, Expr* expr);
+static void code_gen_cast_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_bigint(CodeGenContext* c, bigint* a);
 static void code_gen_block_expr(CodeGenContext* c, Expr* expr);
 static void code_gen_if_expr(CodeGenContext* c, Expr* expr);
@@ -233,6 +234,10 @@ void code_gen_expr(CodeGenContext* c, Expr* expr) {
             code_gen_unop_expr(c, expr);
         } break;
 
+        case EXPR_KIND_CAST: {
+            code_gen_cast_expr(c, expr);
+        } break;
+
         case EXPR_KIND_BLOCK: {
             code_gen_block_expr(c, expr);
         } break;
@@ -442,6 +447,11 @@ void code_gen_unop_expr(CodeGenContext* c, Expr* expr) {
     }
 }
 
+void code_gen_cast_expr(CodeGenContext* c, Expr* expr) {
+    code_gen_expr(c, expr->cast.left);
+    code_gen_zs_extend(c, expr->cast.left_type, expr->cast.to);
+}
+
 void code_gen_bigint(CodeGenContext* c, bigint* a) {
     code_gen_asmp(
             c, 
@@ -590,6 +600,8 @@ AsmpFunc code_gen_get_asmp_func(bool is_definition) {
 
 void code_gen_zs_extend(CodeGenContext* c, Type* from, Type* to) {
     if (!from || !to) return;
+
+#if 0
     if (from->kind == TYPE_KIND_BUILTIN && to->kind == TYPE_KIND_BUILTIN) {
         bool is_from_apint = type_is_apint(from);
         bool is_to_apint = type_is_apint(to);
@@ -631,6 +643,43 @@ void code_gen_zs_extend(CodeGenContext* c, Type* from, Type* to) {
             assert(0);
         }
     }
+#else
+    if (type_is_void(from) || type_is_void(to)) {
+        return;
+    }
+
+    bool is_from_apint = type_is_apint(from);
+    bool is_to_apint = type_is_apint(to);
+    if (is_from_apint && is_to_apint) {
+        assert(0);
+    }
+
+    Type* other_type = from;
+    Type* apint_type = to;
+    if (is_from_apint) { 
+        SWAP_VARS(Type*, other_type, apint_type);
+    }
+
+    bool is_signed = (type_is_integer(other_type) ? 
+            builtin_type_is_signed(other_type->builtin.kind) :
+            false);
+    size_t from_bytes = type_bytes(from);
+    size_t to_bytes = type_bytes(to);
+    if (from_bytes >= to_bytes ||
+        (!is_signed && from_bytes == 4 && to_bytes == 8)) {
+        return;
+    }
+
+    char* fmt = null;
+    // TODO: should the dest be fixed (8 bytes) or variable?
+    if (is_signed) fmt = "movsx %s, %s";
+    else fmt = "movzx %s, %s";
+    code_gen_asmp(
+            c,
+            fmt,
+            code_gen_get_rax_register_by_size(to_bytes),
+            code_gen_get_rax_register_by_size(from_bytes));
+#endif
 }
 
 void code_gen_assign_reg_group_to_stack_addr(

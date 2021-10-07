@@ -23,8 +23,9 @@ static Stmt* parse_assign_stmt(
 static Stmt* parse_expr_stmt(ParseContext* p, Expr* expr);
 static Expr* parse_expr(ParseContext* p);
 static Expr* parse_comparision_expr(ParseContext* p);
-static Expr* parse_binop_arith_term(ParseContext* p);
-static Expr* parse_unop(ParseContext* p);
+static Expr* parse_binop_arith_term_expr(ParseContext* p);
+static Expr* parse_cast_expr(ParseContext* p);
+static Expr* parse_unop_expr(ParseContext* p);
 static Expr* parse_atom_expr(ParseContext* p);
 static Expr* parse_integer_expr(ParseContext* p);
 static Expr* parse_symbol_expr(ParseContext* p, Token* identifier);
@@ -213,7 +214,7 @@ Expr* parse_expr(ParseContext* p) {
 }
 
 Expr* parse_comparision_expr(ParseContext* p) {
-    Expr* left = parse_binop_arith_term(p);
+    Expr* left = parse_binop_arith_term_expr(p);
     while (parse_match(p, TOKEN_KIND_DOUBLE_EQUAL) ||
            parse_match(p, TOKEN_KIND_BANG_EQUAL) ||
            parse_match(p, TOKEN_KIND_LANGBR) ||
@@ -221,29 +222,39 @@ Expr* parse_comparision_expr(ParseContext* p) {
            parse_match(p, TOKEN_KIND_RANGBR) ||
            parse_match(p, TOKEN_KIND_RANGBR_EQUAL)) {
         Token* op = parse_previous(p);
-        Expr* right = parse_binop_arith_term(p);
+        Expr* right = parse_binop_arith_term_expr(p);
         left = binop_expr_new(left, right, op);
     }
     return left;
 }
 
-Expr* parse_binop_arith_term(ParseContext* p) {
-    Expr* left = parse_unop(p);
+Expr* parse_binop_arith_term_expr(ParseContext* p) {
+    Expr* left = parse_cast_expr(p);
     while (parse_match(p, TOKEN_KIND_PLUS) ||
            parse_match(p, TOKEN_KIND_MINUS)) {
         Token* op = parse_previous(p);
-        Expr* right = parse_unop(p);
+        Expr* right = parse_cast_expr(p);
         left = binop_expr_new(left, right, op);
     }
     return left;
 }
 
-Expr* parse_unop(ParseContext* p) {
+Expr* parse_cast_expr(ParseContext* p) {
+    Expr* left = parse_unop_expr(p);
+    while (parse_match_keyword(p, "as")) {
+        Token* op = parse_previous(p);
+        Type* to = parse_type(p);
+        left = cast_expr_new(left, to, op);
+    }
+    return left;
+}
+
+Expr* parse_unop_expr(ParseContext* p) {
     if (parse_match(p, TOKEN_KIND_MINUS) ||
         parse_match(p, TOKEN_KIND_BANG) ||
         parse_match(p, TOKEN_KIND_AMP)) {
         Token* op = parse_previous(p);
-        Expr* child = parse_unop(p);
+        Expr* child = parse_unop_expr(p);
         return unop_expr_new(child, op);
     }
     return parse_atom_expr(p);

@@ -33,6 +33,7 @@ void init_ds() {
     buf_push(aria_keywords, "true");
     buf_push(aria_keywords, "false");
     buf_push(aria_keywords, "null");
+    buf_push(aria_keywords, "as");
 
     builtin_type_placeholders.u8 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U8);
     builtin_type_placeholders.u16 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U16);
@@ -98,6 +99,32 @@ bool builtin_type_is_integer(BuiltinTypeKind kind) {
         case BUILTIN_TYPE_KIND_VOID:
         case BUILTIN_TYPE_KIND_APINT:
             return false;
+
+        case BUILTIN_TYPE_KIND_NONE:
+            assert(0);
+            return false;
+    }
+    return false;
+}
+
+bool builtin_type_is_void(BuiltinTypeKind kind) {
+    switch (kind) {
+        case BUILTIN_TYPE_KIND_U8:
+        case BUILTIN_TYPE_KIND_U16:
+        case BUILTIN_TYPE_KIND_U32:
+        case BUILTIN_TYPE_KIND_U64:
+        case BUILTIN_TYPE_KIND_USIZE:
+        case BUILTIN_TYPE_KIND_I8:
+        case BUILTIN_TYPE_KIND_I16:
+        case BUILTIN_TYPE_KIND_I32:
+        case BUILTIN_TYPE_KIND_I64:
+        case BUILTIN_TYPE_KIND_ISIZE:
+        case BUILTIN_TYPE_KIND_BOOLEAN:
+        case BUILTIN_TYPE_KIND_APINT:
+            return false;
+        
+        case BUILTIN_TYPE_KIND_VOID:
+            return true;
 
         case BUILTIN_TYPE_KIND_NONE:
             assert(0);
@@ -212,6 +239,13 @@ Type* type_get_child(Type* type) {
 
 bool type_is_integer(Type* type) {
     if (type && type->kind == TYPE_KIND_BUILTIN && builtin_type_is_integer(type->builtin.kind)) {
+        return true;
+    }
+    return false;
+}
+
+bool type_is_void(Type* type) {
+    if (type && type->kind == TYPE_KIND_BUILTIN && builtin_type_is_void(type->builtin.kind)) {
         return true;
     }
     return false;
@@ -433,6 +467,19 @@ Expr* unop_expr_new(Expr* child, Token* op) {
     expr->unop.child = child;
     expr->unop.op = op;
     expr->unop.child_type = null;
+    return expr;
+}
+
+Expr* cast_expr_new(Expr* left, Type* to, Token* op) {
+    ALLOC_WITH_TYPE(expr, Expr);
+    expr->kind = EXPR_KIND_CAST;
+    expr->main_token = op;
+    expr->type = null;
+    expr->parent_func = null;
+    expr->cast.left = left;
+    expr->cast.left_type = null;
+    expr->cast.op = op;
+    expr->cast.to = to;
     return expr;
 }
 

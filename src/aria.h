@@ -136,6 +136,7 @@ typedef enum {
     EXPR_KIND_FUNCTION_CALL,
     EXPR_KIND_BINOP,
     EXPR_KIND_UNOP,
+    EXPR_KIND_CAST,
     EXPR_KIND_BLOCK,
     EXPR_KIND_IF,
     EXPR_KIND_WHILE,
@@ -183,6 +184,13 @@ typedef struct {
 } UnopExpr;
 
 typedef struct {
+    Expr* left;
+    Type* left_type;
+    Token* op;
+    Type* to;
+} CastExpr;
+
+typedef struct {
     Stmt** stmts;
     Expr* value;
     Token* rbrace;
@@ -223,6 +231,7 @@ struct Expr {
         FunctionCallExpr function_call;
         BinopExpr binop;
         UnopExpr unop;
+        CastExpr cast;
         BlockExpr block;
         IfExpr iff;
         WhileExpr whilelp;
@@ -306,11 +315,13 @@ bool is_token_lexeme_eq(Token* a, Token* b);
 BuiltinTypeKind builtin_type_str_to_kind(char* str);
 char* builtin_type_kind_to_str(BuiltinTypeKind kind);
 bool builtin_type_is_integer(BuiltinTypeKind kind);
+bool builtin_type_is_void(BuiltinTypeKind kind);
 bool builtin_type_is_apint(BuiltinTypeKind kind);
 bool builtin_type_is_signed(BuiltinTypeKind kind);
 size_t builtin_type_bytes(BuiltinType* type);
 Type* type_get_child(Type* type);
 bool type_is_integer(Type* type);
+bool type_is_void(Type* type);
 bool type_is_apint(Type* type);
 size_t type_bytes(Type* type);
 Type* stmt_get_type(Stmt* stmt);
@@ -337,6 +348,7 @@ Expr* symbol_expr_new(Token* identifier);
 Expr* function_call_expr_new(Expr* callee, Expr** args, Token* rparen);
 Expr* binop_expr_new(Expr* left, Expr* right, Token* op);
 Expr* unop_expr_new(Expr* child, Token* op);
+Expr* cast_expr_new(Expr* left, Type* to, Token* op);
 Expr* block_expr_new(
         Stmt** stmts, 
         Expr* value, 
