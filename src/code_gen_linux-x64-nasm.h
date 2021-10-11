@@ -5,9 +5,10 @@
 #include "aria.h"
 
 typedef enum {
-    REGISTER_ACC,
+    REGISTER_RAX,
+    REGISTER_RCX,
     REGISTER_ARG,
-} RegisterGroupKind;
+} RegisterKind;
 
 typedef struct {
     Srcfile* srcfile;

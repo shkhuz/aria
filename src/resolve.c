@@ -200,6 +200,9 @@ void resolve_assign_stmt(ResolveContext* r, Stmt* stmt) {
                     "...variable defined here");
         }
     }
+    else if (stmt->assign.left->kind == EXPR_KIND_UNOP &&
+             stmt->assign.left->unop.op->kind == TOKEN_KIND_STAR) {
+    }
     else {
         resolve_error(
                 stmt->main_token,

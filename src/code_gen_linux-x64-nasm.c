@@ -46,14 +46,14 @@ static void code_gen_distinct_while_label(
         bool is_definition);
 static AsmpFunc code_gen_get_asmp_func(bool is_definition);
 static void code_gen_zs_extend(CodeGenContext* c, Type* from, Type* to);
-static void code_gen_assign_reg_group_to_stack_addr(
+static void code_gen_assign_reg_to_stack_addr(
         CodeGenContext* c, 
         Stmt* stmt, 
-        RegisterGroupKind kind);
-static void code_gen_assign_stack_addr_to_reg_group(
+        RegisterKind kind);
+static void code_gen_assign_stack_addr_to_reg(
         CodeGenContext* c, 
         Stmt* stmt, 
-        RegisterGroupKind kind);
+        RegisterKind kind);
 static void code_gen_stack_addr(CodeGenContext* c, Stmt* stmt);
 static size_t code_gen_get_sizeof_symbol_on_stack(Stmt* stmt);
 static char* code_gen_get_asm_type_specifier(size_t bytes);
@@ -160,7 +160,7 @@ void code_gen_function_stmt(CodeGenContext* c, Stmt* stmt) {
         
         buf_loop(params, i) {
             if (i < 6) {
-                code_gen_assign_reg_group_to_stack_addr(
+                code_gen_assign_reg_to_stack_addr(
                         c,
                         params[i],
                         REGISTER_ARG);
@@ -188,20 +188,51 @@ void code_gen_variable_stmt(CodeGenContext* c, Stmt* stmt) {
     if (stmt->variable.initializer && bytes != 0) {
         code_gen_expr(c, stmt->variable.initializer);
         /* code_gen_zs_extend(c, stmt->variable.initializer_type, stmt->variable.type); */
-        code_gen_assign_reg_group_to_stack_addr(
+        code_gen_assign_reg_to_stack_addr(
                 c,
                 stmt,
-                REGISTER_ACC);
+                REGISTER_RAX);
     }
 }
 
 void code_gen_assign_stmt(CodeGenContext* c, Stmt* stmt) {
     code_gen_asmw(c, "");
     code_gen_expr(c, stmt->assign.right);
-    code_gen_assign_reg_group_to_stack_addr(
-            c, 
-            stmt->assign.left->symbol.ref,
-            REGISTER_ACC);
+
+    switch (stmt->assign.left->kind) {
+        case EXPR_KIND_SYMBOL: {
+            code_gen_assign_reg_to_stack_addr(
+                    c, 
+                    stmt->assign.left->symbol.ref,
+                    REGISTER_RAX);
+        } break;
+
+        case EXPR_KIND_UNOP: {
+            assert(stmt->assign.left->unop.op->kind == TOKEN_KIND_STAR);
+
+            Expr* deref = stmt->assign.left->unop.child;
+            size_t iter_count = 0;
+            while (deref->kind == EXPR_KIND_UNOP) {
+                deref = deref->unop.child;
+                iter_count++;
+            }
+
+            code_gen_assign_stack_addr_to_reg(
+                    c,
+                    deref->symbol.ref,
+                    REGISTER_RCX);
+            for (size_t i = 0; i < iter_count; i++) {
+                code_gen_asmw(c, "mov rcx, QWORD [rcx]");
+            }
+            
+            Type* left_type = stmt->assign.left->type;
+            code_gen_asmp(
+                    c, 
+                    "mov %s [rcx], %s",
+                    code_gen_get_asm_type_specifier(type_bytes(left_type)),
+                    code_gen_get_rax_register_by_size(type_bytes(left_type)));
+        } break;
+    }
 }
 
 void code_gen_expr_stmt(CodeGenContext* c, Stmt* stmt) {
@@ -279,20 +310,20 @@ void code_gen_symbol_expr(CodeGenContext* c, Expr* expr) {
         case STMT_KIND_VARIABLE: {
             if (ref->parent_func) {
                 // TODO: cache `bytes`
-                code_gen_assign_stack_addr_to_reg_group(
+                code_gen_assign_stack_addr_to_reg(
                         c,
                         ref,
-                        REGISTER_ACC);
+                        REGISTER_RAX);
             }
             else assert(0);
             code_gen_zs_extend(c, ref->variable.type, expr->type);
         } break;
 
         case STMT_KIND_PARAM: {
-            code_gen_assign_stack_addr_to_reg_group(
+            code_gen_assign_stack_addr_to_reg(
                     c,
                     ref,
-                    REGISTER_ACC);
+                    REGISTER_RAX);
             code_gen_zs_extend(c, ref->param.type, expr->type);
         } break;
 
@@ -443,6 +474,15 @@ void code_gen_unop_expr(CodeGenContext* c, Expr* expr) {
                     code_gen_get_rax_register_by_size(bigger_bytes));
             code_gen_asmw(c, "mov eax, 0");
             code_gen_asmw(c, "sete al");
+        }
+        else if (expr->unop.op->kind == TOKEN_KIND_STAR) {
+            Type* ptr_child = expr->unop.child_type->ptr.child;
+            size_t ptr_child_bytes = type_bytes(ptr_child);
+            code_gen_asmp(
+                    c,
+                    "mov %s, %s [rax]",
+                    code_gen_get_rax_register_by_size(ptr_child_bytes),
+                    code_gen_get_asm_type_specifier(ptr_child_bytes));
         }
     }
 }
@@ -682,17 +722,21 @@ void code_gen_zs_extend(CodeGenContext* c, Type* from, Type* to) {
 #endif
 }
 
-void code_gen_assign_reg_group_to_stack_addr(
+void code_gen_assign_reg_to_stack_addr(
         CodeGenContext* c, 
         Stmt* stmt, 
-        RegisterGroupKind kind) {
+        RegisterKind kind) {
     code_gen_nasmw(c, "mov ");
     code_gen_stack_addr(c, stmt);
 
     char* reg = null;
     switch (kind) {
-        case REGISTER_ACC:
+        case REGISTER_RAX:
             reg = code_gen_get_rax_register_by_size(
+                    code_gen_get_sizeof_symbol_on_stack(stmt));
+            break;
+        case REGISTER_RCX:
+            reg = code_gen_get_rcx_register_by_size(
                     code_gen_get_sizeof_symbol_on_stack(stmt));
             break;
         case REGISTER_ARG:
@@ -702,15 +746,19 @@ void code_gen_assign_reg_group_to_stack_addr(
     code_gen_tasmp(c, ", %s", reg);
 }
 
-void code_gen_assign_stack_addr_to_reg_group(
+void code_gen_assign_stack_addr_to_reg(
         CodeGenContext* c, 
         Stmt* stmt, 
-        RegisterGroupKind kind) {
+        RegisterKind kind) {
     code_gen_nasmw(c, "mov ");
     char* reg = null;
     switch (kind) {
-        case REGISTER_ACC:
+        case REGISTER_RAX:
             reg = code_gen_get_rax_register_by_size(
+                    code_gen_get_sizeof_symbol_on_stack(stmt));
+            break;
+        case REGISTER_RCX:
+            reg = code_gen_get_rcx_register_by_size(
                     code_gen_get_sizeof_symbol_on_stack(stmt));
             break;
         case REGISTER_ARG:

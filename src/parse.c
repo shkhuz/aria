@@ -252,7 +252,8 @@ Expr* parse_cast_expr(ParseContext* p) {
 Expr* parse_unop_expr(ParseContext* p) {
     if (parse_match(p, TOKEN_KIND_MINUS) ||
         parse_match(p, TOKEN_KIND_BANG) ||
-        parse_match(p, TOKEN_KIND_AMP)) {
+        parse_match(p, TOKEN_KIND_AMP) ||
+        parse_match(p, TOKEN_KIND_STAR)) {
         Token* op = parse_previous(p);
         Expr* child = parse_unop_expr(p);
         return unop_expr_new(child, op);

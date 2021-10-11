@@ -154,8 +154,8 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
 }
 
 void check_assign_stmt(CheckContext* c, Stmt* stmt) {
-    Type* left_type = stmt_get_type(stmt->assign.left->symbol.ref);
-    Type* right_type = check_expr(c, stmt->assign.right, left_type, true);
+    Type* left_type = check_expr(c, stmt->assign.left, null, true);
+    Type* right_type = check_expr(c, stmt->assign.right, null, true);
 
     if (left_type && right_type && 
             check_implicit_cast(c, right_type, left_type) == IMPLICIT_CAST_ERROR) {
@@ -521,6 +521,27 @@ Type* check_unop_expr(CheckContext* c, Expr* expr, Type* cast) {
                 check_error(
                         expr->main_token,
                         "address of `{t}` types are not valid",
+                        child_type);
+            }
+        }
+        else if (expr->unop.op->kind == TOKEN_KIND_STAR) {
+            if (child_type->kind == TYPE_KIND_PTR) {
+                Type* ptr_child = child_type->ptr.child;
+                if (!type_is_void(ptr_child)) {
+                    expr->type = ptr_child;
+                    return ptr_child;
+                }
+                else {
+                    check_error(
+                            expr->main_token,
+                            "dereferencing `{t}` is invalid",
+                            child_type);
+                }
+            }
+            else {
+                check_error(
+                        expr->main_token,
+                        "cannot dereference type `{t}`",
                         child_type);
             }
         }
