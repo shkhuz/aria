@@ -1,0 +1,12 @@
+import std;
+import math;
+
+fn main() i32 {
+    let v: math.Vec2;
+    v.init();
+
+    let w: math.Vec2;
+    w.init();
+
+    v.add(w);
+}

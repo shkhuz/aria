@@ -34,6 +34,47 @@ For the time being, the Aria compiler only supports \*nix enviroments, because
 it makes it easy to extend the compiler without having to worry about other
 platforms. 
 
+## Roadmap
+
+- [X] Functions (internal language-compatible)
+- [X] Extern C-Abi functions
+- [ ] Basic constructs
+  - [X] `if` statements
+  - [ ] `switch` statements
+  - [ ] `for` loops
+  - [X] `while` loops
+- [X] Local variables
+- [ ] Structs
+- [ ] Unions
+- [ ] Enums
+- [ ] Operators
+  - [ ] Binary
+    - [X] `+`
+    - [X] `-`
+    - [ ] `*`
+    - [ ] `/`
+    - [X] `==`
+    - [X] `!=`
+    - [X] `<`
+    - [X] `>`
+    - [X] `<=`
+    - [X] `>=`
+    - [ ] Logical `and`
+    - [ ] Logical `or`
+    - [ ] Bitwise `&`
+    - [ ] Bitwise `|`
+  - [X] Unary
+    - [X] `-`
+    - [X] `&`
+    - [X] `*`
+    - [X] `!`
+  - [X] Explicit cast `as`
+  - [X] Function call `()`
+  - [X] Assign `=`
+- [X] Implicit return
+- [ ] Module system
+- [ ] Global variables
+
 ## License
 
 This project is MIT-licensed. See the `LICENSE` file 
