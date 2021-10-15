@@ -1,0 +1,13 @@
+fn main() i32 {
+    let i: i8 = 1;
+    let j: i16 = -3424;
+    writeln_i64(i + j);
+    0
+}
+
+extern fn writeln_u64(n: u64);
+extern fn writeln_i64(n: i64);
+
+extern fn write_i64(n: i64);
+extern fn write_u64(n: u64);
+extern fn write_char(c: u8);

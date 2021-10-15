@@ -374,17 +374,7 @@ void code_gen_binop_expr(CodeGenContext* c, Expr* expr) {
     }
     else {
         Type* bigger_type = null;
-        size_t const left_bytes = type_bytes(expr->binop.left_type);
-        size_t const right_bytes = type_bytes(expr->binop.right_type);
-        if (expr->type) {
-            bigger_type = expr->type;
-        }
-        else if (left_bytes > right_bytes) {
-            bigger_type = expr->binop.left_type;
-        }
-        else {
-            bigger_type = expr->binop.right_type;
-        }
+        bigger_type = expr->type;
         size_t const bigger_bytes = type_bytes(bigger_type);
 
         code_gen_expr(c, expr->binop.left);
@@ -438,13 +428,7 @@ void code_gen_unop_expr(CodeGenContext* c, Expr* expr) {
         code_gen_bigint(c, expr->type->builtin.apint);
     }
     else {
-        Type* bigger_type = null;
-        if (expr->type) {
-            bigger_type = expr->type;
-        }
-        else {
-            bigger_type = expr->unop.child_type;
-        }
+        Type* bigger_type = expr->unop.child_type;
         size_t const bigger_bytes = type_bytes(bigger_type);
 
         if (expr->unop.op->kind != TOKEN_KIND_AMP) {

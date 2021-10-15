@@ -326,7 +326,12 @@ Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast) {
     expr->binop.left_type = left_type;
     Type* right_type = check_expr(c, expr->binop.right, null, false);
     expr->binop.right_type = right_type;
-    expr->type = cast;
+    if (type_bytes(right_type) > type_bytes(left_type)) {
+        expr->type = right_type;
+    }
+    else {
+        expr->type = left_type;
+    }
 
     if (left_type && right_type) {
         bool is_left_apint = type_is_apint(left_type);
@@ -449,7 +454,7 @@ Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast) {
 Type* check_unop_expr(CheckContext* c, Expr* expr, Type* cast) {
     Type* child_type = check_expr(c, expr->unop.child, null, false);
     expr->unop.child_type = child_type;
-    expr->type = cast;
+    expr->type = child_type;
 
     if (child_type) {
         bool is_child_apint = type_is_apint(child_type);

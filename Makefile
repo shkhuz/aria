@@ -4,7 +4,7 @@ OBJ_FILES := $(addprefix build/obj/, $(addsuffix .o, $(C_FILES)))
 EXE_FILE := build/ariac
 CFLAGS := -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter
 LDFLAGS := 
-AR_FILE := examples/cmp_test.ar
+AR_FILE := examples/binop.ar
 
 ifeq ($(prod), y)
 	CFLAGS_OPTIMIZE := -O3
@@ -28,7 +28,7 @@ build/obj/%.c.o: %.c
 	$(CC) -c $(CFLAGS) $(CFLAGS_OPTIMIZE) -o $@ $^
 
 debug: $(EXE_FILE)
-	gdb --args $^ $(AR_FILE)
+	gdb --args $^ $(AR_FILE) examples/std.ar
 
 clean:
 	rm -rf build/ a.out *.o *.asm
