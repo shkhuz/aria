@@ -8,12 +8,7 @@
 #include "resolve.h"
 #include "check.h"
 #include "code_gen_linux-x64-nasm.h"
-#include <argp.h>
-
-typedef struct {
-    char** inpaths;
-    char* outpath;
-} Arguments;
+#include <getopt.h>
 
 char* g_exec_path;
 
@@ -79,49 +74,53 @@ static void tests() {
     assert(aria_dir("main.ar") == null);
 }
 
-static error_t parse_cmdopts(int key, char* arg, struct argp_state* state) {
-    Arguments* args = state->input;
-    switch (key) {
-        case 'o': {
-            args->outpath = arg;
-        } break;
-
-        case ARGP_KEY_ARG: {
-            buf_push(args->inpaths, arg);
-        } break;
-
-        case ARGP_KEY_END: {
-            if (state->arg_num < 1) {
-                argp_failure(state, 1, 0, "no input file(s)");
-            }
-        } break;
-
-        default: return ARGP_ERR_UNKNOWN;
-    }
-    return 0;
-}
-
 int main(int argc, char* argv[]) {
     g_exec_path = argv[0];
     init_core();
     init_ds();
     tests();
 
-    Arguments args;
-    args.inpaths = null;
-    args.outpath = "a.out";
-    struct argp_option options[] = {
-        { "output", 'o', "FILE", 0, "Place the output into FILE", 0 },
+    char* outpath = "a.out";
+    struct option options[] = {
+        { "output", required_argument, 0, 'o' },
         { 0 },
     };
-    struct argp argp = { options, parse_cmdopts, "FILE...", 0, 0, 0, 0, };
-    argp_parse(&argp, argc, argv, 0, 0, &args);
+
+    while (true) {
+        int longopt_idx = 0;
+        int c = getopt_long(argc, argv, "o:", options, &longopt_idx);
+        if (c == -1) break;
+
+        switch (c) {
+            case 'o': {
+                outpath = optarg;
+            } break;
+            
+            case '?': {
+                exit(1);
+            } break;
+
+            default: {
+            } break;
+        }
+    }
+
+    if (optind == argc) {
+        default_msg(
+                MSG_KIND_ROOT_ERROR,
+                null, 
+                0,
+                0,
+                0,
+                "no input files");
+        terminate_compilation();
+    }
 
     Srcfile** srcfiles = null;
     bool read_error = false;
-    buf_loop(args.inpaths, i) {
+    for (int i = optind; i < argc; i++) {
         Srcfile* srcfile = read_srcfile(
-                args.inpaths[i],
+                argv[i],
                 MSG_KIND_ROOT_ERROR,
                 null,
                 0,
@@ -181,8 +180,8 @@ int main(int argc, char* argv[]) {
     buf_loop(srcfiles, i) {
         CodeGenContext c;
         c.srcfile = srcfiles[i];
-        code_gen(&c, args.outpath);
+        code_gen(&c, outpath);
         buf_push(gen_ctxs, c);
     }
-    code_gen_output_bin(gen_ctxs, args.outpath);
+    code_gen_output_bin(gen_ctxs, outpath);
 }

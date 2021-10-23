@@ -142,7 +142,7 @@ void lex(LexContext* l) {
                     !ascii_error_table[(size_t)*l->current]) {
                     lex_error_from_current(
                             l,
-                            "invalid character `%c`",
+                            "invalid character `{c}`",
                             *l->current);
                     ascii_error_table[(size_t)*l->current] = true;
                 }
