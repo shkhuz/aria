@@ -16,6 +16,7 @@ static Stmt* parse_function_stmt(ParseContext* p, bool is_extern);
 static FunctionHeader* parse_function_header(ParseContext* p);
 static Stmt* parse_variable_stmt(ParseContext* p);
 static StmtOrExpr parse_function_level_node(ParseContext* p);
+static Stmt* parse_while_stmt(ParseContext* p, Token* while_keyword);
 static Stmt* parse_assign_stmt(
         ParseContext* p,
         Expr* left,
@@ -33,10 +34,9 @@ static Expr* parse_function_call_expr(
         ParseContext* p, 
         Expr* callee, 
         Token* lparen);
-static Expr* parse_block_expr(ParseContext* p, Token* lbrace);
+static Expr* parse_block_expr(ParseContext* p, Token* lbrace, bool value_req);
 static Expr* parse_if_expr(ParseContext* p, Token* if_keyword);
 static IfBranch* parse_if_branch(ParseContext* p, IfBranchKind kind);
-static Expr* parse_while_expr(ParseContext* p, Token* while_keyword);
 static Type* parse_type(ParseContext* p);
 static Type* parse_ptr_type(ParseContext* p);
 static Type* parse_atom_type(ParseContext* p);
@@ -97,7 +97,7 @@ Stmt* parse_function_stmt(ParseContext* p, bool is_extern) {
     Expr* body = null;
     if (parse_match(p, TOKEN_KIND_LBRACE)) {
         lbrace = parse_previous(p);
-        body = parse_block_expr(p, lbrace);
+        body = parse_block_expr(p, lbrace, true);
     } 
     else {
         parse_expect_semicolon(p);
@@ -172,6 +172,10 @@ StmtOrExpr parse_function_level_node(ParseContext* p) {
         result.stmt = parse_variable_stmt(p);
         return result;
     }
+    else if (parse_match_keyword(p, "while")) {
+        result.stmt = parse_while_stmt(p, parse_previous(p));
+        return result;
+    }
 
     Expr* expr = parse_expr(p);
     if (parse_current(p)->kind == TOKEN_KIND_RBRACE) {
@@ -190,6 +194,15 @@ StmtOrExpr parse_function_level_node(ParseContext* p) {
     return result;
 }
 
+Stmt* parse_while_stmt(ParseContext* p, Token* while_keyword) {
+    Expr* cond = parse_expr(p);
+    Expr* body = parse_block_expr(p, parse_expect_lbrace(p), false);
+    return while_stmt_new(
+            while_keyword, 
+            cond,
+            body);
+}
+
 Stmt* parse_assign_stmt(
         ParseContext* p,
         Expr* left,
@@ -202,8 +215,7 @@ Stmt* parse_assign_stmt(
 Stmt* parse_expr_stmt(ParseContext* p, Expr* expr) {
     assert(expr);
     if (expr->kind != EXPR_KIND_BLOCK &&
-        expr->kind != EXPR_KIND_IF &&
-        expr->kind != EXPR_KIND_WHILE) {
+        expr->kind != EXPR_KIND_IF) {
         parse_expect_semicolon(p);
     }
     return expr_stmt_new(expr);
@@ -284,13 +296,10 @@ Expr* parse_atom_expr(ParseContext* p) {
         }
     }
     else if (parse_match(p, TOKEN_KIND_LBRACE)) {
-        return parse_block_expr(p, parse_previous(p));
+        return parse_block_expr(p, parse_previous(p), true);
     }
     else if (parse_match_keyword(p, "if")) {
         return parse_if_expr(p, parse_previous(p));
-    }
-    else if (parse_match_keyword(p, "while")) {
-        return parse_while_expr(p, parse_previous(p));
     }
     else {
         fatal_error(
@@ -327,7 +336,7 @@ Expr* parse_function_call_expr(
     return function_call_expr_new(callee, args, parse_previous(p));
 }
 
-Expr* parse_block_expr(ParseContext* p, Token* lbrace) {
+Expr* parse_block_expr(ParseContext* p, Token* lbrace, bool value_req) {
     Stmt** stmts = null;
     Expr* value = null;
     while (!parse_match(p, TOKEN_KIND_RBRACE)) {
@@ -335,6 +344,11 @@ Expr* parse_block_expr(ParseContext* p, Token* lbrace) {
         StmtOrExpr meta = parse_function_level_node(p);
         if (meta.is_stmt) {
             buf_push(stmts, meta.stmt);
+        }
+        else if (!value_req) {
+            fatal_error(
+                    meta.expr->main_token,
+                    "this block cannot return a value");
         }
         else {
             value = meta.expr;
@@ -385,20 +399,11 @@ IfBranch* parse_if_branch(ParseContext* p, IfBranchKind kind) {
         cond = parse_expr(p);
     }
 
-    Expr* body = parse_block_expr(p, parse_expect_lbrace(p));
+    Expr* body = parse_block_expr(p, parse_expect_lbrace(p), true);
     return if_branch_new(
             cond,
             body,
             kind);
-}
-
-Expr* parse_while_expr(ParseContext* p, Token* while_keyword) {
-    Expr* cond = parse_expr(p);
-    Expr* body = parse_block_expr(p, parse_expect_lbrace(p));
-    return while_expr_new(
-            while_keyword, 
-            cond,
-            body);
 }
 
 Type* parse_type(ParseContext* p) {

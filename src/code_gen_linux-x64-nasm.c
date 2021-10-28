@@ -13,6 +13,12 @@ typedef enum {
 static void code_gen_stmt(CodeGenContext* c, Stmt* stmt);
 static void code_gen_function_stmt(CodeGenContext* c, Stmt* stmt);
 static void code_gen_variable_stmt(CodeGenContext* c, Stmt* stmt);
+static void code_gen_while_stmt(CodeGenContext* c, Stmt* stmt);
+static void code_gen_distinct_while_label(
+        CodeGenContext* c,
+        WhileLoopAsmLabel whilelb_kind,
+        size_t idx,
+        bool is_definition);
 static void code_gen_assign_stmt(CodeGenContext* c, Stmt* stmt);
 static void code_gen_expr_stmt(CodeGenContext* c, Stmt* stmt);
 static void code_gen_expr(CodeGenContext* c, Expr* expr);
@@ -37,12 +43,6 @@ static void code_gen_distinct_if_label(
         IfBranchKind kind, 
         size_t idx,
         size_t elseifidx,
-        bool is_definition);
-static void code_gen_while_expr(CodeGenContext* c, Expr* expr);
-static void code_gen_distinct_while_label(
-        CodeGenContext* c,
-        WhileLoopAsmLabel whilelb_kind,
-        size_t idx,
         bool is_definition);
 static AsmpFunc code_gen_get_asmp_func(bool is_definition);
 static void code_gen_zs_extend(CodeGenContext* c, Type* from, Type* to);
@@ -118,6 +118,10 @@ void code_gen_stmt(CodeGenContext* c, Stmt* stmt) {
 
         case STMT_KIND_VARIABLE: {
             code_gen_variable_stmt(c, stmt);
+        } break;
+
+        case STMT_KIND_WHILE: {
+            code_gen_while_stmt(c, stmt);
         } break;
 
         case STMT_KIND_ASSIGN: {
@@ -275,10 +279,6 @@ void code_gen_expr(CodeGenContext* c, Expr* expr) {
 
         case EXPR_KIND_IF: {
             code_gen_if_expr(c, expr);
-        } break;
-
-        case EXPR_KIND_WHILE: {
-            code_gen_while_expr(c, expr);
         } break;
     }
 }
@@ -582,17 +582,17 @@ void code_gen_distinct_if_label(
     }
 }
 
-void code_gen_while_expr(CodeGenContext* c, Expr* expr) {
+void code_gen_while_stmt(CodeGenContext* c, Stmt* stmt) {
     code_gen_asmw(c, "");
-    size_t idx = expr->parent_func->function.whileidx++;
+    size_t idx = stmt->parent_func->function.whileidx++;
     code_gen_distinct_while_label(c, WHILE_LOOP_ASM_COND, idx, true);
 
-    code_gen_expr(c, expr->whilelp.cond);
+    code_gen_expr(c, stmt->whilelp.cond);
     code_gen_asmw(c, "test rax, rax");
     code_gen_nasmw(c, "jz ");
     code_gen_distinct_while_label(c, WHILE_LOOP_ASM_END, idx, false);
 
-    code_gen_block_expr(c, expr->whilelp.body);
+    code_gen_block_expr(c, stmt->whilelp.body);
     code_gen_nasmw(c, "jmp ");
     code_gen_distinct_while_label(c, WHILE_LOOP_ASM_COND, idx, false);
     code_gen_distinct_while_label(c, WHILE_LOOP_ASM_END, idx, true);

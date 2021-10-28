@@ -139,7 +139,6 @@ typedef enum {
     EXPR_KIND_CAST,
     EXPR_KIND_BLOCK,
     EXPR_KIND_IF,
-    EXPR_KIND_WHILE,
 } ExprKind;
 
 typedef struct {
@@ -214,11 +213,6 @@ typedef struct {
     IfBranch* elsebr;
 } IfExpr;
 
-typedef struct {
-    Expr* cond;
-    Expr* body;
-} WhileExpr;
-
 struct Expr {
     ExprKind kind;
     Token* main_token;
@@ -234,7 +228,6 @@ struct Expr {
         CastExpr cast;
         BlockExpr block;
         IfExpr iff;
-        WhileExpr whilelp;
     };
 };
 
@@ -242,6 +235,7 @@ typedef enum {
     STMT_KIND_FUNCTION,
     STMT_KIND_VARIABLE,
     STMT_KIND_PARAM,
+    STMT_KIND_WHILE,
     STMT_KIND_ASSIGN,
     STMT_KIND_RETURN,
     STMT_KIND_EXPR,
@@ -279,6 +273,11 @@ typedef struct {
 } ParamStmt;
 
 typedef struct {
+    Expr* cond;
+    Expr* body;
+} WhileStmt;
+
+typedef struct {
     Expr* left;
     Expr* right;
     Token* op;
@@ -301,6 +300,7 @@ struct Stmt {
         FunctionStmt function;
         VariableStmt variable;
         ParamStmt param;
+        WhileStmt whilelp;
         AssignStmt assign;
         ReturnStmt return_stmt;
         ExprStmt expr;
@@ -360,7 +360,7 @@ Expr* if_expr_new(
         IfBranch* ifbr, 
         IfBranch** elseifbr, 
         IfBranch* elsebr);
-Expr* while_expr_new(Token* while_keyword, Expr* cond, Expr* body);
+Stmt* while_stmt_new(Token* while_keyword, Expr* cond, Expr* body);
 
 Type* builtin_type_placeholder_new(BuiltinTypeKind kind);
 Type* ptr_type_placeholder_new(bool constant, Type* child);

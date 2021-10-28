@@ -379,6 +379,16 @@ Stmt* param_stmt_new(Token* identifier, Type* type, size_t idx) {
     return stmt;
 }
 
+Stmt* while_stmt_new(Token* while_keyword, Expr* cond, Expr* body) {
+    ALLOC_WITH_TYPE(stmt, Stmt);
+    stmt->kind = STMT_KIND_WHILE;
+    stmt->main_token = while_keyword;
+    stmt->parent_func = null;
+    stmt->whilelp.cond = cond;
+    stmt->whilelp.body = body;
+    return stmt;
+}
+
 Stmt* assign_stmt_new(Expr* left, Expr* right, Token* op) {
     ALLOC_WITH_TYPE(stmt, Stmt);
     stmt->kind = STMT_KIND_ASSIGN;
@@ -520,17 +530,6 @@ Expr* if_expr_new(
     expr->iff.ifbr = ifbr;
     expr->iff.elseifbr = elseifbr;
     expr->iff.elsebr = elsebr;
-    return expr;
-}
-
-Expr* while_expr_new(Token* while_keyword, Expr* cond, Expr* body) {
-    ALLOC_WITH_TYPE(expr, Expr);
-    expr->kind = EXPR_KIND_WHILE;
-    expr->main_token = while_keyword;
-    expr->type = null;
-    expr->parent_func = null;
-    expr->whilelp.cond = cond;
-    expr->whilelp.body = body;
     return expr;
 }
 

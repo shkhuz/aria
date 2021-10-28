@@ -15,6 +15,7 @@ typedef enum {
 static void check_stmt(CheckContext* c, Stmt* stmt);
 static void check_function_stmt(CheckContext* c, Stmt* stmt);
 static void check_variable_stmt(CheckContext* c, Stmt* stmt);
+static void check_while_stmt(CheckContext* c, Stmt* stmt);
 static void check_assign_stmt(CheckContext* c, Stmt* stmt);
 static void check_expr_stmt(CheckContext* c, Stmt* stmt);
 static Type* check_expr(CheckContext* c, Expr* expr, Type* cast, bool cast_to_definitive_type);
@@ -39,7 +40,6 @@ static void check_apint_fits_into_default_integer_type(
 static Type* check_block_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_if_expr(CheckContext* c, Expr* expr, Type* cast);
 static Type* check_if_branch(CheckContext* c, IfBranch* br, Type* cast);
-static Type* check_while_expr(CheckContext* c, Expr* expr, Type* cast);
 static ImplicitCastStatus check_implicit_cast(
         CheckContext* c, 
         Type* from, 
@@ -62,6 +62,10 @@ void check_stmt(CheckContext* c, Stmt* stmt) {
 
         case STMT_KIND_VARIABLE: {
             check_variable_stmt(c, stmt);
+        } break;
+
+        case STMT_KIND_WHILE: {
+            return check_while_stmt(c, stmt);
         } break;
 
         case STMT_KIND_ASSIGN: {
@@ -153,6 +157,21 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
     }
 }
 
+void check_while_stmt(CheckContext* c, Stmt* stmt) {
+    Type* cond_type = check_expr(c, stmt->whilelp.cond, null, true);
+    if (cond_type && check_implicit_cast(
+                c,
+                cond_type,
+                builtin_type_placeholders.boolean) == IMPLICIT_CAST_ERROR) {
+        check_error(
+                stmt->whilelp.cond->main_token,
+                "loop condition should be `{t}` but got `{t}`",
+                builtin_type_placeholders.boolean,
+                cond_type);
+    }
+    check_block_expr(c, stmt->whilelp.body, null);
+}
+
 void check_assign_stmt(CheckContext* c, Stmt* stmt) {
     Type* left_type = check_expr(c, stmt->assign.left, null, true);
     Type* right_type = check_expr(c, stmt->assign.right, null, true);
@@ -207,10 +226,6 @@ Type* check_expr(CheckContext* c, Expr* expr, Type* cast, bool cast_to_definitiv
 
         case EXPR_KIND_IF: {
             return check_if_expr(c, expr, cast);
-        } break;
-
-        case EXPR_KIND_WHILE: {
-            return check_while_expr(c, expr, cast);
         } break;
     }
     assert(0);
@@ -758,21 +773,6 @@ Type* check_if_branch(CheckContext* c, IfBranch* br, Type* cast) {
         }
     }
     return check_block_expr(c, br->body, cast);
-}
-
-Type* check_while_expr(CheckContext* c, Expr* expr, Type* cast) {
-    Type* cond_type = check_expr(c, expr->whilelp.cond, null, true);
-    if (cond_type && check_implicit_cast(
-                c,
-                cond_type,
-                builtin_type_placeholders.boolean) == IMPLICIT_CAST_ERROR) {
-        check_error(
-                expr->whilelp.cond->main_token,
-                "loop condition should be `{t}` but got `{t}`",
-                builtin_type_placeholders.boolean,
-                cond_type);
-    }
-    return check_block_expr(c, expr->whilelp.body, cast);
 }
 
 ImplicitCastStatus check_implicit_cast(

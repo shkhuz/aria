@@ -4,7 +4,7 @@ OBJ_FILES := $(addprefix build/obj/, $(addsuffix .o, $(C_FILES)))
 EXE_FILE := build/ariac
 CFLAGS := -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter
 LDFLAGS := 
-AR_FILE := examples/binop.ar
+AR_FILE := examples/if.ar
 
 ifeq ($(prod), y)
 	CFLAGS_OPTIMIZE := -O3

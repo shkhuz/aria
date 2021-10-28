@@ -1,29 +1,27 @@
-import std;
-
 fn main() i32 {
     srand(time(null));
 
     let greater = 1;
     let less = -1;
-    let random_number = std.rand8();
+    let random_number = rand8();
 
     let mut input = get_user_input();
     while input != random_number {
         if input > random_number {
-            std.writeln_i64(less);
+            writeln_i64(less);
         }
         else if input < random_number {
-            std.writeln_i64(greater);
+            writeln_i64(greater);
         }
         input = get_user_input();
     }
-    std.writeln_u64(input);
+    writeln_u64(random_number);
 
     0
 }
 
 fn get_user_input() u64 {
-    std.convert_to_u64(read_stdio())
+    convert_to_u64(read_stdio())
 }
 
 extern fn srand(seed: i32);

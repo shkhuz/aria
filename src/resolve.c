@@ -45,6 +45,7 @@ static void resolve_variable_stmt(
         ResolveContext* r,
         Stmt* stmt,
         bool ignore_function_level_stmt);
+static void resolve_while_stmt(ResolveContext* r, Stmt* stmt);
 static void resolve_assign_stmt(ResolveContext* r, Stmt* stmt);
 static void resolve_expr_stmt(ResolveContext* r, Stmt* stmt);
 static void resolve_expr(ResolveContext* r, Expr* expr);
@@ -59,7 +60,6 @@ static void resolve_block_expr(
         bool create_new_scope);
 static void resolve_if_expr(ResolveContext* r, Expr* expr);
 static void resolve_if_branch(ResolveContext* r, IfBranch* br);
-static void resolve_while_expr(ResolveContext* r, Expr* expr);
 static void resolve_type(ResolveContext* r, Type* type);
 static void resolve_ptr_type(ResolveContext* r, Type* type);
 static void resolve_cpush_in_scope(ResolveContext* r, Stmt* stmt);
@@ -124,6 +124,10 @@ void resolve_stmt(
 
         case STMT_KIND_VARIABLE: {
             resolve_variable_stmt(r, stmt, ignore_function_level_stmt);
+        } break;
+
+        case STMT_KIND_WHILE: {
+            resolve_while_stmt(r, stmt);
         } break;
 
         case STMT_KIND_ASSIGN: {
@@ -244,10 +248,6 @@ void resolve_expr(ResolveContext* r, Expr* expr) {
         case EXPR_KIND_IF: {
             resolve_if_expr(r, expr);
         } break;
-
-        case EXPR_KIND_WHILE: {
-            resolve_while_expr(r, expr);
-        } break;
     }
 }
 
@@ -341,9 +341,9 @@ void resolve_if_branch(ResolveContext* r, IfBranch* br) {
     resolve_expr(r, br->body);
 }
 
-void resolve_while_expr(ResolveContext* r, Expr* expr) {
-    resolve_expr(r, expr->whilelp.cond);
-    resolve_expr(r, expr->whilelp.body);
+void resolve_while_stmt(ResolveContext* r, Stmt* stmt) {
+    resolve_expr(r, stmt->whilelp.cond);
+    resolve_expr(r, stmt->whilelp.body);
 }
 
 void resolve_type(ResolveContext* r, Type* type) {
