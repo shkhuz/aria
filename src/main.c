@@ -7,7 +7,7 @@
 #include "parse.h"
 #include "resolve.h"
 #include "check.h"
-#include "code_gen_linux-x64-nasm.h"
+#include "cg.h"
 #include <getopt.h>
 
 char* g_exec_path;
@@ -176,12 +176,12 @@ int main(int argc, char* argv[]) {
     }
     if (checking_error) terminate_compilation();
 
-    CodeGenContext* gen_ctxs = null;
+    CgContext* cg_ctxs = null;
     buf_loop(srcfiles, i) {
-        CodeGenContext c;
+        CgContext c;
         c.srcfile = srcfiles[i];
-        code_gen(&c, outpath);
-        buf_push(gen_ctxs, c);
+        cg(&c, outpath);
+        buf_push(cg_ctxs, c);
     }
-    code_gen_output_bin(gen_ctxs, outpath);
+    cg_output_bin(cg_ctxs, outpath);
 }

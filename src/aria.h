@@ -389,6 +389,7 @@ void _aria_fprintf(
     _aria_fprintf(__FILE__, __LINE__, stdout, fmt, ##__VA_ARGS__)
 
 void fprintf_type(FILE* file, Type* type);
+void buf_printf_type(char* b, Type* type);
 void fprintf_token(FILE* file, Token* token);
 
 #endif

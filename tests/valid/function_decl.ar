@@ -1,6 +1,8 @@
 fn hey() {}
 fn cool() {}
 
+extern fn gogogo(i: i8, u: u64);
+
 fn func1(n: *const i8)                          {
 
         }

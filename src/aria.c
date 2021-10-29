@@ -665,6 +665,22 @@ void fprintf_type(FILE* file, Type* type) {
     }
 }
 
+void buf_printf_type(char* b, Type* type) {
+    switch (type->kind) {
+        case TYPE_KIND_BUILTIN: {
+            buf_printf(b, "%s", builtin_type_kind_to_str(type->builtin.kind));
+        } break;
+
+        case TYPE_KIND_PTR: {
+            buf_push(b, '*');
+            if (type->ptr.constant) {
+                buf_printf(b, "const ");
+            }
+            buf_printf_type(b, type->ptr.child);
+        } break;
+    }
+}
+
 void fprintf_token(FILE* file, Token* token) {
     fprintf(file, "{ %s, %d }", token->lexeme, token->kind);
 }

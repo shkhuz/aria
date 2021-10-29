@@ -1,10 +1,11 @@
-C_FILES := $(shell find src -type f -name "*.c")
+NO_C_FILES := src/code_gen_linux-x64-nasm.c
+C_FILES := $(shell find src -type f -name "*.c" | grep -v $(NO_C_FILES))
 H_FILES := $(shell find src -type f -name "*.h")
 OBJ_FILES := $(addprefix build/obj/, $(addsuffix .o, $(C_FILES)))
 EXE_FILE := build/ariac
 CFLAGS := -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter
 LDFLAGS := 
-AR_FILE := examples/if.ar
+AR_FILE := examples/function_decl.ar
 
 ifeq ($(prod), y)
 	CFLAGS_OPTIMIZE := -O3
