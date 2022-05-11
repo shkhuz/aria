@@ -1,10 +1,83 @@
-#include "aria.h"
-#include "buf.h"
-#include "stri.h"
+struct Token;
+struct Type;
+struct Expr;
+struct Stmt;
 
-char** aria_keywords;
+struct Srcfile {
+    File* handle;
+    std::vector<Token*> tokens;
+    std::vector<Stmt*> stmts;
+};
 
-BuiltinTypeMap builtin_type_map[_BUILTIN_TYPE_KIND_COUNT] = {
+enum TokenKind {
+    TOKEN_KIND_IDENTIFIER,
+    TOKEN_KIND_KEYWORD,
+    TOKEN_KIND_INTEGER,
+    TOKEN_KIND_LBRACE,
+    TOKEN_KIND_RBRACE,
+    TOKEN_KIND_LPAREN,
+    TOKEN_KIND_RPAREN,
+    TOKEN_KIND_COLON,
+    TOKEN_KIND_SEMICOLON,
+    TOKEN_KIND_COMMA,
+    TOKEN_KIND_EQUAL,
+    TOKEN_KIND_DOUBLE_EQUAL,
+    TOKEN_KIND_BANG,
+    TOKEN_KIND_BANG_EQUAL,
+    TOKEN_KIND_LANGBR,
+    TOKEN_KIND_LANGBR_EQUAL,
+    TOKEN_KIND_RANGBR,
+    TOKEN_KIND_RANGBR_EQUAL,
+    TOKEN_KIND_AMP,
+    TOKEN_KIND_DOUBLE_AMP,
+    TOKEN_KIND_PLUS,
+    TOKEN_KIND_MINUS,
+    TOKEN_KIND_STAR,
+    TOKEN_KIND_FSLASH,
+    TOKEN_KIND_EOF,
+};
+
+struct Token {
+    TokenKind kind;
+    std::string lexeme;
+    char* start, *end;
+    Srcfile* srcfile;
+    size_t line, col, ch_count;
+    union {
+        struct {
+            bigint* val;
+        } integer;
+    };
+};
+
+enum TypeKind {
+    TYPE_KIND_BUILTIN,
+    TYPE_KIND_PTR,
+};
+
+enum BuiltinTypeKind {
+    BUILTIN_TYPE_KIND_U8,
+    BUILTIN_TYPE_KIND_U16,
+    BUILTIN_TYPE_KIND_U32,
+    BUILTIN_TYPE_KIND_U64,
+    BUILTIN_TYPE_KIND_USIZE,
+    BUILTIN_TYPE_KIND_I8,
+    BUILTIN_TYPE_KIND_I16,
+    BUILTIN_TYPE_KIND_I32,
+    BUILTIN_TYPE_KIND_I64,
+    BUILTIN_TYPE_KIND_ISIZE,
+    BUILTIN_TYPE_KIND_BOOLEAN,
+    BUILTIN_TYPE_KIND_VOID,
+    BUILTIN_TYPE_KIND_APINT,
+    BUILTIN_TYPE_KIND_NONE,
+    BUILTIN_TYPE_KIND__COUNT,
+};
+
+struct BuiltinTypeMap {
+    std::string k;
+    BuiltinTypeKind v;
+};
+BuiltinTypeMap builtin_type_map[BUILTIN_TYPE_KIND__COUNT] = {
     { "u8", BUILTIN_TYPE_KIND_U8 },
     { "u16", BUILTIN_TYPE_KIND_U16 },
     { "u32", BUILTIN_TYPE_KIND_U32 },
@@ -19,60 +92,259 @@ BuiltinTypeMap builtin_type_map[_BUILTIN_TYPE_KIND_COUNT] = {
     { "void", BUILTIN_TYPE_KIND_VOID },
 };
 
+struct BuiltinTypePlaceholders {
+    Type* uint8;
+    Type* uint16;
+    Type* uint32;
+    Type* uint64;
+    Type* usize;
+    Type* int8;
+    Type* int16;
+    Type* int32;
+    Type* int64;
+    Type* isize;
+    Type* boolean;
+    Type* void_kind;
+    Type* void_ptr;
+};
 BuiltinTypePlaceholders builtin_type_placeholders;
 
-void init_ds() {
-    buf_push(aria_keywords, "fn");
-    buf_push(aria_keywords, "let");
-    buf_push(aria_keywords, "const");
-    buf_push(aria_keywords, "mut");
-    buf_push(aria_keywords, "extern");
-    buf_push(aria_keywords, "if");
-    buf_push(aria_keywords, "else");
-    buf_push(aria_keywords, "while");
-    buf_push(aria_keywords, "true");
-    buf_push(aria_keywords, "false");
-    buf_push(aria_keywords, "null");
-    buf_push(aria_keywords, "as");
+struct BuiltinType {
+    Token* token;
+    BuiltinTypeKind kind;
+    union {
+        bigint* apint;
+    };
+};
 
-    builtin_type_placeholders.u8 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U8);
-    builtin_type_placeholders.u16 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U16);
-    builtin_type_placeholders.u32 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U32);
-    builtin_type_placeholders.u64 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U64);
-    builtin_type_placeholders.usize = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_USIZE);
-    builtin_type_placeholders.i8 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I8);
-    builtin_type_placeholders.i16 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I16);
-    builtin_type_placeholders.i32 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I32);
-    builtin_type_placeholders.i64 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I64);
-    builtin_type_placeholders.isize = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_ISIZE);
-    builtin_type_placeholders.boolean = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_BOOLEAN);
-    builtin_type_placeholders.void_type = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_VOID);
-    builtin_type_placeholders.void_ptr = ptr_type_placeholder_new(
-            false, 
-            builtin_type_placeholder_new(BUILTIN_TYPE_KIND_VOID));
-}
+struct PtrType {
+    bool constant;
+    Type* child;
+};
+
+const size_t PTR_BYTES = 8;
+
+struct Type {
+    TypeKind kind;
+    Token* main_token;
+    union {
+        BuiltinType builtin;
+        PtrType ptr;
+    };
+};
+
+enum ExprKind {
+    EXPR_KIND_INTEGER,
+    EXPR_KIND_CONSTANT,
+    EXPR_KIND_SYMBOL,
+    EXPR_KIND_FUNCTION_CALL,
+    EXPR_KIND_BINOP,
+    EXPR_KIND_UNOP,
+    EXPR_KIND_CAST,
+    EXPR_KIND_BLOCK,
+    EXPR_KIND_IF,
+};
+
+struct IntegerExpr {
+    Token* integer;
+    bigint* val;
+};
+
+enum ConstantKind {
+    CONSTANT_KIND_BOOLEAN_TRUE,
+    CONSTANT_KIND_BOOLEAN_FALSE,
+    CONSTANT_KIND_NULL,
+};
+
+struct ConstantExpr {
+    Token* keyword;
+    ConstantKind kind;
+};
+
+struct SymbolExpr {
+    Token* identifier;
+    Stmt* ref;
+};
+
+struct FunctionCallExpr {
+    Expr* callee;
+    Expr** args;
+    Token* rparen;
+};
+
+struct BinopExpr {
+    Expr* left;
+    Expr* right;
+    Token* op;
+    Type* left_type;
+    Type* right_type;
+};
+
+struct UnopExpr {
+    Expr* child;
+    Token* op;
+    Type* child_type;
+};
+
+struct CastExpr {
+    Expr* left;
+    Type* left_type;
+    Token* op;
+    Type* to;
+};
+
+struct BlockExpr {
+    Stmt** stmts;
+    Expr* value;
+    Token* rbrace;
+};
+
+enum IfBranchKind {
+    IF_BRANCH_IF,
+    IF_BRANCH_ELSEIF,
+    IF_BRANCH_ELSE,
+};
+
+struct IfBranch {
+    Expr* cond;
+    Expr* body;
+    IfBranchKind kind;
+};
+
+struct IfExpr {
+    IfBranch* ifbr;
+    IfBranch** elseifbr;
+    IfBranch* elsebr;
+};
+
+struct Expr {
+    ExprKind kind;
+    Token* main_token;
+    Type* type;
+    Stmt* parent_func;
+    union {
+        IntegerExpr integer;
+        ConstantExpr constant;
+        SymbolExpr symbol;
+        FunctionCallExpr function_call;
+        BinopExpr binop;
+        UnopExpr unop;
+        CastExpr cast;
+        BlockExpr block;
+        IfExpr iff;
+    };
+};
+
+enum StmtKind {
+    STMT_KIND_FUNCTION,
+    STMT_KIND_VARIABLE,
+    STMT_KIND_PARAM,
+    STMT_KIND_WHILE,
+    STMT_KIND_ASSIGN,
+    STMT_KIND_RETURN,
+    STMT_KIND_EXPR,
+};
+
+struct FunctionHeader {
+    Token* identifier;
+    Stmt** params;
+    Type* return_type;
+};
+
+struct FunctionStmt {
+    FunctionHeader* header;
+    Expr* body;
+    bool is_extern;
+    size_t stack_vars_size;
+    size_t ifidx;
+    size_t whileidx;
+};
+
+struct VariableStmt {
+    bool constant;
+    Token* identifier;
+    Type* type;
+    Type* initializer_type;
+    Expr* initializer;
+    size_t stack_offset;
+};
+
+struct ParamStmt {
+    Token* identifier;
+    Type* type;
+    size_t idx;
+    size_t stack_offset;
+};
+
+struct WhileStmt {
+    Expr* cond;
+    Expr* body;
+};
+
+struct AssignStmt {
+    Expr* left;
+    Expr* right;
+    Token* op;
+};
+
+struct ReturnStmt {
+    Expr* child;
+    Stmt* parent_func;
+};
+
+struct ExprStmt {
+    Expr* child;
+};
+
+struct Stmt {
+    StmtKind kind;
+    Token* main_token;
+    Stmt* parent_func;
+    union {
+        FunctionStmt function;
+        VariableStmt variable;
+        ParamStmt param;
+        WhileStmt whilelp;
+        AssignStmt assign;
+        ReturnStmt return_stmt;
+        ExprStmt expr;
+    };
+};
+
+std::string aria_keywords[] = {
+    "fn",
+    "let",
+    "const",
+    "mut",
+    "extern",
+    "if",
+    "else",
+    "while",
+    "true",
+    "false",
+    "null",
+    "as",
+};
 
 bool is_token_lexeme_eq(Token* a, Token* b) {
-    /* if (stri(a->lexeme) == stri(b->lexeme)) { */
-    if (strcmp(a->lexeme, b->lexeme) == 0) {
+    if (a->lexeme == b->lexeme) {
         return true;
     }
     return false;
 }
 
-BuiltinTypeKind builtin_type_str_to_kind(char* str) {
-    for (size_t i = 0; i < _BUILTIN_TYPE_KIND_COUNT; i++) {
-        /* if (stri(builtin_type_map[i].k) == stri(str)) { */
-        if (strcmp(builtin_type_map[i].k, str) == 0) {
+BuiltinTypeKind builtin_type_str_to_kind(const std::string& str) {
+    for (size_t i = 0; i < BUILTIN_TYPE_KIND__COUNT; i++) {
+        if (builtin_type_map[i].k == str) {
             return builtin_type_map[i].v;
         }
     }
     return BUILTIN_TYPE_KIND_NONE;
 }
 
-char* builtin_type_kind_to_str(BuiltinTypeKind kind) {
+std::string builtin_type_kind_to_str(BuiltinTypeKind kind) {
     if (kind == BUILTIN_TYPE_KIND_APINT) return "{integer}";
-    for (size_t i = 0; i < _BUILTIN_TYPE_KIND_COUNT; i++) {
+    for (size_t i = 0; i < BUILTIN_TYPE_KIND__COUNT; i++) {
         if (builtin_type_map[i].v == kind) {
             return builtin_type_map[i].k;
         }
@@ -238,21 +510,24 @@ Type* type_get_child(Type* type) {
 }
 
 bool type_is_integer(Type* type) {
-    if (type && type->kind == TYPE_KIND_BUILTIN && builtin_type_is_integer(type->builtin.kind)) {
+    if (type && type->kind == TYPE_KIND_BUILTIN && 
+            builtin_type_is_integer(type->builtin.kind)) {
         return true;
     }
     return false;
 }
 
 bool type_is_void(Type* type) {
-    if (type && type->kind == TYPE_KIND_BUILTIN && builtin_type_is_void(type->builtin.kind)) {
+    if (type && type->kind == TYPE_KIND_BUILTIN && 
+            builtin_type_is_void(type->builtin.kind)) {
         return true;
     }
     return false;
 }
 
 bool type_is_apint(Type* type) {
-    if (type && type->kind == TYPE_KIND_BUILTIN && builtin_type_is_apint(type->builtin.kind)) {
+    if (type && type->kind == TYPE_KIND_BUILTIN && 
+            builtin_type_is_apint(type->builtin.kind)) {
         return true;
     }
     return false;
@@ -265,7 +540,7 @@ size_t type_bytes(Type* type) {
         } break;
 
         case TYPE_KIND_PTR: {
-            return PTR_SIZE_BYTES;
+            return PTR_BYTES;
         } break;
     }
     assert(0);
@@ -541,146 +816,32 @@ Type* ptr_type_placeholder_new(bool constant, Type* child) {
     return ptr_type_new(null, constant, child); 
 }
 
-void _aria_vfprintf(
-        const char* calleefile, 
-        size_t calleeline, 
-        FILE* file, 
-        const char* fmt, 
-        va_list ap) {
-    va_list aq;
-    va_copy(aq, ap);
-
-    size_t fmtlen = strlen(fmt);
-    for (size_t i = 0; i < fmtlen; i++) {
-        if (fmt[i] == '{') {
-            bool found_rbrace = false;
-            i++;
-            switch (fmt[i]) {
-                case 'q': {
-                    i++;
-                    switch (fmt[i]) {
-                        case 'i': {
-                            fprintf(file, "%li", va_arg(aq, int64_t));
-                        } break;
-
-                        case 'u': {
-                            fprintf(file, "%lu", va_arg(aq, uint64_t));
-                        } break;
-
-                        default: {
-                            fprintf(
-                                    stderr, 
-                                    "aria_fprintf: (%s:%lu) expect [u|i] "
-                                    "after `q`\n", 
-                                    calleefile, 
-                                    calleeline);
-                            return;
-                        } break;
-                    }
-                    i++;
-                } break;
-
-                case 't': {
-                    i++;
-                    if (fmt[i] == 'k') {
-                        i++;
-                        fprintf_token(file, va_arg(aq, Token*));
-                    }
-                    else {
-                        fprintf_type(file, va_arg(aq, Type*));
-                    }
-                } break;
-
-                case 'c': {
-                    i++;
-                    fprintf(file, "%c", va_arg(aq, int));
-                } break;
-
-                case 's': {
-                    i++;
-                    fprintf(file, "%s", va_arg(aq, char*));
-                } break;
-
-                case '}': {
-                    fprintf(file, "%d", va_arg(aq, int));
-                    found_rbrace = true; 
-                } break;
-
-                default: {
-                    fprintf(
-                            stderr, 
-                            "aria_fprintf: (%s:%lu) unknown specifier `%c`\n", 
-                            calleefile, 
-                            calleeline, 
-                            fmt[i]);
-                    return;
-                } break;
-            }
-            
-            if (!found_rbrace) {
-                if (fmt[i] != '}') {
-                    fprintf(
-                            stderr, 
-                            "aria_fprintf: (%s:%lu) unexpected eos while "
-                            "finding `}`\n", 
-                            calleefile, 
-                            calleeline);
-                    return;
-                }
-            }
-        } 
-        else {
-            putc(fmt[i], file);
-        }
-    }
-
-    va_end(aq);
+std::ostream& operator<<(std::ostream& stream, const Token& token) {
+    /* stream << "Token { " << (size_t)token.kind << ", " << token.lexeme << */
+    /*     ", " << token.line << ", " << token.column << " }"; */
+    stream << token.lexeme;
+    return stream;
 }
 
-void _aria_fprintf(
-        const char* calleefile, 
-        size_t calleeline, 
-        FILE* file, 
-        const char* fmt, 
-        ...) {
-    va_list ap;
-    va_start(ap, fmt);
-    _aria_vfprintf(calleefile, calleeline, file, fmt, ap);
-    va_end(ap);
-}
-
-void fprintf_type(FILE* file, Type* type) {
-    switch (type->kind) {
+std::ostream& operator<<(std::ostream& stream, const Type& type) {
+    switch (type.kind) {
         case TYPE_KIND_BUILTIN: {
-            fprintf(file, "%s", builtin_type_kind_to_str(type->builtin.kind));
+            stream << ANSI_FCYAN 
+                << builtin_type_kind_to_str(type.builtin.kind) << ANSI_RESET;
         } break;
 
         case TYPE_KIND_PTR: {
-            fputc('*', file);
-            if (type->ptr.constant) {
-                fprintf(file, "const ");
+            stream << ANSI_FCYAN << '*';
+            if (type.ptr.constant) {
+                stream << "const ";
             }
-            fprintf_type(file, type->ptr.child);
+            stream << *type.ptr.child << ANSI_RESET;
+        } break;
+
+        default: {
+            assert(0);
         } break;
     }
+    return stream;
 }
 
-void buf_printf_type(char* b, Type* type) {
-    switch (type->kind) {
-        case TYPE_KIND_BUILTIN: {
-            buf_printf(b, "%s", builtin_type_kind_to_str(type->builtin.kind));
-        } break;
-
-        case TYPE_KIND_PTR: {
-            buf_push(b, '*');
-            if (type->ptr.constant) {
-                buf_printf(b, "const ");
-            }
-            buf_printf_type(b, type->ptr.child);
-        } break;
-    }
-}
-
-void fprintf_token(FILE* file, Token* token) {
-    fprintf(file, "{ %s, %d }", token->lexeme, token->kind);
-}

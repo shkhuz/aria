@@ -1,4 +1,47 @@
-#include "bigint.h"
+#define BIGINT_DEFAULT_DIGIT_COUNT 4
+#define BIGINT_DIGIT_BIT 60
+#define BIGINT_MASK ((((u64)1)<<((u64)BIGINT_DIGIT_BIT))-((u64)1))
+#define BIGINT_MIN_DIGIT_COUNT max((size_t)3, (((size_t)SIZEOF_IN_BITS(u64) + BIGINT_DIGIT_BIT) - 1) / BIGINT_DIGIT_BIT)
+#define BIGINT_MAX_DIGIT_COUNT ((SIZE_MAX - 2) / BIGINT_DIGIT_BIT)
+
+#define _bigint_malloc(size) malloc(size)
+#define _bigint_calloc(nmemb, size) calloc((nmemb), (size))
+#define _bigint_realloc(mem, oldsize, newsize) realloc((mem), (newsize))
+#define _bigint_free(mem, size) free(mem)
+
+#define bigint_free_digits(mem, size_in_digits) \
+    _bigint_free((mem), sizeof(u64) * (size_t)(size_in_digits))
+
+#define bigint_iszero(a)    ((a)->used == 0)
+#define bigint_isneg(a)     ((a)->sign == BIGINT_SIGN_NEG) 
+
+enum bigint_err {
+    BIGINT_ERR_OKAY = 0,
+    BIGINT_ERR_MEMORY = -1,
+    BIGINT_ERR_OVERFLOW = -2,
+};
+
+enum bigint_sign {
+    BIGINT_SIGN_ZPOS = 0,
+    BIGINT_SIGN_NEG = 1,
+};
+
+enum bigint_ord {
+    BIGINT_ORD_LT = -1,
+    BIGINT_ORD_EQ = 0,
+    BIGINT_ORD_GT = 1,
+};
+
+struct bigint {
+    size_t used, alloc;
+    bigint_sign sign;
+    u64* d;
+};
+
+#define BIGINT_SET_FUNC(name, type) void name(bigint* a, type b)
+#define BIGINT_INIT_INT_FUNC(name, type) bigint_err name(bigint* a, type b)
+#define BIGINT_FITS_FUNC(name) bool name(const bigint* a)
+
 
 bigint_err bigint_init(bigint* a) {
     a->d = (u64*)_bigint_calloc(BIGINT_DEFAULT_DIGIT_COUNT, sizeof(u64));
@@ -10,7 +53,7 @@ bigint_err bigint_init(bigint* a) {
 }
 
 bigint_err bigint_init_size(bigint* a, size_t size_in_digits) {
-    size_in_digits = MAX(BIGINT_MIN_DIGIT_COUNT, size_in_digits);
+    size_in_digits = max(BIGINT_MIN_DIGIT_COUNT, size_in_digits);
     if (size_in_digits > BIGINT_MAX_DIGIT_COUNT) {
         return BIGINT_ERR_OVERFLOW;
     }
@@ -36,7 +79,7 @@ void bigint_clear(bigint* a) {
 }
 
 void _bigint_zero_digits(u64* d, size_t size_in_digits) {
-    ZERO_MEMORY((u64*)d, size_in_digits);
+    zero_mem((u64*)d, size_in_digits);
 }
 
 void _bigint_copy_digits(u64* d, const u64* s, size_t size_in_digits) {
@@ -275,7 +318,7 @@ static bigint_err _bigint_mul(
     for (ix = 0; ix < pa; ix++) {
         size_t iy, pb;
         u64 u = 0;
-        pb = MIN(b->used, size_in_digits - ix);
+        pb = min(b->used, size_in_digits - ix);
         for (iy = 0; iy < pb; iy++) {
             u128 r = (u128)t.d[ix + iy] + 
                      ((u128)a->d[ix] * (u128)b->d[iy]) +
@@ -380,3 +423,4 @@ u64 bigint_get_lsd(const bigint* a) {
     assert(0);
     return 0;
 }
+
