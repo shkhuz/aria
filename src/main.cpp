@@ -4,6 +4,7 @@
 #include "types.cpp"
 #include "msg.cpp"
 #include "lex.cpp"
+#include "parse.cpp"
 #include <getopt.h>
 
 std::string g_exec_path;
@@ -131,16 +132,16 @@ int main(int argc, char* argv[]) {
             parsing_error = true;
             continue;
         }
-        else {
-            for (Token* token : srcfiles[i]->tokens) {
-                fmt::print("token: {}\n", *token);
-            }
-        }
+        /* else { */
+        /*     for (Token* token : srcfiles[i]->tokens) { */
+        /*         fmt::print("token: {}\n", *token); */
+        /*     } */
+        /* } */
 
-        /* ParseContext p; */
-        /* p.srcfile = srcfiles[i]; */
-        /* parse(&p); */
-        /* if (p.error) parsing_error = true; */
+        ParseContext p;
+        p.srcfile = srcfiles[i];
+        parse(&p);
+        if (p.error) parsing_error = true;
     }
     if (parsing_error) terminate_compilation();
 }
