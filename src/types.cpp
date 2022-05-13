@@ -45,7 +45,7 @@ struct Token {
     size_t line, col, ch_count;
     union {
         struct {
-            bigint* val;
+            bigint val;
         } integer;
     };
 };
@@ -168,7 +168,7 @@ struct SymbolExpr {
 
 struct FunctionCallExpr {
     Expr* callee;
-    Expr** args;
+    std::vector<Expr*> args;
     Token* rparen;
 };
 
@@ -194,7 +194,7 @@ struct CastExpr {
 };
 
 struct BlockExpr {
-    Stmt** stmts;
+    std::vector<Stmt*> stmts;
     Expr* value;
     Token* rbrace;
 };
@@ -213,7 +213,7 @@ struct IfBranch {
 
 struct IfExpr {
     IfBranch* ifbr;
-    IfBranch** elseifbr;
+    std::vector<IfBranch*> elseifbr;
     IfBranch* elsebr;
 };
 
@@ -233,6 +233,8 @@ struct Expr {
         BlockExpr block;
         IfExpr iff;
     };
+
+    Expr() {}
 };
 
 enum StmtKind {
@@ -247,7 +249,7 @@ enum StmtKind {
 
 struct FunctionHeader {
     Token* identifier;
-    Stmt** params;
+    std::vector<Stmt*> params;
     Type* return_type;
 };
 
@@ -601,7 +603,7 @@ Type* ptr_type_new(Token* star, bool constant, Type* child) {
 
 FunctionHeader* function_header_new(
         Token* identifier, 
-        Stmt** params, 
+        std::vector<Stmt*> params, 
         Type* return_type) {
     ALLOC_WITH_TYPE(header, FunctionHeader);
     header->identifier = identifier;
@@ -717,7 +719,7 @@ Expr* symbol_expr_new(Token* identifier) {
     return expr;
 }
 
-Expr* function_call_expr_new(Expr* callee, Expr** args, Token* rparen) {
+Expr* function_call_expr_new(Expr* callee, std::vector<Expr*> args, Token* rparen) {
     ALLOC_WITH_TYPE(expr, Expr);
     expr->kind = EXPR_KIND_FUNCTION_CALL;
     expr->main_token = callee->main_token;
@@ -769,7 +771,7 @@ Expr* cast_expr_new(Expr* left, Type* to, Token* op) {
 }
 
 Expr* block_expr_new(
-        Stmt** stmts, 
+        std::vector<Stmt*> stmts, 
         Expr* value, 
         Token* lbrace, 
         Token* rbrace) {
@@ -795,7 +797,7 @@ IfBranch* if_branch_new(Expr* cond, Expr* body, IfBranchKind kind) {
 Expr* if_expr_new(
         Token* if_keyword, 
         IfBranch* ifbr, 
-        IfBranch** elseifbr, 
+        std::vector<IfBranch*> elseifbr, 
         IfBranch* elsebr) {
     ALLOC_WITH_TYPE(expr, Expr);
     expr->kind = EXPR_KIND_IF;
@@ -816,12 +818,16 @@ Type* ptr_type_placeholder_new(bool constant, Type* child) {
     return ptr_type_new(null, constant, child); 
 }
 
-std::ostream& operator<<(std::ostream& stream, const Token& token) {
-    /* stream << "Token { " << (size_t)token.kind << ", " << token.lexeme << */
-    /*     ", " << token.line << ", " << token.column << " }"; */
-    stream << token.lexeme;
-    return stream;
-}
+template <> struct fmt::formatter<Token> {
+    constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(const Token& token, FormatContext& ctx) -> decltype(ctx.out()) {
+        return fmt::format_to(ctx.out(), "{}", token.lexeme);
+    }
+};
 
 std::ostream& operator<<(std::ostream& stream, const Type& type) {
     switch (type.kind) {
@@ -843,5 +849,23 @@ std::ostream& operator<<(std::ostream& stream, const Type& type) {
         } break;
     }
     return stream;
+}
+
+void init_types() {
+    builtin_type_placeholders.uint8 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U8);
+    builtin_type_placeholders.uint16 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U16);
+    builtin_type_placeholders.uint32 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U32);
+    builtin_type_placeholders.uint64 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U64);
+    builtin_type_placeholders.usize = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_USIZE);
+    builtin_type_placeholders.int8 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I8);
+    builtin_type_placeholders.int16 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I16);
+    builtin_type_placeholders.int32 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I32);
+    builtin_type_placeholders.int64 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I64);
+    builtin_type_placeholders.isize = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_ISIZE);
+    builtin_type_placeholders.boolean = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_BOOLEAN);
+    builtin_type_placeholders.void_kind = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_VOID);
+    builtin_type_placeholders.void_ptr = ptr_type_placeholder_new(
+            false, 
+            builtin_type_placeholder_new(BUILTIN_TYPE_KIND_VOID));
 }
 

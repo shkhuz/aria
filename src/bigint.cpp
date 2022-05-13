@@ -42,7 +42,6 @@ struct bigint {
 #define BIGINT_INIT_INT_FUNC(name, type) bigint_err name(bigint* a, type b)
 #define BIGINT_FITS_FUNC(name) bool name(const bigint* a)
 
-
 bigint_err bigint_init(bigint* a) {
     a->d = (u64*)_bigint_calloc(BIGINT_DEFAULT_DIGIT_COUNT, sizeof(u64));
     if (a->d == null) return BIGINT_ERR_MEMORY;
@@ -69,7 +68,7 @@ bigint_err bigint_init_size(bigint* a, size_t size_in_digits) {
     return BIGINT_ERR_OKAY;
 }
 
-void bigint_clear(bigint* a) {
+void bigint_free(bigint* a) {
     if (a->d != null) {
         bigint_free_digits(a->d, a->alloc);
     }
@@ -80,6 +79,14 @@ void bigint_clear(bigint* a) {
 
 void _bigint_zero_digits(u64* d, size_t size_in_digits) {
     zero_mem((u64*)d, size_in_digits);
+}
+
+void bigint_clear(bigint* a) {
+    if (a->d != null) {
+        _bigint_zero_digits(a->d, a->used);
+    }
+    a->used = 0;
+    a->sign = BIGINT_SIGN_ZPOS;
 }
 
 void _bigint_copy_digits(u64* d, const u64* s, size_t size_in_digits) {
@@ -333,7 +340,7 @@ static bigint_err _bigint_mul(
 
     bigint_clamp(&t);
     SWAP_VARS(bigint, t, *c);
-    bigint_clear(&t);
+    bigint_free(&t);
     return BIGINT_ERR_OKAY;
 }
 

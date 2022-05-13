@@ -1,7 +1,7 @@
-NO_CXX_FILES := src/code_gen_linux-x64-nasm.cpp
-CXX_FILES := src/main.cpp vendor/fmt/format.cc #$(shell find src -type f -name "*.cpp" | grep -v $(NO_CXX_FILES))
+CXX_FILES := src/main.cpp vendor/fmt/format.cc 
 OBJ_FILES := $(addprefix build/obj/, $(addsuffix .o, $(CXX_FILES)))
 EXE_FILE := build/ariac
+ALL_CXX_FILES := $(shell find src -type f -name "*.cpp") #$(shell find src -type f -name "*.cpp" | grep -v $(NO_CXX_FILES))
 
 CXXFLAGS := -std=c++11 -Ivendor -I. -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings
 LDFLAGS := 
@@ -23,6 +23,10 @@ run: $(EXE_FILE)
 $(EXE_FILE): $(OBJ_FILES)
 	@mkdir -p $(dir $@)
 	$(LD) -o $@ $(LDFLAGS) $(OBJ_FILES)
+
+build/obj/src/main.cpp.o: $(ALL_CXX_FILES)
+	@mkdir -p $(dir $@)
+	$(CXX) -c $(CXXFLAGS) $(CXXFLAGS_OPTIMIZE) -o $@ src/main.cpp
 
 build/obj/%.cpp.o: %.cpp
 	@mkdir -p $(dir $@)
