@@ -53,7 +53,7 @@ ScopeSearchResult resolve_search_in_current_scope_rec(
     result.stmt = null;
     Scope* scope = r->current_scope;
     while (scope != null) {
-        for(Stmt* stmt: scope->stmts) {
+        for (Stmt* stmt: scope->stmts) {
             if (is_token_lexeme_eq(identifier, stmt->main_token)) {
                 if (scope == r->current_scope) 
                     result.status = SCOPE_LOCAL;
@@ -193,7 +193,7 @@ void resolve_function_call_expr(ResolveContext* r, Expr* expr) {
                 "callee is not a function");
     }
 
-    for(Expr* arg: expr->function_call.args) {
+    for (Expr* arg: expr->function_call.args) {
         resolve_expr(r, arg);
     }
 }
@@ -229,10 +229,10 @@ void resolve_block_expr(
         scope_push_existing(scope);
     }
 
-    for(Stmt* stmt: expr->block.stmts) {
+    for (Stmt* stmt: expr->block.stmts) {
         resolve_pre_decl_stmt(r, stmt, true);
     }
-    for(Stmt* stmt: expr->block.stmts) {
+    for (Stmt* stmt: expr->block.stmts) {
         resolve_stmt(r, stmt, false);
     }
     if (expr->block.value) {
@@ -253,7 +253,7 @@ void resolve_if_branch(ResolveContext* r, IfBranch* br) {
 
 void resolve_if_expr(ResolveContext* r, Expr* expr) {
     resolve_if_branch(r, expr->iff.ifbr);
-    for(IfBranch* br: expr->iff.elseifbr) {
+    for (IfBranch* br: expr->iff.elseifbr) {
         resolve_if_branch(r, br);
     }
     if (expr->iff.elsebr) {
@@ -411,10 +411,10 @@ void resolve(ResolveContext* r) {
     r->current_func = null;
     r->error = false;
 
-    for(size_t i = 0; i < r->srcfile->stmts.size(); i++) {
+    for (size_t i = 0; i < r->srcfile->stmts.size(); i++) {
         resolve_pre_decl_stmt(r, r->srcfile->stmts[i], false);
     }
-    for(size_t i = 0; i < r->srcfile->stmts.size(); i++) {
+    for (size_t i = 0; i < r->srcfile->stmts.size(); i++) {
         resolve_stmt(r, r->srcfile->stmts[i], true);
     }
 }

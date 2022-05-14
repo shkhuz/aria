@@ -113,7 +113,7 @@ struct BuiltinType {
     Token* token;
     BuiltinTypeKind kind;
     union {
-        bigint* apint;
+        bigint apint;
     };
 };
 
@@ -484,7 +484,7 @@ size_t builtin_type_bytes(BuiltinType* type) {
             return 0;
 
         case BUILTIN_TYPE_KIND_APINT: {
-            u64 n = bigint_get_lsd(type->apint);
+            u64 n = bigint_get_lsd(&type->apint);
             size_t bits = get_bits_for_value(n);
             if (bits <= 8) bits = 8;
             else if (bits <= 16) bits = 16;
@@ -588,7 +588,6 @@ Type* builtin_type_new(Token* token, BuiltinTypeKind kind) {
     type->main_token = token;
     type->builtin.token = token;
     type->builtin.kind = kind;
-    type->builtin.apint = null;
     return type;
 }
 
@@ -829,27 +828,39 @@ template <> struct fmt::formatter<Token> {
     }
 };
 
-std::ostream& operator<<(std::ostream& stream, const Type& type) {
-    switch (type.kind) {
-        case TYPE_KIND_BUILTIN: {
-            stream << ANSI_FCYAN 
-                << builtin_type_kind_to_str(type.builtin.kind) << ANSI_RESET;
-        } break;
-
-        case TYPE_KIND_PTR: {
-            stream << ANSI_FCYAN << '*';
-            if (type.ptr.constant) {
-                stream << "const ";
-            }
-            stream << *type.ptr.child << ANSI_RESET;
-        } break;
-
-        default: {
-            assert(0);
-        } break;
+template <> struct fmt::formatter<Type> {
+    constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
+        return ctx.begin();
     }
-    return stream;
-}
+    
+    // if the runtime error:
+    //   terminate called after throwing an instance of 'fmt::v8::format_error'
+    //   what():  argument not found
+    // occurs then remove char* or string literals from the args of fmt::format_to.
+    template <typename FormatContext>
+    auto format(const Type& type, FormatContext& ctx) -> decltype(ctx.out()) {
+        switch (type.kind) {
+            case TYPE_KIND_BUILTIN: {
+                return fmt::format_to(
+                        ctx.out(), 
+                        ANSI_FCYAN "{}" ANSI_RESET,
+                        builtin_type_kind_to_str(type.builtin.kind));
+            } break;
+
+            case TYPE_KIND_PTR: {
+                return fmt::format_to(
+                        ctx.out(), 
+                        ANSI_FCYAN "*{}{}" ANSI_RESET,
+                        type.ptr.constant ? "const " : "",
+                        *type.ptr.child);
+            } break;
+            
+            default: {
+                assert(0);
+            } break;
+        }
+    }
+};
 
 void init_types() {
     builtin_type_placeholders.uint8 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U8);

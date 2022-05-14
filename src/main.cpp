@@ -6,6 +6,7 @@
 #include "lex.cpp"
 #include "parse.cpp"
 #include "resolve.cpp"
+#include "type_chk.cpp"
 #include <getopt.h>
 
 std::string g_exec_path;
@@ -147,7 +148,7 @@ int main(int argc, char* argv[]) {
     if (parsing_error) terminate_compilation();
     
     bool resolving_error = false;
-    for(Srcfile* srcfile: srcfiles) {
+    for (Srcfile* srcfile: srcfiles) {
         ResolveContext r;
         r.srcfile = srcfile;
         resolve(&r);
@@ -155,4 +156,12 @@ int main(int argc, char* argv[]) {
     }
     if (resolving_error) terminate_compilation();
 
+    bool type_chking_error = false;
+    for (Srcfile* srcfile: srcfiles) {
+        CheckContext c;
+        c.srcfile = srcfile;
+        check(&c);
+        if (c.error) type_chking_error = true;
+    }
+    if (type_chking_error) terminate_compilation();
 }

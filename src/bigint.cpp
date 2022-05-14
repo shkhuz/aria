@@ -396,9 +396,10 @@ BIGINT_FITS_SIGNED(bigint_fits_i16, INT16_MAX);
 BIGINT_FITS_SIGNED(bigint_fits_i32, INT32_MAX);
 BIGINT_FITS_SIGNED(bigint_fits_i64, INT64_MAX);
 
-bool bigint_fits(const bigint* a, int bytes, bigint_sign sign) {
-    switch (sign) {
-        case BIGINT_SIGN_ZPOS: {
+// TODO: does this accept `bigint_sign` or a boolean for `signed`?
+bool bigint_fits(const bigint* a, int bytes, bool signd) {
+    switch (signd) {
+        case false: {
             switch (bytes) {
                 case 1: return bigint_fits_u8(a);
                 case 2: return bigint_fits_u16(a);
@@ -408,7 +409,7 @@ bool bigint_fits(const bigint* a, int bytes, bigint_sign sign) {
             }
         } break;
 
-        case BIGINT_SIGN_NEG: {
+        case true: {
             switch (bytes) {
                 case 1: return bigint_fits_i8(a);
                 case 2: return bigint_fits_i16(a);

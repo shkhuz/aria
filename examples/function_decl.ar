@@ -1,7 +1,19 @@
-fn main(argc: usize, argv: **i8) {
-    cool();
+fn main(argc: usize, argv: **i8) i32 {
+    let arg = 34;
+    let a: *bool = arg;
+
+    let n: *const bool;
+    *n = true; // BUG
+    let addr = &arg;
+    if addr == arg {}
+
+    let v: void;
+    let b: bool = v as bool;
+
+    let p = if true {0} else {1};
+
+    while true {
+    }
+    p
 }
 
-fn cool() {
-
-}
