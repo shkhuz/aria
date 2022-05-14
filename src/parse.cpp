@@ -160,6 +160,7 @@ Type* parse_atom_type(ParseContext* p) {
         builtin_type_str_to_kind(identifier->lexeme);
     if (builtin_type_kind == BUILTIN_TYPE_KIND_NONE) {
         // TODO: implement custom types
+        fatal_error(identifier, "internal error: custom types not implemented");
         assert(0);
     }
     return builtin_type_new(identifier, builtin_type_kind);

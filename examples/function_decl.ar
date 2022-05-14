@@ -1,2 +1,7 @@
-fn main() {
+fn main(argc: usize, argv: **i8) {
+    cool();
+}
+
+fn cool() {
+
 }

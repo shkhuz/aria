@@ -5,6 +5,7 @@
 #include "msg.cpp"
 #include "lex.cpp"
 #include "parse.cpp"
+#include "resolve.cpp"
 #include <getopt.h>
 
 std::string g_exec_path;
@@ -124,9 +125,9 @@ int main(int argc, char* argv[]) {
     if (read_error) terminate_compilation();
 
     bool parsing_error = false;
-    for (size_t i = 0; i < srcfiles.size(); i++) {
+    for (Srcfile* srcfile: srcfiles) {
         LexContext l;
-        l.srcfile = srcfiles[i];
+        l.srcfile = srcfile;
         lex(&l);
         if (l.error) {
             parsing_error = true;
@@ -139,9 +140,19 @@ int main(int argc, char* argv[]) {
         /* } */
 
         ParseContext p;
-        p.srcfile = srcfiles[i];
+        p.srcfile = srcfile;
         parse(&p);
         if (p.error) parsing_error = true;
     }
     if (parsing_error) terminate_compilation();
+    
+    bool resolving_error = false;
+    for(Srcfile* srcfile: srcfiles) {
+        ResolveContext r;
+        r.srcfile = srcfile;
+        resolve(&r);
+        if (r.error) resolving_error = true;
+    }
+    if (resolving_error) terminate_compilation();
+
 }
