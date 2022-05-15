@@ -221,13 +221,22 @@ Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
 
     if (arg_len != param_len) {
         if (arg_len < param_len) {
+            std::string fmt = fmt::format(
+                    "expected {} additional argument(s) of type ", 
+                    param_len - arg_len);
+            for (size_t i = arg_len; i < param_len; i++) {
+                fmt = fmt + fmt::format("`{}`", *(*params)[i]->param.type);
+                if (i+1 < param_len) {
+                    fmt = fmt + ", ";
+                }
+            }
+            
             check_error(
                     expr->function_call.rparen,
-                    "expected argument of type `{}`",
-                    *(*params)[arg_len]->param.type);
+                    fmt);
             note(
                     (*params)[arg_len]->param.identifier,
-                    "...parameter declared here");
+                    "...parameter(s) declared here");
         }
         else {
             check_error(

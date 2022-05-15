@@ -3,7 +3,7 @@ fn main(argc: usize, argv: **i8) i32 {
     let a: *bool = arg;
 
     let n: *const bool;
-    *n = 123; // BUG
+    *n = 123;
     
     let addr = &arg;
     if *addr == arg {}
@@ -14,7 +14,11 @@ fn main(argc: usize, argv: **i8) i32 {
     let p = if true {0} else {1};
 
     while true {
+        let mut i = 1;
+        let j = 3;
+        i = sum(i);
     }
     p
 }
 
+fn sum(x: i32, y: i32, z: i32) i64 { x + y + z }
