@@ -84,6 +84,7 @@ char* g_warning_color = ANSI_FWARNING_COLOR;
 char* g_note_color = ANSI_FNOTE_COLOR;
 char* g_bold_color = ANSI_FBOLD;
 char* g_reset_color = ANSI_RESET;
+char* g_fcyan_color = ANSI_FCYAN;
 
 void init_core() {
     if (!isatty(2)) {
@@ -92,6 +93,7 @@ void init_core() {
         g_note_color = "";
         g_bold_color = "";
         g_reset_color = "";
+        g_fcyan_color = "";
     }
 }
 
@@ -111,4 +113,21 @@ size_t get_bits_for_value(u128 n) {
 
 int char_to_digit(char c) {
     return c - 48;
+}
+
+static std::vector<size_t> child_ids;
+
+size_t id_register_parent() {
+    size_t parent_id = child_ids.size();
+    child_ids.push_back(0);
+    return parent_id;
+}
+
+size_t id_next(size_t parent_id) {
+    if (parent_id < child_ids.size()) {
+        return child_ids[parent_id]++;
+    }
+    else {
+        assert(0); // invalid parent id
+    }
 }

@@ -697,7 +697,7 @@ Type* check_expr(
 
 void check_function_stmt(CheckContext* c, Stmt* stmt) {
     c->last_stack_offset = 0;
-    if (!stmt->function.is_extern) {
+    if (!stmt->function.header->is_extern) {
         Type* body_type = check_block_expr(
                 c, 
                 stmt->function.body, 

@@ -251,12 +251,13 @@ struct FunctionHeader {
     Token* identifier;
     std::vector<Stmt*> params;
     Type* return_type;
+    bool is_extern;
+    size_t id; // unique id
 };
 
 struct FunctionStmt {
     FunctionHeader* header;
     Expr* body;
-    bool is_extern;
     size_t stack_vars_size;
     size_t ifidx;
     size_t whileidx;
@@ -268,7 +269,9 @@ struct VariableStmt {
     Type* type;
     Type* initializer_type;
     Expr* initializer;
+    // TODO: clean `stack_offset` variable
     size_t stack_offset;
+    size_t id; // only for local vars / params
 };
 
 struct ParamStmt {
@@ -276,6 +279,7 @@ struct ParamStmt {
     Type* type;
     size_t idx;
     size_t stack_offset;
+    size_t id; // only for local vars / params
 };
 
 struct WhileStmt {
@@ -459,6 +463,37 @@ bool builtin_type_is_signed(BuiltinTypeKind kind) {
     return false;
 }
 
+BuiltinTypeKind builtin_type_convert_to_llvm_type(BuiltinTypeKind kind) {
+    switch (kind) {
+        case BUILTIN_TYPE_KIND_U8:
+            return BUILTIN_TYPE_KIND_I8;
+        case BUILTIN_TYPE_KIND_U16:
+            return BUILTIN_TYPE_KIND_I16;
+        case BUILTIN_TYPE_KIND_U32:
+            return BUILTIN_TYPE_KIND_I32;
+        case BUILTIN_TYPE_KIND_U64:
+            return BUILTIN_TYPE_KIND_I64;
+        case BUILTIN_TYPE_KIND_USIZE:
+            return BUILTIN_TYPE_KIND_I64;
+
+        case BUILTIN_TYPE_KIND_I8:
+        case BUILTIN_TYPE_KIND_I16:
+        case BUILTIN_TYPE_KIND_I32:
+        case BUILTIN_TYPE_KIND_I64:
+            return kind;
+        case BUILTIN_TYPE_KIND_ISIZE:
+            return BUILTIN_TYPE_KIND_I64;
+        
+        case BUILTIN_TYPE_KIND_BOOLEAN:
+        case BUILTIN_TYPE_KIND_APINT:
+        case BUILTIN_TYPE_KIND_VOID:
+        case BUILTIN_TYPE_KIND_NONE:
+            break;
+    }
+    assert(0);
+    return BUILTIN_TYPE_KIND_NONE;
+}
+
 size_t builtin_type_bytes(BuiltinType* type) {
     switch (type->kind) {
         case BUILTIN_TYPE_KIND_U8:
@@ -603,22 +638,29 @@ Type* ptr_type_new(Token* star, bool constant, Type* child) {
 FunctionHeader* function_header_new(
         Token* identifier, 
         std::vector<Stmt*> params, 
-        Type* return_type) {
+        Type* return_type,
+        bool is_extern) {
     ALLOC_WITH_TYPE(header, FunctionHeader);
     header->identifier = identifier;
     header->params = params;
     header->return_type = return_type;
+    header->is_extern = is_extern;
+    if (header->is_extern) {
+        header->id = SIZE_MAX;
+    }
+    else {
+        header->id = id_register_parent();
+    }
     return header;
 }
 
-Stmt* function_stmt_new(FunctionHeader* header, Expr* body, bool is_extern) {
+Stmt* function_stmt_new(FunctionHeader* header, Expr* body) {
     ALLOC_WITH_TYPE(stmt, Stmt);
     stmt->kind = STMT_KIND_FUNCTION;
     stmt->main_token = header->identifier;
     stmt->parent_func = null;
     stmt->function.header = header;
     stmt->function.body = body;
-    stmt->function.is_extern = is_extern;
     stmt->function.stack_vars_size = 0;
     stmt->function.ifidx = 0;
     stmt->function.whileidx = 0;
@@ -640,6 +682,7 @@ Stmt* variable_stmt_new(
     stmt->variable.initializer_type = null;
     stmt->variable.initializer = initializer;
     stmt->variable.stack_offset = 0;
+    stmt->variable.id = SIZE_MAX;
     return stmt;
 }
 
@@ -652,6 +695,7 @@ Stmt* param_stmt_new(Token* identifier, Type* type, size_t idx) {
     stmt->param.type = type;
     stmt->param.idx = idx;
     stmt->param.stack_offset = 0;
+    stmt->param.id = SIZE_MAX;
     return stmt;
 }
 
@@ -828,9 +872,18 @@ template <> struct fmt::formatter<Token> {
     }
 };
 
+std::string g_fmt_type_highlight;
+std::string g_fmt_type_reset_highlight;
+
 template <> struct fmt::formatter<Type> {
-    constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
-        return ctx.begin();
+    enum { regular, llvm } mode = regular;
+    auto parse(format_parse_context &ctx) -> decltype(ctx.begin()) {
+        auto it = ctx.begin(), end = ctx.end();
+        if (it != end && *it == 'l') {
+            mode = llvm;
+            it++;
+        }
+        return it; 
     }
     
     // if the runtime error:
@@ -841,18 +894,32 @@ template <> struct fmt::formatter<Type> {
     auto format(const Type& type, FormatContext& ctx) -> decltype(ctx.out()) {
         switch (type.kind) {
             case TYPE_KIND_BUILTIN: {
+                std::string llvm_type;
+                if (mode == llvm) {
+                    if (type.builtin.kind == BUILTIN_TYPE_KIND_BOOLEAN)
+                        llvm_type = "i1";
+                    else 
+                        llvm_type = builtin_type_kind_to_str(builtin_type_convert_to_llvm_type(type.builtin.kind));
+                }
+                else 
+                    llvm_type = builtin_type_kind_to_str(type.builtin.kind);
+                    
                 return fmt::format_to(
                         ctx.out(), 
-                        ANSI_FCYAN "{}" ANSI_RESET,
-                        builtin_type_kind_to_str(type.builtin.kind));
+                        "{}{}{}",
+                        g_fmt_type_highlight,
+                        llvm_type,
+                        g_fmt_type_reset_highlight);
             } break;
 
             case TYPE_KIND_PTR: {
                 return fmt::format_to(
                         ctx.out(), 
-                        ANSI_FCYAN "*{}{}" ANSI_RESET,
+                        "{}*{}{}{}",
+                        g_fmt_type_highlight,
                         type.ptr.constant ? "const " : "",
-                        *type.ptr.child);
+                        *type.ptr.child,
+                        g_fmt_type_reset_highlight);
             } break;
             
             default: {
@@ -878,5 +945,8 @@ void init_types() {
     builtin_type_placeholders.void_ptr = ptr_type_placeholder_new(
             false, 
             builtin_type_placeholder_new(BUILTIN_TYPE_KIND_VOID));
+
+    g_fmt_type_highlight = g_fcyan_color;
+    g_fmt_type_reset_highlight = g_reset_color;
 }
 

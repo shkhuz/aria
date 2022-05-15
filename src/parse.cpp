@@ -372,7 +372,7 @@ Expr* parse_atom_expr(ParseContext* p) {
     return null;
 }
 
-FunctionHeader* parse_function_header(ParseContext* p) {
+FunctionHeader* parse_function_header(ParseContext* p, bool is_extern) {
     Token* identifier = parse_expect_identifier(p, "function name");
     Token* lparen = parse_expect_lparen(p);
 
@@ -401,7 +401,8 @@ FunctionHeader* parse_function_header(ParseContext* p) {
     return function_header_new(
             identifier,
             params,
-            return_type);
+            return_type,
+            is_extern);
 }
 
 Stmt* parse_variable_stmt(ParseContext* p) {
@@ -433,7 +434,7 @@ Stmt* parse_function_stmt(ParseContext* p, bool is_extern) {
     if (is_extern)
         parse_expect_keyword(p, "fn");
 
-    FunctionHeader* header = parse_function_header(p);
+    FunctionHeader* header = parse_function_header(p, is_extern);
     Token* lbrace = null;
     Expr* body = null;
     if (parse_match(p, TOKEN_KIND_LBRACE)) {
@@ -442,7 +443,7 @@ Stmt* parse_function_stmt(ParseContext* p, bool is_extern) {
     } 
     else
         parse_expect_semicolon(p);
-    return function_stmt_new(header, body, is_extern);
+    return function_stmt_new(header, body);
 }
 
 Stmt* parse_top_level_stmt(ParseContext* p, bool error_on_no_match) {

@@ -312,14 +312,14 @@ void resolve_function_header(ResolveContext* r, FunctionHeader* header) {
 }
 
 void resolve_function_stmt(ResolveContext* r, Stmt* stmt) {
-    if (!stmt->function.is_extern) r->current_func = stmt;
+    if (!stmt->function.header->is_extern) r->current_func = stmt;
     scope_push(scope);
     resolve_function_header(r, stmt->function.header);
-    if (!stmt->function.is_extern) {
+    if (!stmt->function.header->is_extern) {
         resolve_block_expr(r, stmt->function.body, false);
     }
     scope_pop(scope);
-    if (!stmt->function.is_extern) r->current_func = null;
+    if (!stmt->function.header->is_extern) r->current_func = null;
 }
 
 void resolve_variable_stmt(

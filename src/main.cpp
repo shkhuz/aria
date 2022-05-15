@@ -7,6 +7,7 @@
 #include "parse.cpp"
 #include "resolve.cpp"
 #include "type_chk.cpp"
+#include "cg_llvm.cpp"
 #include <getopt.h>
 
 std::string g_exec_path;
@@ -164,4 +165,14 @@ int main(int argc, char* argv[]) {
         if (c.error) type_chking_error = true;
     }
     if (type_chking_error) terminate_compilation();
+
+    std::vector<CgContext> cg_ctxs;
+    init_cg();
+    for (Srcfile* srcfile: srcfiles) {
+        CgContext c;
+        c.srcfile = srcfile;
+        cg(&c, outpath);
+        cg_ctxs.push_back(c);
+    }
+    deinit_cg();
 }

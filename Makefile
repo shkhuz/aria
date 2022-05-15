@@ -5,7 +5,7 @@ ALL_CXX_FILES := $(shell find src -type f -name "*.cpp") #$(shell find src -type
 
 CXXFLAGS := -std=c++11 -Ivendor -I. -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings
 LDFLAGS := 
-AR_FILE := examples/function_decl.ar
+AR_FILE := examples/ok.ar
 
 ifeq ($(prod), y)
 	CXXFLAGS_OPTIMIZE := -O3

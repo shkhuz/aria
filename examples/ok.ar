@@ -1,0 +1,1 @@
+fn main(n: i32, i: usize, b: bool) i32 {0}
