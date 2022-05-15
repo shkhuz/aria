@@ -3,9 +3,10 @@ fn main(argc: usize, argv: **i8) i32 {
     let a: *bool = arg;
 
     let n: *const bool;
-    *n = true; // BUG
+    *n = 123; // BUG
+    
     let addr = &arg;
-    if addr == arg {}
+    if *addr == arg {}
 
     let v: void;
     let b: bool = v as bool;

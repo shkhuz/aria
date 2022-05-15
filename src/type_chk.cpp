@@ -778,9 +778,24 @@ void check_while_stmt(CheckContext* c, Stmt* stmt) {
     check_block_expr(c, stmt->whilelp.body, null);
 }
 
+#define is_deref_expr(expr) \
+    (expr->kind == EXPR_KIND_UNOP && \
+     expr->unop.op->kind == TOKEN_KIND_STAR)
+
 void check_assign_stmt(CheckContext* c, Stmt* stmt) {
     Type* left_type = check_expr(c, stmt->assign.left, null, true);
     Type* right_type = check_expr(c, stmt->assign.right, null, true);
+
+    if (left_type && is_deref_expr(stmt->assign.left)) {
+        Type* lhs_deref_child_type = stmt->assign.left->unop.child_type;
+        assert(lhs_deref_child_type->kind == TYPE_KIND_PTR);
+        if (lhs_deref_child_type->ptr.constant) {
+            check_error(
+                    stmt->assign.left->main_token,
+                    "cannot mutate read-only location `{}`",
+                    *lhs_deref_child_type);
+        }
+    }
 
     if (left_type && right_type && 
             check_implicit_cast(c, right_type, left_type) == IMPLICIT_CAST_ERROR) {
