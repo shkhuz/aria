@@ -875,12 +875,25 @@ template <> struct fmt::formatter<Token> {
 std::string g_fmt_type_highlight;
 std::string g_fmt_type_reset_highlight;
 
+void fill_fmt_type_color() {
+    g_fmt_type_highlight = g_fcyan_color;
+    g_fmt_type_reset_highlight = g_reset_color;
+}
+
+void unfill_fmt_type_color() {
+    g_fmt_type_highlight = "";
+    g_fmt_type_reset_highlight = "";
+}
+
 template <> struct fmt::formatter<Type> {
-    enum { regular, llvm } mode = regular;
+    enum { regular, nocolor, llvm } mode = regular;
     auto parse(format_parse_context &ctx) -> decltype(ctx.begin()) {
         auto it = ctx.begin(), end = ctx.end();
         if (it != end && *it == 'l') {
             mode = llvm;
+            it++;
+        } else if (it != end && *it == 'n') {
+            mode = nocolor;
             it++;
         }
         return it; 
@@ -889,9 +902,12 @@ template <> struct fmt::formatter<Type> {
     // if the runtime error:
     //   terminate called after throwing an instance of 'fmt::v8::format_error'
     //   what():  argument not found
-    // occurs then remove char* or string literals from the args of fmt::format_to.
+    // occurs then remove char* or string literals from the args of fmt::format_to
+    // or check if `:` is missing from fmt.
     template <typename FormatContext>
     auto format(const Type& type, FormatContext& ctx) -> decltype(ctx.out()) {
+        if (mode == nocolor) unfill_fmt_type_color();
+        decltype(ctx.out()) result = ctx.out();
         switch (type.kind) {
             case TYPE_KIND_BUILTIN: {
                 std::string llvm_type;
@@ -904,7 +920,7 @@ template <> struct fmt::formatter<Type> {
                 else 
                     llvm_type = builtin_type_kind_to_str(type.builtin.kind);
                     
-                return fmt::format_to(
+                result = fmt::format_to(
                         ctx.out(), 
                         "{}{}{}",
                         g_fmt_type_highlight,
@@ -913,7 +929,7 @@ template <> struct fmt::formatter<Type> {
             } break;
 
             case TYPE_KIND_PTR: {
-                return fmt::format_to(
+                result = fmt::format_to(
                         ctx.out(), 
                         "{}*{}{}{}",
                         g_fmt_type_highlight,
@@ -926,6 +942,8 @@ template <> struct fmt::formatter<Type> {
                 assert(0);
             } break;
         }
+        if (mode == nocolor) fill_fmt_type_color();
+        return result;
     }
 };
 
@@ -945,8 +963,6 @@ void init_types() {
     builtin_type_placeholders.void_ptr = ptr_type_placeholder_new(
             false, 
             builtin_type_placeholder_new(BUILTIN_TYPE_KIND_VOID));
-
-    g_fmt_type_highlight = g_fcyan_color;
-    g_fmt_type_reset_highlight = g_reset_color;
+    fill_fmt_type_color();
 }
 

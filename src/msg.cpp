@@ -4,10 +4,12 @@ enum MsgKind {
     MSG_KIND_ERROR,
     MSG_KIND_WARNING,
     MSG_KIND_NOTE,
+    MSG_KIND_ADDINFO,
 };
 
 static size_t g_error_count;
 static size_t g_warning_count;
+static bool g_first_msg = true;
 
 static bool is_root_msg(MsgKind kind) {
     if (kind == MSG_KIND_ROOT_ERROR || 
@@ -21,6 +23,21 @@ static void stderr_print_tab() {
     fputs("\x20\x20\x20\x20", stderr);
 }
 
+static size_t g_barindent;
+static const std::string* last_error_file_path;
+
+template <typename... Args>
+void addinfo(
+        const std::string& fmt,
+        Args... args) {
+    for (size_t c = 0; c < g_barindent; c++) {
+        fmt::print(stderr, " ");
+    }
+    fmt::print(stderr, "{}>{} ", g_error_color, g_reset_color);
+    fmt::print(stderr, fmt, args...);
+    fmt::print(stderr, "\n");
+}
+
 template <typename... Args>
 void default_msg(
         MsgKind kind, 
@@ -30,6 +47,15 @@ void default_msg(
         size_t ch_count, 
         const std::string& fmt,
         Args... args) {
+    bool same_file_note = (kind == MSG_KIND_NOTE && (*last_error_file_path) == srcfile->handle->path);
+    if (!same_file_note && kind != MSG_KIND_ADDINFO) {
+        if (g_first_msg) g_first_msg = false;
+        else fmt::print(stderr, "\n");
+    }
+    if (kind == MSG_KIND_ADDINFO) {
+        addinfo(fmt, args...);
+        return;
+    }
 
     bool root_msg = is_root_msg(kind);
     if (!root_msg) {
@@ -58,20 +84,30 @@ void default_msg(
     }
 
     if (!root_msg) {
-        fmt::print(
-                stderr,
-                "{}{}:{}:{}: {}",
-                g_bold_color,
-                srcfile->handle->path,
-                line, 
-                col_new,
-                g_reset_color);
+        if (same_file_note) {
+            assert(g_barindent >= 5);
+            for (size_t c = 0; c < g_barindent-2; c++) {
+                fmt::print(stderr, " ");
+            }
+        }
+        else {
+            fmt::print(
+                    stderr,
+                    "{}{}:{}:{}: {}",
+                    g_bold_color,
+                    srcfile->handle->path,
+                    line, 
+                    col_new,
+                    g_reset_color);
+        }
     }
 
     switch (kind) {
         case MSG_KIND_ROOT_ERROR:
         case MSG_KIND_ERROR:
             fmt::print(stderr, "{}error: {}", g_error_color, g_reset_color);
+            if (kind == MSG_KIND_ERROR)
+                last_error_file_path = &srcfile->handle->path;
             g_error_count++;
             break;
         case MSG_KIND_WARNING:
@@ -79,9 +115,16 @@ void default_msg(
             g_warning_count++;
             break;
         case MSG_KIND_ROOT_NOTE:
-        case MSG_KIND_NOTE:
             fmt::print(stderr, "{}note: {}", g_note_color, g_reset_color);
             break;
+        case MSG_KIND_NOTE: {
+            // TODO: when compiler reaches multiple files support,
+            // test this
+            std::string str;
+            if (!same_file_note) str = "{}note: {}...";
+            else str = "{}note: {}";
+            fmt::print(stderr, str, g_note_color, g_reset_color);
+        } break;
     }
     fmt::print(stderr, fmt, args...);
     fmt::print(stderr, "\n");
@@ -93,8 +136,8 @@ void default_msg(
         // TODO: check if this works
         std::string lineno_fmt = "{:>6} | ";
         fmt::print(stderr, lineno_fmt, line);
-        size_t indent = fmt::formatted_size(lineno_fmt, line) - 2;
-        /* int indent = fprintf(stderr, "%6lu | ", line) - 2; */
+        g_barindent = fmt::formatted_size(lineno_fmt, line) - 2;
+        /* int g_barindent = fprintf(stderr, "%6lu | ", line) - 2; */
 
         char* color = g_reset_color;
         switch (kind) {
@@ -129,7 +172,7 @@ void default_msg(
         }
 
         fmt::print(stderr, "\n");
-        for (size_t c = 0; c < indent; c++) {
+        for (size_t c = 0; c < g_barindent; c++) {
             fmt::print(stderr, " ");
         }
         fmt::print(stderr, "| ");
@@ -241,3 +284,4 @@ void note(
             fmt, 
             args...);
 }
+

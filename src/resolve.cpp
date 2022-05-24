@@ -115,7 +115,7 @@ void resolve_cpush_in_scope(ResolveContext* r, Stmt* stmt) {
         search_result.status == SCOPE_PARENT) {
         note(
                 search_result.stmt->main_token,
-                "...previously declared here");
+                "previously declared here");
     }
 
     if (search_error) return;
@@ -335,6 +335,10 @@ void resolve_variable_stmt(
         resolve_error(
                 stmt->main_token,
                 "no type annotations provided");
+        addinfo("consider adding a type: `let {}: i32`",
+                *stmt->variable.identifier);
+        addinfo("or assign a default value: `let {} = 0`",
+                *stmt->variable.identifier);
         return;
     }
 
@@ -357,10 +361,11 @@ void resolve_assign_stmt(ResolveContext* r, Stmt* stmt) {
         if (stmt->assign.left->symbol.ref->variable.constant) {
             resolve_error(
                     stmt->main_token,
-                    "cannot modify immutable variable");
+                    "cannot modify immutable constant");
             note(
                     stmt->assign.left->symbol.ref->main_token,
-                    "...variable defined here");
+                    "variable defined here");
+            addinfo("to define a mutable variable, add `mut`");
         }
     }
     else if (stmt->assign.left->kind == EXPR_KIND_UNOP &&

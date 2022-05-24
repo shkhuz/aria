@@ -146,11 +146,12 @@ Token* parse_expect_keyword(ParseContext* p, const std::string& keyword) {
 
 void parse_check_eof(ParseContext* p, Token* pair) {
     if (parse_current(p)->kind == TOKEN_KIND_EOF) {
+        error(parse_current(p), "unexpected end of file");
         note(
                 pair,
-                "while matching `{}`...",
+                "while matching `{}`",
                 pair->lexeme);
-        fatal_error(parse_current(p), "unexpected end of file");
+        terminate_compilation();
     }
 }
 
@@ -457,9 +458,11 @@ Stmt* parse_top_level_stmt(ParseContext* p, bool error_on_no_match) {
         return parse_variable_stmt(p);
     }
     else if (error_on_no_match) {
-        fatal_error(
+        error(
                 parse_current(p),
                 "invalid token in top-level");
+        addinfo("expected `fn`, `let`, `struct`");
+        terminate_compilation();
     }
     return null;
 }

@@ -14,13 +14,11 @@ typedef struct {
 // outputs to have `l` format specifier.
 
 void init_cg() {
-    g_fmt_type_highlight = "";
-    g_fmt_type_reset_highlight = "";
+    unfill_fmt_type_color();
 }
 
 void deinit_cg() {
-    g_fmt_type_highlight = g_fcyan_color;
-    g_fmt_type_reset_highlight = g_reset_color;
+    fill_fmt_type_color();
 }
 
 void cg_function_header(CgContext* c, FunctionHeader* header) {

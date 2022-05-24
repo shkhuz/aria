@@ -236,7 +236,7 @@ Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
                     fmt);
             note(
                     (*params)[arg_len]->param.identifier,
-                    "...parameter(s) declared here");
+                    "parameter(s) declared here");
         }
         else {
             check_error(
@@ -259,7 +259,7 @@ Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
                     *param_type);
             note(
                     param_type->main_token,
-                    "...parameter type annotated here");
+                    "parameter type annotated here");
         }
     }
     return callee_return_type;
@@ -439,7 +439,7 @@ Type* check_unop_expr(CheckContext* c, Expr* expr, Type* cast) {
                     == IMPLICIT_CAST_ERROR) {
                 check_error(
                         expr->main_token,
-                        "cannot operate on `{}`",
+                        "`!` operator requires a boolean operand",
                         *child_type);
             }
             else {
@@ -524,6 +524,9 @@ Type* check_cast_expr(CheckContext* c, Expr* expr, Type* cast) {
                     "cast to `{}` discards const-ness of `{}`",
                     *to_type,
                     *left_type);
+            addinfo("converting a const-pointer to a mutable pointer is invalid");
+            addinfo("consider adding `const`: `*const {:n}`",
+                    *to_type->ptr.child);
         }
         else {
             return to_type;
