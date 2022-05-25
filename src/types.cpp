@@ -535,6 +535,54 @@ size_t builtin_type_bytes(BuiltinType* type) {
     return 0;
 }
 
+i64 builtin_type_get_min_val(BuiltinTypeKind kind) {
+    switch (kind) {
+        case BUILTIN_TYPE_KIND_U8: 
+        case BUILTIN_TYPE_KIND_U16: 
+        case BUILTIN_TYPE_KIND_U32: 
+        case BUILTIN_TYPE_KIND_U64: 
+        case BUILTIN_TYPE_KIND_USIZE: 
+            return 0;
+        case BUILTIN_TYPE_KIND_I8:  return INT8_MIN;
+        case BUILTIN_TYPE_KIND_I16: return INT16_MIN;
+        case BUILTIN_TYPE_KIND_I32: return INT32_MIN;
+        case BUILTIN_TYPE_KIND_I64: return INT64_MIN;
+        case BUILTIN_TYPE_KIND_ISIZE: return INT64_MIN;
+
+        case BUILTIN_TYPE_KIND_BOOLEAN:
+        case BUILTIN_TYPE_KIND_VOID:
+        case BUILTIN_TYPE_KIND_APINT:
+        case BUILTIN_TYPE_KIND_NONE:
+            assert(0);
+            break;
+    }
+    return 0;
+}
+
+u64 builtin_type_get_max_val(BuiltinTypeKind kind) {
+    switch (kind) {
+        case BUILTIN_TYPE_KIND_U8:  return UINT8_MAX;
+        case BUILTIN_TYPE_KIND_U16: return UINT16_MAX;
+        case BUILTIN_TYPE_KIND_U32: return UINT32_MAX;
+        case BUILTIN_TYPE_KIND_U64: return UINT64_MAX;
+        case BUILTIN_TYPE_KIND_USIZE: return UINT64_MAX;
+
+        case BUILTIN_TYPE_KIND_I8:  return INT8_MAX;
+        case BUILTIN_TYPE_KIND_I16: return INT16_MAX;
+        case BUILTIN_TYPE_KIND_I32: return INT32_MAX;
+        case BUILTIN_TYPE_KIND_I64: return INT64_MAX;
+        case BUILTIN_TYPE_KIND_ISIZE: return INT64_MAX;
+
+        case BUILTIN_TYPE_KIND_BOOLEAN:
+        case BUILTIN_TYPE_KIND_VOID:
+        case BUILTIN_TYPE_KIND_APINT:
+        case BUILTIN_TYPE_KIND_NONE:
+            assert(0);
+            break;
+    }
+    return 0;
+}
+
 Type* type_get_child(Type* type) {
     switch (type->kind) {
         case TYPE_KIND_BUILTIN:
@@ -606,6 +654,19 @@ bool token_is_cmp_op(Token* token) {
     switch (token->kind) {
         case TOKEN_KIND_DOUBLE_EQUAL:
         case TOKEN_KIND_BANG_EQUAL:
+        case TOKEN_KIND_LANGBR:
+        case TOKEN_KIND_LANGBR_EQUAL:
+        case TOKEN_KIND_RANGBR:
+        case TOKEN_KIND_RANGBR_EQUAL:
+            return true;
+        default:
+            break;
+    }
+    return false;
+}
+
+bool token_is_magnitude_cmp_op(Token* token) {
+    switch (token->kind) {
         case TOKEN_KIND_LANGBR:
         case TOKEN_KIND_LANGBR_EQUAL:
         case TOKEN_KIND_RANGBR:

@@ -5,13 +5,19 @@ typedef struct {
 } CheckContext;
 
 typedef enum {
-    IMPLICIT_CAST_OK,
-    IMPLICIT_CAST_ERROR,
+    IC_OK,
+    IC_ERROR,
+    IC_ERROR_HANDLED,
 } ImplicitCastStatus;
 
 #define check_error(token, fmt, ...) \
     error(token, fmt, ##__VA_ARGS__); \
     c->error = true
+
+#define CHECK_IMPL_CAST(from, to) \
+    ImplicitCastStatus impl_cast_status = check_implicit_cast(c, from, to)
+
+#define IS_IMPL_CAST_STATUS(status) (impl_cast_status == status)
 
 ImplicitCastStatus check_implicit_cast(
         CheckContext* c, 
@@ -27,10 +33,10 @@ ImplicitCastStatus check_implicit_cast(
                     builtin_type_bytes(&to->builtin) ||
                     builtin_type_is_signed(from->builtin.kind) != 
                     builtin_type_is_signed(to->builtin.kind)) {
-                    return IMPLICIT_CAST_ERROR;
+                    return IC_ERROR;
                 }
                 else {
-                    return IMPLICIT_CAST_OK;
+                    return IC_OK;
                 }
             }
             else if (builtin_type_is_apint(from->builtin.kind) || 
@@ -41,26 +47,34 @@ ImplicitCastStatus check_implicit_cast(
                 }
 
                 if (!type_is_integer(to)) {
-                    return IMPLICIT_CAST_ERROR;
+                    return IC_ERROR;
                 }
                 else if (bigint_fits(
                             &from->builtin.apint,
                             builtin_type_bytes(&to->builtin),
                             builtin_type_is_signed(to->builtin.kind))) {
                     from->builtin.kind = to->builtin.kind;
-                    return IMPLICIT_CAST_OK;
+                    return IC_OK;
                 }
                 else {
-                    return IMPLICIT_CAST_ERROR;
+                    check_error(
+                            from->builtin.token, 
+                            "literal value outside `{}` range",
+                            *to);
+                    addinfo("`{:n}` can only store values from {} to {}",
+                            *to, 
+                            builtin_type_get_min_val(to->builtin.kind),
+                            builtin_type_get_max_val(to->builtin.kind));
+                    return IC_ERROR_HANDLED;
                 }
             }
             else if (from->builtin.kind == to->builtin.kind) {
                 if (from->builtin.kind == BUILTIN_TYPE_KIND_BOOLEAN ||
                     from->builtin.kind == BUILTIN_TYPE_KIND_VOID) {
-                    return IMPLICIT_CAST_OK;
+                    return IC_OK;
                 } 
                 else {
-                    return IMPLICIT_CAST_ERROR;
+                    return IC_ERROR;
                 }
             }
         }
@@ -83,7 +97,7 @@ ImplicitCastStatus check_implicit_cast(
             }
         }
     }
-    return IMPLICIT_CAST_ERROR;
+    return IC_ERROR;
 }
 
 bool check_apint_int_operands(
@@ -96,6 +110,7 @@ bool check_apint_int_operands(
     Type* apint_type = left_type;
     Type* int_type = right_type;
     if (is_right_apint) {
+        // left always points to apint
         SWAP_VARS(Type*, apint_type, int_type);
     }
 
@@ -109,20 +124,19 @@ bool check_apint_int_operands(
         return false;
     }
 
-    if (bigint_fits(
-                &apint_type->builtin.apint,
-                builtin_type_bytes(&int_type->builtin),
-                builtin_type_is_signed(int_type->builtin.kind))) {
-        expr->type = int_type;
-        return true;
-    }
-    else {
+    CHECK_IMPL_CAST(apint_type, int_type);
+    if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
         check_error(
                 apint_type->main_token,
                 "expression cannot be converted to `{}`",
                 *int_type);
         return false;
     }
+    else if (IS_IMPL_CAST_STATUS(IC_ERROR_HANDLED)) {
+        return false;
+    }
+    expr->type = int_type;
+    return true;
 }
 
 void check_apint_fits_into_default_integer_type(
@@ -136,7 +150,8 @@ void check_apint_fits_into_default_integer_type(
                 builtin_type_is_signed(builtin_type_placeholders.int32->builtin.kind))) {
         check_error(
                 apint_expr->main_token,
-                "integer cannot be converted to `{}`",
+                "`{}` cannot be converted to `{}`",
+                *apint,
                 *builtin_type_placeholders.int32);
     }
 }
@@ -148,34 +163,65 @@ Type* check_expr(
         bool cast_to_definitive_type);
 void check_stmt(CheckContext* c, Stmt* stmt);
 
+/* Type* check_integer_expr( */
+/*         CheckContext* c, */ 
+/*         Expr* expr, */ 
+/*         Type* cast, */ 
+/*         bool cast_to_definitive_type) { */
+/*     if (!cast && !cast_to_definitive_type) { */
+/*         Type* type = builtin_type_new( */
+/*                 expr->main_token, */
+/*                 BUILTIN_TYPE_KIND_APINT); */
+/*         type->builtin.apint = *expr->integer.val; */
+/*         return type; */
+/*     } */
+/*     else { */
+/*         if (!cast) cast = builtin_type_placeholders.int32; */
+/*         if (type_is_integer(cast) && bigint_fits( */
+/*                     expr->integer.val, */ 
+/*                     builtin_type_bytes(&cast->builtin), */ 
+/*                     builtin_type_is_signed(cast->builtin.kind))) { */
+/*             return cast; */
+/*         } */
+/*         else { */
+/*             check_error( */
+/*                     expr->integer.integer, */
+/*                     "integer cannot be converted to `{}`", */
+/*                     *cast); */
+/*         } */
+/*     } */
+/*     return null; */
+/* } */
+
 Type* check_integer_expr(
         CheckContext* c, 
         Expr* expr, 
         Type* cast, 
         bool cast_to_definitive_type) {
+    Type* type = builtin_type_new(
+            expr->main_token,
+            BUILTIN_TYPE_KIND_APINT);
+    type->builtin.apint = *expr->integer.val;
+    
     if (!cast && !cast_to_definitive_type) {
-        Type* type = builtin_type_new(
-                expr->main_token,
-                BUILTIN_TYPE_KIND_APINT);
-        type->builtin.apint = *expr->integer.val;
         return type;
     }
     else {
         if (!cast) cast = builtin_type_placeholders.int32;
-        if (type_is_integer(cast) && bigint_fits(
-                    expr->integer.val, 
-                    builtin_type_bytes(&cast->builtin), 
-                    builtin_type_is_signed(cast->builtin.kind))) {
-            return cast;
-        }
-        else {
+        CHECK_IMPL_CAST(cast, type);
+        if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
             check_error(
                     expr->integer.integer,
-                    "integer cannot be converted to `{}`",
+                    "`{}` cannot be converted to `{}`",
+                    *type,
                     *cast);
+            return null;
+        }
+        else if (IS_IMPL_CAST_STATUS(IC_ERROR_HANDLED)) {
+            return null;
         }
     }
-    return null;
+    return cast;
 }
 
 Type* check_constant_expr(CheckContext* c, Expr* expr, Type* cast) {
@@ -250,16 +296,18 @@ Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
         Type* param_type = (*params)[i]->param.type;
         Type* arg_type = check_expr(c, (*args)[i], param_type, true);
         /* args[i]->type = arg_type; */
-        if (arg_type && param_type && 
-            check_implicit_cast(c, arg_type, param_type) == IMPLICIT_CAST_ERROR) {
-            check_error(
-                    (*args)[i]->main_token,
-                    "argument type `{}` cannot be converted to `{}`",
-                    *arg_type,
-                    *param_type);
-            note(
-                    param_type->main_token,
-                    "parameter type annotated here");
+        if (arg_type && param_type) {
+            CHECK_IMPL_CAST(arg_type, param_type);
+            if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
+                check_error(
+                        (*args)[i]->main_token,
+                        "argument type `{}` cannot be converted to `{}`",
+                        *arg_type,
+                        *param_type);
+                note(
+                        param_type->main_token,
+                        "parameter type annotated here");
+            }
         }
     }
     return callee_return_type;
@@ -283,16 +331,16 @@ Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast) {
         if (expr->binop.op->kind == TOKEN_KIND_PLUS || 
             expr->binop.op->kind == TOKEN_KIND_MINUS) {
             if (type_is_integer(left_type) && type_is_integer(right_type)) {
-                ImplicitCastStatus status;
                 bool return_left = true;
+                ImplicitCastStatus impl_cast_status;
                 if (type_bytes(right_type) > type_bytes(left_type)) {
-                    status = check_implicit_cast(c, left_type, right_type);
+                    impl_cast_status = check_implicit_cast(c, left_type, right_type);
                     return_left = false;
                 }
                 else {
-                    status = check_implicit_cast(c, right_type, left_type);
+                    impl_cast_status = check_implicit_cast(c, right_type, left_type);
                 }
-                if (status == IMPLICIT_CAST_ERROR) {
+                if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
                     check_error(
                             expr->main_token,
                             "implicit cast error: `{}` and `{}`",
@@ -352,6 +400,7 @@ Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast) {
             }
         }
         else if (token_is_cmp_op(expr->binop.op)) {
+            //TODO: here
             if (is_left_apint || is_right_apint) {
                 if (is_left_apint && is_right_apint) {
                     check_apint_fits_into_default_integer_type(
@@ -374,14 +423,46 @@ Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast) {
                 }
             }
             else {
-                ImplicitCastStatus status;
+                if (token_is_magnitude_cmp_op(expr->binop.op)) {
+                    bool is_left_int = type_is_integer(left_type);
+                    bool is_right_int = type_is_integer(right_type);
+                    if (!is_left_int && !is_right_int) {
+                        check_error(
+                                expr->binop.op,
+                                "`{}` requires integer operands, but given `{}` and `{}`",
+                                *expr->binop.op,
+                                *left_type, 
+                                *right_type);
+                        return null;
+                    }
+                    else if (!is_left_int || !is_right_int) {
+                        std::string erroperand;
+                        Type* errtype;
+                        if (!is_left_int) {
+                            erroperand = "left";
+                            errtype = left_type;
+                        }
+                        else {
+                            erroperand = "right";
+                            errtype = right_type;
+                        }
+                        check_error(
+                                expr->binop.op,
+                                "`{}` requires integer operands, but {} operand is `{}`",
+                                *expr->binop.op,
+                                erroperand, 
+                                *errtype);
+                        return null;
+                    }
+                }
+                ImplicitCastStatus impl_cast_status;
                 if (type_bytes(right_type) > type_bytes(left_type)) {
-                    status = check_implicit_cast(c, left_type, right_type);
+                    impl_cast_status = check_implicit_cast(c, left_type, right_type);
                 }
                 else {
-                    status = check_implicit_cast(c, right_type, left_type);
+                    impl_cast_status = check_implicit_cast(c, right_type, left_type);
                 }
-                if (status == IMPLICIT_CAST_ERROR) {
+                if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
                     check_error(
                             expr->main_token,
                             "cannot compare `{}` and `{}`",
@@ -425,6 +506,16 @@ Type* check_unop_expr(CheckContext* c, Expr* expr, Type* cast) {
                         BUILTIN_TYPE_KIND_APINT);
                 new_apint->builtin.apint = res;
                 expr->type = new_apint;
+                if (cast) {
+                    CHECK_IMPL_CAST(new_apint, cast);
+                    if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
+                        assert(0);
+                        return null;
+                    }
+                    else if (IS_IMPL_CAST_STATUS(IC_ERROR_HANDLED)) {
+                        return null;
+                    }
+                }
                 return new_apint;
             }
             else {
@@ -435,8 +526,8 @@ Type* check_unop_expr(CheckContext* c, Expr* expr, Type* cast) {
             }
         }
         else if (expr->unop.op->kind == TOKEN_KIND_BANG) {
-            if (check_implicit_cast(c, child_type, builtin_type_placeholders.boolean)
-                    == IMPLICIT_CAST_ERROR) {
+            CHECK_IMPL_CAST(child_type, builtin_type_placeholders.boolean);
+            if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
                 check_error(
                         expr->main_token,
                         "`!` operator requires a boolean operand",
@@ -447,8 +538,8 @@ Type* check_unop_expr(CheckContext* c, Expr* expr, Type* cast) {
             }
         }
         else if (expr->unop.op->kind == TOKEN_KIND_AMP) {
-            if (check_implicit_cast(c, child_type, builtin_type_placeholders.void_kind)
-                    == IMPLICIT_CAST_ERROR) {
+            CHECK_IMPL_CAST(child_type, builtin_type_placeholders.void_kind);
+            if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
                 Stmt* ref = expr->unop.child->symbol.ref;
                 bool constant;
                 switch (ref->kind) {
@@ -504,36 +595,38 @@ Type* check_cast_expr(CheckContext* c, Expr* expr, Type* cast) {
     Type* to_type = expr->cast.to;
     expr->type = to_type;
 
-    bool is_left_void = type_is_void(left_type);
-    bool is_to_void = type_is_void(to_type);
+    if (left_type) {
+        bool is_left_void = type_is_void(left_type);
+        bool is_to_void = type_is_void(to_type);
 
-    if (is_left_void && is_to_void) {
-        return to_type;
-    }
-    else if (is_left_void || is_to_void) {
-        check_error(
-                expr->main_token,
-                "cannot cast from `{}` to `{}`",
-                *left_type,
-                *to_type);
-    }
-    else if (left_type->kind == TYPE_KIND_PTR && to_type->kind == TYPE_KIND_PTR) {
-        if (left_type->ptr.constant && !to_type->ptr.constant) {
+        if (is_left_void && is_to_void) {
+            return to_type;
+        }
+        else if (is_left_void || is_to_void) {
             check_error(
                     expr->main_token,
-                    "cast to `{}` discards const-ness of `{}`",
-                    *to_type,
-                    *left_type);
-            addinfo("converting a const-pointer to a mutable pointer is invalid");
-            addinfo("consider adding `const`: `*const {:n}`",
-                    *to_type->ptr.child);
+                    "cannot cast from `{}` to `{}`",
+                    *left_type,
+                    *to_type);
+        }
+        else if (left_type->kind == TYPE_KIND_PTR && to_type->kind == TYPE_KIND_PTR) {
+            if (left_type->ptr.constant && !to_type->ptr.constant) {
+                check_error(
+                        expr->main_token,
+                        "cast to `{}` discards const-ness of `{}`",
+                        *to_type,
+                        *left_type);
+                addinfo("converting a const-pointer to a mutable pointer is invalid");
+                addinfo("consider adding `const`: `*const {:n}`",
+                        *to_type->ptr.child);
+            }
+            else {
+                return to_type;
+            }
         }
         else {
             return to_type;
         }
-    }
-    else {
-        return to_type;
     }
     return null;
 }
@@ -551,15 +644,15 @@ Type* check_block_expr(CheckContext* c, Expr* expr, Type* cast) {
 Type* check_if_branch(CheckContext* c, IfBranch* br, Type* cast) {
     if (br->cond) {
         Type* cond_type = check_expr(c, br->cond, null, true);
-        if (cond_type && check_implicit_cast(
-                    c, 
-                    cond_type, 
-                    builtin_type_placeholders.boolean) == IMPLICIT_CAST_ERROR) {
-            check_error(
-                    br->cond->main_token,
-                    "branch condition should be `{}` but got `{}`",
-                    *builtin_type_placeholders.boolean,
-                    *cond_type);
+        if (cond_type) {
+            CHECK_IMPL_CAST(cond_type, builtin_type_placeholders.boolean);
+            if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
+                check_error(
+                        br->cond->main_token,
+                        "branch condition should be `{}` but got `{}`",
+                        *builtin_type_placeholders.boolean,
+                        *cond_type);
+            }
         }
     }
     return check_block_expr(c, br->body, cast);
@@ -611,7 +704,8 @@ Type* check_if_expr(CheckContext* c, Expr* expr, Type* cast) {
     // Compare branch types
     bool err = false;
     for (size_t i = 0; i < elseifbr_types.size(); i++) {
-        if (check_implicit_cast(c, elseifbr_types[i], ifbr_type) == IMPLICIT_CAST_ERROR) {
+        CHECK_IMPL_CAST(elseifbr_types[i], ifbr_type);
+        if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
             Token* errtok = null;
             if (expr->iff.elseifbr[i]->body->block.value) {
                 errtok = expr->iff.elseifbr[i]->body->block.value->main_token;
@@ -627,10 +721,14 @@ Type* check_if_expr(CheckContext* c, Expr* expr, Type* cast) {
                     *elseifbr_types[i]);
             err = true;
         }
+        else if (IS_IMPL_CAST_STATUS(IC_ERROR_HANDLED)) {
+            err = true;
+        }
     }
 
     if (expr->iff.elsebr) {
-        if (check_implicit_cast(c, elsebr_type, ifbr_type) == IMPLICIT_CAST_ERROR) {
+        CHECK_IMPL_CAST(elsebr_type, ifbr_type);
+        if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
             Token* errtok = null;
             if (expr->iff.elsebr->body->block.value) {
                 errtok = expr->iff.elsebr->body->block.value->main_token;
@@ -646,6 +744,10 @@ Type* check_if_expr(CheckContext* c, Expr* expr, Type* cast) {
                     *elsebr_type);
             err = true;
         }
+        else if (IS_IMPL_CAST_STATUS(IC_ERROR_HANDLED)) {
+            err = true;    
+        } 
+            
     }
 
     if (err) return null;
@@ -708,7 +810,8 @@ void check_function_stmt(CheckContext* c, Stmt* stmt) {
         Type* return_type = stmt->function.header->return_type;
         stmt->function.body->type = body_type;
         if (body_type && return_type) {
-            if (check_implicit_cast(c, body_type, return_type) == IMPLICIT_CAST_ERROR) {
+            CHECK_IMPL_CAST(body_type, return_type);
+            if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
                 Token* errtok = null;
                 if (stmt->function.body->block.value)
                     errtok = stmt->function.body->block.value->main_token;
@@ -734,8 +837,8 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
         Type* annotated_type = stmt->variable.type;
         stmt->variable.initializer_type = initializer_type;
         if (initializer_type && annotated_type) {
-            if (check_implicit_cast(c, initializer_type, annotated_type) == 
-                IMPLICIT_CAST_ERROR) {
+            CHECK_IMPL_CAST(initializer_type, annotated_type);
+            if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
                 check_error(
                         stmt->variable.identifier,
                         "cannot initialize type `{}` from `{}`",
@@ -752,13 +855,16 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
                 true);
         stmt->variable.initializer_type = stmt->variable.type;
         if (stmt->variable.type && type_is_apint(stmt->variable.type)) {
-            if (check_implicit_cast(c, stmt->variable.type, builtin_type_placeholders.int32) == 
-                IMPLICIT_CAST_ERROR) {
+            CHECK_IMPL_CAST(stmt->variable.type, builtin_type_placeholders.int32);
+            if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
                 check_error(
                         stmt->variable.identifier,
                         "cannot initialize type `{}` from `{}`",
                         *builtin_type_placeholders.int32,
                         *stmt->variable.type);
+                return;
+            }
+            else if (IS_IMPL_CAST_STATUS(IC_ERROR_HANDLED)) {
                 return;
             }
         }
@@ -777,15 +883,15 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
 
 void check_while_stmt(CheckContext* c, Stmt* stmt) {
     Type* cond_type = check_expr(c, stmt->whilelp.cond, null, true);
-    if (cond_type && check_implicit_cast(
-                c,
-                cond_type,
-                builtin_type_placeholders.boolean) == IMPLICIT_CAST_ERROR) {
-        check_error(
-                stmt->whilelp.cond->main_token,
-                "loop condition should be `{}` but got `{}`",
-                *builtin_type_placeholders.boolean,
-                *cond_type);
+    if (cond_type) {
+        CHECK_IMPL_CAST(cond_type, builtin_type_placeholders.boolean);
+        if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
+            check_error(
+                    stmt->whilelp.cond->main_token,
+                    "loop condition should be `{}` but got `{}`",
+                    *builtin_type_placeholders.boolean,
+                    *cond_type);
+        }
     }
     check_block_expr(c, stmt->whilelp.body, null);
 }
@@ -809,13 +915,15 @@ void check_assign_stmt(CheckContext* c, Stmt* stmt) {
         }
     }
 
-    if (left_type && right_type && 
-            check_implicit_cast(c, right_type, left_type) == IMPLICIT_CAST_ERROR) {
-        check_error(
-                stmt->main_token,
-                "cannot assign to `{}` from `{}`",
-                *left_type,
-                *right_type);
+    if (left_type && right_type) {
+        CHECK_IMPL_CAST(right_type, left_type);
+        if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
+            check_error(
+                    stmt->main_token,
+                    "cannot assign to `{}` from `{}`",
+                    *left_type,
+                    *right_type);
+        }
     }
 }
 
