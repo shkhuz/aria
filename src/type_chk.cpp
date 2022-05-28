@@ -963,4 +963,3 @@ void check(CheckContext* c) {
         check_stmt(c, stmt);
     }
 }
-

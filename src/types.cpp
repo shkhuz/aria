@@ -194,9 +194,9 @@ struct CastExpr {
 };
 
 struct BlockExpr {
-    std::vector<Stmt*> stmts;
     Expr* value;
     Token* rbrace;
+    std::vector<Stmt*> stmts;
 };
 
 enum IfBranchKind {
@@ -258,6 +258,7 @@ struct FunctionHeader {
 struct FunctionStmt {
     FunctionHeader* header;
     Expr* body;
+    std::vector<Stmt*> locals;
     size_t stack_vars_size;
     size_t ifidx;
     size_t whileidx;
@@ -315,6 +316,8 @@ struct Stmt {
         ReturnStmt return_stmt;
         ExprStmt expr;
     };
+
+    Stmt() {}
 };
 
 std::string aria_keywords[] = {
@@ -716,7 +719,8 @@ FunctionHeader* function_header_new(
 }
 
 Stmt* function_stmt_new(FunctionHeader* header, Expr* body) {
-    ALLOC_WITH_TYPE(stmt, Stmt);
+    Stmt* stmt = (Stmt*)malloc(sizeof(Stmt));
+    memset(stmt, 0, sizeof(Stmt));
     stmt->kind = STMT_KIND_FUNCTION;
     stmt->main_token = header->identifier;
     stmt->parent_func = null;
@@ -879,7 +883,8 @@ Expr* block_expr_new(
         Expr* value, 
         Token* lbrace, 
         Token* rbrace) {
-    ALLOC_WITH_TYPE(expr, Expr);
+    Expr* expr = (Expr*)malloc(sizeof(Expr));
+    memset(expr, 0, sizeof(Expr));
     expr->kind = EXPR_KIND_BLOCK;
     expr->main_token = lbrace;
     expr->type = null;

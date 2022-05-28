@@ -41,11 +41,38 @@ void cg_function_header(CgContext* c, FunctionHeader* header) {
             out += ", ";
     }
     out += ")";
+    if (!header->is_extern) out += " {{";
     cg_line(c, out);
 }
 
 void cg_function_stmt(CgContext* c, Stmt* stmt) {
     cg_function_header(c, stmt->function.header);
+    if (!stmt->function.header->is_extern) { 
+        cg_line(c, "entry:");
+        for (Stmt* local: stmt->function.locals) {
+            std::string fmt = "%{} = alloca {:l}, align 4";
+            if (local->kind == STMT_KIND_PARAM) {
+                size_t oldid = local->param.id;
+                local->param.id = id_next(stmt->function.header->id);
+                cg_line(c, fmt,
+                        local->param.id, 
+                        *local->param.type);
+                cg_line(c, "store {:l} %{}, {:l}* %{}, align 4",
+                        *local->param.type,
+                        oldid,
+                        *local->param.type,
+                        local->param.id);
+            }
+            else if (local->kind == STMT_KIND_VARIABLE) {
+                local->variable.id = id_next(stmt->function.header->id);
+                cg_line(c, fmt,
+                        local->variable.id, 
+                        *local->variable.type);
+            }
+            else assert(0);
+        }
+        cg_line(c, "}}\n");
+    }
 }
 
 void cg_stmt(CgContext* c, Stmt* stmt) {

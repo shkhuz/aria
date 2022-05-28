@@ -1,14 +1,5 @@
-fn main(n: i32, i: usize, b: bool) i32 {
-    let a: bool = 23;
-    let integer: void = 234;
-    let mut p = &a;
-    p = p as *bool;
-
-    let bb = true;
-    let vv = false;
-    if bb < integer {}
-
-    cool(-32)
+fn main(argc: i32) {
+    let i = 1;
+    let mut j = i;
+    let b = false;
 }
-
-fn cool(n: u32) i32 {0}

@@ -302,6 +302,9 @@ void resolve_expr(ResolveContext* r, Expr* expr) {
 void resolve_param_stmt(ResolveContext* r, Stmt* stmt) {
     resolve_cpush_in_scope(r, stmt);
     resolve_type(r, stmt->param.type);
+    if (r->current_func != null) {
+        r->current_func->function.locals.push_back(stmt);
+    }
 }
 
 void resolve_function_header(ResolveContext* r, FunctionHeader* header) {
@@ -349,6 +352,7 @@ void resolve_variable_stmt(
     if (stmt->variable.initializer) {
         resolve_expr(r, stmt->variable.initializer);
     }
+    r->current_func->function.locals.push_back(stmt);
 }
 
 void resolve_assign_stmt(ResolveContext* r, Stmt* stmt) {
