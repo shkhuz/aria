@@ -4,7 +4,7 @@ EXE_FILE := build/ariac
 ALL_CXX_FILES := $(shell find src -type f -name "*.cpp") #$(shell find src -type f -name "*.cpp" | grep -v $(NO_CXX_FILES))
 
 CXXFLAGS := -std=c++11 -Ivendor -I. -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings
-LDFLAGS := 
+LDFLAGS := -L/usr/lib -lLLVM-13
 AR_FILE := examples/ok.ar
 
 ifeq ($(prod), y)

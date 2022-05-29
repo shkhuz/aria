@@ -221,6 +221,7 @@ Type* check_integer_expr(
             return null;
         }
     }
+    expr->type = cast;
     return cast;
 }
 

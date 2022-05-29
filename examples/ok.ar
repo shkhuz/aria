@@ -1,4 +1,4 @@
-fn main(argc: i32) {
+fn main(argc: i32, argv: **i8) {
     let i = 1;
     let mut j = i;
     let b = false;

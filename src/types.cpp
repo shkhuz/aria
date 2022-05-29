@@ -252,7 +252,6 @@ struct FunctionHeader {
     std::vector<Stmt*> params;
     Type* return_type;
     bool is_extern;
-    size_t id; // unique id
 };
 
 struct FunctionStmt {
@@ -272,7 +271,6 @@ struct VariableStmt {
     Expr* initializer;
     // TODO: clean `stack_offset` variable
     size_t stack_offset;
-    size_t id; // only for local vars / params
 };
 
 struct ParamStmt {
@@ -280,7 +278,6 @@ struct ParamStmt {
     Type* type;
     size_t idx;
     size_t stack_offset;
-    size_t id; // only for local vars / params
 };
 
 struct WhileStmt {
@@ -709,18 +706,11 @@ FunctionHeader* function_header_new(
     header->params = params;
     header->return_type = return_type;
     header->is_extern = is_extern;
-    if (header->is_extern) {
-        header->id = SIZE_MAX;
-    }
-    else {
-        header->id = id_register_parent();
-    }
     return header;
 }
 
 Stmt* function_stmt_new(FunctionHeader* header, Expr* body) {
-    Stmt* stmt = (Stmt*)malloc(sizeof(Stmt));
-    memset(stmt, 0, sizeof(Stmt));
+    Stmt* stmt = (Stmt*)calloc(1, sizeof(Stmt));
     stmt->kind = STMT_KIND_FUNCTION;
     stmt->main_token = header->identifier;
     stmt->parent_func = null;
@@ -747,7 +737,6 @@ Stmt* variable_stmt_new(
     stmt->variable.initializer_type = null;
     stmt->variable.initializer = initializer;
     stmt->variable.stack_offset = 0;
-    stmt->variable.id = SIZE_MAX;
     return stmt;
 }
 
@@ -760,7 +749,6 @@ Stmt* param_stmt_new(Token* identifier, Type* type, size_t idx) {
     stmt->param.type = type;
     stmt->param.idx = idx;
     stmt->param.stack_offset = 0;
-    stmt->param.id = SIZE_MAX;
     return stmt;
 }
 
@@ -883,8 +871,7 @@ Expr* block_expr_new(
         Expr* value, 
         Token* lbrace, 
         Token* rbrace) {
-    Expr* expr = (Expr*)malloc(sizeof(Expr));
-    memset(expr, 0, sizeof(Expr));
+    Expr* expr = (Expr*)calloc(1, sizeof(Expr));
     expr->kind = EXPR_KIND_BLOCK;
     expr->main_token = lbrace;
     expr->type = null;
