@@ -1,3 +1,6 @@
+#include <llvm-c/Core.h>
+#include <llvm-c/TargetMachine.h>
+
 #include "core.cpp"
 #include "bigint.cpp"
 #include "file_io.cpp"

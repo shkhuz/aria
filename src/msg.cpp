@@ -86,7 +86,7 @@ void default_msg(
     if (!root_msg) {
         if (same_file_note) {
             assert(g_barindent >= 5);
-            for (size_t c = 0; c < g_barindent-2; c++) {
+            for (size_t c = 0; c < g_barindent; c++) {
                 fmt::print(stderr, " ");
             }
         }

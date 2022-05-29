@@ -55,6 +55,8 @@ enum TypeKind {
     TYPE_KIND_PTR,
 };
 
+// TODO: remove usize and isize, and make them aliases of an integer type
+// whose size of machine ptr size-dependent.
 enum BuiltinTypeKind {
     BUILTIN_TYPE_KIND_U8,
     BUILTIN_TYPE_KIND_U16,
@@ -252,6 +254,7 @@ struct FunctionHeader {
     std::vector<Stmt*> params;
     Type* return_type;
     bool is_extern;
+    LLVMValueRef llvmvalue;
 };
 
 struct FunctionStmt {
@@ -271,6 +274,7 @@ struct VariableStmt {
     Expr* initializer;
     // TODO: clean `stack_offset` variable
     size_t stack_offset;
+    LLVMValueRef llvmvalue;
 };
 
 struct ParamStmt {
@@ -278,6 +282,7 @@ struct ParamStmt {
     Type* type;
     size_t idx;
     size_t stack_offset;
+    LLVMValueRef llvmvalue;
 };
 
 struct WhileStmt {
@@ -288,6 +293,8 @@ struct WhileStmt {
 struct AssignStmt {
     Expr* left;
     Expr* right;
+    Type* left_type;
+    Type* right_type;
     Token* op;
 };
 
@@ -706,6 +713,7 @@ FunctionHeader* function_header_new(
     header->params = params;
     header->return_type = return_type;
     header->is_extern = is_extern;
+    header->llvmvalue = null;
     return header;
 }
 
@@ -737,6 +745,7 @@ Stmt* variable_stmt_new(
     stmt->variable.initializer_type = null;
     stmt->variable.initializer = initializer;
     stmt->variable.stack_offset = 0;
+    stmt->variable.llvmvalue = null;
     return stmt;
 }
 
@@ -749,6 +758,7 @@ Stmt* param_stmt_new(Token* identifier, Type* type, size_t idx) {
     stmt->param.type = type;
     stmt->param.idx = idx;
     stmt->param.stack_offset = 0;
+    stmt->param.llvmvalue = null;
     return stmt;
 }
 

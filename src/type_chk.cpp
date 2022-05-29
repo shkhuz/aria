@@ -556,7 +556,9 @@ Type* check_unop_expr(CheckContext* c, Expr* expr, Type* cast) {
                         assert(0); 
                     } break;
                 }
-                return ptr_type_placeholder_new(constant, child_type);
+                Type* ty = ptr_type_placeholder_new(constant, child_type);
+                expr->type = ty;
+                return ty;
             }
             else {
                 check_error(
@@ -637,9 +639,12 @@ Type* check_block_expr(CheckContext* c, Expr* expr, Type* cast) {
         check_stmt(c, stmt);
     }
     if (expr->block.value) {
-        return check_expr(c, expr->block.value, cast, true);
+        expr->type = check_expr(c, expr->block.value, cast, true);
     }
-    return builtin_type_placeholders.void_kind;
+    else {
+        expr->type = builtin_type_placeholders.void_kind;
+    }
+    return expr->type;
 }
 
 Type* check_if_branch(CheckContext* c, IfBranch* br, Type* cast) {
@@ -903,7 +908,9 @@ void check_while_stmt(CheckContext* c, Stmt* stmt) {
 
 void check_assign_stmt(CheckContext* c, Stmt* stmt) {
     Type* left_type = check_expr(c, stmt->assign.left, null, true);
+    stmt->assign.left_type = left_type;
     Type* right_type = check_expr(c, stmt->assign.right, null, true);
+    stmt->assign.right_type = right_type;
 
     if (left_type && is_deref_expr(stmt->assign.left)) {
         Type* lhs_deref_child_type = stmt->assign.left->unop.child_type;

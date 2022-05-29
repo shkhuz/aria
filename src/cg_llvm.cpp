@@ -1,5 +1,3 @@
-#include <llvm-c/Core.h>
-
 typedef struct {
     Srcfile* srcfile;
     std::string outpath;
@@ -33,10 +31,12 @@ LLVMTypeRef get_llvm_type(Type* type) {
                 case BUILTIN_TYPE_KIND_U16:
                 case BUILTIN_TYPE_KIND_U32:
                 case BUILTIN_TYPE_KIND_U64:
+                case BUILTIN_TYPE_KIND_USIZE:
                 case BUILTIN_TYPE_KIND_I8:
                 case BUILTIN_TYPE_KIND_I16:
                 case BUILTIN_TYPE_KIND_I32:
                 case BUILTIN_TYPE_KIND_I64:
+                case BUILTIN_TYPE_KIND_ISIZE:
                     return LLVMIntType(builtin_type_bytes(&type->builtin) << 3);
                 case BUILTIN_TYPE_KIND_BOOLEAN:
                     return LLVMInt1Type();
@@ -53,28 +53,83 @@ LLVMTypeRef get_llvm_type(Type* type) {
     return null;
 }
 
-void cg_function_stmt(CgContext* c, Stmt* stmt) {
-    std::vector<Stmt*>& params = stmt->function.header->params;
-    LLVMTypeRef return_type = get_llvm_type(stmt->function.header->return_type);
-    LLVMTypeRef* param_types = null;
-    size_t param_count = params.size();
-    if (param_count != 0) {
-        param_types = (LLVMTypeRef*)malloc(sizeof(LLVMTypeRef) * param_count);
-        for (size_t i = 0; i < param_count; i++) {
-            param_types[i] = get_llvm_type(params[i]->param.type);
-        }
-    }
-    LLVMTypeRef function_type = LLVMFunctionType(
-            return_type,
-            param_types,
-            param_count,
-            false);
-    LLVMValueRef function = LLVMAddFunction(
-            c->llvmmod, 
-            stmt->function.header->identifier->lexeme.c_str(),
-            function_type);
+void cg_stmt(CgContext* c, Stmt* stmt);
 
+LLVMValueRef cg_expr(CgContext* c, Expr* expr) {
+    switch (expr->kind) {
+        case EXPR_KIND_INTEGER: {
+            return LLVMConstIntOfStringAndSize(
+                    get_llvm_type(expr->type), 
+                    expr->integer.integer->lexeme.c_str(),
+                    expr->integer.integer->lexeme.size(),
+                    10);
+        } break;
+
+        case EXPR_KIND_BLOCK: {
+            for (Stmt* stmt: expr->block.stmts) {
+                cg_stmt(c, stmt);
+            } 
+            if (expr->block.value) {
+                return cg_expr(c, expr->block.value);
+            }
+            return null;
+        } break;
+
+        case EXPR_KIND_SYMBOL: {
+            switch (expr->symbol.ref->kind) {
+                case STMT_KIND_VARIABLE:
+                    return expr->symbol.ref->variable.llvmvalue;
+                case STMT_KIND_PARAM: 
+                    return expr->symbol.ref->param.llvmvalue;
+                default: assert(0);
+            }
+        } break;
+
+        case EXPR_KIND_UNOP: {
+            if (expr->unop.op->kind == TOKEN_KIND_STAR) {
+                LLVMValueRef child = cg_expr(c, expr->unop.child);
+                return LLVMBuildLoad2(
+                        c->llvmbuilder,
+                        // ptr type because alloca returns a ptr
+                        LLVMPointerType(get_llvm_type(expr->type), 0),
+                        child,
+                        "");
+            }
+            else assert(0);
+        } break;
+
+        case EXPR_KIND_FUNCTION_CALL: {
+            assert(expr->function_call.callee->kind == EXPR_KIND_SYMBOL);
+            assert(expr->function_call.callee->symbol.ref->kind == STMT_KIND_FUNCTION);
+            LLVMValueRef funcval = expr->function_call.callee->symbol.ref->function.header->llvmvalue;
+            LLVMValueRef* arg_values = null;
+            std::vector<Expr*>& args = expr->function_call.args;
+            size_t arg_count = args.size();
+            if (arg_count != 0) {
+                arg_values = (LLVMValueRef*)malloc(sizeof(LLVMValueRef) * arg_count);
+                for (size_t i = 0; i < arg_count; i++) {
+                    arg_values[i] = cg_expr(c, args[i]);
+                }
+            }
+            // TODO: change to LLVMBuildCall2
+            return LLVMBuildCall(
+                    c->llvmbuilder,
+                    funcval,
+                    arg_values,
+                    arg_count,
+                    "");
+
+        } break;
+    }
+    assert(0);
+    return null;
+}
+
+void cg_function_stmt(CgContext* c, Stmt* stmt) {
     if (!stmt->function.header->is_extern) {
+        LLVMValueRef function = stmt->function.header->llvmvalue;
+        std::vector<Stmt*>& params = stmt->function.header->params;
+        size_t param_count = params.size();
         LLVMBasicBlockRef entry = LLVMAppendBasicBlock(function, "entry");
         LLVMPositionBuilderAtEnd(c->llvmbuilder, entry);
 
@@ -89,7 +144,8 @@ void cg_function_stmt(CgContext* c, Stmt* stmt) {
                 LLVMSetValueName(
                         param_values[i], 
                         params[i]->param.identifier->lexeme.c_str());
-                param_allocs[i] = LLVMBuildAlloca(c->llvmbuilder, param_types[i], "");
+                param_allocs[i] = LLVMBuildAlloca(c->llvmbuilder, LLVMTypeOf(param_values[i]), "");
+                params[i]->param.llvmvalue = param_allocs[i];
             }
         }
 
@@ -101,6 +157,8 @@ void cg_function_stmt(CgContext* c, Stmt* stmt) {
                     c->llvmbuilder,
                     local_type,
                     local->variable.identifier->lexeme.c_str());
+            LLVMSetAlignment(local_val, type_bytes(local->variable.type));
+            local->variable.llvmvalue = local_val;
         }
         
         if (stmt->function.header->params.size() != 0) {
@@ -108,9 +166,29 @@ void cg_function_stmt(CgContext* c, Stmt* stmt) {
                 LLVMBuildStore(c->llvmbuilder, param_values[i], param_allocs[i]);
             }
         }
+
+        LLVMValueRef body_val = cg_expr(c, stmt->function.body);
+        if (body_val) LLVMBuildRet(c->llvmbuilder, body_val);
+        else LLVMBuildRetVoid(c->llvmbuilder);
     }
 
     /* LLVMDumpValue(function); */
+}
+
+void cg_assign_value(CgContext* c, Expr* right, LLVMValueRef left, size_t align_to) {
+    LLVMValueRef rightval = cg_expr(c, right);
+    LLVMValueRef res = LLVMBuildStore(c->llvmbuilder, rightval, left);
+    LLVMSetAlignment(res, align_to);
+}
+
+void cg_variable_stmt(CgContext* c, Stmt* stmt) {
+    if (stmt->variable.initializer) {
+        cg_assign_value(
+                c, 
+                stmt->variable.initializer,
+                stmt->variable.llvmvalue,
+                type_bytes(stmt->variable.type));
+    }
 }
 
 void cg_stmt(CgContext* c, Stmt* stmt) {
@@ -118,21 +196,56 @@ void cg_stmt(CgContext* c, Stmt* stmt) {
         case STMT_KIND_FUNCTION: {
             cg_function_stmt(c, stmt);
         } break;
+
+        case STMT_KIND_VARIABLE: {
+            cg_variable_stmt(c, stmt);
+        } break;
+
+        case STMT_KIND_ASSIGN: {
+            cg_assign_value(
+                    c,
+                    stmt->assign.right,
+                    cg_expr(c, stmt->assign.left),
+                    type_bytes(stmt->assign.left_type));
+        } break;
+
+        case STMT_KIND_EXPR: {
+            cg_expr(c, stmt->expr.child);
+        } break;
     }
 }
 
-LLVMValueRef cg_expr(CgContext* c, Expr* expr) {
-    switch (expr->kind) {
-        case EXPR_KIND_INTEGER: {
-            return LLVMConstIntOfStringAndSize(
-                    get_llvm_type(expr->type), 
-                    expr->integer.integer->lexeme.c_str(),
-                    expr->integer.integer->lexeme.size(),
-                    10);
+void cg_top_level(CgContext* c, Stmt* stmt) {
+    switch (stmt->kind) {
+        case STMT_KIND_FUNCTION: {
+            std::vector<Stmt*>& params = stmt->function.header->params;
+            LLVMTypeRef return_type = get_llvm_type(stmt->function.header->return_type);
+            LLVMTypeRef* param_types = null;
+            size_t param_count = params.size();
+            if (param_count != 0) {
+                param_types = (LLVMTypeRef*)malloc(sizeof(LLVMTypeRef) * param_count);
+                for (size_t i = 0; i < param_count; i++) {
+                    param_types[i] = get_llvm_type(params[i]->param.type);
+                }
+            }
+            LLVMTypeRef function_type = LLVMFunctionType(
+                    return_type,
+                    param_types,
+                    param_count,
+                    false);
+            LLVMValueRef function = LLVMAddFunction(
+                    c->llvmmod, 
+                    stmt->function.header->identifier->lexeme.c_str(),
+                    function_type);
+            stmt->function.header->llvmvalue = function;
         } break;
+
+        case STMT_KIND_VARIABLE: {
+            assert(0);
+        } break;
+
+        default: assert(0);
     }
-    assert(0);
-    return null;
 }
 
 void cg(CgContext* c, const std::string& outpath) {
@@ -142,7 +255,37 @@ void cg(CgContext* c, const std::string& outpath) {
     c->llvmmod = LLVMModuleCreateWithName(c->srcfile->handle->path.c_str());
 
     for (Stmt* stmt: c->srcfile->stmts) {
+        cg_top_level(c, stmt);
+    }
+    for (Stmt* stmt: c->srcfile->stmts) {
         cg_stmt(c, stmt);
     }
+    
+    /* char* errors = null; */
     LLVMDumpModule(c->llvmmod);
+    /* LLVMInitializeAllTargetInfos(); */
+    /* LLVMInitializeAllTargets(); */
+    /* LLVMInitializeAllTargetMCs(); */
+    /* LLVMInitializeAllAsmParsers(); */
+    /* LLVMInitializeAllAsmPrinters(); */
+
+    /* LLVMTargetRef target; */
+    /* LLVMGetTargetFromTriple(LLVMGetDefaultTargetTriple(), &target, &errors); */
+    /* printf("error: %s\n", errors); */
+    /* LLVMDisposeMessage(errors); */
+    /* printf("target: %s, [%s], %d, %d\n", LLVMGetTargetName(target), LLVMGetTargetDescription(target), LLVMTargetHasJIT(target), LLVMTargetHasTargetMachine(target)); */
+    /* printf("triple: %s\n", LLVMGetDefaultTargetTriple()); */
+    /* printf("features: %s\n", LLVMGetHostCPUFeatures()); */
+    /* LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, LLVMGetDefaultTargetTriple(), "generic", LLVMGetHostCPUFeatures(), LLVMCodeGenLevelDefault, LLVMRelocDefault, LLVMCodeModelDefault); */
+
+    /* LLVMSetTarget(c->llvmmod, LLVMGetDefaultTargetTriple()); */
+    /* LLVMTargetDataRef datalayout = LLVMCreateTargetDataLayout(machine); */
+    /* char* datalayout_str = LLVMCopyStringRepOfTargetData(datalayout); */
+    /* printf("datalayout: %s\n", datalayout_str); */
+    /* LLVMSetDataLayout(c->llvmmod, datalayout_str); */
+    /* LLVMDisposeMessage(datalayout_str); */
+
+    /* LLVMTargetMachineEmitToFile(machine, c->llvmmod, "result.o", LLVMObjectFile, &errors); */
+    /* printf("error: %s\n", errors); */
+    /* LLVMDisposeMessage(errors); */
 }
