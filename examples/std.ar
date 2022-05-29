@@ -1,13 +1,1 @@
-fn writeln_u64(n: u64) {
-    write_u64(n);
-    write_char(10);
-}
-
-fn writeln_i64(n: i64) {
-    write_i64(n);
-    write_char(10);
-}
-
-extern fn write_i64(n: i64);
-extern fn write_u64(n: u64);
 extern fn write_char(c: u8);

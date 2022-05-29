@@ -1,6 +1,12 @@
 #include <llvm-c/Core.h>
 #include <llvm-c/TargetMachine.h>
 
+#include <dirent.h>
+#include <errno.h>
+#include <ftw.h>
+#include <unistd.h>
+#include <stdio.h>
+
 #include "core.cpp"
 #include "bigint.cpp"
 #include "file_io.cpp"
@@ -64,6 +70,17 @@ static void tests() {
     assert(align_to_pow2(1, 16) == 16);
     assert(align_to_pow2(8, 8) == 8);
     assert(align_to_pow2(0, 4) == 0);
+}
+
+int unlink_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf) {
+    int rv = remove(fpath);
+    if (rv)
+        perror(fpath);
+    return rv;
+}
+
+int rmrf(char *path) {
+    return nftw(path, unlink_cb, 64, FTW_DEPTH | FTW_PHYS);
 }
 
 int main(int argc, char* argv[]) {
@@ -168,14 +185,28 @@ int main(int argc, char* argv[]) {
         if (c.error) type_chking_error = true;
     }
     if (type_chking_error) terminate_compilation();
+    
+    char tmpdir[] = "/tmp/ariac-XXXXXX";
+    mkdtemp(tmpdir);
 
     std::vector<CgContext> cg_ctxs;
     init_cg();
     for (Srcfile* srcfile: srcfiles) {
         CgContext c;
         c.srcfile = srcfile;
-        cg(&c, outpath);
+        c.tmpdir = fmt::format("{}/", tmpdir);;
+        cg(&c);
         cg_ctxs.push_back(c);
     }
     deinit_cg();
+
+    std::string linkcmd = fmt::format("ld -o {}", outpath);
+    for (CgContext& cg: cg_ctxs) {
+        linkcmd = fmt::format("{} {}", linkcmd, cg.objpath);
+    }
+    linkcmd = fmt::format("{} {}", linkcmd, "examples/std.asm.o");
+    std::cout << "cmd: " << linkcmd << std::endl;
+    system(linkcmd.c_str());
+
+    rmrf(tmpdir);
 }

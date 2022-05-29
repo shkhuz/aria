@@ -1,6 +1,7 @@
 typedef struct {
     Srcfile* srcfile;
-    std::string outpath;
+    std::string tmpdir;
+    std::string objpath;
     // TODO: pass this ctx to llvm functions
     LLVMContextRef llvmctx;
     LLVMBuilderRef llvmbuilder;
@@ -248,8 +249,26 @@ void cg_top_level(CgContext* c, Stmt* stmt) {
     }
 }
 
-void cg(CgContext* c, const std::string& outpath) {
-    c->outpath = outpath;
+// mandatory `/` after directory name
+void mkdir_p(const std::string& path) {
+    assert(path.size() != 0);
+    size_t start = 0;
+    while (path[start] == '/') start++;
+    start--;
+
+    size_t idx = start;
+    size_t pathlen = path.size();
+
+    while (idx != pathlen) {
+        if (path[idx] == '/') {
+            std::string subpath = path.substr(start, idx);
+            mkdir(subpath.c_str(), 0777);
+        }
+        idx++;
+    }
+}
+
+void cg(CgContext* c) {
     c->llvmctx = LLVMContextCreate();
     c->llvmbuilder = LLVMCreateBuilderInContext(c->llvmctx);
     c->llvmmod = LLVMModuleCreateWithName(c->srcfile->handle->path.c_str());
@@ -261,31 +280,39 @@ void cg(CgContext* c, const std::string& outpath) {
         cg_stmt(c, stmt);
     }
     
-    /* char* errors = null; */
+    char* errors = null;
     LLVMDumpModule(c->llvmmod);
-    /* LLVMInitializeAllTargetInfos(); */
-    /* LLVMInitializeAllTargets(); */
-    /* LLVMInitializeAllTargetMCs(); */
-    /* LLVMInitializeAllAsmParsers(); */
-    /* LLVMInitializeAllAsmPrinters(); */
+    LLVMInitializeAllTargetInfos();
+    LLVMInitializeAllTargets();
+    LLVMInitializeAllTargetMCs();
+    LLVMInitializeAllAsmParsers();
+    LLVMInitializeAllAsmPrinters();
 
-    /* LLVMTargetRef target; */
-    /* LLVMGetTargetFromTriple(LLVMGetDefaultTargetTriple(), &target, &errors); */
+    LLVMTargetRef target;
+    LLVMGetTargetFromTriple(LLVMGetDefaultTargetTriple(), &target, &errors);
     /* printf("error: %s\n", errors); */
-    /* LLVMDisposeMessage(errors); */
+    LLVMDisposeMessage(errors);
     /* printf("target: %s, [%s], %d, %d\n", LLVMGetTargetName(target), LLVMGetTargetDescription(target), LLVMTargetHasJIT(target), LLVMTargetHasTargetMachine(target)); */
     /* printf("triple: %s\n", LLVMGetDefaultTargetTriple()); */
     /* printf("features: %s\n", LLVMGetHostCPUFeatures()); */
-    /* LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, LLVMGetDefaultTargetTriple(), "generic", LLVMGetHostCPUFeatures(), LLVMCodeGenLevelDefault, LLVMRelocDefault, LLVMCodeModelDefault); */
+    LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, LLVMGetDefaultTargetTriple(), "generic", LLVMGetHostCPUFeatures(), LLVMCodeGenLevelDefault, LLVMRelocDefault, LLVMCodeModelDefault);
 
-    /* LLVMSetTarget(c->llvmmod, LLVMGetDefaultTargetTriple()); */
-    /* LLVMTargetDataRef datalayout = LLVMCreateTargetDataLayout(machine); */
-    /* char* datalayout_str = LLVMCopyStringRepOfTargetData(datalayout); */
+    LLVMSetTarget(c->llvmmod, LLVMGetDefaultTargetTriple());
+    LLVMTargetDataRef datalayout = LLVMCreateTargetDataLayout(machine);
+    char* datalayout_str = LLVMCopyStringRepOfTargetData(datalayout);
     /* printf("datalayout: %s\n", datalayout_str); */
-    /* LLVMSetDataLayout(c->llvmmod, datalayout_str); */
-    /* LLVMDisposeMessage(datalayout_str); */
+    LLVMSetDataLayout(c->llvmmod, datalayout_str);
+    LLVMDisposeMessage(datalayout_str);
 
-    /* LLVMTargetMachineEmitToFile(machine, c->llvmmod, "result.o", LLVMObjectFile, &errors); */
+    std::string objpath = fmt::format(
+            "{}{}.o", 
+            c->tmpdir, 
+            c->srcfile->handle->path, 
+            ".o");
+    c->objpath = objpath;
+    /* std::cout << "path: " << objpath << std::endl; */
+    mkdir_p(objpath);
+    LLVMTargetMachineEmitToFile(machine, c->llvmmod, (char*)objpath.c_str(), LLVMObjectFile, &errors);
     /* printf("error: %s\n", errors); */
-    /* LLVMDisposeMessage(errors); */
+    LLVMDisposeMessage(errors);
 }

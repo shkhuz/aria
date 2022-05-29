@@ -17,7 +17,7 @@ CXX := g++
 LD := g++
 
 run: $(EXE_FILE)
-	./$^ -o build/app $(AR_FILE) examples/std.ar 
+	./$^ -o build/app $(AR_FILE)
 	#./build/app
 
 $(EXE_FILE): $(OBJ_FILES)
