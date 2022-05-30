@@ -180,6 +180,7 @@ struct BinopExpr {
     Token* op;
     Type* left_type;
     Type* right_type;
+    bool folded;
 };
 
 struct UnopExpr {
@@ -848,6 +849,7 @@ Expr* binop_expr_new(Expr* left, Expr* right, Token* op) {
     expr->binop.op = op;
     expr->binop.left_type = null;
     expr->binop.right_type = null;
+    expr->binop.folded = false;
     return expr;
 }
 
@@ -935,30 +937,14 @@ template <> struct fmt::formatter<Token> {
     }
 };
 
-std::string g_fmt_type_highlight;
-std::string g_fmt_type_reset_highlight;
-
-void fill_fmt_type_color() {
-    g_fmt_type_highlight = g_fcyan_color;
-    g_fmt_type_reset_highlight = g_reset_color;
-}
-
-void unfill_fmt_type_color() {
-    g_fmt_type_highlight = "";
-    g_fmt_type_reset_highlight = "";
-}
-
 template <> struct fmt::formatter<Type> {
-    enum { regular, nocolor, llvm } mode = regular;
+    enum { regular, llvm } mode = regular;
     auto parse(format_parse_context &ctx) -> decltype(ctx.begin()) {
         auto it = ctx.begin(), end = ctx.end();
         if (it != end && *it == 'l') {
             mode = llvm;
             it++;
-        } else if (it != end && *it == 'n') {
-            mode = nocolor;
-            it++;
-        }
+        } 
         return it; 
     }
     
@@ -969,7 +955,6 @@ template <> struct fmt::formatter<Type> {
     // or check if `:` is missing from fmt.
     template <typename FormatContext>
     auto format(const Type& type, FormatContext& ctx) -> decltype(ctx.out()) {
-        if (mode == nocolor) unfill_fmt_type_color();
         decltype(ctx.out()) result = ctx.out();
         switch (type.kind) {
             case TYPE_KIND_BUILTIN: {
@@ -986,26 +971,25 @@ template <> struct fmt::formatter<Type> {
                 result = fmt::format_to(
                         ctx.out(), 
                         "{}{}{}",
-                        g_fmt_type_highlight,
+                        g_fcyan_color,
                         llvm_type,
-                        g_fmt_type_reset_highlight);
+                        g_reset_color);
             } break;
 
             case TYPE_KIND_PTR: {
                 result = fmt::format_to(
                         ctx.out(), 
                         "{}*{}{}{}",
-                        g_fmt_type_highlight,
+                        g_fcyan_color,
                         type.ptr.constant ? "const " : "",
                         *type.ptr.child,
-                        g_fmt_type_reset_highlight);
+                        g_reset_color);
             } break;
             
             default: {
                 assert(0);
             } break;
         }
-        if (mode == nocolor) fill_fmt_type_color();
         return result;
     }
 };
@@ -1026,6 +1010,5 @@ void init_types() {
     builtin_type_placeholders.void_ptr = ptr_type_placeholder_new(
             false, 
             builtin_type_placeholder_new(BUILTIN_TYPE_KIND_VOID));
-    fill_fmt_type_color();
 }
 

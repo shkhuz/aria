@@ -1,11 +1,14 @@
 #include <llvm-c/Core.h>
 #include <llvm-c/TargetMachine.h>
+#include <llvm-c/Analysis.h>
+#include <llvm-c/Transforms/Utils.h>
 
 #include <dirent.h>
 #include <errno.h>
 #include <ftw.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <sys/wait.h>
 
 #include "core.cpp"
 #include "bigint.cpp"
@@ -186,27 +189,54 @@ int main(int argc, char* argv[]) {
     }
     if (type_chking_error) terminate_compilation();
     
+    if (init_cg()) terminate_compilation();
+
+    std::vector<CgContext> cg_ctxs;
+    bool gen_error = false;
     char tmpdir[] = "/tmp/ariac-XXXXXX";
     mkdtemp(tmpdir);
 
-    std::vector<CgContext> cg_ctxs;
-    init_cg();
     for (Srcfile* srcfile: srcfiles) {
         CgContext c;
         c.srcfile = srcfile;
         c.tmpdir = fmt::format("{}/", tmpdir);;
         cg(&c);
         cg_ctxs.push_back(c);
+        if (c.error) gen_error = true;
     }
     deinit_cg();
 
-    std::string linkcmd = fmt::format("ld -o {}", outpath);
-    for (CgContext& cg: cg_ctxs) {
-        linkcmd = fmt::format("{} {}", linkcmd, cg.objpath);
+    if (gen_error) {
+        rmrf(tmpdir);
+        terminate_compilation();
     }
-    linkcmd = fmt::format("{} {}", linkcmd, "examples/std.asm.o");
-    std::cout << "cmd: " << linkcmd << std::endl;
-    system(linkcmd.c_str());
+
+    size_t ldoptscount = 5 + cg_ctxs.size();
+    char** ldopts = (char**)malloc(ldoptscount * sizeof(char*));
+    ldopts[0] = "ld";
+    ldopts[1] = "-o";
+    ldopts[2] = outpath;
+    for (size_t i = 0; i < cg_ctxs.size(); i++) {
+        ldopts[i+3] = (char*)cg_ctxs[i].objpath.c_str();
+    }
+    ldopts[cg_ctxs.size()+3] = "examples/std.asm.o";
+    ldopts[cg_ctxs.size()+4] = null;
+    
+    pid_t ldproc = fork();
+    if (ldproc == -1) {
+        root_error("cannot execute fork(): {}", strerror(errno));
+        rmrf(tmpdir);
+        terminate_compilation();
+    }
+    
+    if (ldproc) {
+        wait(null);
+    } else {
+        execvp("ld", ldopts);
+        root_error("cannot execute linker `ld`: No such file or directory");
+        rmrf(tmpdir);
+        terminate_compilation();
+    }
 
     rmrf(tmpdir);
 }

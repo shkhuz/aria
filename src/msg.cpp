@@ -225,6 +225,20 @@ void default_msg_from_tok(
 }
 
 template <typename... Args>
+void root_error(
+        const std::string& fmt,
+        Args... args) {
+    default_msg(
+            MSG_KIND_ROOT_ERROR,
+            null,
+            0,
+            0,
+            0,
+            fmt, 
+            args...);
+}
+
+template <typename... Args>
 void error(
         Token* token,
         const std::string& fmt,

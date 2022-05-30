@@ -40,6 +40,7 @@ typedef i64 i128 __attribute__((mode(TI)));
 #define ANSI_FBLUE    "\x1B[34m"
 #define ANSI_FMAGENTA "\x1B[1;35m"
 #define ANSI_FCYAN    "\x1B[1;36m"
+#define ANSI_FCYANN    "\x1B[0;36m"
 #define ANSI_RESET    "\x1B[0m"
 
 #define ANSI_FERROR_COLOR ANSI_FRED
@@ -85,6 +86,7 @@ char* g_note_color = ANSI_FNOTE_COLOR;
 char* g_bold_color = ANSI_FBOLD;
 char* g_reset_color = ANSI_RESET;
 char* g_fcyan_color = ANSI_FCYAN;
+char* g_fcyann_color = ANSI_FCYANN;
 
 void init_core() {
     if (!isatty(2)) {
@@ -94,6 +96,7 @@ void init_core() {
         g_bold_color = "";
         g_reset_color = "";
         g_fcyan_color = "";
+        g_fcyann_color = "";
     }
 }
 

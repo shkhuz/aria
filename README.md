@@ -30,6 +30,11 @@ cd aria/
 make
 ```
 
+### Dependencies
+
+- LLVM (any recent version)
+- `ld` linker
+
 For the time being, the Aria compiler only supports \*nix enviroments, because
 it makes it easy to extend the compiler without having to worry about other
 platforms. 
@@ -48,30 +53,9 @@ platforms.
 - [ ] Unions
 - [ ] Enums
 - [ ] Operators
-  - [ ] Binary
-    - [X] `+`
-    - [X] `-`
-    - [ ] `*`
-    - [ ] `/`
-    - [X] `==`
-    - [X] `!=`
-    - [X] `<`
-    - [X] `>`
-    - [X] `<=`
-    - [X] `>=`
-    - [ ] Logical `and`
-    - [ ] Logical `or`
-    - [ ] Bitwise `&`
-    - [ ] Bitwise `|`
-  - [X] Unary
-    - [X] `-`
-    - [X] `&`
-    - [X] `*`
-    - [X] `!`
-  - [X] Explicit cast `as`
-  - [X] Function call `()`
-  - [X] Assign `=`
-- [X] Implicit return
+  - [X] `+` `-` `==` `!=` `<` `>` `<=` `>=` `-` `&` `*`(deref) `!` `as` `()` `=`
+  - [ ] `*` `/` `and` `or` `&`(bitwise) `|`
+- [X] Block expressions / Implicit return expression
 - [ ] Module system
 - [ ] Global variables
 

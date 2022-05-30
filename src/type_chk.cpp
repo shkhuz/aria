@@ -135,6 +135,7 @@ bool check_apint_int_operands(
     else if (IS_IMPL_CAST_STATUS(IC_ERROR_HANDLED)) {
         return false;
     }
+    /* apint_type->builtin.kind = int_type->builtin.kind; */
     expr->type = int_type;
     return true;
 }
@@ -204,6 +205,7 @@ Type* check_integer_expr(
     type->builtin.apint = *expr->integer.val;
     
     if (!cast && !cast_to_definitive_type) {
+        expr->type = type;
         return type;
     }
     else {
@@ -374,6 +376,7 @@ Type* check_binop_expr(CheckContext* c, Expr* expr, Type* cast) {
                             BUILTIN_TYPE_KIND_APINT);
                     new_apint->builtin.apint = res;
                     expr->type = new_apint;
+                    expr->binop.folded = true;
                     return new_apint;
                 }
                 else {

@@ -2,11 +2,17 @@ typedef struct {
     Srcfile* srcfile;
     std::string tmpdir;
     std::string objpath;
+    bool error;
     // TODO: pass this ctx to llvm functions
     LLVMContextRef llvmctx;
     LLVMBuilderRef llvmbuilder;
     LLVMModuleRef llvmmod;
 } CgContext;
+
+static LLVMTargetRef g_llvmtarget;
+static LLVMTargetMachineRef g_llvmtargetmachine;
+static LLVMTargetDataRef g_llvmtargetdatalayout;
+static char* g_llvmtargetdatalayout_str;
 
 // To print a `Type` using fmt::print(), use `l` format specifier
 // to convert the type into llvm's notation.
@@ -15,14 +21,6 @@ typedef struct {
 
 // TODO: store LLVMValueRef from exprs, variables, ... into their corresponding
 // ds (for eg. LLVMValueRef variable -> VariableStmt
-
-void init_cg() {
-    unfill_fmt_type_color();
-}
-
-void deinit_cg() {
-    fill_fmt_type_color();
-}
 
 LLVMTypeRef get_llvm_type(Type* type) {
     switch (type->kind) {
@@ -56,6 +54,30 @@ LLVMTypeRef get_llvm_type(Type* type) {
 
 void cg_stmt(CgContext* c, Stmt* stmt);
 
+LLVMValueRef cg_symbol_expr(CgContext* c, Expr* expr, bool lvalue) {
+    assert(expr->kind == EXPR_KIND_SYMBOL);
+    LLVMTypeRef ty = null;
+    LLVMValueRef val = null;
+    switch (expr->symbol.ref->kind) {
+        case STMT_KIND_VARIABLE: {
+            ty = get_llvm_type(expr->symbol.ref->variable.type);
+            val = expr->symbol.ref->variable.llvmvalue;
+        } break;
+        
+        case STMT_KIND_PARAM: {
+            ty = get_llvm_type(expr->symbol.ref->param.type);
+            val = expr->symbol.ref->param.llvmvalue;
+        } break;
+       
+        default: assert(0);
+    }
+    
+    if (!lvalue) {
+        return LLVMBuildLoad2(c->llvmbuilder, ty, val, "");
+    }
+    return val;
+}
+
 LLVMValueRef cg_expr(CgContext* c, Expr* expr) {
     switch (expr->kind) {
         case EXPR_KIND_INTEGER: {
@@ -77,13 +99,7 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr) {
         } break;
 
         case EXPR_KIND_SYMBOL: {
-            switch (expr->symbol.ref->kind) {
-                case STMT_KIND_VARIABLE:
-                    return expr->symbol.ref->variable.llvmvalue;
-                case STMT_KIND_PARAM: 
-                    return expr->symbol.ref->param.llvmvalue;
-                default: assert(0);
-            }
+            return cg_symbol_expr(c, expr, false);
         } break;
 
         case EXPR_KIND_UNOP: {
@@ -91,8 +107,7 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr) {
                 LLVMValueRef child = cg_expr(c, expr->unop.child);
                 return LLVMBuildLoad2(
                         c->llvmbuilder,
-                        // ptr type because alloca returns a ptr
-                        LLVMPointerType(get_llvm_type(expr->type), 0),
+                        get_llvm_type(expr->type),
                         child,
                         "");
             }
@@ -120,6 +135,35 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr) {
                     arg_count,
                     "");
 
+        } break;
+
+        case EXPR_KIND_BINOP: {
+            if (expr->binop.folded) {
+                assert(expr->type->kind == TYPE_KIND_BUILTIN);
+                bigint* apint = &expr->type->builtin.apint;
+                union { u64 pos; i64 neg; } val;
+                val.pos = bigint_get_lsd(apint);
+                return LLVMConstInt(
+                        get_llvm_type(expr->type), 
+                        apint->sign == BIGINT_SIGN_NEG ? -val.neg : val.pos,
+                        true);
+            }
+            else {
+                LLVMValueRef left = cg_expr(c, expr->binop.left);
+                LLVMValueRef right = cg_expr(c, expr->binop.right);
+                if (token_is_cmp_op(expr->binop.op)) {
+                    assert(0);
+                }
+                else {
+                    LLVMOpcode op;
+                    switch (expr->binop.op->kind) {
+                        case TOKEN_KIND_PLUS: op = LLVMAdd; break;
+                        case TOKEN_KIND_MINUS: op = LLVMSub; break;
+                        default: assert(0);
+                    }
+                    return LLVMBuildBinOp(c->llvmbuilder, op, left, right, "");
+                }
+            }
         } break;
     }
     assert(0);
@@ -203,11 +247,23 @@ void cg_stmt(CgContext* c, Stmt* stmt) {
         } break;
 
         case STMT_KIND_ASSIGN: {
-            cg_assign_value(
-                    c,
-                    stmt->assign.right,
-                    cg_expr(c, stmt->assign.left),
-                    type_bytes(stmt->assign.left_type));
+            if (stmt->assign.left->kind == EXPR_KIND_UNOP &&
+                stmt->assign.left->unop.op->kind == TOKEN_KIND_STAR) {
+                cg_assign_value(
+                        c,
+                        stmt->assign.right,
+                        // No cg_symbol_expr here because it could be a chain
+                        // of pointer dereferences
+                        cg_expr(c, stmt->assign.left->unop.child),
+                        type_bytes(stmt->assign.left_type));
+            } 
+            else {
+                cg_assign_value(
+                        c,
+                        stmt->assign.right,
+                        cg_symbol_expr(c, stmt->assign.left, true),
+                        type_bytes(stmt->assign.left_type));
+            }
         } break;
 
         case STMT_KIND_EXPR: {
@@ -268,7 +324,56 @@ void mkdir_p(const std::string& path) {
     }
 }
 
+bool init_cg() {
+    LLVMInitializeAllTargetInfos();
+    LLVMInitializeAllTargets();
+    LLVMInitializeAllTargetMCs();
+    LLVMInitializeAllAsmParsers();
+    LLVMInitializeAllAsmPrinters();
+
+    char* errors = null;
+    bool error = LLVMGetTargetFromTriple(
+            LLVMGetDefaultTargetTriple(), 
+            &g_llvmtarget, 
+            &errors);
+    if (error) {
+        root_error(
+                "cannot get LLVM target from target triple: {} ({})", 
+                LLVMGetDefaultTargetTriple(),
+                errors);
+    }
+    LLVMDisposeMessage(errors);
+    errors = null;
+    if (error) return true;
+    
+    printf(
+            "target: %s, [%s], %d, %d\n", 
+            LLVMGetTargetName(g_llvmtarget), 
+            LLVMGetTargetDescription(g_llvmtarget), 
+            LLVMTargetHasJIT(g_llvmtarget), 
+            LLVMTargetHasTargetMachine(g_llvmtarget));
+    /* printf("triple: %s\n", LLVMGetDefaultTargetTriple()); */
+    /* printf("features: %s\n", LLVMGetHostCPUFeatures()); */
+    g_llvmtargetmachine = LLVMCreateTargetMachine(
+            g_llvmtarget, 
+            LLVMGetDefaultTargetTriple(), 
+            "generic", 
+            LLVMGetHostCPUFeatures(), 
+            LLVMCodeGenLevelDefault, 
+            LLVMRelocDefault, 
+            LLVMCodeModelDefault);
+    g_llvmtargetdatalayout = LLVMCreateTargetDataLayout(g_llvmtargetmachine);
+    g_llvmtargetdatalayout_str = LLVMCopyStringRepOfTargetData(g_llvmtargetdatalayout);
+    printf("datalayout: %s\n", g_llvmtargetdatalayout_str);
+    return false;
+}
+
+void deinit_cg() {
+    LLVMDisposeMessage(g_llvmtargetdatalayout_str);
+}
+
 void cg(CgContext* c) {
+    c->error = false;
     c->llvmctx = LLVMContextCreate();
     c->llvmbuilder = LLVMCreateBuilderInContext(c->llvmctx);
     c->llvmmod = LLVMModuleCreateWithName(c->srcfile->handle->path.c_str());
@@ -280,29 +385,32 @@ void cg(CgContext* c) {
         cg_stmt(c, stmt);
     }
     
+    bool error = false;
     char* errors = null;
-    LLVMDumpModule(c->llvmmod);
-    LLVMInitializeAllTargetInfos();
-    LLVMInitializeAllTargets();
-    LLVMInitializeAllTargetMCs();
-    LLVMInitializeAllAsmParsers();
-    LLVMInitializeAllAsmPrinters();
 
-    LLVMTargetRef target;
-    LLVMGetTargetFromTriple(LLVMGetDefaultTargetTriple(), &target, &errors);
-    /* printf("error: %s\n", errors); */
+    error = LLVMVerifyModule(c->llvmmod, LLVMReturnStatusAction, &errors);
+    if (error) {
+        root_error(
+                "[internal] module built by LLVM is invalid: \n{}{}{}"
+                "\n> Please file a bug at github.com/shkhuz/aria/issues", 
+                g_fcyann_color,
+                errors,
+                g_reset_color);
+    }
     LLVMDisposeMessage(errors);
-    /* printf("target: %s, [%s], %d, %d\n", LLVMGetTargetName(target), LLVMGetTargetDescription(target), LLVMTargetHasJIT(target), LLVMTargetHasTargetMachine(target)); */
-    /* printf("triple: %s\n", LLVMGetDefaultTargetTriple()); */
-    /* printf("features: %s\n", LLVMGetHostCPUFeatures()); */
-    LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, LLVMGetDefaultTargetTriple(), "generic", LLVMGetHostCPUFeatures(), LLVMCodeGenLevelDefault, LLVMRelocDefault, LLVMCodeModelDefault);
+    errors = null;
+    if (error) { 
+        c->error = true;
+        return;
+    }
 
+    LLVMPassManagerRef pm = LLVMCreatePassManager();
+    LLVMAddPromoteMemoryToRegisterPass(pm);
+    LLVMRunPassManager(pm, c->llvmmod);
+    LLVMDumpModule(c->llvmmod);
+   
     LLVMSetTarget(c->llvmmod, LLVMGetDefaultTargetTriple());
-    LLVMTargetDataRef datalayout = LLVMCreateTargetDataLayout(machine);
-    char* datalayout_str = LLVMCopyStringRepOfTargetData(datalayout);
-    /* printf("datalayout: %s\n", datalayout_str); */
-    LLVMSetDataLayout(c->llvmmod, datalayout_str);
-    LLVMDisposeMessage(datalayout_str);
+    LLVMSetDataLayout(c->llvmmod, g_llvmtargetdatalayout_str);
 
     std::string objpath = fmt::format(
             "{}{}.o", 
@@ -310,9 +418,25 @@ void cg(CgContext* c) {
             c->srcfile->handle->path, 
             ".o");
     c->objpath = objpath;
-    /* std::cout << "path: " << objpath << std::endl; */
+    // TODO: if LLVMTargetMachineEmitToFile() fails, do something 
+    // about the newly created directories
     mkdir_p(objpath);
-    LLVMTargetMachineEmitToFile(machine, c->llvmmod, (char*)objpath.c_str(), LLVMObjectFile, &errors);
-    /* printf("error: %s\n", errors); */
+
+    error = LLVMTargetMachineEmitToFile(
+            g_llvmtargetmachine, 
+            c->llvmmod, 
+            (char*)objpath.c_str(),
+            LLVMObjectFile, 
+            &errors);
+    if (error) {
+        root_error("cannot output object file {}: {}", objpath, errors);
+    }
     LLVMDisposeMessage(errors);
+    errors = null;
+    if (error) {
+        c->error = true;
+        return;
+    }
+    
+    return;
 }
