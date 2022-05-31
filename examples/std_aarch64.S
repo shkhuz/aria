@@ -3,3 +3,8 @@
 
 _start:
     bl main
+
+    /* exit syscall */
+    mov x8, #93
+    svc #0
+
