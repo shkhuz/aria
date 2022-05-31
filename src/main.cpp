@@ -193,7 +193,11 @@ int main(int argc, char* argv[]) {
 
     std::vector<CgContext> cg_ctxs;
     bool gen_error = false;
+#if defined (__TERMUX__)
+    char tmpdir[] = "/data/data/com.termux/files/usr/tmp/ariac-XXXXXX";
+#else
     char tmpdir[] = "/tmp/ariac-XXXXXX";
+#endif
     mkdtemp(tmpdir);
 
     for (Srcfile* srcfile: srcfiles) {
@@ -219,7 +223,11 @@ int main(int argc, char* argv[]) {
     for (size_t i = 0; i < cg_ctxs.size(); i++) {
         ldopts[i+3] = (char*)cg_ctxs[i].objpath.c_str();
     }
-    ldopts[cg_ctxs.size()+3] = "examples/std.asm.o";
+#if defined (__TERMUX__)
+    ldopts[cg_ctxs.size()+3] = "examples/std_aarch64.S.o";
+#else
+    ldopts[cg_ctxs.size()+3] = "examples/std_x86-64.asm.o";
+#endif
     ldopts[cg_ctxs.size()+4] = null;
     
     pid_t ldproc = fork();
