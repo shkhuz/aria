@@ -246,8 +246,8 @@ Type* check_constant_expr(CheckContext* c, Expr* expr, Type* cast) {
 Type* check_symbol_expr(CheckContext* c, Expr* expr, Type* cast) {
     assert(expr->symbol.ref);
     if (expr->symbol.ref->kind != STMT_KIND_FUNCTION) {
-        expr->type = cast;
         Type* type = stmt_get_type(expr->symbol.ref);
+        expr->type = type;
         return type;
     }
     else {
@@ -513,6 +513,7 @@ Type* check_unop_expr(CheckContext* c, Expr* expr, Type* cast) {
                 if (cast) {
                     CHECK_IMPL_CAST(new_apint, cast);
                     if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
+                        // TODO: i forgot: why assert(0) here?
                         assert(0);
                         return null;
                     }
@@ -520,6 +521,7 @@ Type* check_unop_expr(CheckContext* c, Expr* expr, Type* cast) {
                         return null;
                     }
                 }
+                expr->unop.folded = true;
                 return new_apint;
             }
             else {

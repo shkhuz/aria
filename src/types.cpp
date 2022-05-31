@@ -187,6 +187,7 @@ struct UnopExpr {
     Expr* child;
     Token* op;
     Type* child_type;
+    bool folded;
 };
 
 struct CastExpr {
@@ -862,6 +863,7 @@ Expr* unop_expr_new(Expr* child, Token* op) {
     expr->unop.child = child;
     expr->unop.op = op;
     expr->unop.child_type = null;
+    expr->unop.folded = false;
     return expr;
 }
 
@@ -938,11 +940,15 @@ template <> struct fmt::formatter<Token> {
 };
 
 template <> struct fmt::formatter<Type> {
-    enum { regular, llvm } mode = regular;
+    enum { regular, llvm, nocolor } mode = regular;
     auto parse(format_parse_context &ctx) -> decltype(ctx.begin()) {
         auto it = ctx.begin(), end = ctx.end();
         if (it != end && *it == 'l') {
             mode = llvm;
+            it++;
+        } 
+        else if (it != end && *it == 'n') {
+            mode = nocolor;
             it++;
         } 
         return it; 
@@ -956,6 +962,11 @@ template <> struct fmt::formatter<Type> {
     template <typename FormatContext>
     auto format(const Type& type, FormatContext& ctx) -> decltype(ctx.out()) {
         decltype(ctx.out()) result = ctx.out();
+        if (mode == nocolor) {
+            g_fcyan_color = "";
+            g_reset_color = "";
+        }
+
         switch (type.kind) {
             case TYPE_KIND_BUILTIN: {
                 std::string llvm_type;
@@ -989,6 +1000,11 @@ template <> struct fmt::formatter<Type> {
             default: {
                 assert(0);
             } break;
+        }
+
+        if (mode == nocolor) {
+            g_fcyan_color = ANSI_FCYAN;
+            g_reset_color = ANSI_RESET;
         }
         return result;
     }

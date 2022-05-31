@@ -1,18 +1,23 @@
-fn main(argc: i32, argv: **i8) i32 {
+fn main(argc: i32, argv: **i8) i64 {
     //let i: *i32;
     //let j = 23;
     //*i = 2;
     //wow();
     //j - 2
     //*i
-    let i = {
-        let j = wow();
-        j+1
-    };
-    i // -1
+    //let i = {
+    //    let j = wow();
+    //    j+1
+    //};
+    //i
+
+    let a: i8 = 1;
+    let b = --3;
+    let c = a + b;
+    c
 }
 
-fn wow() i32 {
-    2 - 4
-}
+//fn wow() i32 {
+//    2 - 4
+//}
 
