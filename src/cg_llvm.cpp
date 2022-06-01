@@ -122,6 +122,9 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
                     result = LLVMBuildNeg(c->llvmbuilder, child, "");
                 }
             }
+            else if (expr->unop.op->kind == TOKEN_KIND_AMP) {
+                result = cg_expr(c, expr->unop.child, null, true);
+            }
             else assert(0);
         } break;
 
