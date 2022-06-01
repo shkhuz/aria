@@ -83,8 +83,18 @@ int unlink_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW
     return rv;
 }
 
-int rmrf(char *path) {
+inline int rmrf(char *path) {
     return nftw(path, unlink_cb, 64, FTW_DEPTH | FTW_PHYS);
+}
+
+inline double timediff(timespec tend, timespec tstart) {
+   return 
+        ((double)tend.tv_sec + 1.0e-9*tend.tv_nsec) - 
+        ((double)tstart.tv_sec + 1.0e-9*tstart.tv_nsec);
+}
+
+inline void inittimer(timespec* timer) {
+    clock_gettime(CLOCK_MONOTONIC_RAW, timer);
 }
 
 int main(int argc, char* argv[]) {
@@ -93,7 +103,10 @@ int main(int argc, char* argv[]) {
     init_types();
     init_lex();
     tests();
+
+    timespec tstart, tend;
     
+    inittimer(&tstart);
     char* outpath = "a.out";
     option options[] = {
         { "output", required_argument, 0, 'o' },
@@ -150,6 +163,7 @@ int main(int argc, char* argv[]) {
     }
     if (read_error) terminate_compilation();
 
+    size_t total_lines_parsed = 0;
     bool parsing_error = false;
     for (Srcfile* srcfile: srcfiles) {
         LexContext l;
@@ -159,6 +173,7 @@ int main(int argc, char* argv[]) {
             parsing_error = true;
             continue;
         }
+        total_lines_parsed += l.lines;
         /* else { */
         /*     for (Token* token : srcfiles[i]->tokens) { */
         /*         fmt::print("token: {}\n", *token); */
@@ -171,7 +186,8 @@ int main(int argc, char* argv[]) {
         if (p.error) parsing_error = true;
     }
     if (parsing_error) terminate_compilation();
-    
+    fmt::print("Total lines parsed: {}\n", total_lines_parsed);
+
     bool resolving_error = false;
     for (Srcfile* srcfile: srcfiles) {
         ResolveContext r;
@@ -190,6 +206,10 @@ int main(int argc, char* argv[]) {
     }
     if (type_chking_error) terminate_compilation();
     
+    inittimer(&tend);
+    printf("Front-end time-taken: %.5fs\n", timediff(tend, tstart));
+    
+    inittimer(&tstart);
     if (init_cg()) terminate_compilation();
 
     std::vector<CgContext> cg_ctxs;
@@ -215,7 +235,10 @@ int main(int argc, char* argv[]) {
         rmrf(tmpdir);
         terminate_compilation();
     }
+    inittimer(&tend);
+    printf("Back-end LLVM time-taken: %.5fs\n", timediff(tend, tstart));
 
+    inittimer(&tstart);
     size_t ldoptscount = 5 + cg_ctxs.size();
     char** ldopts = (char**)malloc(ldoptscount * sizeof(char*));
     ldopts[0] = "ld";
@@ -267,6 +290,7 @@ int main(int argc, char* argv[]) {
         rmrf(tmpdir);
         terminate_compilation();
     }
-
     rmrf(tmpdir);
+    inittimer(&tend);
+    printf("Back-end linker time-taken: %.5fs\n", timediff(tend, tstart));
 }

@@ -2,6 +2,7 @@ typedef struct {
     Srcfile* srcfile;
     char* start, *current, *last_newline;
     size_t line;
+    size_t lines;
     bool error;
 } LexContext;
 
@@ -177,6 +178,7 @@ void lex(LexContext* l) {
             } break;
 
             case '\0': {
+                l->lines = l->line-1;
                 lex_push_tok_adv(l, TOKEN_KIND_EOF);
             } return;
 
