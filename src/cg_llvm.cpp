@@ -200,14 +200,14 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target) {
         type_is_integer(expr->type)) {
         if (type_bytes(target) > type_bytes(expr->type)) {
             if (builtin_type_is_signed(target->builtin.kind)) {
-                result = LLVMBuildZExt(
+                result = LLVMBuildSExt(
                         c->llvmbuilder, 
                         result, 
                         get_llvm_type(target),
                         "");
             }
             else {
-                result = LLVMBuildSExt(
+                result = LLVMBuildZExt(
                         c->llvmbuilder, 
                         result, 
                         get_llvm_type(target),
@@ -393,14 +393,15 @@ bool init_cg() {
     LLVMDisposeMessage(errors);
     errors = null;
     if (error) return true;
-    
+
     printf(
+            "-------- MACHINE INFO --------\n"
             "target: %s, [%s], %d, %d\n", 
             LLVMGetTargetName(g_llvmtarget), 
             LLVMGetTargetDescription(g_llvmtarget), 
             LLVMTargetHasJIT(g_llvmtarget), 
             LLVMTargetHasTargetMachine(g_llvmtarget));
-    /* printf("triple: %s\n", LLVMGetDefaultTargetTriple()); */
+    printf("host triple: %s\n", LLVMGetDefaultTargetTriple());
     /* printf("features: %s\n", LLVMGetHostCPUFeatures()); */
     g_llvmtargetmachine = LLVMCreateTargetMachine(
             g_llvmtarget, 
@@ -456,7 +457,7 @@ void cg(CgContext* c) {
     LLVMPassManagerRef pm = LLVMCreatePassManager();
     LLVMAddPromoteMemoryToRegisterPass(pm);
     LLVMRunPassManager(pm, c->llvmmod);
-    fmt::print(stderr, "\n\n------- AFTER PASSES --------\n");
+    fmt::print(stderr, "\n\n-------- AFTER PASSES --------\n");
     LLVMDumpModule(c->llvmmod);
    
     LLVMSetTarget(c->llvmmod, LLVMGetDefaultTargetTriple());
