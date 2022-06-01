@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 #include "core.cpp"
 #include "bigint.cpp"
@@ -229,7 +230,14 @@ int main(int argc, char* argv[]) {
     ldopts[cg_ctxs.size()+3] = "examples/std_x86-64.asm.o";
 #endif
     ldopts[cg_ctxs.size()+4] = null;
-    
+   
+    int errdesc[2];
+    if (pipe2(errdesc, O_CLOEXEC) == -1) {
+        root_error("cannot execute pipe2(): {}", strerror(errno));
+        rmrf(tmpdir);
+        terminate_compilation();
+    }
+
     pid_t ldproc = fork();
     if (ldproc == -1) {
         root_error("cannot execute fork(): {}", strerror(errno));
@@ -238,9 +246,23 @@ int main(int argc, char* argv[]) {
     }
     
     if (ldproc) {
-        wait(null);
+        close(errdesc[1]);
+        char buf[2];
+        int ldstatus;
+        wait(&ldstatus);
+        
+        int bytesread = read(errdesc[0], buf, sizeof(char));
+        if (bytesread == 0 && WEXITSTATUS(ldstatus) != 0) {
+            root_error("aborting due to previous linker error");
+            rmrf(tmpdir);
+            terminate_compilation();
+        }
     } else {
-        execvp("ld", ldopts);
+        if (execvp("ld", ldopts) == -1) {
+            close(errdesc[0]);
+            write(errdesc[1], "F", sizeof(char));
+            close(errdesc[1]);
+        }
         root_error("cannot execute linker `ld`: No such file or directory");
         rmrf(tmpdir);
         terminate_compilation();

@@ -1,4 +1,4 @@
-fn hey() {}
+fn main() {}
 fn cool() {}
 
 extern fn gogogo(i: i8, u: u64);
