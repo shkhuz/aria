@@ -712,7 +712,7 @@ FunctionHeader* function_header_new(
         bool is_extern) {
     ALLOC_WITH_TYPE(header, FunctionHeader);
     header->identifier = identifier;
-    header->params = params;
+    header->params = std::move(params);
     header->return_type = return_type;
     header->is_extern = is_extern;
     header->llvmvalue = null;
@@ -834,7 +834,7 @@ Expr* function_call_expr_new(Expr* callee, std::vector<Expr*> args, Token* rpare
     expr->type = null;
     expr->parent_func = null;
     expr->function_call.callee = callee;
-    expr->function_call.args = args;
+    expr->function_call.args = std::move(args);
     expr->function_call.rparen = rparen;
     return expr;
 }
@@ -890,7 +890,7 @@ Expr* block_expr_new(
     expr->main_token = lbrace;
     expr->type = null;
     expr->parent_func = null;
-    expr->block.stmts = stmts;
+    expr->block.stmts = std::move(stmts);
     expr->block.value = value;
     expr->block.rbrace = rbrace;
     return expr;
@@ -915,7 +915,7 @@ Expr* if_expr_new(
     expr->type = null;
     expr->parent_func = null;
     expr->iff.ifbr = ifbr;
-    expr->iff.elseifbr = elseifbr;
+    expr->iff.elseifbr = std::move(elseifbr);
     expr->iff.elsebr = elsebr;
     return expr;
 }

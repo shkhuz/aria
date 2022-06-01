@@ -40,7 +40,7 @@ ok_count=0
 fail_count=0
 
 compile_file_no_verbose() {
-    build/ariac $1 2>/dev/null >/dev/null
+    build/ariac $1 std/std.ar 2>/dev/null >/dev/null
 }
 
 readonly VALID_VAL=0
@@ -60,7 +60,7 @@ build_tests_in_dir() {
         else 
             if [[ $verbose = "" ]] || [[ $verbose = $prog ]]; then
                 echo ""
-                build/ariac $prog >/dev/null
+                build/ariac $prog std/std.ar >/dev/null
             else 
                 compile_file_no_verbose $prog
             fi

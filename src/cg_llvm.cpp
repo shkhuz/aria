@@ -225,7 +225,7 @@ void cg_function_stmt(CgContext* c, Stmt* stmt) {
         LLVMValueRef* param_allocs = null;
         LLVMValueRef* param_values = null;
         
-        if (stmt->function.header->params.size() != 0) {
+        if (params.size() != 0) {
             param_allocs = (LLVMValueRef*)malloc(sizeof(LLVMValueRef) * param_count);
             param_values = (LLVMValueRef*)malloc(sizeof(LLVMValueRef) * param_count);
             LLVMGetParams(function, param_values);
@@ -250,7 +250,7 @@ void cg_function_stmt(CgContext* c, Stmt* stmt) {
             local->variable.llvmvalue = local_val;
         }
         
-        if (stmt->function.header->params.size() != 0) {
+        if (params.size() != 0) {
             for (size_t i = 0; i < param_count; i++) { 
                 LLVMBuildStore(c->llvmbuilder, param_values[i], param_allocs[i]);
             }

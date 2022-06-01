@@ -259,12 +259,12 @@ Type* check_symbol_expr(CheckContext* c, Expr* expr, Type* cast) {
 }
 
 Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
-    std::vector<Expr*>* args = &expr->function_call.args;
-    size_t arg_len = args->size();
+    std::vector<Expr*>& args = expr->function_call.args;
+    size_t arg_len = args.size();
     assert(expr->function_call.callee->symbol.ref->kind == STMT_KIND_FUNCTION);
 
-    std::vector<Stmt*>* params = &expr->function_call.callee->symbol.ref->function.header->params;
-    size_t param_len = params->size();
+    std::vector<Stmt*>& params = expr->function_call.callee->symbol.ref->function.header->params;
+    size_t param_len = params.size();
     Type* callee_return_type = expr->function_call.callee->symbol.ref->function.header->return_type;
     expr->type = cast;
 
@@ -274,7 +274,7 @@ Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
                     "expected {} additional argument(s) of type ", 
                     param_len - arg_len);
             for (size_t i = arg_len; i < param_len; i++) {
-                fmt = fmt + fmt::format("`{}`", *(*params)[i]->param.type);
+                fmt = fmt + fmt::format("`{}`", *params[i]->param.type);
                 if (i+1 < param_len) {
                     fmt = fmt + ", ";
                 }
@@ -284,26 +284,26 @@ Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
                     expr->function_call.rparen,
                     fmt);
             note(
-                    (*params)[arg_len]->param.identifier,
+                    params[arg_len]->param.identifier,
                     "parameter(s) declared here");
         }
         else {
             check_error(
-                    (*args)[param_len]->main_token,
+                    args[param_len]->main_token,
                     "extra argument(s) supplied");
         }
         return callee_return_type;
     }
 
-    for (size_t i = 0; i < args->size(); i++) {
-        Type* param_type = (*params)[i]->param.type;
-        Type* arg_type = check_expr(c, (*args)[i], param_type, true);
+    for (size_t i = 0; i < args.size(); i++) {
+        Type* param_type = params[i]->param.type;
+        Type* arg_type = check_expr(c, args[i], param_type, true);
         /* args[i]->type = arg_type; */
         if (arg_type && param_type) {
             CHECK_IMPL_CAST(arg_type, param_type);
             if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
                 check_error(
-                        (*args)[i]->main_token,
+                        args[i]->main_token,
                         "argument type `{}` cannot be converted to `{}`",
                         *arg_type,
                         *param_type);

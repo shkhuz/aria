@@ -223,7 +223,7 @@ Expr* parse_binop_arith_term_expr(ParseContext* p) {
     return left;
 }
 
-Expr* parse_comparision_expr(ParseContext* p) {
+Expr* parse_comparison_expr(ParseContext* p) {
     Expr* left = parse_binop_arith_term_expr(p);
     while (parse_match(p, TOKEN_KIND_DOUBLE_EQUAL) ||
            parse_match(p, TOKEN_KIND_BANG_EQUAL) ||
@@ -239,7 +239,7 @@ Expr* parse_comparision_expr(ParseContext* p) {
 }
 
 Expr* parse_expr(ParseContext* p) {
-    return parse_comparision_expr(p);
+    return parse_comparison_expr(p);
 }
 
 Expr* parse_block_expr(ParseContext* p, Token* lbrace, bool value_req) {
@@ -262,7 +262,7 @@ Expr* parse_block_expr(ParseContext* p, Token* lbrace, bool value_req) {
     }
     Token* rbrace = parse_previous(p);
     return block_expr_new(
-            stmts, 
+            std::move(stmts), 
             value, 
             lbrace, 
             rbrace);
@@ -306,7 +306,7 @@ Expr* parse_if_expr(ParseContext* p, Token* if_keyword) {
     return if_expr_new(
             if_keyword,
             ifbr,
-            elseifbr,
+            std::move(elseifbr),
             elsebr);
 }
 
@@ -324,7 +324,7 @@ Expr* parse_function_call_expr(
             parse_expect_comma(p);
         }
     }
-    return function_call_expr_new(callee, args, parse_previous(p));
+    return function_call_expr_new(callee, std::move(args), parse_previous(p));
 }
 
 Expr* parse_symbol_expr(ParseContext* p, Token* identifier) {
@@ -401,7 +401,7 @@ FunctionHeader* parse_function_header(ParseContext* p, bool is_extern) {
 
     return function_header_new(
             identifier,
-            params,
+            std::move(params),
             return_type,
             is_extern);
 }
