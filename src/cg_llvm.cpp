@@ -54,31 +54,7 @@ LLVMTypeRef get_llvm_type(Type* type) {
 
 void cg_stmt(CgContext* c, Stmt* stmt);
 
-LLVMValueRef cg_symbol_expr(CgContext* c, Expr* expr, bool lvalue) {
-    assert(expr->kind == EXPR_KIND_SYMBOL);
-    LLVMTypeRef ty = null;
-    LLVMValueRef val = null;
-    switch (expr->symbol.ref->kind) {
-        case STMT_KIND_VARIABLE: {
-            ty = get_llvm_type(expr->symbol.ref->variable.type);
-            val = expr->symbol.ref->variable.llvmvalue;
-        } break;
-        
-        case STMT_KIND_PARAM: {
-            ty = get_llvm_type(expr->symbol.ref->param.type);
-            val = expr->symbol.ref->param.llvmvalue;
-        } break;
-       
-        default: assert(0);
-    }
-    
-    if (!lvalue) {
-        return LLVMBuildLoad2(c->llvmbuilder, ty, val, "");
-    }
-    return val;
-}
-
-LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target) {
+LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
     LLVMValueRef result = null;
     switch (expr->kind) {
         case EXPR_KIND_INTEGER: {
@@ -94,18 +70,35 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target) {
                 cg_stmt(c, stmt);
             } 
             if (expr->block.value) {
-                result = cg_expr(c, expr->block.value, target);
+                result = cg_expr(c, expr->block.value, target, false);
             }
             else result = null;
         } break;
 
         case EXPR_KIND_SYMBOL: {
-            result = cg_symbol_expr(c, expr, false);
+            LLVMTypeRef ty = null;
+            switch (expr->symbol.ref->kind) {
+                case STMT_KIND_VARIABLE: {
+                    ty = get_llvm_type(expr->symbol.ref->variable.type);
+                    result = expr->symbol.ref->variable.llvmvalue;
+                } break;
+                
+                case STMT_KIND_PARAM: {
+                    ty = get_llvm_type(expr->symbol.ref->param.type);
+                    result = expr->symbol.ref->param.llvmvalue;
+                } break;
+               
+                default: assert(0);
+            }
+            
+            if (!lvalue) {
+                result = LLVMBuildLoad2(c->llvmbuilder, ty, result, "");
+            }
         } break;
 
         case EXPR_KIND_UNOP: {
             if (expr->unop.op->kind == TOKEN_KIND_STAR) {
-                LLVMValueRef child = cg_expr(c, expr->unop.child, null);
+                LLVMValueRef child = cg_expr(c, expr->unop.child, null, false);
                 result = LLVMBuildLoad2(
                         c->llvmbuilder,
                         get_llvm_type(expr->type),
@@ -125,7 +118,7 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target) {
                             true);
                 }
                 else {
-                    LLVMValueRef child = cg_expr(c, expr->unop.child, null);
+                    LLVMValueRef child = cg_expr(c, expr->unop.child, null, false);
                     result = LLVMBuildNeg(c->llvmbuilder, child, "");
                 }
             }
@@ -142,7 +135,7 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target) {
             if (arg_count != 0) {
                 arg_values = (LLVMValueRef*)malloc(sizeof(LLVMValueRef) * arg_count);
                 for (size_t i = 0; i < arg_count; i++) {
-                    arg_values[i] = cg_expr(c, args[i], expr->function_call.callee->symbol.ref->function.header->params[i]->param.type);
+                    arg_values[i] = cg_expr(c, args[i], expr->function_call.callee->symbol.ref->function.header->params[i]->param.type, false);
                 }
             }
             // TODO: change to LLVMBuildCall2
@@ -175,8 +168,8 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target) {
                 else {
                     left_target_ty = expr->binop.right_type;
                 }
-                LLVMValueRef left = cg_expr(c, expr->binop.left, left_target_ty);
-                LLVMValueRef right = cg_expr(c, expr->binop.right, right_target_ty);
+                LLVMValueRef left = cg_expr(c, expr->binop.left, left_target_ty, false);
+                LLVMValueRef right = cg_expr(c, expr->binop.right, right_target_ty, false);
                 if (token_is_cmp_op(expr->binop.op)) {
                     assert(0);
                 }
@@ -260,7 +253,7 @@ void cg_function_stmt(CgContext* c, Stmt* stmt) {
             }
         }
 
-        LLVMValueRef body_val = cg_expr(c, stmt->function.body, stmt->function.header->return_type);
+        LLVMValueRef body_val = cg_expr(c, stmt->function.body, stmt->function.header->return_type, false);
         if (body_val) LLVMBuildRet(c->llvmbuilder, body_val);
         else LLVMBuildRetVoid(c->llvmbuilder);
     }
@@ -268,19 +261,27 @@ void cg_function_stmt(CgContext* c, Stmt* stmt) {
     /* LLVMDumpValue(function); */
 }
 
-void cg_assign_value(CgContext* c, Expr* right, LLVMValueRef left, size_t align_to) {
-    LLVMValueRef rightval = cg_expr(c, right, null);
-    LLVMValueRef res = LLVMBuildStore(c->llvmbuilder, rightval, left);
+void cg_assign_value(CgContext* c, Type* left_ty, Type* right_ty, Expr* left, Expr* right, bool left_lvalue, size_t align_to) {
+    // TODO: same code in BINOP: refactor please
+    Type* left_target_ty = null;
+    Type* right_target_ty = null;
+    if (type_bytes(left_ty) > type_bytes(right_ty)) {
+        right_target_ty = left_ty;
+    }
+    else {
+        left_target_ty = right_ty;
+    }
+    LLVMValueRef leftval = cg_expr(c, left, left_target_ty, left_lvalue);
+    LLVMValueRef rightval = cg_expr(c, right, right_target_ty, false);
+    LLVMValueRef res = LLVMBuildStore(c->llvmbuilder, rightval, leftval);
     LLVMSetAlignment(res, align_to);
 }
 
 void cg_variable_stmt(CgContext* c, Stmt* stmt) {
     if (stmt->variable.initializer) {
-        cg_assign_value(
-                c, 
-                stmt->variable.initializer,
-                stmt->variable.llvmvalue,
-                type_bytes(stmt->variable.type));
+        LLVMValueRef rightval = cg_expr(c, stmt->variable.initializer, stmt->variable.type, false);
+        LLVMValueRef res = LLVMBuildStore(c->llvmbuilder, rightval, stmt->variable.llvmvalue);
+        LLVMSetAlignment(res, type_bytes(stmt->variable.type));
     }
 }
 
@@ -299,23 +300,27 @@ void cg_stmt(CgContext* c, Stmt* stmt) {
                 stmt->assign.left->unop.op->kind == TOKEN_KIND_STAR) {
                 cg_assign_value(
                         c,
+                        stmt->assign.left_type,
+                        stmt->assign.right_type,
+                        stmt->assign.left->unop.child,
                         stmt->assign.right,
-                        // No cg_symbol_expr here because it could be a chain
-                        // of pointer dereferences
-                        cg_expr(c, stmt->assign.left->unop.child, null),
+                        false,
                         type_bytes(stmt->assign.left_type));
             } 
             else {
                 cg_assign_value(
                         c,
+                        stmt->assign.left_type,
+                        stmt->assign.right_type, 
+                        stmt->assign.left,
                         stmt->assign.right,
-                        cg_symbol_expr(c, stmt->assign.left, true),
+                        true,
                         type_bytes(stmt->assign.left_type));
             }
         } break;
 
         case STMT_KIND_EXPR: {
-            cg_expr(c, stmt->expr.child, builtin_type_placeholders.void_kind);
+            cg_expr(c, stmt->expr.child, builtin_type_placeholders.void_kind, false);
         } break;
     }
 }
@@ -441,7 +446,7 @@ void cg(CgContext* c) {
     error = LLVMVerifyModule(c->llvmmod, LLVMReturnStatusAction, &errors);
     if (error) {
         root_error(
-                "[internal] module built by LLVM is invalid: \n{}{}{}"
+                "[internal] IR generated by the compiler is invalid: \n{}{}{}"
                 "\n> Please file a bug at github.com/shkhuz/aria/issues", 
                 g_fcyann_color,
                 errors,
@@ -457,7 +462,7 @@ void cg(CgContext* c) {
     LLVMPassManagerRef pm = LLVMCreatePassManager();
     LLVMAddPromoteMemoryToRegisterPass(pm);
     LLVMRunPassManager(pm, c->llvmmod);
-    fmt::print(stderr, "\n\n-------- AFTER PASSES --------\n");
+    fmt::print(stderr, "\n-------- AFTER PASSES --------\n");
     LLVMDumpModule(c->llvmmod);
    
     LLVMSetTarget(c->llvmmod, LLVMGetDefaultTargetTriple());

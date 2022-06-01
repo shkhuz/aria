@@ -14,7 +14,10 @@ fn main(argc: i32, argv: **i8) i64 {
     let a: i8 = 1;
     let b = --3;
     let c = a + b;
-    c
+    let d: i64 = c;
+    let mut e: i64;
+    e = c;
+    d-e     // should return 0
 }
 
 //fn wow() i32 {
