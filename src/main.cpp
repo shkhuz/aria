@@ -248,9 +248,9 @@ int main(int argc, char* argv[]) {
         ldopts[i+3] = (char*)cg_ctxs[i].objpath.c_str();
     }
 #if defined (__TERMUX__)
-    ldopts[cg_ctxs.size()+3] = "examples/std_aarch64.S.o";
+    ldopts[cg_ctxs.size()+3] = "std/_start_aarch64.S.o";
 #else
-    ldopts[cg_ctxs.size()+3] = "examples/std_x86-64.asm.o";
+    ldopts[cg_ctxs.size()+3] = "std/_start_x86-64.asm.o";
 #endif
     ldopts[cg_ctxs.size()+4] = null;
    
