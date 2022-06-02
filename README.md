@@ -22,6 +22,15 @@ fn fib(n: i32) i32 {
 }   
 ```
 
+## Supported Targets
+
+- x86-64
+- AArch64
+
+For the time being, the Aria compiler only supports \*nix enviroments, because
+it makes it easy to extend the compiler without having to worry about other
+platforms. 
+
 ## Building
 
 ```sh
@@ -34,10 +43,6 @@ make
 
 - LLVM (any recent version)
 - `ld` linker
-
-For the time being, the Aria compiler only supports \*nix enviroments, because
-it makes it easy to extend the compiler without having to worry about other
-platforms. 
 
 ## Roadmap
 
@@ -53,14 +58,15 @@ platforms.
 - [ ] Unions
 - [ ] Enums
 - [ ] Operators
-  - [X] `+` `-` `==` `!=` `<` `>` `<=` `>=` `-` `&` `*`(deref) `!` `as` `()` `=`
-  - [ ] `*` `/` `and` `or` `&`(bitwise) `|`
+  - [X] `+` `-` `==` `!=` `<` `>` `<=` `>=` `-` `&` `*(deref)` `!` `as` `()` `=`
+  - [ ] `*` `/` `and` `or` `&(bitwise)` `|`
 - [X] Block expressions / Implicit return expression
 - [ ] Module system
-- [ ] Global variables
+- [X] Global variables
+- [X] Extern variables
 
 ## License
 
-This project is MIT-licensed. See the `LICENSE` file 
+This project is GNU GPLv3 licensed. See the `COPYING` file 
 for more details.
 
