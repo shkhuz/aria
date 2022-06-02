@@ -26,11 +26,15 @@ fn main(argc: i32, argv: **i8) i64 {
     let mut e: i64;
     e = c;
 
-    let argv_int = argv as u8;
-
     //d-e     // should return 0
-    i + wow()
+    write_char(STDOUT_FILENO, {i + wow()} as i8);
+    0
 }
+
+extern fn write_char(fd: u32, ch: i8);
+extern let STDIN_FILENO: u32;
+extern let STDOUT_FILENO: u32;
+extern let STDERR_FILENO: u32;
 
 fn wow() i32 {
     let b = true;

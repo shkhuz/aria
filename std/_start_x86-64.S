@@ -25,4 +25,4 @@ syscall:
     .global SYS_EXIT
     .global SYS_WRITE
 SYS_EXIT:   .quad 60
-SYS_WTITE:  .quad 1
+SYS_WRITE:  .quad 1

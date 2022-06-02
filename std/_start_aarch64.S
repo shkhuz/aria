@@ -23,4 +23,4 @@ syscall:
     .global SYS_EXIT
     .global SYS_WRITE
 SYS_EXIT:   .quad 93
-SYS_WTITE:  .quad 64
+SYS_WRITE:  .quad 64

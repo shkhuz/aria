@@ -70,21 +70,21 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
                 cg_stmt(c, stmt);
             } 
             if (expr->block.value) {
-                result = cg_expr(c, expr->block.value, target, false);
+                result = cg_expr(c, expr->block.value, target, lvalue);
             }
             else result = null;
         } break;
 
         case EXPR_KIND_SYMBOL: {
-            LLVMTypeRef ty = null;
+            Type* ty = null;
             switch (expr->symbol.ref->kind) {
                 case STMT_KIND_VARIABLE: {
-                    ty = get_llvm_type(expr->symbol.ref->variable.type);
+                    ty = expr->symbol.ref->variable.type;
                     result = expr->symbol.ref->variable.llvmvalue;
                 } break;
                 
                 case STMT_KIND_PARAM: {
-                    ty = get_llvm_type(expr->symbol.ref->param.type);
+                    ty = expr->symbol.ref->param.type;
                     result = expr->symbol.ref->param.llvmvalue;
                 } break;
                
@@ -92,7 +92,8 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
             }
             
             if (!lvalue) {
-                result = LLVMBuildLoad2(c->llvmbuilder, ty, result, "");
+                result = LLVMBuildLoad2(c->llvmbuilder, get_llvm_type(ty), result, "");
+                LLVMSetAlignment(result, type_bytes(ty));
             }
         } break;
 
@@ -124,6 +125,10 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
             }
             else if (expr->unop.op->kind == TOKEN_KIND_AMP) {
                 result = cg_expr(c, expr->unop.child, null, true);
+            }
+            else if (expr->unop.op->kind == TOKEN_KIND_BANG) {
+                LLVMValueRef child = cg_expr(c, expr->unop.child, null, false);
+                result = LLVMBuildNot(c->llvmbuilder, child, "");
             }
             else assert(0);
         } break;
@@ -174,7 +179,28 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
                 LLVMValueRef left = cg_expr(c, expr->binop.left, left_target_ty, false);
                 LLVMValueRef right = cg_expr(c, expr->binop.right, right_target_ty, false);
                 if (token_is_cmp_op(expr->binop.op)) {
-                    assert(0);
+                    LLVMIntPredicate op;
+                    bool signd;
+                    if (expr->binop.left_type->kind == TYPE_KIND_BUILTIN) {
+                        signd = builtin_type_is_signed(expr->binop.left_type->builtin.kind);
+                    }
+                    switch (expr->binop.op->kind) {
+                        // ptrs cannot be checked for magnitude, ie. `less than` or `greater than`
+                        // therefore `unsignd` will not matter for ptrs
+                        case TOKEN_KIND_DOUBLE_EQUAL: op = LLVMIntEQ; break;
+                        case TOKEN_KIND_BANG_EQUAL:   op = LLVMIntNE; break;
+                        case TOKEN_KIND_LANGBR:       signd ? op = LLVMIntSLT : op = LLVMIntULT; break;
+                        case TOKEN_KIND_LANGBR_EQUAL: signd ? op = LLVMIntSLE : op = LLVMIntULE; break;
+                        case TOKEN_KIND_RANGBR:       signd ? op = LLVMIntSGT : op = LLVMIntUGT; break;
+                        case TOKEN_KIND_RANGBR_EQUAL: signd ? op = LLVMIntSGE : op = LLVMIntUGE; break;
+                        default: assert(0);
+                    }
+                    result = LLVMBuildICmp(
+                            c->llvmbuilder,
+                            op,
+                            left,
+                            right,
+                            "");
                 }
                 else {
                     LLVMOpcode op;
@@ -247,6 +273,9 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
                         "");
             }
         } break;
+
+        case EXPR_KIND_IF: {
+        } break;    
 
         default: assert(0); break;
     }
