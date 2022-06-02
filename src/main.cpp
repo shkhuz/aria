@@ -108,11 +108,15 @@ int main(int argc, char* argv[]) {
     double compilation_time = 0.0;
     
     inittimer(&tstart);
+
     char* outpath = "a.out";
-    char* target_triple = null;
+    char* target_triple = null; // default value in init_cg()
+    char* linker = "ld";
+   
     option options[] = {
         { "output", required_argument, 0, 'o' },
         { "target", required_argument, 0, 't' },
+        { "linker", required_argument, 0, 'l' },
         { 0, 0, 0, 0 },
     };
 
@@ -128,6 +132,10 @@ int main(int argc, char* argv[]) {
 
             case 't': {
                 target_triple = optarg;
+            } break;
+
+            case 'l': {
+                linker = optarg;
             } break;
             
             case '?': {
@@ -256,7 +264,7 @@ int main(int argc, char* argv[]) {
     inittimer(&tstart);
     size_t linkeroptscount = 5 + cg_ctxs.size();
     char** linkeropts = (char**)malloc(linkeroptscount * sizeof(char*));
-    linkeropts[0] = "ld";
+    linkeropts[0] = linker;
     linkeropts[1] = "-o";
     linkeropts[2] = outpath;
     for (size_t i = 0; i < cg_ctxs.size(); i++) {
@@ -285,33 +293,33 @@ int main(int argc, char* argv[]) {
         terminate_compilation();
     }
 
-    pid_t ldproc = fork();
-    if (ldproc == -1) {
+    pid_t linkerproc = fork();
+    if (linkerproc == -1) {
         root_error("cannot execute fork(): {}", strerror(errno));
         rmrf(tmpdir);
         terminate_compilation();
     }
     
-    if (ldproc) {
+    if (linkerproc) {
         close(errdesc[1]);
         char buf[2];
-        int ldstatus;
-        wait(&ldstatus);
+        int linkerstatus;
+        wait(&linkerstatus);
         
         int bytesread = read(errdesc[0], buf, sizeof(char));
-        if (bytesread == 0 && WEXITSTATUS(ldstatus) != 0) {
+        if (bytesread == 0 && WEXITSTATUS(linkerstatus) != 0) {
             root_error("aborting due to previous linker error");
             rmrf(tmpdir);
             terminate_compilation();
         }
     } else {
         /* if (execvp("aarch64-linux-gnu-ld", linkeropts) == -1) { */
-        if (execvp("ld", linkeropts) == -1) {
+        if (execvp(linker, linkeropts) == -1) {
             close(errdesc[0]);
             write(errdesc[1], "F", sizeof(char));
             close(errdesc[1]);
         }
-        root_error("cannot execute linker `ld`: No such file or directory");
+        root_error("cannot execute linker `{}`: No such file or directory", linker);
         rmrf(tmpdir);
         terminate_compilation();
     }
