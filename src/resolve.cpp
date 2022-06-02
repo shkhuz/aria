@@ -71,6 +71,13 @@ ScopeSearchResult resolve_search_in_current_scope_rec(
 Stmt* resolve_assert_symbol_is_in_current_scope_rec(
         ResolveContext* r, 
         Token* token) {
+    BuiltinTypeKind kind = builtin_type_str_to_kind(token->lexeme);
+    if (kind != BUILTIN_TYPE_KIND_NONE) {
+        resolve_error(
+                token,
+                "cannot use type as a symbol");
+        return null;
+    }
 
     ScopeSearchResult search_result = 
         resolve_search_in_current_scope_rec(r, token);
@@ -268,6 +275,19 @@ void resolve_while_stmt(ResolveContext* r, Stmt* stmt) {
 
 void resolve_expr(ResolveContext* r, Expr* expr) {
     expr->parent_func = r->current_func;
+    if ((expr->kind == EXPR_KIND_SYMBOL || 
+         expr->kind == EXPR_KIND_BLOCK || 
+         expr->kind == EXPR_KIND_IF || 
+         (expr->kind == EXPR_KIND_UNOP && expr->unop.op->kind == TOKEN_KIND_STAR) || 
+         (expr->kind == EXPR_KIND_UNOP && expr->unop.op->kind == TOKEN_KIND_AMP) || 
+         expr->kind == EXPR_KIND_FUNCTION_CALL) &&
+        r->current_func == null) {
+        resolve_error(
+                expr->main_token,
+                "only constant expressions are allowed for globals");
+        return;
+    }
+
     switch (expr->kind) {
         case EXPR_KIND_SYMBOL: {
             resolve_symbol_expr(r, expr);
@@ -349,7 +369,18 @@ void resolve_variable_stmt(
     if (stmt->variable.initializer) {
         resolve_expr(r, stmt->variable.initializer);
     }
-    r->current_func->function.locals.push_back(stmt);
+    else if (ignore_function_level_stmt && !stmt->variable.is_extern) {
+        resolve_error(
+                stmt->main_token,
+                "global variable initialization is mandatory");
+    }
+
+    if (!ignore_function_level_stmt) {
+        r->current_func->function.locals.push_back(stmt);
+    }
+    else {
+        stmt->variable.global = true;
+    }
 }
 
 void resolve_assign_stmt(ResolveContext* r, Stmt* stmt) {

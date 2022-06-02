@@ -164,36 +164,6 @@ Type* check_expr(
         bool cast_to_definitive_type);
 void check_stmt(CheckContext* c, Stmt* stmt);
 
-/* Type* check_integer_expr( */
-/*         CheckContext* c, */ 
-/*         Expr* expr, */ 
-/*         Type* cast, */ 
-/*         bool cast_to_definitive_type) { */
-/*     if (!cast && !cast_to_definitive_type) { */
-/*         Type* type = builtin_type_new( */
-/*                 expr->main_token, */
-/*                 BUILTIN_TYPE_KIND_APINT); */
-/*         type->builtin.apint = *expr->integer.val; */
-/*         return type; */
-/*     } */
-/*     else { */
-/*         if (!cast) cast = builtin_type_placeholders.int32; */
-/*         if (type_is_integer(cast) && bigint_fits( */
-/*                     expr->integer.val, */ 
-/*                     builtin_type_bytes(&cast->builtin), */ 
-/*                     builtin_type_is_signed(cast->builtin.kind))) { */
-/*             return cast; */
-/*         } */
-/*         else { */
-/*             check_error( */
-/*                     expr->integer.integer, */
-/*                     "integer cannot be converted to `{}`", */
-/*                     *cast); */
-/*         } */
-/*     } */
-/*     return null; */
-/* } */
-
 Type* check_integer_expr(
         CheckContext* c, 
         Expr* expr, 

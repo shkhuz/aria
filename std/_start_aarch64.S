@@ -19,3 +19,8 @@ syscall:
     svc #0
     ret
 
+    .data
+    .global SYS_EXIT
+    .global SYS_WRITE
+SYS_EXIT:   .quad 93
+SYS_WTITE:  .quad 64

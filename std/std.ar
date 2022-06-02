@@ -1,9 +1,12 @@
-extern fn syscall(number: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64, arg5: u64, arg6: u64) u64;
+fn exit(exit_code: u8) {
+    syscall(SYS_EXIT, exit_code, 0, 0, 0, 0, 0);
+}
 
 //fn write(fd: u32, buf: *i8, count: usize) {
-//    syscall(1, fd, buf as u64, count, 0, 0, 0);
+//    syscall(SYS_WRITE, fd, buf as u64, count, 0, 0, 0);
 //}
 
-fn exit(exit_code: u8) {
-    syscall(60, exit_code, 0, 0, 0, 0, 0);
-}
+extern fn syscall(number: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64, arg5: u64, arg6: u64) u64;
+
+extern let SYS_EXIT: u64;
+extern let SYS_WRITE: u64;

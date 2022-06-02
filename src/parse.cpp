@@ -406,7 +406,7 @@ FunctionHeader* parse_function_header(ParseContext* p, bool is_extern) {
             is_extern);
 }
 
-Stmt* parse_variable_stmt(ParseContext* p) {
+Stmt* parse_variable_stmt(ParseContext* p, bool is_extern) {
     bool constant = true;
     if (parse_match_keyword(p, "mut")) {
         constant = false;
@@ -420,21 +420,31 @@ Stmt* parse_variable_stmt(ParseContext* p) {
 
     Expr* initializer = null;
     if (parse_match(p, TOKEN_KIND_EQUAL)) {
-        initializer = parse_expr(p);
+        if (is_extern) {
+            fatal_error(
+                    parse_previous(p),
+                    "extern declarations cannot be initialized");
+        }
+        else {
+            initializer = parse_expr(p);
+        }
+    }
+    if (is_extern && !type) {
+        fatal_error(
+                parse_current(p),
+                "type annotations are mandatory for extern declarations");
     }
 
     parse_expect_semicolon(p);
     return variable_stmt_new(
             constant,
+            is_extern,
             identifier,
             type,
             initializer);
 }
 
 Stmt* parse_function_stmt(ParseContext* p, bool is_extern) {
-    if (is_extern)
-        parse_expect_keyword(p, "fn");
-
     FunctionHeader* header = parse_function_header(p, is_extern);
     Token* lbrace = null;
     Expr* body = null;
@@ -449,13 +459,23 @@ Stmt* parse_function_stmt(ParseContext* p, bool is_extern) {
 
 Stmt* parse_top_level_stmt(ParseContext* p, bool error_on_no_match) {
     if (parse_match_keyword(p, "extern")) {
-        return parse_function_stmt(p, true);
+        if (parse_match_keyword(p, "fn")) {
+            return parse_function_stmt(p, true);
+        }
+        else if (parse_match_keyword(p, "let")) {
+            return parse_variable_stmt(p, true);
+        }
+        else {
+            fatal_error(
+                    parse_current(p),
+                    "expected `fn` or `let` after `extern`");
+        }
     }  
     else if (parse_match_keyword(p, "fn")) {
         return parse_function_stmt(p, false);
     }
     else if (parse_match_keyword(p, "let")) {
-        return parse_variable_stmt(p);
+        return parse_variable_stmt(p, false);
     }
     else if (error_on_no_match) {
         error(
@@ -510,7 +530,7 @@ StmtOrExpr parse_function_level_node(ParseContext* p) {
     result.stmt = null;
 
     if (parse_match_keyword(p, "let")) {
-        result.stmt = parse_variable_stmt(p);
+        result.stmt = parse_variable_stmt(p, false);
         return result;
     }
     else if (parse_match_keyword(p, "while")) {

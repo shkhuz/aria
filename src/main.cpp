@@ -105,11 +105,14 @@ int main(int argc, char* argv[]) {
     tests();
 
     timespec tstart, tend;
+    double compilation_time = 0.0;
     
     inittimer(&tstart);
     char* outpath = "a.out";
+    char* target_triple = null;
     option options[] = {
         { "output", required_argument, 0, 'o' },
+        { "target", required_argument, 0, 't' },
         { 0, 0, 0, 0 },
     };
 
@@ -121,6 +124,10 @@ int main(int argc, char* argv[]) {
         switch (c) {
             case 'o': {
                 outpath = optarg;
+            } break;
+
+            case 't': {
+                target_triple = optarg;
             } break;
             
             case '?': {
@@ -141,6 +148,10 @@ int main(int argc, char* argv[]) {
                 0,
                 "no input files");
         terminate_compilation();
+    }
+
+    if (target_triple) {
+        fmt::print("target: {}\n", target_triple);
     }
 
     std::vector<Srcfile*> srcfiles;
@@ -207,10 +218,12 @@ int main(int argc, char* argv[]) {
     if (type_chking_error) terminate_compilation();
     
     inittimer(&tend);
-    printf("Front-end time-taken: %.5fs\n", timediff(tend, tstart));
+    double frontend_time = timediff(tend, tstart);
+    compilation_time += frontend_time;
+    printf("Front-end time-taken: %.5fs\n", frontend_time);
     
     inittimer(&tstart);
-    if (init_cg()) terminate_compilation();
+    if (init_cg(&target_triple)) terminate_compilation();
 
     std::vector<CgContext> cg_ctxs;
     bool gen_error = false;
@@ -236,23 +249,34 @@ int main(int argc, char* argv[]) {
         terminate_compilation();
     }
     inittimer(&tend);
-    printf("Back-end LLVM time-taken: %.5fs\n", timediff(tend, tstart));
+    double backend_llvm_time = timediff(tend, tstart);
+    compilation_time += backend_llvm_time;
+    printf("Back-end LLVM time-taken: %.5fs\n", backend_llvm_time);
 
     inittimer(&tstart);
-    size_t ldoptscount = 5 + cg_ctxs.size();
-    char** ldopts = (char**)malloc(ldoptscount * sizeof(char*));
-    ldopts[0] = "ld";
-    ldopts[1] = "-o";
-    ldopts[2] = outpath;
+    size_t linkeroptscount = 5 + cg_ctxs.size();
+    char** linkeropts = (char**)malloc(linkeroptscount * sizeof(char*));
+    linkeropts[0] = "ld";
+    linkeropts[1] = "-o";
+    linkeropts[2] = outpath;
     for (size_t i = 0; i < cg_ctxs.size(); i++) {
-        ldopts[i+3] = (char*)cg_ctxs[i].objpath.c_str();
+        linkeropts[i+3] = (char*)cg_ctxs[i].objpath.c_str();
     }
-#if defined (__TERMUX__)
-    ldopts[cg_ctxs.size()+3] = "std/_start_aarch64.S.o";
-#else
-    ldopts[cg_ctxs.size()+3] = "std/_start_x86-64.asm.o";
-#endif
-    ldopts[cg_ctxs.size()+4] = null;
+
+    if (strncmp(target_triple, "x86-64", 6) == 0 ||
+        strncmp(target_triple, "x86_64", 6) == 0) {
+        linkeropts[cg_ctxs.size()+3] = "std/_start_x86-64.S.o";
+    }
+    else if (strncmp(target_triple, "aarch64", 7) == 0) {
+        linkeropts[cg_ctxs.size()+3] = "std/_start_aarch64.S.o";
+    }
+    else {
+        root_error("{} target is not supported by aria yet", target_triple);
+        rmrf(tmpdir);
+        terminate_compilation();
+    }
+    fmt::print("_start file: {}\n", linkeropts[cg_ctxs.size()+3]);
+    linkeropts[cg_ctxs.size()+4] = null;
    
     int errdesc[2];
     if (pipe2(errdesc, O_CLOEXEC) == -1) {
@@ -281,7 +305,8 @@ int main(int argc, char* argv[]) {
             terminate_compilation();
         }
     } else {
-        if (execvp("ld", ldopts) == -1) {
+        /* if (execvp("aarch64-linux-gnu-ld", linkeropts) == -1) { */
+        if (execvp("ld", linkeropts) == -1) {
             close(errdesc[0]);
             write(errdesc[1], "F", sizeof(char));
             close(errdesc[1]);
@@ -292,5 +317,9 @@ int main(int argc, char* argv[]) {
     }
     rmrf(tmpdir);
     inittimer(&tend);
-    printf("Back-end linker time-taken: %.5fs\n", timediff(tend, tstart));
+    double linker_time = timediff(tend, tstart);
+    compilation_time += linker_time;
+    printf("Linker time-taken: %.5fs\n", linker_time);
+    printf("Total time-taken: %.5fs\n", compilation_time);
+
 }

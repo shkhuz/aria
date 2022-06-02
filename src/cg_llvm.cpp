@@ -252,7 +252,8 @@ void cg_function_stmt(CgContext* c, Stmt* stmt) {
         
         if (params.size() != 0) {
             for (size_t i = 0; i < param_count; i++) { 
-                LLVMBuildStore(c->llvmbuilder, param_values[i], param_allocs[i]);
+                LLVMValueRef storeinst = LLVMBuildStore(c->llvmbuilder, param_values[i], param_allocs[i]);
+                LLVMSetAlignment(storeinst, type_bytes(params[i]->param.type));
             }
         }
 
@@ -280,12 +281,7 @@ void cg_assign_value(CgContext* c, Type* left_ty, Type* right_ty, Expr* left, Ex
     LLVMSetAlignment(res, align_to);
 }
 
-void cg_variable_stmt(CgContext* c, Stmt* stmt) {
-    if (stmt->variable.initializer) {
-        LLVMValueRef rightval = cg_expr(c, stmt->variable.initializer, stmt->variable.type, false);
-        LLVMValueRef res = LLVMBuildStore(c->llvmbuilder, rightval, stmt->variable.llvmvalue);
-        LLVMSetAlignment(res, type_bytes(stmt->variable.type));
-    }
+void cg_initialize_variable_stmt(CgContext* c, Stmt* stmt) {
 }
 
 void cg_stmt(CgContext* c, Stmt* stmt) {
@@ -295,7 +291,18 @@ void cg_stmt(CgContext* c, Stmt* stmt) {
         } break;
 
         case STMT_KIND_VARIABLE: {
-            cg_variable_stmt(c, stmt);
+            if (stmt->variable.initializer) {
+                if (stmt->variable.global) {
+                    LLVMValueRef rightval = cg_expr(c, stmt->variable.initializer, stmt->variable.type, false);
+                    LLVMSetInitializer(stmt->variable.llvmvalue, rightval);
+
+                }
+                else {
+                    LLVMValueRef rightval = cg_expr(c, stmt->variable.initializer, stmt->variable.type, false);
+                    LLVMValueRef res = LLVMBuildStore(c->llvmbuilder, rightval, stmt->variable.llvmvalue);
+                    LLVMSetAlignment(res, type_bytes(stmt->variable.type));
+                }
+            }
         } break;
 
         case STMT_KIND_ASSIGN: {
@@ -354,7 +361,13 @@ void cg_top_level(CgContext* c, Stmt* stmt) {
         } break;
 
         case STMT_KIND_VARIABLE: {
-            assert(0);
+            stmt->variable.llvmvalue = LLVMAddGlobal(
+                    c->llvmmod, 
+                    get_llvm_type(stmt->variable.type),
+                    stmt->variable.identifier->lexeme.c_str());
+            if (stmt->variable.is_extern) {
+                LLVMSetExternallyInitialized(stmt->variable.llvmvalue, true);
+            }
         } break;
 
         default: assert(0);
@@ -380,22 +393,27 @@ void mkdir_p(const std::string& path) {
     }
 }
 
-bool init_cg() {
+bool init_cg(char** target_triple) {
+    assert(target_triple);
     LLVMInitializeAllTargetInfos();
     LLVMInitializeAllTargets();
     LLVMInitializeAllTargetMCs();
     LLVMInitializeAllAsmParsers();
     LLVMInitializeAllAsmPrinters();
 
+    if (!(*target_triple)) {
+        *target_triple = LLVMGetDefaultTargetTriple();
+    }
+    
     char* errors = null;
     bool error = LLVMGetTargetFromTriple(
-            LLVMGetDefaultTargetTriple(), 
+            *target_triple,
             &g_llvmtarget, 
             &errors);
     if (error) {
         root_error(
-                "cannot get LLVM target from target triple: {} ({})", 
-                LLVMGetDefaultTargetTriple(),
+                "cannot get LLVM target for target triple {} ({})", 
+                *target_triple,
                 errors);
     }
     LLVMDisposeMessage(errors);
@@ -403,7 +421,7 @@ bool init_cg() {
     if (error) return true;
 
     printf(
-            "-------- MACHINE INFO --------\n"
+            "======== MACHINE INFO ========\n"
             "target: %s, [%s], %d, %d\n", 
             LLVMGetTargetName(g_llvmtarget), 
             LLVMGetTargetDescription(g_llvmtarget), 
@@ -413,9 +431,9 @@ bool init_cg() {
     /* printf("features: %s\n", LLVMGetHostCPUFeatures()); */
     g_llvmtargetmachine = LLVMCreateTargetMachine(
             g_llvmtarget, 
-            LLVMGetDefaultTargetTriple(), 
+            *target_triple,
             "generic", 
-            LLVMGetHostCPUFeatures(), 
+            "",
             LLVMCodeGenLevelDefault, 
             LLVMRelocDefault, 
             LLVMCodeModelDefault);
@@ -441,6 +459,7 @@ void cg(CgContext* c) {
     for (Stmt* stmt: c->srcfile->stmts) {
         cg_stmt(c, stmt);
     }
+    fmt::print(stderr, "======== {} ========\n", c->srcfile->handle->path);
     LLVMDumpModule(c->llvmmod);
     
     bool error = false;
@@ -465,7 +484,7 @@ void cg(CgContext* c) {
     LLVMPassManagerRef pm = LLVMCreatePassManager();
     LLVMAddPromoteMemoryToRegisterPass(pm);
     LLVMRunPassManager(pm, c->llvmmod);
-    fmt::print(stderr, "\n-------- AFTER PASSES --------\n");
+    fmt::print(stderr, "\n---- Optimizied IR ----\n");
     LLVMDumpModule(c->llvmmod);
    
     LLVMSetTarget(c->llvmmod, LLVMGetDefaultTargetTriple());

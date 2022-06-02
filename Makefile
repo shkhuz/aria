@@ -18,7 +18,6 @@ LD := g++
 
 run: $(EXE_FILE)
 	./$^ -o build/app $(AR_FILE)
-	#./build/app
 
 $(EXE_FILE): $(OBJ_FILES)
 	@mkdir -p $(dir $@)
@@ -37,7 +36,7 @@ build/obj/%.cc.o: %.cc
 	$(CXX) -c $(CXXFLAGS) $(CXXFLAGS_OPTIMIZE) -o $@ $^
 
 debug: $(EXE_FILE)
-	gdb --args $^ $(AR_FILE) examples/std.ar
+	gdb --args $^ $(AR_FILE)
 
 clean:
 	rm -rf build/ a.out *.o

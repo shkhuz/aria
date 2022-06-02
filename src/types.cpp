@@ -270,6 +270,8 @@ struct FunctionStmt {
 
 struct VariableStmt {
     bool constant;
+    bool is_extern;
+    bool global;
     Token* identifier;
     Type* type;
     Type* initializer_type;
@@ -734,6 +736,7 @@ Stmt* function_stmt_new(FunctionHeader* header, Expr* body) {
 
 Stmt* variable_stmt_new(
         bool constant,
+        bool is_extern,
         Token* identifier,
         Type* type,
         Expr* initializer) {
@@ -742,6 +745,8 @@ Stmt* variable_stmt_new(
     stmt->main_token = identifier;
     stmt->parent_func = null;
     stmt->variable.constant = constant;
+    stmt->variable.is_extern = is_extern;
+    stmt->variable.global = false;
     stmt->variable.identifier = identifier;
     stmt->variable.type = type;
     stmt->variable.initializer_type = null;
