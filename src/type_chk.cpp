@@ -884,7 +884,7 @@ void check_while_stmt(CheckContext* c, Stmt* stmt) {
 void check_assign_stmt(CheckContext* c, Stmt* stmt) {
     Type* left_type = check_expr(c, stmt->assign.left, null, true);
     stmt->assign.left_type = left_type;
-    Type* right_type = check_expr(c, stmt->assign.right, null, true);
+    Type* right_type = check_expr(c, stmt->assign.right, left_type, true);
     stmt->assign.right_type = right_type;
 
     if (left_type && is_deref_expr(stmt->assign.left)) {

@@ -1,0 +1,12 @@
+let i = 23;
+let j: i64 = 34 - 222;
+let mut k: i8 = 1;
+let mut l: bool = false;
+
+fn main() {
+    k = 1;
+    l = true;
+
+    let mut a: i64 = 1;
+    a = 1;
+}

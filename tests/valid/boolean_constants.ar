@@ -1,0 +1,9 @@
+fn main() {
+    let a = true;
+    let b = false;
+    let c: bool = false;
+    
+    pass(&a, &b, &c);
+}
+
+fn pass(a: *const bool, b: *const bool, c: *const bool) {}

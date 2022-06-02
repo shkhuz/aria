@@ -117,6 +117,7 @@ int main(int argc, char* argv[]) {
         { "output", required_argument, 0, 'o' },
         { "target", required_argument, 0, 't' },
         { "linker", required_argument, 0, 'l' },
+        { "help", no_argument, 0, 'h' },
         { 0, 0, 0, 0 },
     };
 
@@ -136,6 +137,23 @@ int main(int argc, char* argv[]) {
 
             case 'l': {
                 linker = optarg;
+            } break;
+
+            case 'h': {
+                fmt::print(
+                        "Aria language compiler\n"
+                        "Usage: ariac [options] file...\n"
+                        "\n"
+                        "Options:\n"
+                        "  -o, --output=<file>        Place the output into <file>\n"
+                        "  --target=<triple>          Specify a target triple for cross compilation\n"
+                        "  --linker=<path>            Specify a path to a linker\n"
+                        "  --help                     Display this help and exit\n"
+                        "\n"
+                        "To report bugs, please see:\n"
+                        "<https://github.com/shkhuz/aria/issues/>\n"
+                        );
+                exit(0);
             } break;
             
             case '?': {
@@ -313,7 +331,6 @@ int main(int argc, char* argv[]) {
             terminate_compilation();
         }
     } else {
-        /* if (execvp("aarch64-linux-gnu-ld", linkeropts) == -1) { */
         if (execvp(linker, linkeropts) == -1) {
             close(errdesc[0]);
             write(errdesc[1], "F", sizeof(char));

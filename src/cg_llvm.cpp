@@ -188,6 +188,66 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
             }
         } break;
 
+        case EXPR_KIND_CONSTANT: {
+            switch (expr->constant.kind) {
+                case CONSTANT_KIND_BOOLEAN_TRUE: {
+                    result = LLVMConstInt(LLVMInt1Type(), 1, false);
+                } break;
+                
+                case CONSTANT_KIND_BOOLEAN_FALSE: {
+                    result = LLVMConstInt(LLVMInt1Type(), 0, false);
+                } break;
+
+                case CONSTANT_KIND_NULL: {
+                    result = LLVMConstPointerNull(get_llvm_type(builtin_type_placeholders.void_ptr));
+                } break;
+            }
+        } break;
+
+        case EXPR_KIND_CAST: {
+            // explicit casting
+            LLVMValueRef left = cg_expr(c, expr->cast.left, null, false);
+            if ((type_is_integer(expr->cast.left_type) || type_is_boolean(expr->cast.left_type)) &&
+                (type_is_integer(expr->cast.to) || type_is_boolean(expr->cast.to))) {
+                result = LLVMBuildIntCast2(
+                        c->llvmbuilder,
+                        left,
+                        get_llvm_type(expr->cast.to),
+                        // example case: i16 to u64
+                        // 1) upcast i16 to i64
+                        // 2) now as the sizes are same, converting is just
+                        //    a matter of observation :)
+                        // therefore, when casting to target type, 
+                        // always sign or zero extend from the src type
+                        builtin_type_is_signed(expr->cast.left_type->builtin.kind), 
+                        "");
+            }
+            else if ((type_is_integer(expr->cast.left_type) || type_is_boolean(expr->cast.left_type)) &&
+                     expr->cast.to->kind == TYPE_KIND_PTR) {
+                result = LLVMBuildIntToPtr(
+                        c->llvmbuilder, 
+                        left,
+                        get_llvm_type(expr->cast.to),
+                        "");
+            }
+            else if (expr->cast.left_type->kind == TYPE_KIND_PTR &&
+                     (type_is_integer(expr->cast.to) || type_is_boolean(expr->cast.to))) {
+                result = LLVMBuildPtrToInt(
+                        c->llvmbuilder,
+                        left,
+                        get_llvm_type(expr->cast.to),
+                        "");
+            }
+            else if (expr->cast.left_type->kind == TYPE_KIND_PTR &&
+                     expr->cast.to->kind == TYPE_KIND_PTR) {
+                result = LLVMBuildPointerCast(
+                        c->llvmbuilder,
+                        left,
+                        get_llvm_type(expr->cast.to),
+                        "");
+            }
+        } break;
+
         default: assert(0); break;
     }
     
@@ -411,10 +471,7 @@ bool init_cg(char** target_triple) {
             &g_llvmtarget, 
             &errors);
     if (error) {
-        root_error(
-                "cannot get LLVM target for target triple {} ({})", 
-                *target_triple,
-                errors);
+        root_error("invalid or unsupported target `{}`: {}", *target_triple, errors);
     }
     LLVMDisposeMessage(errors);
     errors = null;

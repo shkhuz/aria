@@ -13,23 +13,27 @@ fn main(argc: i32, argv: **i8) i64 {
     //};
     //i
 
-    let i8val: i8 = 18;
+    //let i8val: i8 = 18;
 
-    let mut a: i64 = 1;
-    let ptr = &a;
-    *ptr = i8val;
+    //let mut a: i64 = 1;
+    //let ptr = &a;
+    //*ptr = i8val;
 
-    //let a: i8 = 1;
-    //let b = --3;
-    //let c = a + b;
-    //let d: i64 = c;
-    //let mut e: i64;
-    //e = c;
+    let a: i8 = 1;
+    let b = --3;
+    let c = a + b;
+    let d: i64 = c;
+    let mut e: i64;
+    e = c;
+
+    let argv_int = argv as u8;
+
     //d-e     // should return 0
-    i
+    i + wow()
 }
 
-//fn wow() i32 {
-//    2 - 4
-//}
+fn wow() i32 {
+    let b = true;
+    b as i32
+}
 

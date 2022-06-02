@@ -455,6 +455,7 @@ bool builtin_type_is_signed(BuiltinTypeKind kind) {
         case BUILTIN_TYPE_KIND_U32:
         case BUILTIN_TYPE_KIND_U64:
         case BUILTIN_TYPE_KIND_USIZE:
+        case BUILTIN_TYPE_KIND_BOOLEAN:
             return false;
 
         case BUILTIN_TYPE_KIND_I8:
@@ -464,7 +465,6 @@ bool builtin_type_is_signed(BuiltinTypeKind kind) {
         case BUILTIN_TYPE_KIND_ISIZE:
             return true;
         
-        case BUILTIN_TYPE_KIND_BOOLEAN:
         case BUILTIN_TYPE_KIND_APINT:
         case BUILTIN_TYPE_KIND_VOID:
         case BUILTIN_TYPE_KIND_NONE:
@@ -606,15 +606,23 @@ Type* type_get_child(Type* type) {
 }
 
 bool type_is_integer(Type* type) {
-    if (type && type->kind == TYPE_KIND_BUILTIN && 
+    if (type->kind == TYPE_KIND_BUILTIN && 
             builtin_type_is_integer(type->builtin.kind)) {
         return true;
     }
     return false;
 }
 
+bool type_is_boolean(Type* type) {
+    if (type->kind == TYPE_KIND_BUILTIN &&
+            type->builtin.kind == BUILTIN_TYPE_KIND_BOOLEAN) {
+        return true;
+    }
+    return false;
+}
+
 bool type_is_void(Type* type) {
-    if (type && type->kind == TYPE_KIND_BUILTIN && 
+    if (type->kind == TYPE_KIND_BUILTIN && 
             builtin_type_is_void(type->builtin.kind)) {
         return true;
     }
@@ -622,7 +630,7 @@ bool type_is_void(Type* type) {
 }
 
 bool type_is_apint(Type* type) {
-    if (type && type->kind == TYPE_KIND_BUILTIN && 
+    if (type->kind == TYPE_KIND_BUILTIN && 
             builtin_type_is_apint(type->builtin.kind)) {
         return true;
     }
