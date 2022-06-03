@@ -645,6 +645,7 @@ Type* check_if_expr(CheckContext* c, Expr* expr, Type* cast) {
             c, 
             expr->iff.ifbr,
             cast);
+    expr->type = ifbr_type;
     std::vector<Type*> elseifbr_types;
     for (IfBranch* br: expr->iff.elseifbr) {
         elseifbr_types.push_back(check_if_branch(

@@ -1,15 +1,17 @@
-fn main() i32 {
-    let i = if false {
+fn main() {
+    let i: i8 = if false {
+        0
+    } else if false {
         1
     } else {
         2
     };
-
-    let c = {
-        0
-    };
-    write_i64(i);
-    0
+    write_char(1, i);
 }
 
-extern fn write_i64(n: i64);
+extern fn write_char(fd: u32, ch: i8);
+
+
+fn wow() {}
+fn maybe() {}
+fn nah() {}

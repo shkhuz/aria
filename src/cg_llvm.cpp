@@ -3,6 +3,7 @@ typedef struct {
     std::string tmpdir;
     std::string objpath;
     bool error;
+    Stmt* current_func;
     // TODO: pass this ctx to llvm functions
     LLVMContextRef llvmctx;
     LLVMBuilderRef llvmbuilder;
@@ -53,6 +54,35 @@ LLVMTypeRef get_llvm_type(Type* type) {
 }
 
 void cg_stmt(CgContext* c, Stmt* stmt);
+LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue);
+
+struct CondAndBodyBB {
+    LLVMBasicBlockRef condbb;
+    LLVMBasicBlockRef bodybb;
+};
+
+LLVMValueRef cg_ifbranch(
+        CgContext* c, 
+        IfBranch* br, 
+        LLVMBasicBlockRef brcondbb, 
+        LLVMBasicBlockRef brbodybb, 
+        LLVMBasicBlockRef nextbb, 
+        LLVMBasicBlockRef endifexprbb, 
+        LLVMValueRef current_func, 
+        Type* target, 
+        bool lvalue) {
+    if (br->kind != IF_BRANCH_ELSE) {
+        if (brcondbb) LLVMPositionBuilderAtEnd(c->llvmbuilder, brcondbb);
+        LLVMValueRef cond = cg_expr(c, br->cond, null, false);
+        LLVMBuildCondBr(c->llvmbuilder, cond, brbodybb, nextbb);
+    }
+
+    LLVMPositionBuilderAtEnd(c->llvmbuilder, brbodybb);
+    LLVMValueRef brval = cg_expr(c, br->body, target, lvalue);
+    LLVMBuildBr(c->llvmbuilder, endifexprbb);
+    LLVMPositionBuilderAtEnd(c->llvmbuilder, nextbb);
+    return brval;
+}
 
 LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
     LLVMValueRef result = null;
@@ -275,6 +305,67 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
         } break;
 
         case EXPR_KIND_IF: {
+            LLVMValueRef current_func = c->current_func->function.header->llvmvalue;
+            
+            LLVMBasicBlockRef ifbrbb = LLVMAppendBasicBlock(current_func, "if.body");
+            std::vector<CondAndBodyBB> elseifbrbb;
+            for (size_t i = 0; i < expr->iff.elseifbr.size(); i++) {
+                elseifbrbb.push_back({ LLVMAppendBasicBlock(current_func, "elseif.cond"), LLVMAppendBasicBlock(current_func, "elseif.body") });
+            }
+            LLVMBasicBlockRef elsebrbb = null;
+            if (expr->iff.elsebr) {
+                elsebrbb = LLVMAppendBasicBlock(current_func, "else.body");
+            }
+            LLVMBasicBlockRef endifexprbb = LLVMAppendBasicBlock(current_func, "if.end");
+
+            LLVMValueRef ifbrval = cg_ifbranch(
+                    c, 
+                    expr->iff.ifbr, 
+                    null, 
+                    ifbrbb,
+                    elseifbrbb.size() != 0 ? elseifbrbb[0].condbb : (elsebrbb ? elsebrbb : endifexprbb),
+                    endifexprbb, 
+                    current_func, 
+                    target, 
+                    lvalue);
+            std::vector<LLVMValueRef> elseifbrval;
+            for (size_t i = 0; i < expr->iff.elseifbr.size(); i++) {
+                elseifbrval.push_back(cg_ifbranch(
+                            c,
+                            expr->iff.elseifbr[i],
+                            elseifbrbb[i].condbb,
+                            elseifbrbb[i].bodybb,
+                            i < elseifbrbb.size()-1 ? elseifbrbb[i+1].condbb : (elsebrbb ? elsebrbb : endifexprbb),
+                            endifexprbb,
+                            current_func,
+                            target,
+                            lvalue));
+            }
+            LLVMValueRef elsebrval = null;
+            if (expr->iff.elsebr) {
+                elsebrval = cg_ifbranch(
+                        c,
+                        expr->iff.elsebr,
+                        null,
+                        elsebrbb,
+                        endifexprbb,
+                        endifexprbb,
+                        current_func,
+                        target,
+                        lvalue);
+            }
+
+            if (ifbrval) {
+                LLVMValueRef phi = LLVMBuildPhi(c->llvmbuilder, get_llvm_type(expr->type), "");
+                LLVMAddIncoming(phi, &ifbrval, &ifbrbb, 1);
+                for (size_t i = 0; i < expr->iff.elseifbr.size(); i++) {
+                    LLVMAddIncoming(phi, &elseifbrval[i], &elseifbrbb[i].bodybb, 1);
+                }
+                if (elsebrval) {
+                    LLVMAddIncoming(phi, &elsebrval, &elsebrbb, 1);
+                }
+                result = phi;
+            }
         } break;    
 
         default: assert(0); break;
@@ -304,6 +395,7 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
 }
 
 void cg_function_stmt(CgContext* c, Stmt* stmt) {
+    c->current_func = stmt;
     if (!stmt->function.header->is_extern) {
         LLVMValueRef function = stmt->function.header->llvmvalue;
         std::vector<Stmt*>& params = stmt->function.header->params;
@@ -351,6 +443,7 @@ void cg_function_stmt(CgContext* c, Stmt* stmt) {
         else LLVMBuildRetVoid(c->llvmbuilder);
     }
 
+    c->current_func = null;
     /* LLVMDumpValue(function); */
 }
 
