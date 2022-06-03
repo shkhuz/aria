@@ -62,12 +62,10 @@ enum BuiltinTypeKind {
     BUILTIN_TYPE_KIND_U16,
     BUILTIN_TYPE_KIND_U32,
     BUILTIN_TYPE_KIND_U64,
-    BUILTIN_TYPE_KIND_USIZE,
     BUILTIN_TYPE_KIND_I8,
     BUILTIN_TYPE_KIND_I16,
     BUILTIN_TYPE_KIND_I32,
     BUILTIN_TYPE_KIND_I64,
-    BUILTIN_TYPE_KIND_ISIZE,
     BUILTIN_TYPE_KIND_BOOLEAN,
     BUILTIN_TYPE_KIND_VOID,
     BUILTIN_TYPE_KIND_APINT,
@@ -84,12 +82,10 @@ BuiltinTypeMap builtin_type_map[BUILTIN_TYPE_KIND__COUNT] = {
     { "u16", BUILTIN_TYPE_KIND_U16 },
     { "u32", BUILTIN_TYPE_KIND_U32 },
     { "u64", BUILTIN_TYPE_KIND_U64 },
-    { "usize", BUILTIN_TYPE_KIND_USIZE },
     { "i8", BUILTIN_TYPE_KIND_I8 },
     { "i16", BUILTIN_TYPE_KIND_I16 },
     { "i32", BUILTIN_TYPE_KIND_I32 },
     { "i64", BUILTIN_TYPE_KIND_I64 },
-    { "isize", BUILTIN_TYPE_KIND_ISIZE },
     { "bool", BUILTIN_TYPE_KIND_BOOLEAN },
     { "void", BUILTIN_TYPE_KIND_VOID },
 };
@@ -99,12 +95,10 @@ struct BuiltinTypePlaceholders {
     Type* uint16;
     Type* uint32;
     Type* uint64;
-    Type* usize;
     Type* int8;
     Type* int16;
     Type* int32;
     Type* int64;
-    Type* isize;
     Type* boolean;
     Type* void_kind;
     Type* void_ptr;
@@ -145,6 +139,7 @@ enum ExprKind {
     EXPR_KIND_CAST,
     EXPR_KIND_BLOCK,
     EXPR_KIND_IF,
+    EXPR_KIND_WHILE,
 };
 
 struct IntegerExpr {
@@ -221,6 +216,11 @@ struct IfExpr {
     IfBranch* elsebr;
 };
 
+struct WhileExpr {
+    Expr* cond;
+    Expr* body;
+};
+
 struct Expr {
     ExprKind kind;
     Token* main_token;
@@ -236,6 +236,7 @@ struct Expr {
         CastExpr cast;
         BlockExpr block;
         IfExpr iff;
+        WhileExpr whilelp;
     };
 
     Expr() {}
@@ -245,7 +246,6 @@ enum StmtKind {
     STMT_KIND_FUNCTION,
     STMT_KIND_VARIABLE,
     STMT_KIND_PARAM,
-    STMT_KIND_WHILE,
     STMT_KIND_ASSIGN,
     STMT_KIND_RETURN,
     STMT_KIND_EXPR,
@@ -285,11 +285,6 @@ struct ParamStmt {
     LLVMValueRef llvmvalue;
 };
 
-struct WhileStmt {
-    Expr* cond;
-    Expr* body;
-};
-
 struct AssignStmt {
     Expr* left;
     Expr* right;
@@ -315,7 +310,6 @@ struct Stmt {
         FunctionStmt function;
         VariableStmt variable;
         ParamStmt param;
-        WhileStmt whilelp;
         AssignStmt assign;
         ReturnStmt return_stmt;
         ExprStmt expr;
@@ -372,12 +366,10 @@ bool builtin_type_is_integer(BuiltinTypeKind kind) {
         case BUILTIN_TYPE_KIND_U16:
         case BUILTIN_TYPE_KIND_U32:
         case BUILTIN_TYPE_KIND_U64:
-        case BUILTIN_TYPE_KIND_USIZE:
         case BUILTIN_TYPE_KIND_I8:
         case BUILTIN_TYPE_KIND_I16:
         case BUILTIN_TYPE_KIND_I32:
         case BUILTIN_TYPE_KIND_I64:
-        case BUILTIN_TYPE_KIND_ISIZE:
             return true;
         
         case BUILTIN_TYPE_KIND_BOOLEAN:
@@ -398,12 +390,10 @@ bool builtin_type_is_void(BuiltinTypeKind kind) {
         case BUILTIN_TYPE_KIND_U16:
         case BUILTIN_TYPE_KIND_U32:
         case BUILTIN_TYPE_KIND_U64:
-        case BUILTIN_TYPE_KIND_USIZE:
         case BUILTIN_TYPE_KIND_I8:
         case BUILTIN_TYPE_KIND_I16:
         case BUILTIN_TYPE_KIND_I32:
         case BUILTIN_TYPE_KIND_I64:
-        case BUILTIN_TYPE_KIND_ISIZE:
         case BUILTIN_TYPE_KIND_BOOLEAN:
         case BUILTIN_TYPE_KIND_APINT:
             return false;
@@ -424,12 +414,10 @@ bool builtin_type_is_apint(BuiltinTypeKind kind) {
         case BUILTIN_TYPE_KIND_U16:
         case BUILTIN_TYPE_KIND_U32:
         case BUILTIN_TYPE_KIND_U64:
-        case BUILTIN_TYPE_KIND_USIZE:
         case BUILTIN_TYPE_KIND_I8:
         case BUILTIN_TYPE_KIND_I16:
         case BUILTIN_TYPE_KIND_I32:
         case BUILTIN_TYPE_KIND_I64:
-        case BUILTIN_TYPE_KIND_ISIZE:
         case BUILTIN_TYPE_KIND_BOOLEAN:
         case BUILTIN_TYPE_KIND_VOID:
             return false;
@@ -450,7 +438,6 @@ bool builtin_type_is_signed(BuiltinTypeKind kind) {
         case BUILTIN_TYPE_KIND_U16:
         case BUILTIN_TYPE_KIND_U32:
         case BUILTIN_TYPE_KIND_U64:
-        case BUILTIN_TYPE_KIND_USIZE:
         case BUILTIN_TYPE_KIND_BOOLEAN:
             return false;
 
@@ -458,7 +445,6 @@ bool builtin_type_is_signed(BuiltinTypeKind kind) {
         case BUILTIN_TYPE_KIND_I16:
         case BUILTIN_TYPE_KIND_I32:
         case BUILTIN_TYPE_KIND_I64:
-        case BUILTIN_TYPE_KIND_ISIZE:
             return true;
         
         case BUILTIN_TYPE_KIND_APINT:
@@ -480,16 +466,12 @@ BuiltinTypeKind builtin_type_convert_to_llvm_type(BuiltinTypeKind kind) {
             return BUILTIN_TYPE_KIND_I32;
         case BUILTIN_TYPE_KIND_U64:
             return BUILTIN_TYPE_KIND_I64;
-        case BUILTIN_TYPE_KIND_USIZE:
-            return BUILTIN_TYPE_KIND_I64;
 
         case BUILTIN_TYPE_KIND_I8:
         case BUILTIN_TYPE_KIND_I16:
         case BUILTIN_TYPE_KIND_I32:
         case BUILTIN_TYPE_KIND_I64:
             return kind;
-        case BUILTIN_TYPE_KIND_ISIZE:
-            return BUILTIN_TYPE_KIND_I64;
         
         case BUILTIN_TYPE_KIND_BOOLEAN:
         case BUILTIN_TYPE_KIND_APINT:
@@ -518,8 +500,6 @@ size_t builtin_type_bytes(BuiltinType* type) {
 
         case BUILTIN_TYPE_KIND_U64:
         case BUILTIN_TYPE_KIND_I64:
-        case BUILTIN_TYPE_KIND_USIZE:
-        case BUILTIN_TYPE_KIND_ISIZE:
             return 8;
 
         case BUILTIN_TYPE_KIND_VOID:
@@ -548,13 +528,11 @@ i64 builtin_type_get_min_val(BuiltinTypeKind kind) {
         case BUILTIN_TYPE_KIND_U16: 
         case BUILTIN_TYPE_KIND_U32: 
         case BUILTIN_TYPE_KIND_U64: 
-        case BUILTIN_TYPE_KIND_USIZE: 
             return 0;
         case BUILTIN_TYPE_KIND_I8:  return INT8_MIN;
         case BUILTIN_TYPE_KIND_I16: return INT16_MIN;
         case BUILTIN_TYPE_KIND_I32: return INT32_MIN;
         case BUILTIN_TYPE_KIND_I64: return INT64_MIN;
-        case BUILTIN_TYPE_KIND_ISIZE: return INT64_MIN;
 
         case BUILTIN_TYPE_KIND_BOOLEAN:
         case BUILTIN_TYPE_KIND_VOID:
@@ -572,13 +550,11 @@ u64 builtin_type_get_max_val(BuiltinTypeKind kind) {
         case BUILTIN_TYPE_KIND_U16: return UINT16_MAX;
         case BUILTIN_TYPE_KIND_U32: return UINT32_MAX;
         case BUILTIN_TYPE_KIND_U64: return UINT64_MAX;
-        case BUILTIN_TYPE_KIND_USIZE: return UINT64_MAX;
 
         case BUILTIN_TYPE_KIND_I8:  return INT8_MAX;
         case BUILTIN_TYPE_KIND_I16: return INT16_MAX;
         case BUILTIN_TYPE_KIND_I32: return INT32_MAX;
         case BUILTIN_TYPE_KIND_I64: return INT64_MAX;
-        case BUILTIN_TYPE_KIND_ISIZE: return INT64_MAX;
 
         case BUILTIN_TYPE_KIND_BOOLEAN:
         case BUILTIN_TYPE_KIND_VOID:
@@ -770,16 +746,6 @@ Stmt* param_stmt_new(Token* identifier, Type* type, size_t idx) {
     return stmt;
 }
 
-Stmt* while_stmt_new(Token* while_keyword, Expr* cond, Expr* body) {
-    ALLOC_WITH_TYPE(stmt, Stmt);
-    stmt->kind = STMT_KIND_WHILE;
-    stmt->main_token = while_keyword;
-    stmt->parent_func = null;
-    stmt->whilelp.cond = cond;
-    stmt->whilelp.body = body;
-    return stmt;
-}
-
 Stmt* assign_stmt_new(Expr* left, Expr* right, Token* op) {
     ALLOC_WITH_TYPE(stmt, Stmt);
     stmt->kind = STMT_KIND_ASSIGN;
@@ -926,6 +892,17 @@ Expr* if_expr_new(
     return expr;
 }
 
+Expr* while_expr_new(Token* while_keyword, Expr* cond, Expr* body) {
+    ALLOC_WITH_TYPE(expr, Expr);
+    expr->kind = EXPR_KIND_WHILE;
+    expr->main_token = while_keyword;
+    expr->type = null;
+    expr->parent_func = null;
+    expr->whilelp.cond = cond;
+    expr->whilelp.body = body;
+    return expr;
+}
+
 Type* builtin_type_placeholder_new(BuiltinTypeKind kind) {
     return builtin_type_new(null, kind);
 }
@@ -1021,12 +998,10 @@ void init_types() {
     builtin_type_placeholders.uint16 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U16);
     builtin_type_placeholders.uint32 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U32);
     builtin_type_placeholders.uint64 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_U64);
-    builtin_type_placeholders.usize = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_USIZE);
     builtin_type_placeholders.int8 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I8);
     builtin_type_placeholders.int16 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I16);
     builtin_type_placeholders.int32 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I32);
     builtin_type_placeholders.int64 = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_I64);
-    builtin_type_placeholders.isize = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_ISIZE);
     builtin_type_placeholders.boolean = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_BOOLEAN);
     builtin_type_placeholders.void_kind = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_VOID);
     builtin_type_placeholders.void_ptr = ptr_type_placeholder_new(

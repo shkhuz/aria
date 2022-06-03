@@ -2,7 +2,7 @@ fn exit(exit_code: u8) {
     syscall(SYS_EXIT, exit_code, 0, 0, 0, 0, 0);
 }
 
-fn write(fd: u32, buf: *const i8, count: usize) {
+fn write(fd: u32, buf: *const i8, count: u64) {
     syscall(SYS_WRITE, fd, buf as u64, count, 0, 0, 0);
 }
 

@@ -161,7 +161,7 @@ Type* parse_atom_type(ParseContext* p) {
         builtin_type_str_to_kind(identifier->lexeme);
     if (builtin_type_kind == BUILTIN_TYPE_KIND_NONE) {
         // TODO: implement custom types
-        fatal_error(identifier, "internal error: custom types not implemented");
+        fatal_error(identifier, "[internal] custom types not implemented");
         assert(0);
     }
     return builtin_type_new(identifier, builtin_type_kind);
@@ -310,6 +310,15 @@ Expr* parse_if_expr(ParseContext* p, Token* if_keyword) {
             elsebr);
 }
 
+Expr* parse_while_expr(ParseContext* p, Token* while_keyword) {
+    Expr* cond = parse_expr(p);
+    Expr* body = parse_block_expr(p, parse_expect_lbrace(p), false);
+    return while_expr_new(
+            while_keyword, 
+            cond,
+            body);
+}
+
 Expr* parse_function_call_expr(
         ParseContext* p, 
         Expr* callee, 
@@ -363,6 +372,9 @@ Expr* parse_atom_expr(ParseContext* p) {
     }
     else if (parse_match_keyword(p, "if")) {
         return parse_if_expr(p, parse_previous(p));
+    }
+    else if (parse_match_keyword(p, "while")) {
+        return parse_while_expr(p, parse_previous(p));
     }
     else {
         fatal_error(
@@ -497,15 +509,6 @@ void parse(ParseContext* p) {
     }
 }
 
-Stmt* parse_while_stmt(ParseContext* p, Token* while_keyword) {
-    Expr* cond = parse_expr(p);
-    Expr* body = parse_block_expr(p, parse_expect_lbrace(p), false);
-    return while_stmt_new(
-            while_keyword, 
-            cond,
-            body);
-}
-
 Stmt* parse_assign_stmt(
         ParseContext* p,
         Expr* left,
@@ -531,10 +534,6 @@ StmtOrExpr parse_function_level_node(ParseContext* p) {
 
     if (parse_match_keyword(p, "let")) {
         result.stmt = parse_variable_stmt(p, false);
-        return result;
-    }
-    else if (parse_match_keyword(p, "while")) {
-        result.stmt = parse_while_stmt(p, parse_previous(p));
         return result;
     }
 

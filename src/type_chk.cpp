@@ -735,6 +735,33 @@ Type* check_if_expr(CheckContext* c, Expr* expr, Type* cast) {
     return ifbr_type;
 }
 
+Type* check_while_expr(CheckContext* c, Expr* expr, Type* cast) {
+    Type* cond_type = check_expr(c, expr->whilelp.cond, null, true);
+    if (cond_type) {
+        CHECK_IMPL_CAST(cond_type, builtin_type_placeholders.boolean);
+        if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
+            check_error(
+                    expr->whilelp.cond->main_token,
+                    "loop condition should be `{}` but got `{}`",
+                    *builtin_type_placeholders.boolean,
+                    *cond_type);
+        }
+    }
+
+    Type* val = check_block_expr(c, expr->whilelp.body, cast);
+    if (val) {
+        CHECK_IMPL_CAST(val, builtin_type_placeholders.void_kind);
+        if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
+            check_error(
+                    expr->whilelp.body->block.value->main_token,
+                    "`while` cannot implicitly return a value");
+            return null;
+        }
+        else if (IS_IMPL_CAST_STATUS(IC_ERROR_HANDLED)) return null;
+    }
+    return val;
+}
+
 Type* check_expr(
         CheckContext* c, 
         Expr* expr, 
@@ -775,6 +802,10 @@ Type* check_expr(
 
         case EXPR_KIND_IF: {
             return check_if_expr(c, expr, cast);
+        } break;
+        
+        case EXPR_KIND_WHILE: {
+            return check_while_expr(c, expr, cast);
         } break;
     }
     assert(0);
@@ -866,21 +897,6 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
     }
 }
 
-void check_while_stmt(CheckContext* c, Stmt* stmt) {
-    Type* cond_type = check_expr(c, stmt->whilelp.cond, null, true);
-    if (cond_type) {
-        CHECK_IMPL_CAST(cond_type, builtin_type_placeholders.boolean);
-        if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
-            check_error(
-                    stmt->whilelp.cond->main_token,
-                    "loop condition should be `{}` but got `{}`",
-                    *builtin_type_placeholders.boolean,
-                    *cond_type);
-        }
-    }
-    check_block_expr(c, stmt->whilelp.body, null);
-}
-
 #define is_deref_expr(expr) \
     (expr->kind == EXPR_KIND_UNOP && \
      expr->unop.op->kind == TOKEN_KIND_STAR)
@@ -937,10 +953,6 @@ void check_stmt(CheckContext* c, Stmt* stmt) {
                         *builtin_type_placeholders.void_kind);
                 return;
             }
-        } break;
-
-        case STMT_KIND_WHILE: {
-            return check_while_stmt(c, stmt);
         } break;
 
         case STMT_KIND_ASSIGN: {

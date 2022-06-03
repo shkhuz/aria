@@ -268,9 +268,9 @@ void resolve_if_expr(ResolveContext* r, Expr* expr) {
     }
 }
 
-void resolve_while_stmt(ResolveContext* r, Stmt* stmt) {
-    resolve_expr(r, stmt->whilelp.cond);
-    resolve_expr(r, stmt->whilelp.body);
+void resolve_while_expr(ResolveContext* r, Expr* expr) {
+    resolve_expr(r, expr->whilelp.cond);
+    resolve_expr(r, expr->whilelp.body);
 }
 
 void resolve_expr(ResolveContext* r, Expr* expr) {
@@ -315,6 +315,10 @@ void resolve_expr(ResolveContext* r, Expr* expr) {
 
         case EXPR_KIND_IF: {
             resolve_if_expr(r, expr);
+        } break;
+        
+        case EXPR_KIND_WHILE: {
+            resolve_while_expr(r, expr);
         } break;
     }
 }
@@ -426,10 +430,6 @@ void resolve_stmt(
 
         case STMT_KIND_VARIABLE: {
             resolve_variable_stmt(r, stmt, ignore_function_level_stmt);
-        } break;
-
-        case STMT_KIND_WHILE: {
-            resolve_while_stmt(r, stmt);
         } break;
 
         case STMT_KIND_ASSIGN: {

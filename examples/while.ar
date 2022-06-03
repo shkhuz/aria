@@ -1,0 +1,7 @@
+fn main() {
+    while true {
+        write_char(1, 0);
+    }
+}
+
+extern fn write_char(fd: u32, ch: i8);

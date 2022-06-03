@@ -31,12 +31,10 @@ LLVMTypeRef get_llvm_type(Type* type) {
                 case BUILTIN_TYPE_KIND_U16:
                 case BUILTIN_TYPE_KIND_U32:
                 case BUILTIN_TYPE_KIND_U64:
-                case BUILTIN_TYPE_KIND_USIZE:
                 case BUILTIN_TYPE_KIND_I8:
                 case BUILTIN_TYPE_KIND_I16:
                 case BUILTIN_TYPE_KIND_I32:
                 case BUILTIN_TYPE_KIND_I64:
-                case BUILTIN_TYPE_KIND_ISIZE:
                     return LLVMIntType(builtin_type_bytes(&type->builtin) << 3);
                 case BUILTIN_TYPE_KIND_BOOLEAN:
                     return LLVMInt1Type();
@@ -367,6 +365,23 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
                 result = phi;
             }
         } break;    
+
+        case EXPR_KIND_WHILE: {
+            LLVMValueRef current_func = c->current_func->function.header->llvmvalue;
+            LLVMBasicBlockRef condbb = LLVMAppendBasicBlock(current_func, "while.cond");
+            LLVMBasicBlockRef bodybb = LLVMAppendBasicBlock(current_func, "while.body");
+            LLVMBasicBlockRef endwhileexprbb = LLVMAppendBasicBlock(current_func, "while.end");
+            LLVMBuildBr(c->llvmbuilder, condbb);
+
+            LLVMPositionBuilderAtEnd(c->llvmbuilder, condbb);
+            LLVMValueRef cond = cg_expr(c, expr->whilelp.cond, null, false);
+            LLVMBuildCondBr(c->llvmbuilder, cond, bodybb, endwhileexprbb);
+
+            LLVMPositionBuilderAtEnd(c->llvmbuilder, bodybb);
+            cg_expr(c, expr->whilelp.body, null, false); // TODO: break while loop with value
+            LLVMBuildBr(c->llvmbuilder, condbb);
+            LLVMPositionBuilderAtEnd(c->llvmbuilder, endwhileexprbb);
+        } break;
 
         default: assert(0); break;
     }
