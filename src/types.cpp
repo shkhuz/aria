@@ -263,7 +263,6 @@ struct FunctionStmt {
     FunctionHeader* header;
     Expr* body;
     std::vector<Stmt*> locals;
-    size_t stack_vars_size;
     size_t ifidx;
     size_t whileidx;
 };
@@ -276,8 +275,6 @@ struct VariableStmt {
     Type* type;
     Type* initializer_type;
     Expr* initializer;
-    // TODO: clean `stack_offset` variable
-    size_t stack_offset;
     LLVMValueRef llvmvalue;
 };
 
@@ -285,7 +282,6 @@ struct ParamStmt {
     Token* identifier;
     Type* type;
     size_t idx;
-    size_t stack_offset;
     LLVMValueRef llvmvalue;
 };
 
@@ -736,7 +732,6 @@ Stmt* function_stmt_new(FunctionHeader* header, Expr* body) {
     stmt->parent_func = null;
     stmt->function.header = header;
     stmt->function.body = body;
-    stmt->function.stack_vars_size = 0;
     stmt->function.ifidx = 0;
     stmt->function.whileidx = 0;
     return stmt;
@@ -759,7 +754,6 @@ Stmt* variable_stmt_new(
     stmt->variable.type = type;
     stmt->variable.initializer_type = null;
     stmt->variable.initializer = initializer;
-    stmt->variable.stack_offset = 0;
     stmt->variable.llvmvalue = null;
     return stmt;
 }
@@ -772,7 +766,6 @@ Stmt* param_stmt_new(Token* identifier, Type* type, size_t idx) {
     stmt->param.identifier = identifier;
     stmt->param.type = type;
     stmt->param.idx = idx;
-    stmt->param.stack_offset = 0;
     stmt->param.llvmvalue = null;
     return stmt;
 }

@@ -1,7 +1,6 @@
 typedef struct {
     Srcfile* srcfile;
     bool error;
-    size_t last_stack_offset;
 } CheckContext;
 
 typedef enum {
@@ -783,7 +782,9 @@ Type* check_expr(
 }
 
 void check_function_stmt(CheckContext* c, Stmt* stmt) {
-    c->last_stack_offset = 0;
+    for (Stmt* param: stmt->function.header->params) {
+        check_stmt(c, param);
+    }
     if (!stmt->function.header->is_extern) {
         Type* body_type = check_block_expr(
                 c, 
@@ -852,14 +853,16 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
         }
     }
 
-    if (stmt->parent_func && stmt->variable.type) {
-        size_t bytes = type_bytes(stmt->variable.type);
-        c->last_stack_offset += bytes;
-        c->last_stack_offset = 
-            align_to_pow2(c->last_stack_offset, bytes);
-        stmt->variable.stack_offset = c->last_stack_offset;
-        stmt->parent_func->function.stack_vars_size = 
-            c->last_stack_offset;
+    
+    if (stmt->variable.type) {
+        CHECK_IMPL_CAST(stmt->variable.type, builtin_type_placeholders.void_kind);
+        if (!IS_IMPL_CAST_STATUS(IC_ERROR) && !IS_IMPL_CAST_STATUS(IC_ERROR_HANDLED)) {
+            check_error(
+                    stmt->variable.identifier,
+                    "useless variable due to type `{}`",
+                    *builtin_type_placeholders.void_kind);
+            return;
+        }
     }
 }
 
@@ -925,6 +928,17 @@ void check_stmt(CheckContext* c, Stmt* stmt) {
             check_variable_stmt(c, stmt);
         } break;
 
+        case STMT_KIND_PARAM: {
+            CHECK_IMPL_CAST(stmt->param.type, builtin_type_placeholders.void_kind);
+            if (!IS_IMPL_CAST_STATUS(IC_ERROR) && !IS_IMPL_CAST_STATUS(IC_ERROR_HANDLED)) {
+                check_error(
+                        stmt->param.identifier,
+                        "useless parameter due to type `{}`",
+                        *builtin_type_placeholders.void_kind);
+                return;
+            }
+        } break;
+
         case STMT_KIND_WHILE: {
             return check_while_stmt(c, stmt);
         } break;
@@ -941,7 +955,6 @@ void check_stmt(CheckContext* c, Stmt* stmt) {
 
 void check(CheckContext* c) {
     c->error = false;
-    c->last_stack_offset = 0;
 
     for (Stmt* stmt: c->srcfile->stmts) {
         check_stmt(c, stmt);

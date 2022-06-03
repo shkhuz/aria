@@ -11,7 +11,6 @@ fn main() {
 
 extern fn write_char(fd: u32, ch: i8);
 
-
 fn wow() {}
 fn maybe() {}
 fn nah() {}
