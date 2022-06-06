@@ -1,27 +1,22 @@
-// errc: 5
+// errc: 4
 fn main() {
     {
-        let a: u8;
-        let b = --a; // this is deliberate
+        const a: u8;
+        const b = --a; // this is deliberate
     }
 
     {
-        let a: u16;
-        let b = -a;
+        const a: u16;
+        const b = -a;
     }
 
     {
-        let a: u32;
-        let b = -a;
+        const a: u32;
+        const b = -a;
     }
 
     {
-        let a: u64;
-        let b = -a;
-    }
-
-    {
-        let a: usize;
-        let b = -a;
+        const a: u64;
+        const b = -a;
     }
 }

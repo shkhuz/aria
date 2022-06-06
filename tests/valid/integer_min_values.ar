@@ -1,13 +1,12 @@
 fn main() 
 {
-    let u8_min: u8 = 0;
-    let u16_min: u16 = 0;
-    let u32_min: u32 = 0;
-    let u64_min: u64 = 0;
-    let usize_min: usize = 0;
-    let i8_min: i8 = -128;
-    let i16_min: i16 = -32768;
-    let i32_min: i32 = -2147483648;
-    let i64_min: i64 = -9223372036854775808;
-    let isize_min: isize = -9223372036854775808;
+    const u8_min: u8 = 0;
+    const u16_min: u16 = 0;
+    const u32_min: u32 = 0;
+    const u64_min: u64 = 0;
+    const i8_min: i8 = -128;
+    const i16_min: i16 = -32768;
+    const i32_min: i32 = -2147483648;
+    const i64_min: i64 = -9223372036854775808;
+    const default_integer_min = -2147483648;  // i32
 }

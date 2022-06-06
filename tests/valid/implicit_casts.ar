@@ -1,47 +1,47 @@
-let CONST_I8: i8 = 1;
-let CONST_I16: i16 = 1;
-let CONST_I32: i32 = 1;
-let CONST_I64: i64 = 1;
-let CONST_U8: u8 = 1;
-let CONST_U16: u16 = 1;
-let CONST_U32: u32 = 1;
-let CONST_U64: u64 = 1;
+const CONST_I8: i8 = 1;
+const CONST_I16: i16 = 1;
+const CONST_I32: i32 = 1;
+const CONST_I64: i64 = 1;
+const CONST_U8: u8 = 1;
+const CONST_U16: u16 = 1;
+const CONST_U32: u32 = 1;
+const CONST_U64: u64 = 1;
 
 fn main() {
     {
-        let a = 1;
-        let b: i8 = 1;
-        let c: i16 = 1;
-        let d: i32 = 1;
-        let e: i64 = 1;
+        const a = 1;
+        const b: i8 = 1;
+        const c: i16 = 1;
+        const d: i32 = 1;
+        const e: i64 = 1;
     }
 
     {
-        let a: i8 = 1;
-        let b: i8 = a;
-        let c: i16 = a;
-        let d: i32 = a;
-        let e: i64 = a;
+        const a: i8 = 1;
+        const b: i8 = a;
+        const c: i16 = a;
+        const d: i32 = a;
+        const e: i64 = a;
     }
     
     {
-        let a = 1;
-        let b: u8 = 1;
-        let c: u16 = 1;
-        let d: u32 = 1;
-        let e: u64 = 1;
+        const a = 1;
+        const b: u8 = 1;
+        const c: u16 = 1;
+        const d: u32 = 1;
+        const e: u64 = 1;
     }
 
     {
-        let a: u8 = 1;
-        let b: u8 = a;
-        let c: u16 = a;
-        let d: u32 = a;
-        let e: u64 = a;
+        const a: u8 = 1;
+        const b: u8 = a;
+        const c: u16 = a;
+        const d: u32 = a;
+        const e: u64 = a;
     }
 
     {
-        let mut a: i64 = 1;
+        var a: i64 = 1;
         a = CONST_I8;
         a = CONST_I16;
         a = CONST_I32;
@@ -49,7 +49,7 @@ fn main() {
     }
     
     {
-        let mut a: u64 = 1;
+        var a: u64 = 1;
         a = CONST_U8;
         a = CONST_U16;
         a = CONST_U32;

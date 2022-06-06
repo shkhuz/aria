@@ -1,8 +1,8 @@
 // errc: 2
 
 fn main() {
-    let something = {
-        let a = 1;
+    const something = {
+        const a = 1;
     };
     cool(something);
 }

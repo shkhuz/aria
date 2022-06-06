@@ -1,68 +1,56 @@
 fn main()
 {
     {
-        let a: usize;
-        let b: u8;
-        let c = a + b;
+        const a: u64;
+        const b: u8;
+        const c = a + b;
     }
 
     {
-        let a: usize;
-        let b: u16;
-        let c = a + b;
+        const a: u64;
+        const b: u16;
+        const c = a + b;
     }
 
     {
-        let a: usize;
-        let b: u32;
-        let c = a + b;
+        const a: u64;
+        const b: u32;
+        const c = a + b;
     }
 
     {
-        let a: usize;
-        let b: u64;
-        let c = a + b;
+        const a: u64;
+        const b: u64;
+        const c = a + b;
     }
 
     {
-        let a: usize;
-        let b: usize;
-        let c = a + b;
+        const a: i64;
+        const b: i8;
+        const c = a + b;
     }
 
     {
-        let a: isize;
-        let b: i8;
-        let c = a + b;
+        const a: i64;
+        const b: i16;
+        const c = a + b;
     }
 
     {
-        let a: isize;
-        let b: i16;
-        let c = a + b;
+        const a: i64;
+        const b: i32;
+        const c = a + b;
     }
 
     {
-        let a: isize;
-        let b: i32;
-        let c = a + b;
+        const a: i64;
+        const b: i64;
+        const c = a + b;
     }
 
     {
-        let a: isize;
-        let b: i64;
-        let c = a + b;
-    }
-
-    {
-        let a: isize;
-        let b: isize;
-        let c = a + b;
-    }
-
-    {
-        let a = 1;
-        let b = -1;
-        let c = a + b;
+        const a = 1;
+        const b = -1;
+        const c = a + b;
     }
 }

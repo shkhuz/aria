@@ -401,7 +401,7 @@ void resolve_assign_stmt(ResolveContext* r, Stmt* stmt) {
             note(
                     stmt->assign.left->symbol.ref->main_token,
                     "variable defined here");
-            addinfo("to define a mutable variable, add `mut`");
+            addinfo("to define a mutable variable, use `var`");
         }
     }
     else if (stmt->assign.left->kind == EXPR_KIND_UNOP &&

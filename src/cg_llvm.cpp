@@ -492,7 +492,6 @@ void cg_stmt(CgContext* c, Stmt* stmt) {
                 if (stmt->variable.global) {
                     LLVMValueRef rightval = cg_expr(c, stmt->variable.initializer, stmt->variable.type, false);
                     LLVMSetInitializer(stmt->variable.llvmvalue, rightval);
-
                 }
                 else {
                     LLVMValueRef rightval = cg_expr(c, stmt->variable.initializer, stmt->variable.type, false);
@@ -633,7 +632,7 @@ bool init_cg(char** target_triple) {
             LLVMCodeModelDefault);
     g_llvmtargetdatalayout = LLVMCreateTargetDataLayout(g_llvmtargetmachine);
     g_llvmtargetdatalayout_str = LLVMCopyStringRepOfTargetData(g_llvmtargetdatalayout);
-    printf("datalayout: %s\n", g_llvmtargetdatalayout_str);
+    /* printf("datalayout: %s\n", g_llvmtargetdatalayout_str); */
     return false;
 }
 

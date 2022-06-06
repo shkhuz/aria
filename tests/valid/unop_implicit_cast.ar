@@ -1,37 +1,37 @@
 fn main() {
     {
-        let a: i8;
-        let b = -a;
+        const a: i8;
+        const b = -a;
     }
 
     {
-        let a: i16;
-        let b = -a;
+        const a: i16;
+        const b = -a;
     }
 
     {
-        let a: i32;
-        let b = -a;
+        const a: i32;
+        const b = -a;
     }
 
     {
-        let a: i64;
-        let b = -a;
+        const a: i64;
+        const b = -a;
     }
 
     {
-        let a: isize;
-        let b = -a;
+        const a: i64;
+        const b = -a;
     }
 
     {
-        let a = 1;
-        let b = -a;
+        const a = 1;
+        const b = -a;
     }
 
     {
-        let a: i8 = 127;
-        let b = -a;
-        let c: i8 = a + b;
+        const a: i8 = 127;
+        const b = -a;
+        const c: i8 = a + b;
     }
 }

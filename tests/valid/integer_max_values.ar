@@ -1,14 +1,12 @@
 fn main()
 {
-    let u8_max: u8 = 255;
-    let u16_max: u16 = 65535;
-    let u32_max: u32 = 4294967295;
-    let u64_max: u64 = 18446744073709551615;
-    let usize_max: usize = 18446744073709551615;
-    let i8_max: i8 = 127;
-    let i16_max: i16 = 32767;
-    let i32_max: i32 = 2147483647;
-    let i64_max: i64 = 9223372036854775807;
-    let isize_max: isize = 9223372036854775807;
-    let default_integer_max = 2147483647;
+    const u8_max: u8 = 255;
+    const u16_max: u16 = 65535;
+    const u32_max: u32 = 4294967295;
+    const u64_max: u64 = 18446744073709551615;
+    const i8_max: i8 = 127;
+    const i16_max: i16 = 32767;
+    const i32_max: i32 = 2147483647;
+    const i64_max: i64 = 9223372036854775807;
+    const default_integer_max = 2147483647;  // i32
 }

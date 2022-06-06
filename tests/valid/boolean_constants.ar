@@ -1,7 +1,7 @@
 fn main() {
-    let a = true;
-    let b = false;
-    let c: bool = false;
+    const a = true;
+    const b = false;
+    const c: bool = false;
     
     pass(&a, &b, &c);
 }

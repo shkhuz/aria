@@ -8,14 +8,14 @@ fn write(fd: u32, buf: *const i8, count: u64) {
 
 extern fn syscall(number: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64, arg5: u64, arg6: u64) u64;
 
-extern let SYS_EXIT: u64;
-extern let SYS_WRITE: u64;
+extern const SYS_EXIT: u64;
+extern const SYS_WRITE: u64;
 
 fn write_char(fd: u32, ch: i8) {
-    let newch = ch + 65;
+    const newch = ch + 65;
     write(fd, &newch, 1);
 }
 
-let STDIN_FILENO: u32 = 0;
-let STDOUT_FILENO: u32 = 1;
-let STDERR_FILENO: u32 = 2;
+const STDIN_FILENO: u32 = 0;
+const STDOUT_FILENO: u32 = 1;
+const STDERR_FILENO: u32 = 2;

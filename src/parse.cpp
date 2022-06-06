@@ -418,12 +418,7 @@ FunctionHeader* parse_function_header(ParseContext* p, bool is_extern) {
             is_extern);
 }
 
-Stmt* parse_variable_stmt(ParseContext* p, bool is_extern) {
-    bool constant = true;
-    if (parse_match_keyword(p, "mut")) {
-        constant = false;
-    }
-
+Stmt* parse_variable_stmt(ParseContext* p, bool is_extern, bool constant) {
     Token* identifier = parse_expect_identifier(p, "variable name");
     Type* type = null;
     if (parse_match(p, TOKEN_KIND_COLON)) {
@@ -474,26 +469,32 @@ Stmt* parse_top_level_stmt(ParseContext* p, bool error_on_no_match) {
         if (parse_match_keyword(p, "fn")) {
             return parse_function_stmt(p, true);
         }
-        else if (parse_match_keyword(p, "let")) {
-            return parse_variable_stmt(p, true);
+        else if (parse_match_keyword(p, "const")) {
+            return parse_variable_stmt(p, true, true);
+        }
+        else if (parse_match_keyword(p, "var")) {
+            return parse_variable_stmt(p, true, false);
         }
         else {
             fatal_error(
                     parse_current(p),
-                    "expected `fn` or `let` after `extern`");
+                    "expected `fn`, `const` or `var` after `extern`");
         }
     }  
     else if (parse_match_keyword(p, "fn")) {
         return parse_function_stmt(p, false);
     }
-    else if (parse_match_keyword(p, "let")) {
-        return parse_variable_stmt(p, false);
+    else if (parse_match_keyword(p, "const")) {
+        return parse_variable_stmt(p, false, true);
+    }
+    else if (parse_match_keyword(p, "var")) {
+        return parse_variable_stmt(p, false, false);
     }
     else if (error_on_no_match) {
         error(
                 parse_current(p),
                 "invalid token in top-level");
-        addinfo("expected `fn`, `let`, `struct`");
+        addinfo("expected `fn`, `struct`, `const`, `var`");
         terminate_compilation();
     }
     return null;
@@ -532,8 +533,12 @@ StmtOrExpr parse_function_level_node(ParseContext* p) {
     result.is_stmt = true;
     result.stmt = null;
 
-    if (parse_match_keyword(p, "let")) {
-        result.stmt = parse_variable_stmt(p, false);
+    if (parse_match_keyword(p, "const")) {
+        result.stmt = parse_variable_stmt(p, false, true);
+        return result;
+    }
+    else if (parse_match_keyword(p, "var")) {
+        result.stmt = parse_variable_stmt(p, false, false);
         return result;
     }
 

@@ -320,9 +320,8 @@ struct Stmt {
 
 std::string aria_keywords[] = {
     "fn",
-    "let",
     "const",
-    "mut",
+    "var",
     "extern",
     "if",
     "else",
