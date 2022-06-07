@@ -321,7 +321,6 @@ Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
 
     for (size_t i = 0; i < args.size(); i++) {
         Type* param_type = params[i]->param.type;
-        param_type = check_type(c, param_type);
         Type* arg_type = check_expr(c, args[i], param_type, true);
         /* args[i]->type = arg_type; */
         if (arg_type && param_type) {
@@ -950,16 +949,12 @@ Type* check_expr(
 }
 
 void check_function_stmt(CheckContext* c, Stmt* stmt) {
-    for (Stmt* param: stmt->function.header->params) {
-        check_stmt(c, param);
-    }
     if (!stmt->function.header->is_extern) {
         Type* body_type = check_block_expr(
                 c, 
                 stmt->function.body, 
                 stmt->function.header->return_type);
         Type* return_type = stmt->function.header->return_type;
-        return_type = check_type(c, return_type);
         stmt->function.body->type = body_type;
         if (body_type && return_type) {
             CHECK_IMPL_CAST(body_type, return_type);
@@ -980,7 +975,7 @@ void check_function_stmt(CheckContext* c, Stmt* stmt) {
 }
 
 void check_variable_stmt(CheckContext* c, Stmt* stmt) {
-    if (stmt->variable.type) {
+    if (stmt->variable.type && !stmt->variable.global) {
         stmt->variable.type = check_type(c, stmt->variable.type);
     }
 
@@ -1107,6 +1102,7 @@ void check_stmt(CheckContext* c, Stmt* stmt) {
         } break;
 
         case STMT_KIND_PARAM: {
+            stmt->param.type = check_type(c, stmt->param.type);
             CHECK_IMPL_CAST(stmt->param.type, builtin_type_placeholders.void_kind);
             if (!IS_IMPL_CAST_STATUS(IC_ERROR) && !IS_IMPL_CAST_STATUS(IC_ERROR_HANDLED)) {
                 check_error(
@@ -1130,6 +1126,24 @@ void check_stmt(CheckContext* c, Stmt* stmt) {
 void check(CheckContext* c) {
     c->error = false;
 
+    for (Stmt* stmt: c->srcfile->stmts) {
+        switch (stmt->kind) {
+            case STMT_KIND_FUNCTION: {
+                for (Stmt* param: stmt->function.header->params) {
+                    check_stmt(c, param);
+                }
+                stmt->function.header->return_type = check_type(
+                        c, 
+                        stmt->function.header->return_type);
+            } break;
+
+            case STMT_KIND_VARIABLE: {
+                if (stmt->variable.type) {
+                    stmt->variable.type = check_type(c, stmt->variable.type);
+                }
+            } break;
+        }
+    }
     for (Stmt* stmt: c->srcfile->stmts) {
         check_stmt(c, stmt);
     }
