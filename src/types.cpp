@@ -126,6 +126,7 @@ struct ArrayType {
     Expr* len;
     u64 lennum;
     Type* elem_type;
+    bool constant;  // automatically set by compiler
 };
 
 struct Type {
@@ -144,6 +145,7 @@ enum ExprKind {
     EXPR_KIND_ARRAY_LITERAL,
     EXPR_KIND_SYMBOL,
     EXPR_KIND_FUNCTION_CALL,
+    EXPR_KIND_INDEX,
     EXPR_KIND_BINOP,
     EXPR_KIND_UNOP,
     EXPR_KIND_CAST,
@@ -181,6 +183,13 @@ struct FunctionCallExpr {
     Expr* callee;
     std::vector<Expr*> args;
     Token* rparen;
+};
+
+struct IndexExpr {
+    Expr* left;
+    Expr* idx;
+    Type* left_type;
+    Token* lbrack;
 };
 
 struct BinopExpr {
@@ -246,6 +255,7 @@ struct Expr {
         ArrayLiteralExpr arraylit;
         SymbolExpr symbol;
         FunctionCallExpr function_call;
+        IndexExpr index;
         BinopExpr binop;
         UnopExpr unop;
         CastExpr cast;
@@ -712,6 +722,7 @@ Type* array_type_new(Expr* len, Type* elem_type, Token* lbrack) {
     type->array.len = len;
     type->array.lennum = 0;
     type->array.elem_type = elem_type;
+    type->array.constant = true;
     return type;
 }
 
@@ -846,6 +857,19 @@ Expr* function_call_expr_new(Expr* callee, std::vector<Expr*> args, Token* rpare
     expr->function_call.callee = callee;
     expr->function_call.args = std::move(args);
     expr->function_call.rparen = rparen;
+    return expr;
+}
+
+Expr* index_expr_new(Expr* left, Expr* idx, Token* lbrack) {
+    ALLOC_WITH_TYPE(expr, Expr);
+    expr->kind = EXPR_KIND_INDEX;
+    expr->main_token = left->main_token;
+    expr->type = null;
+    expr->parent_func = null;
+    expr->index.left = left;
+    expr->index.idx = idx;
+    expr->index.left_type = null;
+    expr->index.lbrack = lbrack;
     return expr;
 }
 

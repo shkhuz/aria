@@ -303,6 +303,11 @@ void resolve_expr(ResolveContext* r, Expr* expr) {
             resolve_function_call_expr(r, expr);
         } break;
 
+        case EXPR_KIND_INDEX: {
+            resolve_expr(r, expr->index.left);
+            resolve_expr(r, expr->index.idx);
+        } break;
+
         case EXPR_KIND_BINOP: {
             resolve_binop_expr(r, expr);
         } break;
@@ -412,6 +417,8 @@ void resolve_assign_stmt(ResolveContext* r, Stmt* stmt) {
     }
     else if (stmt->assign.left->kind == EXPR_KIND_UNOP &&
              stmt->assign.left->unop.op->kind == TOKEN_KIND_STAR) {
+    }
+    else if (stmt->assign.left->kind == EXPR_KIND_INDEX) {
     }
     else {
         resolve_error(

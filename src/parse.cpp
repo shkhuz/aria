@@ -371,17 +371,18 @@ Expr* parse_integer_expr(ParseContext* p) {
 }
 
 Expr* parse_atom_expr(ParseContext* p) {
+    Expr* result = null;
     if (parse_match(p, TOKEN_KIND_INTEGER)) {
-        return parse_integer_expr(p);
+        result = parse_integer_expr(p);
     }
     else if (parse_match_keyword(p, "true")) {
-        return constant_expr_new(parse_previous(p), CONSTANT_KIND_BOOLEAN_TRUE);
+        result = constant_expr_new(parse_previous(p), CONSTANT_KIND_BOOLEAN_TRUE);
     }
     else if (parse_match_keyword(p, "false")) {
-        return constant_expr_new(parse_previous(p), CONSTANT_KIND_BOOLEAN_FALSE);
+        result = constant_expr_new(parse_previous(p), CONSTANT_KIND_BOOLEAN_FALSE);
     }
     else if (parse_match_keyword(p, "null")) {
-        return constant_expr_new(parse_previous(p), CONSTANT_KIND_NULL);
+        result = constant_expr_new(parse_previous(p), CONSTANT_KIND_NULL);
     }
     else if (parse_match(p, TOKEN_KIND_LBRACK)) {
         Token* lbrack = parse_previous(p);
@@ -394,25 +395,25 @@ Expr* parse_atom_expr(ParseContext* p) {
                 parse_expect_comma(p);
             }
         }
-        return array_literal_expr_new(std::move(elems), lbrack);
+        result = array_literal_expr_new(std::move(elems), lbrack);
     }
     else if (parse_match(p, TOKEN_KIND_IDENTIFIER)) {
         Expr* symbol = parse_symbol_expr(p, parse_previous(p));
         if (parse_match(p, TOKEN_KIND_LPAREN)) {
-            return parse_function_call_expr(p, symbol, parse_previous(p));
+            result = parse_function_call_expr(p, symbol, parse_previous(p));
         }
         else {
-            return symbol;
+            result = symbol;
         }
     }
     else if (parse_match(p, TOKEN_KIND_LBRACE)) {
-        return parse_block_expr(p, parse_previous(p), true);
+        result = parse_block_expr(p, parse_previous(p), true);
     }
     else if (parse_match_keyword(p, "if")) {
-        return parse_if_expr(p, parse_previous(p));
+        result = parse_if_expr(p, parse_previous(p));
     }
     else if (parse_match_keyword(p, "while")) {
-        return parse_while_expr(p, parse_previous(p));
+        result = parse_while_expr(p, parse_previous(p));
     }
     else {
         fatal_error(
@@ -420,7 +421,15 @@ Expr* parse_atom_expr(ParseContext* p) {
                 "`{}` is invalid here",
                 parse_current(p)->lexeme);
     }
-    return null;
+
+    if (parse_match(p, TOKEN_KIND_LBRACK)) {
+        Token* lbrack = parse_previous(p);
+        Expr* idx = parse_expr(p);
+        // TODO: better error messages
+        parse_expect_rbrack(p);
+        result = index_expr_new(result, idx, lbrack);
+    }
+    return result;
 }
 
 FunctionHeader* parse_function_header(ParseContext* p, bool is_extern) {

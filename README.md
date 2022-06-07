@@ -7,6 +7,9 @@ specification.
 
 ## Sample Code
 
+
+### Fibbonacci
+
 ```rust
 fn main() i32 {
     writeln_i64(fib(9));
@@ -47,7 +50,7 @@ make
 ## Roadmap
 
 - [X] Functions (internal language-compatible)
-- [X] Extern C-Abi functions
+- [X] Extern System V compatible functions
 - [ ] Basic constructs
   - [X] `if` statements
   - [ ] `switch` statements
@@ -56,9 +59,10 @@ make
 - [X] Local variables
 - [ ] Structs
 - [ ] Unions
+- [X] Arrays
 - [ ] Enums
 - [ ] Operators
-  - [X] `+` `-` `==` `!=` `<` `>` `<=` `>=` `-` `&` `*(deref)` `!` `as` `()` `=`
+  - [X] `+` `-` `==` `!=` `<` `>` `<=` `>=` `-` `&` `*(deref)` `!` `as` `()(function call)` `=` `[](index)`
   - [ ] `*` `/` `and` `or` `&(bitwise)` `|`
 - [X] Block expressions / Implicit return expression
 - [ ] Module system

@@ -885,6 +885,42 @@ Type* check_expr(
             return check_function_call_expr(c, expr, cast);
         } break;
 
+        case EXPR_KIND_INDEX: {
+            Type* left_type = check_expr(c, expr->index.left, null, true);
+            expr->index.left_type = left_type;
+            Type* result = null;
+            if (left_type) {
+                if (left_type->kind == TYPE_KIND_ARRAY) {
+                    result = left_type->array.elem_type;
+                }
+                else if (left_type->kind == TYPE_KIND_PTR) {
+                    result = left_type->ptr.child;
+                }
+                else {
+                    check_error(
+                            expr->index.lbrack,
+                            "left operand is not an array or a pointer");
+                    addinfo("left operand type is `{:n}`, but index operator `[]`", *left_type);
+                    addinfo("requires an array or a pointer operand");
+                }
+            }
+
+            Type* idx_type = check_expr(c, expr->index.idx, builtin_type_placeholders.uint64, true);
+            if (idx_type) {
+                CHECK_IMPL_CAST(idx_type, builtin_type_placeholders.uint64);
+                if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
+                    check_error(
+                            expr->index.idx->main_token,
+                            "expected `{}` for index, but got `{}`",
+                            *builtin_type_placeholders.uint64,
+                            *idx_type);
+                }
+            }
+
+            expr->type = result;
+            return result;
+        } break;
+
         case EXPR_KIND_BINOP: {
             return check_binop_expr(c, expr, cast);
         } break;
@@ -989,15 +1025,20 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
             }
         }
     }
-
+    
     if (stmt->variable.type) {
-        CHECK_IMPL_CAST(stmt->variable.type, builtin_type_placeholders.void_kind);
-        if (!IS_IMPL_CAST_STATUS(IC_ERROR) && !IS_IMPL_CAST_STATUS(IC_ERROR_HANDLED)) {
-            check_error(
-                    stmt->variable.identifier,
-                    "useless variable due to type `{}`",
-                    *builtin_type_placeholders.void_kind);
-            return;
+        if (stmt->variable.type->kind == TYPE_KIND_ARRAY) {
+            stmt->variable.type->array.constant = stmt->variable.constant;
+        }
+        else {
+            CHECK_IMPL_CAST(stmt->variable.type, builtin_type_placeholders.void_kind);
+            if (!IS_IMPL_CAST_STATUS(IC_ERROR) && !IS_IMPL_CAST_STATUS(IC_ERROR_HANDLED)) {
+                check_error(
+                        stmt->variable.identifier,
+                        "useless variable due to type `{}`",
+                        *builtin_type_placeholders.void_kind);
+                return;
+            }
         }
     }
 }
@@ -1018,8 +1059,24 @@ void check_assign_stmt(CheckContext* c, Stmt* stmt) {
         if (lhs_deref_child_type->ptr.constant) {
             check_error(
                     stmt->assign.left->main_token,
-                    "cannot mutate read-only location `{}`",
+                    "cannot mutate read-only location with type `{}`",
                     *lhs_deref_child_type);
+        }
+    }
+    else if (left_type && stmt->assign.left->kind == EXPR_KIND_INDEX) {
+        Type* lhs_operand_type = stmt->assign.left->index.left_type;
+        bool constant;
+        switch (lhs_operand_type->kind) {
+            case TYPE_KIND_PTR: constant = lhs_operand_type->ptr.constant; break;
+            case TYPE_KIND_ARRAY: constant = lhs_operand_type->array.constant; break;
+            default: assert(0);
+        }
+
+        if (constant) {
+            check_error(
+                    stmt->assign.left->index.lbrack,
+                    "cannot mutate read-only location with type `{}`",
+                    *lhs_operand_type);
         }
     }
 

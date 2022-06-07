@@ -14,6 +14,14 @@ fn main() {
         [true, true],
         [false, 0 as bool],
     ];
+
+    var f = [0, 1, 2];
+    f[0] = 1;
+    f = [2, 2, 2];
+
+    var g = [0, 0, 0];
+    const h = &g as *i32;
+    h[0] = 1;
 }
 
 fn ret_zero_len() [0]u32 {

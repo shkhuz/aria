@@ -162,6 +162,68 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
             }
         } break;
 
+        case EXPR_KIND_FUNCTION_CALL: {
+            assert(expr->function_call.callee->kind == EXPR_KIND_SYMBOL);
+            assert(expr->function_call.callee->symbol.ref->kind == STMT_KIND_FUNCTION);
+            LLVMValueRef funcval = expr->function_call.callee->symbol.ref->function.header->llvmvalue;
+            LLVMValueRef* arg_values = null;
+            std::vector<Expr*>& args = expr->function_call.args;
+            size_t arg_count = args.size();
+            if (arg_count != 0) {
+                arg_values = (LLVMValueRef*)malloc(sizeof(LLVMValueRef) * arg_count);
+                for (size_t i = 0; i < arg_count; i++) {
+                    arg_values[i] = cg_expr(c, args[i], expr->function_call.callee->symbol.ref->function.header->params[i]->param.type, false);
+                }
+            }
+            // TODO: change to LLVMBuildCall2
+            result = LLVMBuildCall(
+                    c->llvmbuilder,
+                    funcval,
+                    arg_values,
+                    arg_count,
+                    "");
+
+        } break;
+
+        case EXPR_KIND_INDEX: {
+            switch (expr->index.left_type->kind) {
+                case TYPE_KIND_PTR: {
+                    LLVMValueRef left = cg_expr(c, expr->index.left, target, false);
+                    LLVMValueRef index = cg_expr(c, expr->index.idx, builtin_type_placeholders.uint64, false);
+                    result = LLVMBuildGEP2(
+                            c->llvmbuilder,
+                            get_llvm_type(expr->type),
+                            left,
+                            &index,
+                            1,
+                            "");
+                } break;
+
+                case TYPE_KIND_ARRAY: {
+                    LLVMValueRef left = cg_expr(c, expr->index.left, target, true);
+                    LLVMValueRef indices[2];
+                    indices[0] = LLVMConstInt(get_llvm_type(builtin_type_placeholders.uint64), 0, false);
+                    indices[1] = cg_expr(c, expr->index.idx, builtin_type_placeholders.uint64, false);
+                    result = LLVMBuildGEP2(
+                            c->llvmbuilder,
+                            get_llvm_type(expr->index.left_type),
+                            left,
+                            indices,
+                            2,
+                            "");
+                } break;
+                default: assert(0);
+            }
+
+            if (!lvalue) {
+                result = LLVMBuildLoad2(
+                        c->llvmbuilder,
+                        get_llvm_type(expr->type),
+                        result,
+                        "");
+            }
+        } break;
+
         case EXPR_KIND_UNOP: {
             if (expr->unop.op->kind == TOKEN_KIND_STAR) {
                 LLVMValueRef child = cg_expr(c, expr->unop.child, null, false);
@@ -196,29 +258,6 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
                 result = LLVMBuildNot(c->llvmbuilder, child, "");
             }
             else assert(0);
-        } break;
-
-        case EXPR_KIND_FUNCTION_CALL: {
-            assert(expr->function_call.callee->kind == EXPR_KIND_SYMBOL);
-            assert(expr->function_call.callee->symbol.ref->kind == STMT_KIND_FUNCTION);
-            LLVMValueRef funcval = expr->function_call.callee->symbol.ref->function.header->llvmvalue;
-            LLVMValueRef* arg_values = null;
-            std::vector<Expr*>& args = expr->function_call.args;
-            size_t arg_count = args.size();
-            if (arg_count != 0) {
-                arg_values = (LLVMValueRef*)malloc(sizeof(LLVMValueRef) * arg_count);
-                for (size_t i = 0; i < arg_count; i++) {
-                    arg_values[i] = cg_expr(c, args[i], expr->function_call.callee->symbol.ref->function.header->params[i]->param.type, false);
-                }
-            }
-            // TODO: change to LLVMBuildCall2
-            result = LLVMBuildCall(
-                    c->llvmbuilder,
-                    funcval,
-                    arg_values,
-                    arg_count,
-                    "");
-
         } break;
 
         case EXPR_KIND_BINOP: {
