@@ -46,9 +46,35 @@ LLVMTypeRef get_llvm_type(Type* type) {
         case TYPE_KIND_PTR: {
             return LLVMPointerType(get_llvm_type(type->ptr.child), 0);
         } break;
+
+        case TYPE_KIND_ARRAY: {
+            return LLVMArrayType(
+                    get_llvm_type(type->array.elem_type), 
+                    type->array.lennum);
+        } break;
     }
     assert(0);
     return null;
+}
+
+size_t get_type_alignment(Type* type) {
+    switch (type->kind) {
+        case TYPE_KIND_BUILTIN:
+        case TYPE_KIND_PTR: {
+            return type_bytes(type);
+        } break;
+
+        case TYPE_KIND_ARRAY: {
+            if (type_bytes(type) >= 16) {
+                return 16;
+            }
+            else {
+                return type_bytes(type->array.elem_type);
+            }
+        } break;
+    }
+    assert(0);
+    return 0;
 }
 
 void cg_stmt(CgContext* c, Stmt* stmt);
@@ -93,6 +119,17 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
                     10);
         } break;
 
+        case EXPR_KIND_ARRAY_LITERAL: {
+            std::vector<LLVMValueRef> elems;
+            for (Expr* elem: expr->arraylit.elems) {
+                elems.push_back(cg_expr(c, elem, target, lvalue));
+            }
+            result = LLVMConstArray(
+                    get_llvm_type(expr->type->array.elem_type), 
+                    elems.data(),
+                    elems.size());
+        } break;
+
         case EXPR_KIND_BLOCK: {
             for (Stmt* stmt: expr->block.stmts) {
                 cg_stmt(c, stmt);
@@ -121,7 +158,7 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
             
             if (!lvalue) {
                 result = LLVMBuildLoad2(c->llvmbuilder, get_llvm_type(ty), result, "");
-                LLVMSetAlignment(result, type_bytes(ty));
+                LLVMSetAlignment(result, get_type_alignment(ty));
             }
         } break;
 
@@ -442,14 +479,14 @@ void cg_function_stmt(CgContext* c, Stmt* stmt) {
                     c->llvmbuilder,
                     local_type,
                     local->variable.identifier->lexeme.c_str());
-            LLVMSetAlignment(local_val, type_bytes(local->variable.type));
+            LLVMSetAlignment(local_val, get_type_alignment(local->variable.type));
             local->variable.llvmvalue = local_val;
         }
         
         if (params.size() != 0) {
             for (size_t i = 0; i < param_count; i++) { 
                 LLVMValueRef storeinst = LLVMBuildStore(c->llvmbuilder, param_values[i], param_allocs[i]);
-                LLVMSetAlignment(storeinst, type_bytes(params[i]->param.type));
+                LLVMSetAlignment(storeinst, get_type_alignment(params[i]->param.type));
             }
         }
 
@@ -496,7 +533,7 @@ void cg_stmt(CgContext* c, Stmt* stmt) {
                 else {
                     LLVMValueRef rightval = cg_expr(c, stmt->variable.initializer, stmt->variable.type, false);
                     LLVMValueRef res = LLVMBuildStore(c->llvmbuilder, rightval, stmt->variable.llvmvalue);
-                    LLVMSetAlignment(res, type_bytes(stmt->variable.type));
+                    LLVMSetAlignment(res, get_type_alignment(stmt->variable.type));
                 }
             }
         } break;
@@ -511,7 +548,7 @@ void cg_stmt(CgContext* c, Stmt* stmt) {
                         stmt->assign.left->unop.child,
                         stmt->assign.right,
                         false,
-                        type_bytes(stmt->assign.left_type));
+                        get_type_alignment(stmt->assign.left_type));
             } 
             else {
                 cg_assign_value(
@@ -521,7 +558,7 @@ void cg_stmt(CgContext* c, Stmt* stmt) {
                         stmt->assign.left,
                         stmt->assign.right,
                         true,
-                        type_bytes(stmt->assign.left_type));
+                        get_type_alignment(stmt->assign.left_type));
             }
         } break;
 

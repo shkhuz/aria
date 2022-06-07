@@ -1,5 +1,5 @@
 fn main() {
-    let i: i8 = if false {
+    const i: i8 = if false {
         0
     } else if false {
         1

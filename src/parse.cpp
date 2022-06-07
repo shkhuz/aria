@@ -87,6 +87,20 @@ Token* parse_expect_rbrace(ParseContext* p) {
             "`}`");
 }
 
+Token* parse_expect_lbrack(ParseContext* p) {
+    return parse_expect(
+            p,
+            TOKEN_KIND_LBRACK,
+            "`[`");
+}
+
+Token* parse_expect_rbrack(ParseContext* p) {
+    return parse_expect(
+            p,
+            TOKEN_KIND_RBRACK,
+            "`]`");
+}
+
 Token* parse_expect_lparen(ParseContext* p) {
     return parse_expect(
             p,
@@ -155,36 +169,47 @@ void parse_check_eof(ParseContext* p, Token* pair) {
     }
 }
 
-Type* parse_atom_type(ParseContext* p) {
-    Token* identifier = parse_expect_identifier(p, "type name");
-    BuiltinTypeKind builtin_type_kind = 
-        builtin_type_str_to_kind(identifier->lexeme);
-    if (builtin_type_kind == BUILTIN_TYPE_KIND_NONE) {
-        // TODO: implement custom types
-        fatal_error(identifier, "[internal] custom types not implemented");
-        assert(0);
-    }
-    return builtin_type_new(identifier, builtin_type_kind);
-}
+Expr* parse_expr(ParseContext* p);
 
-Type* parse_ptr_type(ParseContext* p) {
+Type* parse_type(ParseContext* p) {
     if (parse_match(p, TOKEN_KIND_STAR)) {
         Token* star = parse_previous(p);
         bool constant = false;
         if (parse_match_keyword(p, "const")) {
             constant = true;
         }
-        Type* child = parse_ptr_type(p);
+        Type* child = parse_type(p);
         return ptr_type_new(
                 star,
                 constant,
                 child);
     }
-    return parse_atom_type(p);
-}
-
-Type* parse_type(ParseContext* p) {
-    return parse_ptr_type(p);
+    else if (parse_match(p, TOKEN_KIND_LBRACK)) {
+        Token* lbrack = parse_previous(p);
+        Expr* len = parse_expr(p);
+        if (len->kind == EXPR_KIND_INTEGER) {
+            parse_expect_rbrack(p);
+            Type* elem_type = parse_type(p);
+            return array_type_new(len, elem_type, lbrack);
+        }
+        else {
+            fatal_error(
+                    len->main_token,
+                    "expected compile-time number literal for array length");
+        }
+    }
+    else {
+        Token* identifier = parse_expect_identifier(p, "type name");
+        BuiltinTypeKind builtin_type_kind = 
+            builtin_type_str_to_kind(identifier->lexeme);
+        if (builtin_type_kind == BUILTIN_TYPE_KIND_NONE) {
+            // TODO: implement custom types
+            fatal_error(identifier, "[internal] custom types not implemented");
+            assert(0);
+        }
+        return builtin_type_new(identifier, builtin_type_kind);
+    }
+    return null;
 }
 
 Expr* parse_atom_expr(ParseContext* p);
@@ -357,6 +382,19 @@ Expr* parse_atom_expr(ParseContext* p) {
     }
     else if (parse_match_keyword(p, "null")) {
         return constant_expr_new(parse_previous(p), CONSTANT_KIND_NULL);
+    }
+    else if (parse_match(p, TOKEN_KIND_LBRACK)) {
+        Token* lbrack = parse_previous(p);
+        std::vector<Expr*> elems;
+        while (!parse_match(p, TOKEN_KIND_RBRACK)) {
+            parse_check_eof(p, lbrack);
+            Expr* elem = parse_expr(p);
+            elems.push_back(elem);
+            if (parse_current(p)->kind != TOKEN_KIND_RBRACK) {
+                parse_expect_comma(p);
+            }
+        }
+        return array_literal_expr_new(std::move(elems), lbrack);
     }
     else if (parse_match(p, TOKEN_KIND_IDENTIFIER)) {
         Expr* symbol = parse_symbol_expr(p, parse_previous(p));

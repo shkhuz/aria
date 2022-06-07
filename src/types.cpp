@@ -15,6 +15,8 @@ enum TokenKind {
     TOKEN_KIND_INTEGER,
     TOKEN_KIND_LBRACE,
     TOKEN_KIND_RBRACE,
+    TOKEN_KIND_LBRACK,
+    TOKEN_KIND_RBRACK,
     TOKEN_KIND_LPAREN,
     TOKEN_KIND_RPAREN,
     TOKEN_KIND_COLON,
@@ -53,10 +55,9 @@ struct Token {
 enum TypeKind {
     TYPE_KIND_BUILTIN,
     TYPE_KIND_PTR,
+    TYPE_KIND_ARRAY,
 };
 
-// TODO: remove usize and isize, and make them aliases of an integer type
-// whose size of machine ptr size-dependent.
 enum BuiltinTypeKind {
     BUILTIN_TYPE_KIND_U8,
     BUILTIN_TYPE_KIND_U16,
@@ -118,7 +119,14 @@ struct PtrType {
     Type* child;
 };
 
+// TODO: make this depend on the hardware
 const size_t PTR_BYTES = 8;
+
+struct ArrayType {
+    Expr* len;
+    u64 lennum;
+    Type* elem_type;
+};
 
 struct Type {
     TypeKind kind;
@@ -126,12 +134,14 @@ struct Type {
     union {
         BuiltinType builtin;
         PtrType ptr;
+        ArrayType array;
     };
 };
 
 enum ExprKind {
     EXPR_KIND_INTEGER,
     EXPR_KIND_CONSTANT,
+    EXPR_KIND_ARRAY_LITERAL,
     EXPR_KIND_SYMBOL,
     EXPR_KIND_FUNCTION_CALL,
     EXPR_KIND_BINOP,
@@ -156,6 +166,10 @@ enum ConstantKind {
 struct ConstantExpr {
     Token* keyword;
     ConstantKind kind;
+};
+
+struct ArrayLiteralExpr {
+    std::vector<Expr*> elems;
 };
 
 struct SymbolExpr {
@@ -229,6 +243,7 @@ struct Expr {
     union {
         IntegerExpr integer;
         ConstantExpr constant;
+        ArrayLiteralExpr arraylit;
         SymbolExpr symbol;
         FunctionCallExpr function_call;
         BinopExpr binop;
@@ -617,6 +632,10 @@ size_t type_bytes(Type* type) {
         case TYPE_KIND_PTR: {
             return PTR_BYTES;
         } break;
+
+        case TYPE_KIND_ARRAY: {
+            return type->array.lennum * type_bytes(type->array.elem_type);
+        } break;
     }
     assert(0);
     return 0;
@@ -683,6 +702,16 @@ Type* ptr_type_new(Token* star, bool constant, Type* child) {
     type->main_token = star;
     type->ptr.constant = constant;
     type->ptr.child = child;
+    return type;
+}
+
+Type* array_type_new(Expr* len, Type* elem_type, Token* lbrack) {
+    ALLOC_WITH_TYPE(type, Type);
+    type->kind = TYPE_KIND_ARRAY;
+    type->main_token = lbrack;
+    type->array.len = len;
+    type->array.lennum = 0;
+    type->array.elem_type = elem_type;
     return type;
 }
 
@@ -784,6 +813,16 @@ Expr* constant_expr_new(Token* keyword, ConstantKind kind) {
     expr->parent_func = null;
     expr->constant.keyword = keyword;
     expr->constant.kind = kind;
+    return expr;
+}
+
+Expr* array_literal_expr_new(std::vector<Expr*> elems, Token* lbrack) {
+    ALLOC_WITH_TYPE(expr, Expr);
+    expr->kind = EXPR_KIND_ARRAY_LITERAL;
+    expr->main_token = lbrack;
+    expr->type = null;
+    expr->parent_func = null;
+    expr->arraylit.elems = std::move(elems);
     return expr;
 }
 
@@ -976,6 +1015,16 @@ template <> struct fmt::formatter<Type> {
                         g_fcyan_color,
                         type.ptr.constant ? "const " : "",
                         *type.ptr.child,
+                        g_reset_color);
+            } break;
+
+            case TYPE_KIND_ARRAY: {
+                result = fmt::format_to(
+                        ctx.out(),
+                        "{}[{}]{}{}",
+                        g_fcyan_color,
+                        type.array.lennum,
+                        *type.array.elem_type,
                         g_reset_color);
             } break;
             

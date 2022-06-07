@@ -91,9 +91,19 @@ ImplicitCastStatus check_implicit_cast(
             if (!from->ptr.constant || to->ptr.constant) {
                 return check_implicit_cast(
                         c,
+                        // TODO: remove this func call
                         type_get_child(from),
                         type_get_child(to));
             }
+        }
+        else if (from->kind == TYPE_KIND_ARRAY) {
+            if (from->array.lennum == to->array.lennum) {
+                return check_implicit_cast(
+                        c,
+                        from->array.elem_type,
+                        to->array.elem_type);
+            }
+            else return IC_ERROR;
         }
     }
     return IC_ERROR;
@@ -155,6 +165,51 @@ void check_apint_fits_into_default_integer_type(
                 *builtin_type_placeholders.int32);
     }
 }
+
+Type* check_integer_expr(
+        CheckContext* c, 
+        Expr* expr, 
+        Type* cast, 
+        bool cast_to_definitive_type);
+
+Type* check_type(CheckContext* c, Type* type) {
+    bool err = false;
+    switch (type->kind) {
+        case TYPE_KIND_BUILTIN: {
+            return type;
+        } break;
+
+        case TYPE_KIND_PTR: {
+            if (!check_type(c, type->ptr.child)) return null;
+            return type;
+        } break;
+
+        case TYPE_KIND_ARRAY: {
+            if (check_integer_expr(
+                    c, 
+                    type->array.len, 
+                    builtin_type_placeholders.uint64, 
+                    true) != null) {
+                type->array.lennum = bigint_get_lsd(type->array.len->integer.val);
+            }
+            else err = true;
+
+            CHECK_IMPL_CAST(type->array.elem_type, builtin_type_placeholders.void_kind);
+            if (!IS_IMPL_CAST_STATUS(IC_ERROR) && !IS_IMPL_CAST_STATUS(IC_ERROR_HANDLED)) {
+                check_error(
+                        type->array.elem_type->main_token,
+                        "array of `{}` types is invalid",
+                        *type->array.elem_type);
+                err = true;
+            }
+            check_type(c, type->array.elem_type);
+
+            if (err) return null;
+            else return type;
+        } break;
+    }
+    return null;
+}  
 
 Type* check_expr(
         CheckContext* c, 
@@ -266,6 +321,7 @@ Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
 
     for (size_t i = 0; i < args.size(); i++) {
         Type* param_type = params[i]->param.type;
+        param_type = check_type(c, param_type);
         Type* arg_type = check_expr(c, args[i], param_type, true);
         /* args[i]->type = arg_type; */
         if (arg_type && param_type) {
@@ -570,6 +626,7 @@ Type* check_cast_expr(CheckContext* c, Expr* expr, Type* cast) {
     Type* left_type = check_expr(c, expr->cast.left, null, true);
     expr->cast.left_type = left_type;
     Type* to_type = expr->cast.to;
+    to_type = check_type(c, to_type);
     expr->type = to_type;
 
     if (left_type) {
@@ -776,6 +833,50 @@ Type* check_expr(
             return check_constant_expr(c, expr, cast);
         } break;
 
+        case EXPR_KIND_ARRAY_LITERAL: {
+            Type* target_elem_type = null;
+            if (cast && cast->kind == TYPE_KIND_ARRAY) {
+                target_elem_type = cast->array.elem_type;
+            }
+
+            // `first_elem_type` defaults to target or i32 in case the array literal is 
+            // empty.
+            Type* first_elem_type = target_elem_type ? target_elem_type : builtin_type_placeholders.int32;
+            bool err = false;
+            for (size_t i = 0; i < expr->arraylit.elems.size(); i++) {
+                Type* ty = check_expr(c, expr->arraylit.elems[i], target_elem_type, true);
+                if (i == 0) {
+                    if (!ty) {
+                        err = true;
+                        break;
+                    }
+                    first_elem_type = ty;
+                }
+                if (i != 0 && ty && first_elem_type) {
+                    CHECK_IMPL_CAST(ty, first_elem_type);
+                    if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
+                        check_error(
+                                expr->arraylit.elems[i]->main_token,
+                                "expected element type `{}` but got `{}`",
+                                *first_elem_type,
+                                *ty);
+                        continue;
+                    }
+                    else if (IS_IMPL_CAST_STATUS(IC_ERROR_HANDLED)) {
+                        continue;
+                    }
+                }
+            }
+            
+            if (err) return null;
+            
+
+            Type* literal_type = array_type_new(null, first_elem_type, null);
+            literal_type->array.lennum = expr->arraylit.elems.size();
+            expr->type = literal_type;
+            return literal_type;
+        } break;
+
         case EXPR_KIND_SYMBOL: {
             return check_symbol_expr(c, expr, cast);
         } break;
@@ -822,6 +923,7 @@ void check_function_stmt(CheckContext* c, Stmt* stmt) {
                 stmt->function.body, 
                 stmt->function.header->return_type);
         Type* return_type = stmt->function.header->return_type;
+        return_type = check_type(c, return_type);
         stmt->function.body->type = body_type;
         if (body_type && return_type) {
             CHECK_IMPL_CAST(body_type, return_type);
@@ -842,6 +944,10 @@ void check_function_stmt(CheckContext* c, Stmt* stmt) {
 }
 
 void check_variable_stmt(CheckContext* c, Stmt* stmt) {
+    if (stmt->variable.type) {
+        stmt->variable.type = check_type(c, stmt->variable.type);
+    }
+
     if (stmt->variable.type && stmt->variable.initializer) {
         Type* initializer_type = check_expr(
                 c,
@@ -884,7 +990,6 @@ void check_variable_stmt(CheckContext* c, Stmt* stmt) {
         }
     }
 
-    
     if (stmt->variable.type) {
         CHECK_IMPL_CAST(stmt->variable.type, builtin_type_placeholders.void_kind);
         if (!IS_IMPL_CAST_STATUS(IC_ERROR) && !IS_IMPL_CAST_STATUS(IC_ERROR_HANDLED)) {

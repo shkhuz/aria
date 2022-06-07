@@ -20,6 +20,13 @@ fn main(argc: i32, argv: **i8) i64 {
         write_char(STDOUT_FILENO, {i + wow()} as i8);
     }
 
+    const arr: [3][3]u8 = [ 
+        [1, 2, 3,],
+        [4, 5, 6,],
+        [7, 8, 9,],
+    ];
+    const arr2 = [true, false, true];
+
     0
 }
 
@@ -33,3 +40,6 @@ fn wow() i32 {
     b as i32
 }
 
+fn ret() [2][2]i32 {
+    [ [1, 2], [2, 0] ]
+}

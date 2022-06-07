@@ -163,9 +163,6 @@ void resolve_stmt(
         Stmt* stmt, 
         bool ignore_function_level_stmt);
 
-void resolve_ptr_type(ResolveContext* r, Type* type) {
-    resolve_type(r, type->ptr.child);
-}
 
 void resolve_type(ResolveContext* r, Type* type) {
     switch (type->kind) {
@@ -173,7 +170,10 @@ void resolve_type(ResolveContext* r, Type* type) {
         } break;
 
         case TYPE_KIND_PTR: {
-            resolve_ptr_type(r, type);
+            resolve_type(r, type->ptr.child);
+        } break;
+
+        case TYPE_KIND_ARRAY: {
         } break;
     }
 }
@@ -289,6 +289,12 @@ void resolve_expr(ResolveContext* r, Expr* expr) {
     }
 
     switch (expr->kind) {
+        case EXPR_KIND_ARRAY_LITERAL: {
+            for (Expr* elem: expr->arraylit.elems) {
+                resolve_expr(r, elem);
+            }
+        } break;
+
         case EXPR_KIND_SYMBOL: {
             resolve_symbol_expr(r, expr);
         } break;

@@ -184,6 +184,8 @@ void lex(LexContext* l) {
 
             case '{': lex_push_tok_adv(l, TOKEN_KIND_LBRACE); break;
             case '}': lex_push_tok_adv(l, TOKEN_KIND_RBRACE); break;
+            case '[': lex_push_tok_adv(l, TOKEN_KIND_LBRACK); break;
+            case ']': lex_push_tok_adv(l, TOKEN_KIND_RBRACK); break;
             case '(': lex_push_tok_adv(l, TOKEN_KIND_LPAREN); break;
             case ')': lex_push_tok_adv(l, TOKEN_KIND_RPAREN); break;
             case ':': lex_push_tok_adv(l, TOKEN_KIND_COLON); break;
