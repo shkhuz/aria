@@ -56,6 +56,7 @@ enum TypeKind {
     TYPE_KIND_BUILTIN,
     TYPE_KIND_PTR,
     TYPE_KIND_ARRAY,
+    TYPE_KIND_SLICE,
 };
 
 enum BuiltinTypeKind {
@@ -129,6 +130,11 @@ struct ArrayType {
     bool constant;  // automatically set by compiler
 };
 
+struct SliceType {
+    bool constant;
+    Type* child;
+};
+
 struct Type {
     TypeKind kind;
     Token* main_token;
@@ -136,6 +142,7 @@ struct Type {
         BuiltinType builtin;
         PtrType ptr;
         ArrayType array;
+        SliceType slice;
     };
 };
 
@@ -646,6 +653,10 @@ size_t type_bytes(Type* type) {
         case TYPE_KIND_ARRAY: {
             return type->array.lennum * type_bytes(type->array.elem_type);
         } break;
+
+        case TYPE_KIND_SLICE: {
+            return 2 * 8;
+        } break;
     }
     assert(0);
     return 0;
@@ -723,6 +734,15 @@ Type* array_type_new(Expr* len, Type* elem_type, Token* lbrack) {
     type->array.lennum = 0;
     type->array.elem_type = elem_type;
     type->array.constant = true;
+    return type;
+}
+
+Type* slice_type_new(Token* lbrack, bool constant, Type* child) {
+    ALLOC_WITH_TYPE(type, Type);
+    type->kind = TYPE_KIND_SLICE;
+    type->main_token = lbrack;
+    type->slice.constant = constant;
+    type->slice.child = child;
     return type;
 }
 
@@ -1049,6 +1069,16 @@ template <> struct fmt::formatter<Type> {
                         g_fcyan_color,
                         type.array.lennum,
                         *type.array.elem_type,
+                        g_reset_color);
+            } break;
+            
+            case TYPE_KIND_SLICE: {
+                result = fmt::format_to(
+                        ctx.out(), 
+                        "{}[]{}{}{}",
+                        g_fcyan_color,
+                        type.slice.constant ? "const " : "",
+                        *type.slice.child,
                         g_reset_color);
             } break;
             

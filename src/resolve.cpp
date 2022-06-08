@@ -170,10 +170,12 @@ void resolve_type(ResolveContext* r, Type* type) {
         } break;
 
         case TYPE_KIND_PTR: {
-            resolve_type(r, type->ptr.child);
         } break;
 
         case TYPE_KIND_ARRAY: {
+        } break;
+
+        case TYPE_KIND_SLICE: {
         } break;
     }
 }

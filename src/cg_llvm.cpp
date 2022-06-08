@@ -52,6 +52,13 @@ LLVMTypeRef get_llvm_type(Type* type) {
                     get_llvm_type(type->array.elem_type), 
                     type->array.lennum);
         } break;
+
+        case TYPE_KIND_SLICE: {
+            LLVMTypeRef elems[2];
+            elems[0] = LLVMPointerType(get_llvm_type(type->slice.child), 0);
+            elems[1] = get_llvm_type(builtin_type_placeholders.uint64);
+            return LLVMStructType(elems, 2, false);
+        } break;
     }
     assert(0);
     return null;
@@ -72,6 +79,8 @@ size_t get_type_alignment(Type* type) {
                 return type_bytes(type->array.elem_type);
             }
         } break;
+
+        case TYPE_KIND_SLICE: return 8;
     }
     assert(0);
     return 0;
@@ -538,6 +547,47 @@ void cg_function_stmt(CgContext* c, Stmt* stmt) {
     /* LLVMDumpValue(function); */
 }
 
+bool cg_pointer_array_to_slice_cast(
+        CgContext* c, 
+        Type* left_ty, 
+        Type* right_ty,
+        LLVMValueRef leftval,
+        LLVMValueRef rightval) {
+    if (left_ty->kind == TYPE_KIND_SLICE &&
+        (right_ty->kind == TYPE_KIND_PTR &&
+         right_ty->ptr.child->kind == TYPE_KIND_ARRAY)) {
+        LLVMValueRef pointer_elem = LLVMBuildStructGEP2(
+                c->llvmbuilder,
+                get_llvm_type(left_ty),
+                leftval,
+                0,
+                "");
+        LLVMValueRef res = LLVMBuildStore(
+                c->llvmbuilder, 
+                LLVMBuildPointerCast(c->llvmbuilder, rightval, LLVMPointerType(get_llvm_type(left_ty->slice.child), 0), ""),
+                pointer_elem);
+        LLVMSetAlignment(res, 8);
+
+        LLVMValueRef len_elem = LLVMBuildStructGEP2(
+                c->llvmbuilder,
+                get_llvm_type(left_ty),
+                leftval,
+                1,
+                "");
+        LLVMValueRef len = LLVMConstInt(
+                get_llvm_type(builtin_type_placeholders.uint64), 
+                right_ty->ptr.child->array.lennum, 
+                false);
+        LLVMValueRef res2 = LLVMBuildStore(
+                c->llvmbuilder, 
+                len,
+                len_elem);
+        LLVMSetAlignment(res2, 8);
+        return true;
+    }
+    return false;
+}
+
 void cg_assign_value(CgContext* c, Type* left_ty, Type* right_ty, Expr* left, Expr* right, bool left_lvalue, size_t align_to) {
     // TODO: same code in BINOP: refactor please
     Type* left_target_ty = null;
@@ -550,11 +600,10 @@ void cg_assign_value(CgContext* c, Type* left_ty, Type* right_ty, Expr* left, Ex
     }
     LLVMValueRef leftval = cg_expr(c, left, left_target_ty, left_lvalue);
     LLVMValueRef rightval = cg_expr(c, right, right_target_ty, false);
-    LLVMValueRef res = LLVMBuildStore(c->llvmbuilder, rightval, leftval);
-    LLVMSetAlignment(res, align_to);
-}
-
-void cg_initialize_variable_stmt(CgContext* c, Stmt* stmt) {
+    if (!cg_pointer_array_to_slice_cast(c, left_ty, right_ty, leftval, rightval)) {
+        LLVMValueRef res = LLVMBuildStore(c->llvmbuilder, rightval, leftval);
+        LLVMSetAlignment(res, align_to);
+    }
 }
 
 void cg_stmt(CgContext* c, Stmt* stmt) {
@@ -571,8 +620,10 @@ void cg_stmt(CgContext* c, Stmt* stmt) {
                 }
                 else {
                     LLVMValueRef rightval = cg_expr(c, stmt->variable.initializer, stmt->variable.type, false);
-                    LLVMValueRef res = LLVMBuildStore(c->llvmbuilder, rightval, stmt->variable.llvmvalue);
-                    LLVMSetAlignment(res, get_type_alignment(stmt->variable.type));
+                    if (!cg_pointer_array_to_slice_cast(c, stmt->variable.type, stmt->variable.initializer_type, stmt->variable.llvmvalue, rightval)) {
+                        LLVMValueRef res = LLVMBuildStore(c->llvmbuilder, rightval, stmt->variable.llvmvalue);
+                        LLVMSetAlignment(res, get_type_alignment(stmt->variable.type));
+                    }
                 }
             }
         } break;

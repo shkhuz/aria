@@ -1,13 +1,6 @@
-fn main() i8 {
+fn main() void {
     var arr: [2]i8;
-    arr = get();
-    arr[0] = 1;
-    arr[1] = 1;
-    arr[0]
-}
-
-fn get() [2]i8 { 
-    [1, 2]
+    var slice: []i8 = &arr;
 }
 
 extern fn write_char(fd: u32, ch: i8);

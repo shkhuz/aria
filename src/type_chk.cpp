@@ -103,7 +103,28 @@ ImplicitCastStatus check_implicit_cast(
                         from->array.elem_type,
                         to->array.elem_type);
             }
-            else return IC_ERROR;
+        }
+        else if (from->kind == TYPE_KIND_SLICE) {
+            // Refer diagram above for an explaination
+            if (!from->slice.constant || to->slice.constant) {
+                return check_implicit_cast(
+                        c,
+                        from->slice.child,
+                        to->slice.child);
+            }
+        }
+    }
+    else if ((from->kind == TYPE_KIND_PTR && from->ptr.child->kind == TYPE_KIND_ARRAY) &&
+             to->kind == TYPE_KIND_SLICE) {
+        // cast from pointer-to-array to a slice 
+        // `*(const?) [#]type` --> `[](const?) type
+        
+        // Refer diagram above for an explaination
+        if (!from->ptr.constant || to->slice.constant) { 
+            return check_implicit_cast(
+                    c,
+                    from->ptr.child->array.elem_type,
+                    to->slice.child);
         }
     }
     return IC_ERROR;
@@ -206,6 +227,11 @@ Type* check_type(CheckContext* c, Type* type) {
 
             if (err) return null;
             else return type;
+        } break;
+
+        case TYPE_KIND_SLICE: {
+            if (!check_type(c, type->slice.child)) return null;
+            return type;
         } break;
     }
     return null;
@@ -657,6 +683,21 @@ Type* check_cast_expr(CheckContext* c, Expr* expr, Type* cast) {
                 return to_type;
             }
         }
+        else if (left_type->kind == TYPE_KIND_SLICE && to_type->kind == TYPE_KIND_SLICE) {
+            if (left_type->slice.constant && !to_type->slice.constant) {
+                check_error(
+                        expr->main_token,
+                        "cast to `{}` discards const-ness of `{}`",
+                        *to_type,
+                        *left_type);
+                addinfo("converting a const-slice to a mutable slice is invalid");
+                addinfo("consider adding `const`: `[]const {:n}`",
+                        *to_type->slice.child);
+            }
+            else {
+                return to_type;
+            }
+        }
         else {
             return to_type;
         }
@@ -895,12 +936,15 @@ Type* check_expr(
                 else if (left_type->kind == TYPE_KIND_PTR) {
                     result = left_type->ptr.child;
                 }
+                else if (left_type->kind == TYPE_KIND_SLICE) {
+                    result = left_type->slice.child;
+                }
                 else {
                     check_error(
                             expr->index.lbrack,
-                            "left operand is not an array or a pointer");
+                            "left operand is not an array, slice or a pointer");
                     addinfo("left operand type is `{:n}`, but index operator `[]`", *left_type);
-                    addinfo("requires an array or a pointer operand");
+                    addinfo("requires an array, slice or a pointer operand");
                 }
             }
 
@@ -1051,7 +1095,12 @@ void check_assign_stmt(CheckContext* c, Stmt* stmt) {
     if (left_type && is_deref_expr(stmt->assign.left)) {
         Type* lhs_deref_child_type = stmt->assign.left->unop.child_type;
         assert(lhs_deref_child_type->kind == TYPE_KIND_PTR);
-        if (lhs_deref_child_type->ptr.constant) {
+        bool constant;
+        switch (lhs_deref_child_type->kind) {
+            case TYPE_KIND_PTR:   constant = lhs_deref_child_type->ptr.constant; break;
+            case TYPE_KIND_SLICE: constant = lhs_deref_child_type->slice.constant; break;
+        }
+        if (constant) {
             check_error(
                     stmt->assign.left->main_token,
                     "cannot mutate read-only location with type `{}`",

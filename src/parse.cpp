@@ -186,16 +186,26 @@ Type* parse_type(ParseContext* p) {
     }
     else if (parse_match(p, TOKEN_KIND_LBRACK)) {
         Token* lbrack = parse_previous(p);
-        Expr* len = parse_expr(p);
-        if (len->kind == EXPR_KIND_INTEGER) {
-            parse_expect_rbrack(p);
-            Type* elem_type = parse_type(p);
-            return array_type_new(len, elem_type, lbrack);
+        if (parse_match(p, TOKEN_KIND_RBRACK)) {
+            bool constant = false;
+            if (parse_match_keyword(p, "const")) {
+                constant = true;
+            }
+            Type* child = parse_type(p);
+            return slice_type_new(lbrack, constant, child);
         }
         else {
-            fatal_error(
-                    len->main_token,
-                    "expected compile-time number literal for array length");
+            Expr* len = parse_expr(p);
+            if (len->kind == EXPR_KIND_INTEGER) {
+                parse_expect_rbrack(p);
+                Type* elem_type = parse_type(p);
+                return array_type_new(len, elem_type, lbrack);
+            }
+            else {
+                fatal_error(
+                        len->main_token,
+                        "expected compile-time number literal for array length");
+            }
         }
     }
     else {
