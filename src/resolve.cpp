@@ -47,7 +47,6 @@ Scope* scope_new(Scope* parent) {
 ScopeSearchResult resolve_search_in_current_scope_rec(
         ResolveContext* r, 
         Token* identifier) {
-
     ScopeSearchResult result;
     result.status = SCOPE_UNRESOLVED;
     result.stmt = null;
@@ -91,8 +90,7 @@ Stmt* resolve_assert_symbol_is_in_current_scope_rec(
     return search_result.stmt;
 }
 
-void resolve_cpush_in_scope(ResolveContext* r, Stmt* stmt) {
-    Token* identifier = stmt->main_token;
+void resolve_cpush_in_scope(ResolveContext* r, Token* identifier, Stmt* stmt) {
     BuiltinTypeKind kind = builtin_type_str_to_kind(identifier->lexeme);
     if (kind != BUILTIN_TYPE_KIND_NONE) {
         resolve_error(
@@ -144,13 +142,17 @@ void resolve_pre_decl_stmt(
         bool ignore_function_level_stmt) {
 
     switch (stmt->kind) {
+        case STMT_KIND_STRUCT: {
+            resolve_cpush_in_scope(r, stmt->structure.identifier, stmt);
+        } break;
+
         case STMT_KIND_FUNCTION: {
-            resolve_cpush_in_scope(r, stmt); 
+            resolve_cpush_in_scope(r, stmt->function.header->identifier, stmt); 
         } break;
 
         case STMT_KIND_VARIABLE: {
             if (!ignore_function_level_stmt) {
-                resolve_cpush_in_scope(r, stmt);
+                resolve_cpush_in_scope(r, stmt->variable.identifier, stmt);
             }
         } break;
     }
@@ -163,19 +165,41 @@ void resolve_stmt(
         Stmt* stmt, 
         bool ignore_function_level_stmt);
 
-
 void resolve_type(ResolveContext* r, Type* type) {
     switch (type->kind) {
         case TYPE_KIND_BUILTIN: {
         } break;
 
         case TYPE_KIND_PTR: {
+            resolve_type(r, type->ptr.child);
         } break;
 
         case TYPE_KIND_ARRAY: {
+            resolve_type(r, type->array.elem_type);
         } break;
 
         case TYPE_KIND_SLICE: {
+            resolve_type(r, type->slice.child);
+        } break;
+
+        case TYPE_KIND_CUSTOM: {
+            type->custom.ref = 
+                resolve_assert_symbol_is_in_current_scope_rec(r, type->custom.identifier);
+            if (type->custom.ref) {
+                if (type->custom.ref->kind != STMT_KIND_STRUCT) {
+                    resolve_error(
+                            type->custom.identifier,
+                            "expected a type, but found `{}`",
+                            *type->custom.identifier);
+                    note(
+                            type->custom.ref->main_token,
+                            "`{}` is defined here",
+                            *type->custom.identifier);
+                    addinfo(
+                            "`{}` is not a type definition, so it cannot be used as a type",
+                            *type->custom.ref->main_token);
+                }
+            }
         } break;
     }
 }
@@ -189,7 +213,7 @@ void resolve_function_call_expr(ResolveContext* r, Expr* expr) {
     if (expr->function_call.callee->kind != EXPR_KIND_SYMBOL) {
         resolve_error(
                 expr->main_token,
-                "callee must be an identifier");
+                "[internal] function ptr/methods calls not implemented yet");
         return;
     }
 
@@ -278,6 +302,7 @@ void resolve_while_expr(ResolveContext* r, Expr* expr) {
 void resolve_expr(ResolveContext* r, Expr* expr) {
     expr->parent_func = r->current_func;
     if ((expr->kind == EXPR_KIND_SYMBOL || 
+         expr->kind == EXPR_KIND_FIELD_ACCESS || 
          expr->kind == EXPR_KIND_BLOCK || 
          expr->kind == EXPR_KIND_IF || 
          (expr->kind == EXPR_KIND_UNOP && expr->unop.op->kind == TOKEN_KIND_STAR) || 
@@ -303,6 +328,10 @@ void resolve_expr(ResolveContext* r, Expr* expr) {
 
         case EXPR_KIND_FUNCTION_CALL: {
             resolve_function_call_expr(r, expr);
+        } break;
+
+        case EXPR_KIND_FIELD_ACCESS: {
+            resolve_expr(r, expr->fieldacc.left);
         } break;
 
         case EXPR_KIND_INDEX: {
@@ -336,14 +365,10 @@ void resolve_expr(ResolveContext* r, Expr* expr) {
     }
 }
 
-void resolve_param_stmt(ResolveContext* r, Stmt* stmt) {
-    resolve_cpush_in_scope(r, stmt);
-    resolve_type(r, stmt->param.type);
-}
-
 void resolve_function_header(ResolveContext* r, FunctionHeader* header) {
     for (Stmt* param: header->params) {
-        resolve_param_stmt(r, param);
+        resolve_cpush_in_scope(r, param->param.identifier, param);
+        resolve_type(r, param->param.type);
     }
     resolve_type(r, header->return_type);
 }
@@ -365,7 +390,7 @@ void resolve_variable_stmt(
         bool ignore_function_level_stmt) {
 
     if (!ignore_function_level_stmt) {
-        resolve_cpush_in_scope(r, stmt);
+        resolve_cpush_in_scope(r, stmt->variable.identifier, stmt);
     }
 
     if (!stmt->variable.type && !stmt->variable.initializer) {
@@ -422,6 +447,8 @@ void resolve_assign_stmt(ResolveContext* r, Stmt* stmt) {
     }
     else if (stmt->assign.left->kind == EXPR_KIND_INDEX) {
     }
+    else if (stmt->assign.left->kind == EXPR_KIND_FIELD_ACCESS) {
+    }
     else {
         resolve_error(
                 stmt->main_token,
@@ -439,6 +466,15 @@ void resolve_stmt(
         bool ignore_function_level_stmt) {
     stmt->parent_func = r->current_func;
     switch (stmt->kind) {
+        case STMT_KIND_STRUCT: {
+            scope_push(scope);
+            for (Stmt* field: stmt->structure.fields) {
+                resolve_cpush_in_scope(r, field->field.identifier, field);
+                resolve_type(r, field->field.type);
+            }
+            scope_pop(scope);
+        } break;
+
         case STMT_KIND_FUNCTION: {
             resolve_function_stmt(r, stmt);
         } break;

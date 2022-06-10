@@ -13,6 +13,7 @@ typedef struct {
 static LLVMTargetRef g_llvmtarget;
 static LLVMTargetMachineRef g_llvmtargetmachine;
 static LLVMTargetDataRef g_llvmtargetdatalayout;
+static LLVMPassManagerRef g_llvmpm;
 static char* g_llvmtargetdatalayout_str;
 
 // To print a `Type` using fmt::print(), use `l` format specifier
@@ -59,6 +60,10 @@ LLVMTypeRef get_llvm_type(Type* type) {
             elems[1] = get_llvm_type(builtin_type_placeholders.uint64);
             return LLVMStructType(elems, 2, false);
         } break;
+
+        case TYPE_KIND_CUSTOM: {
+            return type->custom.ref->structure.llvmtype;
+        } break;
     }
     assert(0);
     return null;
@@ -81,6 +86,20 @@ size_t get_type_alignment(Type* type) {
         } break;
 
         case TYPE_KIND_SLICE: return 8;
+        case TYPE_KIND_CUSTOM: {
+            if (type->custom.ref->structure.alignment == -1) {
+                size_t alignment = 0;
+                for (Stmt* field: type->custom.ref->structure.fields) {
+                    size_t field_alignment = get_type_alignment(field->field.type);
+                    if (field_alignment > alignment) alignment = field_alignment;
+                }
+                type->custom.ref->structure.alignment = alignment;
+                return (size_t)alignment;
+            }
+            else {
+                return (size_t)type->custom.ref->structure.alignment;
+            }
+        } break;
     }
     assert(0);
     return 0;
@@ -192,6 +211,24 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
                     arg_count,
                     "");
 
+        } break;
+
+        case EXPR_KIND_FIELD_ACCESS: {
+            LLVMValueRef left = cg_expr(c, expr->fieldacc.left, null, true);
+            result = LLVMBuildStructGEP2(
+                    c->llvmbuilder,
+                    get_llvm_type(expr->fieldacc.left_type),
+                    left,
+                    expr->fieldacc.rightref->field.idx,
+                    "");
+
+            if (!lvalue) {
+                result = LLVMBuildLoad2(
+                        c->llvmbuilder,
+                        get_llvm_type(expr->type),
+                        result,
+                        "");
+            }
         } break;
 
         case EXPR_KIND_INDEX: {
@@ -608,6 +645,18 @@ void cg_assign_value(CgContext* c, Type* left_ty, Type* right_ty, Expr* left, Ex
 
 void cg_stmt(CgContext* c, Stmt* stmt) {
     switch (stmt->kind) {
+        case STMT_KIND_STRUCT: {
+            std::vector<LLVMTypeRef> fieldtypes;
+            for (Stmt* field: stmt->structure.fields) {
+                fieldtypes.push_back(get_llvm_type(field->field.type));
+            }
+            LLVMStructSetBody(
+                    stmt->structure.llvmtype,
+                    fieldtypes.data(),
+                    fieldtypes.size(),
+                    false);
+        } break;
+
         case STMT_KIND_FUNCTION: {
             cg_function_stmt(c, stmt);
         } break;
@@ -660,6 +709,10 @@ void cg_stmt(CgContext* c, Stmt* stmt) {
 
 void cg_top_level(CgContext* c, Stmt* stmt) {
     switch (stmt->kind) {
+        case STMT_KIND_STRUCT: {
+            stmt->structure.llvmtype = LLVMStructCreateNamed(c->llvmctx, stmt->structure.identifier->lexeme.c_str());
+        } break;
+
         case STMT_KIND_FUNCTION: {
             std::vector<Stmt*>& params = stmt->function.header->params;
             LLVMTypeRef return_type = get_llvm_type(stmt->function.header->return_type);
@@ -759,6 +812,9 @@ bool init_cg(char** target_triple) {
             LLVMCodeModelDefault);
     g_llvmtargetdatalayout = LLVMCreateTargetDataLayout(g_llvmtargetmachine);
     g_llvmtargetdatalayout_str = LLVMCopyStringRepOfTargetData(g_llvmtargetdatalayout);
+
+    g_llvmpm = LLVMCreatePassManager();
+    LLVMAddPromoteMemoryToRegisterPass(g_llvmpm);
     /* printf("datalayout: %s\n", g_llvmtargetdatalayout_str); */
     return false;
 }
@@ -801,9 +857,7 @@ void cg(CgContext* c) {
         return;
     }
 
-    LLVMPassManagerRef pm = LLVMCreatePassManager();
-    LLVMAddPromoteMemoryToRegisterPass(pm);
-    LLVMRunPassManager(pm, c->llvmmod);
+    LLVMRunPassManager(g_llvmpm, c->llvmmod);
     fmt::print(stderr, "\n---- Optimizied IR ----\n");
     LLVMDumpModule(c->llvmmod);
    

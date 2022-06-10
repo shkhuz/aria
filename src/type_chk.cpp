@@ -113,6 +113,11 @@ ImplicitCastStatus check_implicit_cast(
                         to->slice.child);
             }
         }
+        else if (from->kind == TYPE_KIND_CUSTOM) {
+            if (from->custom.ref == to->custom.ref) {
+                return IC_OK;
+            }
+        }
     }
     else if ((from->kind == TYPE_KIND_PTR && from->ptr.child->kind == TYPE_KIND_ARRAY) &&
              to->kind == TYPE_KIND_SLICE) {
@@ -231,6 +236,10 @@ Type* check_type(CheckContext* c, Type* type) {
 
         case TYPE_KIND_SLICE: {
             if (!check_type(c, type->slice.child)) return null;
+            return type;
+        } break;
+
+        case TYPE_KIND_CUSTOM: {
             return type;
         } break;
     }
@@ -925,6 +934,43 @@ Type* check_expr(
             return check_function_call_expr(c, expr, cast);
         } break;
 
+        case EXPR_KIND_FIELD_ACCESS: {
+            Type* left_type = check_expr(c, expr->fieldacc.left, null, true);
+            expr->fieldacc.left_type = left_type;
+            if (left_type) {
+                if (left_type->kind == TYPE_KIND_CUSTOM) {
+                    Stmt* field = null;
+                    for (Stmt* f: left_type->custom.ref->structure.fields) {
+                        if (is_token_lexeme_eq(f->field.identifier, expr->fieldacc.right)) {
+                            field = f;
+                            break;
+                        }
+                    }
+                    
+                    if (field) {
+                        expr->fieldacc.rightref = field;
+                        expr->type = field->field.type;
+                        return field->field.type;
+                    }
+                    else {
+                        check_error(
+                                expr->fieldacc.right,
+                                "`{}` does not contain a field `{}`",
+                                *left_type,
+                                *expr->fieldacc.right);
+                        return null;
+                    }
+                }
+                else {
+                    check_error(
+                            expr->main_token,
+                            "cannot access member fields from type `{}`",
+                            *left_type);
+                    return null;
+                }
+            }
+        } break;
+
         case EXPR_KIND_INDEX: {
             Type* left_type = check_expr(c, expr->index.left, null, true);
             expr->index.left_type = left_type;
@@ -1177,6 +1223,12 @@ void check(CheckContext* c) {
 
     for (Stmt* stmt: c->srcfile->stmts) {
         switch (stmt->kind) {
+            case STMT_KIND_STRUCT: {
+                for (Stmt* field: stmt->structure.fields) {
+                    field->field.type = check_type(c, field->field.type);
+                }
+            } break;
+
             case STMT_KIND_FUNCTION: {
                 for (Stmt* param: stmt->function.header->params) {
                     check_stmt(c, param);

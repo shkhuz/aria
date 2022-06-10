@@ -30,7 +30,7 @@ fn fib(n: i32) i32 {
 - x86-64
 - AArch64
 
-For the time being, the Aria compiler only supports \*nix enviroments, because
+For the time being, the Aria compiler only supports Unix enviroments, because
 it makes it easy to extend the compiler without having to worry about other
 platforms. 
 
@@ -49,25 +49,25 @@ make
 
 ## Roadmap
 
-- [X] Functions (internal language-compatible)
-- [X] Extern System V compatible functions
+- [X] System V compatible functions
 - [ ] Basic constructs
   - [X] `if` statements
   - [ ] `switch` statements
   - [ ] `for` loops
   - [X] `while` loops
 - [X] Local variables
-- [ ] Structs
+- [X] Global variables
+- [X] Extern variables
+- [X] Structs
 - [ ] Unions
-- [X] Arrays
 - [ ] Enums
 - [ ] Operators
-  - [X] `+` `-` `==` `!=` `<` `>` `<=` `>=` `-` `&` `*(deref)` `!` `as` `()(function call)` `=` `[](index)`
+  - [X] `+` `-` `==` `!=` `<` `>` `<=` `>=` `-` `&` `*(deref)` `!` `as` `()(function call)` `=` `[](index)` `.(field access)`
   - [ ] `*` `/` `and` `or` `&(bitwise)` `|`
 - [X] Block expressions / Implicit return expression
 - [ ] Module system
-- [X] Global variables
-- [X] Extern variables
+- [X] Arrays
+- [X] Slices (`[]`)
 
 ## License
 

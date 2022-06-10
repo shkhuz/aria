@@ -1,0 +1,26 @@
+struct GameState {
+    player_pos: Vec2,
+    mouse_pos: Vec2,
+    keyboard_input: KeyInfo,
+}
+
+struct Vec2 {
+    x: u64,
+    y: u64,
+}
+
+struct KeyInfo {
+    key: u8,
+    modifier: u8,
+}
+
+fn main() {
+    var gamestate: GameState;
+    const zero_pos: Vec2;
+    zero_pos.x = 0;
+    zero_pos.y = 0;
+    gamestate.player_pos = zero_pos;
+    gamestate.mouse_pos = zero_pos;
+    gamestate.keyboard_input.key = 70;
+    gamestate.keyboard_input.modifier = 0;
+}

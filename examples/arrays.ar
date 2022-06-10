@@ -1,6 +1,22 @@
+struct game {
+    pos: vec2,
+    rot: vec2,
+}
+
+struct vec2 {
+    x: u64, 
+    y: bool,
+}
+
 fn main() void {
     var arr: [2]i8;
     var slice: []i8 = &arr;
+    //var b: *main = 2;
+    
+    var g: game;
+    g.pos.x = 1;
+    write_char(1, g.pos.x as i8);
+    //{ const i: game; i }.pos.y = 1;
 }
 
 extern fn write_char(fd: u32, ch: i8);

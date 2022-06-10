@@ -21,6 +21,7 @@ enum TokenKind {
     TOKEN_KIND_RPAREN,
     TOKEN_KIND_COLON,
     TOKEN_KIND_SEMICOLON,
+    TOKEN_KIND_DOT,
     TOKEN_KIND_COMMA,
     TOKEN_KIND_EQUAL,
     TOKEN_KIND_DOUBLE_EQUAL,
@@ -57,6 +58,7 @@ enum TypeKind {
     TYPE_KIND_PTR,
     TYPE_KIND_ARRAY,
     TYPE_KIND_SLICE,
+    TYPE_KIND_CUSTOM,
 };
 
 enum BuiltinTypeKind {
@@ -135,6 +137,11 @@ struct SliceType {
     Type* child;
 };
 
+struct CustomType {
+    Token* identifier;
+    Stmt* ref;
+};
+
 struct Type {
     TypeKind kind;
     Token* main_token;
@@ -143,6 +150,7 @@ struct Type {
         PtrType ptr;
         ArrayType array;
         SliceType slice;
+        CustomType custom;
     };
 };
 
@@ -150,6 +158,7 @@ enum ExprKind {
     EXPR_KIND_INTEGER,
     EXPR_KIND_CONSTANT,
     EXPR_KIND_ARRAY_LITERAL,
+    EXPR_KIND_FIELD_ACCESS,
     EXPR_KIND_SYMBOL,
     EXPR_KIND_FUNCTION_CALL,
     EXPR_KIND_INDEX,
@@ -179,6 +188,13 @@ struct ConstantExpr {
 
 struct ArrayLiteralExpr {
     std::vector<Expr*> elems;
+};
+
+struct FieldAccessExpr {
+    Expr* left;
+    Type* left_type;
+    Token* right;
+    Stmt* rightref;
 };
 
 struct SymbolExpr {
@@ -260,6 +276,7 @@ struct Expr {
         IntegerExpr integer;
         ConstantExpr constant;
         ArrayLiteralExpr arraylit;
+        FieldAccessExpr fieldacc;
         SymbolExpr symbol;
         FunctionCallExpr function_call;
         IndexExpr index;
@@ -275,12 +292,28 @@ struct Expr {
 };
 
 enum StmtKind {
+    STMT_KIND_STRUCT,
+    STMT_KIND_FIELD,
     STMT_KIND_FUNCTION,
     STMT_KIND_VARIABLE,
     STMT_KIND_PARAM,
     STMT_KIND_ASSIGN,
     STMT_KIND_RETURN,
     STMT_KIND_EXPR,
+};
+
+struct FieldStmt {
+    Token* identifier;
+    Type* type;
+    size_t idx;
+};
+
+struct StructStmt {
+    Token* identifier;
+    std::vector<Stmt*> fields;
+    ssize_t alignment;
+    ssize_t bytes_when_packed;
+    LLVMTypeRef llvmtype;
 };
 
 struct FunctionHeader {
@@ -339,6 +372,8 @@ struct Stmt {
     Token* main_token;
     Stmt* parent_func;
     union {
+        StructStmt structure;
+        FieldStmt field;
         FunctionStmt function;
         VariableStmt variable;
         ParamStmt param;
@@ -351,6 +386,7 @@ struct Stmt {
 };
 
 std::string aria_keywords[] = {
+    "struct",
     "fn",
     "const",
     "var",
@@ -657,6 +693,18 @@ size_t type_bytes(Type* type) {
         case TYPE_KIND_SLICE: {
             return 2 * 8;
         } break;
+
+        case TYPE_KIND_CUSTOM: {
+            if (type->custom.ref->structure.bytes_when_packed == -1) {
+                size_t bytes = 0;
+                for (Stmt* field: type->custom.ref->structure.fields) {
+                    bytes += type_bytes(field->field.type);
+                }
+                type->custom.ref->structure.bytes_when_packed = bytes;
+                return bytes;
+            }
+            else return type->custom.ref->structure.bytes_when_packed;
+        } break;
     }
     assert(0);
     return 0;
@@ -746,6 +794,41 @@ Type* slice_type_new(Token* lbrack, bool constant, Type* child) {
     return type;
 }
 
+Type* custom_type_new(Token* identifier) {
+    ALLOC_WITH_TYPE(type, Type);
+    type->kind = TYPE_KIND_CUSTOM;
+    type->main_token = identifier;
+    type->custom.identifier = identifier;
+    type->custom.ref = null;
+    return type;
+}
+
+Stmt* field_stmt_new(Token* identifier, Type* type, size_t idx) {
+    ALLOC_WITH_TYPE(stmt, Stmt);
+    stmt->kind = STMT_KIND_FIELD;
+    stmt->main_token = identifier;
+    stmt->parent_func = null;
+    stmt->field.identifier = identifier;
+    stmt->field.type = type;
+    stmt->field.idx = idx;
+    return stmt;
+}
+
+Stmt* struct_stmt_new(
+        Token* identifier,
+        std::vector<Stmt*> fields) {
+    ALLOC_WITH_TYPE(stmt, Stmt);
+    stmt->kind = STMT_KIND_STRUCT;
+    stmt->main_token = identifier;
+    stmt->parent_func = null;
+    stmt->structure.identifier = identifier;
+    stmt->structure.fields = std::move(fields);
+    stmt->structure.alignment = -1;
+    stmt->structure.bytes_when_packed = -1;
+    stmt->structure.llvmtype = null;
+    return stmt;
+}
+
 FunctionHeader* function_header_new(
         Token* identifier, 
         std::vector<Stmt*> params, 
@@ -761,7 +844,7 @@ FunctionHeader* function_header_new(
 }
 
 Stmt* function_stmt_new(FunctionHeader* header, Expr* body) {
-    Stmt* stmt = (Stmt*)calloc(1, sizeof(Stmt));
+    ALLOC_WITH_TYPE(stmt, Stmt);
     stmt->kind = STMT_KIND_FUNCTION;
     stmt->main_token = header->identifier;
     stmt->parent_func = null;
@@ -854,6 +937,19 @@ Expr* array_literal_expr_new(std::vector<Expr*> elems, Token* lbrack) {
     expr->type = null;
     expr->parent_func = null;
     expr->arraylit.elems = std::move(elems);
+    return expr;
+}
+
+Expr* field_access_expr_new(Expr* left, Token* right, Token* dot) {
+    ALLOC_WITH_TYPE(expr, Expr);
+    expr->kind = EXPR_KIND_FIELD_ACCESS;
+    expr->main_token = dot;
+    expr->type = null;
+    expr->parent_func = null;
+    expr->fieldacc.left = left;
+    expr->fieldacc.left_type = null;
+    expr->fieldacc.right = right;
+    expr->fieldacc.rightref = null;
     return expr;
 }
 
@@ -1079,6 +1175,15 @@ template <> struct fmt::formatter<Type> {
                         g_fcyan_color,
                         type.slice.constant ? "const " : "",
                         *type.slice.child,
+                        g_reset_color);
+            } break;
+
+            case TYPE_KIND_CUSTOM: {
+                result = fmt::format_to(
+                        ctx.out(), 
+                        "{}{}{}",
+                        g_fcyan_color,
+                        *type.custom.identifier,
                         g_reset_color);
             } break;
             

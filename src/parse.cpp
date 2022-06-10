@@ -213,17 +213,57 @@ Type* parse_type(ParseContext* p) {
         BuiltinTypeKind builtin_type_kind = 
             builtin_type_str_to_kind(identifier->lexeme);
         if (builtin_type_kind == BUILTIN_TYPE_KIND_NONE) {
-            // TODO: implement custom types
-            fatal_error(identifier, "[internal] custom types not implemented");
-            assert(0);
+            return custom_type_new(identifier);
         }
-        return builtin_type_new(identifier, builtin_type_kind);
+        else {
+            return builtin_type_new(identifier, builtin_type_kind);
+        }
     }
     return null;
 }
 
 Expr* parse_atom_expr(ParseContext* p);
 StmtOrExpr parse_function_level_node(ParseContext* p);
+
+Expr* parse_function_call_expr(
+        ParseContext* p, 
+        Expr* callee, 
+        Token* lparen) {
+    std::vector<Expr*> args;
+    while (!parse_match(p, TOKEN_KIND_RPAREN)) {
+        parse_check_eof(p, lparen);
+        Expr* arg = parse_expr(p);
+        args.push_back(arg);
+        if (parse_current(p)->kind != TOKEN_KIND_RPAREN) {
+            parse_expect_comma(p);
+        }
+    }
+    return function_call_expr_new(callee, std::move(args), parse_previous(p));
+}
+
+Expr* parse_suffix_expr(ParseContext* p) {
+    Expr* left = parse_atom_expr(p);
+    while (parse_current(p)->kind == TOKEN_KIND_LPAREN ||
+           parse_current(p)->kind == TOKEN_KIND_LBRACK ||
+           parse_current(p)->kind == TOKEN_KIND_DOT) {
+        if (parse_match(p, TOKEN_KIND_LPAREN)) {
+            left = parse_function_call_expr(p, left, parse_previous(p));
+        }
+        else if (parse_match(p, TOKEN_KIND_LBRACK)) {
+            Token* lbrack = parse_previous(p);
+            Expr* idx = parse_expr(p);
+            // TODO: better error messages
+            parse_expect_rbrack(p);
+            left = index_expr_new(left, idx, lbrack);
+        }
+        else if (parse_match(p, TOKEN_KIND_DOT)) {
+            Token* dot = parse_previous(p);
+            Token* field = parse_expect_identifier(p, "field name");
+            left = field_access_expr_new(left, field, dot);
+        }
+    }
+    return left;
+}
 
 Expr* parse_unop_expr(ParseContext* p) {
     if (parse_match(p, TOKEN_KIND_MINUS) ||
@@ -234,7 +274,7 @@ Expr* parse_unop_expr(ParseContext* p) {
         Expr* child = parse_unop_expr(p);
         return unop_expr_new(child, op);
     }
-    return parse_atom_expr(p);
+    return parse_suffix_expr(p);
 }
 
 Expr* parse_cast_expr(ParseContext* p) {
@@ -354,23 +394,6 @@ Expr* parse_while_expr(ParseContext* p, Token* while_keyword) {
             body);
 }
 
-Expr* parse_function_call_expr(
-        ParseContext* p, 
-        Expr* callee, 
-        Token* lparen) {
-    
-    std::vector<Expr*> args;
-    while (!parse_match(p, TOKEN_KIND_RPAREN)) {
-        parse_check_eof(p, lparen);
-        Expr* arg = parse_expr(p);
-        args.push_back(arg);
-        if (parse_current(p)->kind != TOKEN_KIND_RPAREN) {
-            parse_expect_comma(p);
-        }
-    }
-    return function_call_expr_new(callee, std::move(args), parse_previous(p));
-}
-
 Expr* parse_symbol_expr(ParseContext* p, Token* identifier) {
     return symbol_expr_new(identifier);
 }
@@ -408,13 +431,7 @@ Expr* parse_atom_expr(ParseContext* p) {
         result = array_literal_expr_new(std::move(elems), lbrack);
     }
     else if (parse_match(p, TOKEN_KIND_IDENTIFIER)) {
-        Expr* symbol = parse_symbol_expr(p, parse_previous(p));
-        if (parse_match(p, TOKEN_KIND_LPAREN)) {
-            result = parse_function_call_expr(p, symbol, parse_previous(p));
-        }
-        else {
-            result = symbol;
-        }
+        result = parse_symbol_expr(p, parse_previous(p));
     }
     else if (parse_match(p, TOKEN_KIND_LBRACE)) {
         result = parse_block_expr(p, parse_previous(p), true);
@@ -432,13 +449,6 @@ Expr* parse_atom_expr(ParseContext* p) {
                 parse_current(p)->lexeme);
     }
 
-    if (parse_match(p, TOKEN_KIND_LBRACK)) {
-        Token* lbrack = parse_previous(p);
-        Expr* idx = parse_expr(p);
-        // TODO: better error messages
-        parse_expect_rbrack(p);
-        result = index_expr_new(result, idx, lbrack);
-    }
     return result;
 }
 
@@ -538,6 +548,27 @@ Stmt* parse_top_level_stmt(ParseContext* p, bool error_on_no_match) {
                     "expected `fn`, `const` or `var` after `extern`");
         }
     }  
+    else if (parse_match_keyword(p, "struct")) {
+        Token* identifier = parse_expect_identifier(p, "struct name");
+        std::vector<Stmt*> fields;
+        Token* lbrace = parse_expect_lbrace(p);
+        size_t field_idx = 0;
+        while (!parse_match(p, TOKEN_KIND_RBRACE)) {
+            parse_check_eof(p, lbrace);
+            Token* field_identifier = parse_expect_identifier(p, "field name");
+            parse_expect_colon(p);
+            Type* field_type = parse_type(p);
+            fields.push_back(field_stmt_new(
+                        field_identifier, 
+                        field_type,
+                        field_idx));
+            if (parse_current(p)->kind != TOKEN_KIND_RBRACE) {
+                parse_expect_comma(p);
+            }
+            field_idx++;
+        }
+        return struct_stmt_new(identifier, std::move(fields));
+    }
     else if (parse_match_keyword(p, "fn")) {
         return parse_function_stmt(p, false);
     }
