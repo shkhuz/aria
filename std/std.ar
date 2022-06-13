@@ -1,20 +1,24 @@
-fn exit(exit_code: u8) {
+fn sysexit(exit_code: u8) {
     syscall(SYS_EXIT, exit_code, 0, 0, 0, 0, 0);
 }
 
-fn write(fd: u32, buf: *const i8, count: u64) {
+fn syswrite(fd: u32, buf: *const u8, count: u64) {
     syscall(SYS_WRITE, fd, buf as u64, count, 0, 0, 0);
 }
 
 extern fn syscall(number: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64, arg5: u64, arg6: u64) u64;
 
+fn write_u8(fd: u32, num: u8) {
+    const ch = num + 48;
+    syswrite(fd, &ch, 1);
+}
+
+fn write(fd: u32, buf: []const u8) {
+    syswrite(fd, buf.ptr, buf.len);
+}
+
 extern const SYS_EXIT: u64;
 extern const SYS_WRITE: u64;
-
-fn write_char(fd: u32, ch: i8) {
-    const newch = ch + 65;
-    write(fd, &newch, 1);
-}
 
 const STDIN_FILENO: u32 = 0;
 const STDOUT_FILENO: u32 = 1;

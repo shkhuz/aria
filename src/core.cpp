@@ -7,6 +7,7 @@
 #include <limits.h>
 #include <vector>
 #include <iostream>
+#include <unordered_map>
 #include <fmt/core.h>
 
 #ifdef __linux__

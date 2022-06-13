@@ -57,7 +57,6 @@ enum TypeKind {
     TYPE_KIND_BUILTIN,
     TYPE_KIND_PTR,
     TYPE_KIND_ARRAY,
-    TYPE_KIND_SLICE,
     TYPE_KIND_CUSTOM,
 };
 
@@ -129,16 +128,25 @@ struct ArrayType {
     Expr* len;
     u64 lennum;
     Type* elem_type;
-    bool constant;  // automatically set by compiler
+    
+    // automatically set by compiler
+    bool constant;  
 };
 
-struct SliceType {
-    bool constant;
-    Type* child;
+enum CustomTypeKind {
+    CUSTOM_TYPE_KIND_STRUCT,
+    CUSTOM_TYPE_KIND_SLICE,
 };
 
 struct CustomType {
-    Token* identifier;
+    union {
+        Token* identifier;
+        struct {
+            bool constant;
+            Type* child;
+        } slice;
+    };
+    CustomTypeKind kind;
     Stmt* ref;
 };
 
@@ -149,7 +157,6 @@ struct Type {
         BuiltinType builtin;
         PtrType ptr;
         ArrayType array;
-        SliceType slice;
         CustomType custom;
     };
 };
@@ -676,6 +683,58 @@ bool type_is_apint(Type* type) {
     return false;
 }
 
+bool type_is_slice(Type* type) {
+    if (type->kind == TYPE_KIND_CUSTOM &&
+            type->custom.kind == CUSTOM_TYPE_KIND_SLICE) {
+        return true;
+    }
+    return false;
+}
+
+// literal comparison, no cast
+bool type_is_equal(Type* a, Type* b) {
+    if (a->kind == b->kind) {
+        switch (a->kind) {
+            case TYPE_KIND_BUILTIN: {
+                return a->builtin.kind == b->builtin.kind;
+            } break;
+
+            case TYPE_KIND_PTR: {
+                if (a->ptr.constant == b->ptr.constant) {
+                    return type_is_equal(a->ptr.child, b->ptr.child);
+                }
+            } break;
+
+            case TYPE_KIND_ARRAY: {
+                assert(a->array.len->kind == EXPR_KIND_INTEGER && b->array.len->kind == EXPR_KIND_INTEGER);
+                if (bigint_cmp_mag(a->array.len->integer.val, b->array.len->integer.val) == BIGINT_ORD_EQ &&
+                    a->array.len->integer.val->sign == b->array.len->integer.val->sign) {
+                    if (a->array.constant == b->array.constant) {
+                        return type_is_equal(a->array.elem_type, b->array.elem_type);
+                    }
+                }
+            } break;
+
+            case TYPE_KIND_CUSTOM: {
+                if (a->custom.kind == b->custom.kind) {
+                    switch (a->custom.kind) {
+                        case CUSTOM_TYPE_KIND_STRUCT: {
+                            return is_token_lexeme_eq(a->custom.identifier, b->custom.identifier);
+                        } break;
+
+                        case CUSTOM_TYPE_KIND_SLICE: {
+                            if (a->custom.slice.constant == b->custom.slice.constant) {
+                                return type_is_equal(a->custom.slice.child, b->custom.slice.child);
+                            }
+                        } break;
+                    }
+                }
+            } break;
+        }
+    }
+    return false;
+}
+
 size_t type_bytes(Type* type) {
     switch (type->kind) {
         case TYPE_KIND_BUILTIN: {
@@ -690,9 +749,9 @@ size_t type_bytes(Type* type) {
             return type->array.lennum * type_bytes(type->array.elem_type);
         } break;
 
-        case TYPE_KIND_SLICE: {
-            return 2 * 8;
-        } break;
+        /* case TYPE_KIND_SLICE: { */
+        /*     return 2 * 8; */
+        /* } break; */
 
         case TYPE_KIND_CUSTOM: {
             if (type->custom.ref->structure.bytes_when_packed == -1) {
@@ -756,6 +815,39 @@ bool token_is_magnitude_cmp_op(Token* token) {
     return false;
 }
 
+Token* token_new(
+    TokenKind kind,
+    const std::string& lexeme,
+    char* start,
+    char* end,
+    Srcfile* srcfile,
+    size_t line,
+    size_t col,
+    size_t ch_count) {
+    ALLOC_WITH_TYPE(token, Token);
+    token->kind = kind;
+    token->lexeme = lexeme;
+    token->start = start;
+    token->end = end;
+    token->srcfile = srcfile;
+    token->line = line;
+    token->col = col;
+    token->ch_count = ch_count;
+    return token;
+}
+
+inline Token* token_identifier_placeholder_new(const std::string& lexeme) {
+    return token_new(
+            TOKEN_KIND_IDENTIFIER,
+            lexeme,
+            null,
+            null,
+            null,
+            0,
+            0,
+            0);
+}
+
 Type* builtin_type_new(Token* token, BuiltinTypeKind kind) {
     ALLOC_WITH_TYPE(type, Type);
     type->kind = TYPE_KIND_BUILTIN;
@@ -787,10 +879,12 @@ Type* array_type_new(Expr* len, Type* elem_type, Token* lbrack) {
 
 Type* slice_type_new(Token* lbrack, bool constant, Type* child) {
     ALLOC_WITH_TYPE(type, Type);
-    type->kind = TYPE_KIND_SLICE;
+    type->kind = TYPE_KIND_CUSTOM;
     type->main_token = lbrack;
-    type->slice.constant = constant;
-    type->slice.child = child;
+    type->custom.kind = CUSTOM_TYPE_KIND_SLICE;
+    type->custom.slice.constant = constant;
+    type->custom.slice.child = child;
+    type->custom.ref = null;
     return type;
 }
 
@@ -798,6 +892,7 @@ Type* custom_type_new(Token* identifier) {
     ALLOC_WITH_TYPE(type, Type);
     type->kind = TYPE_KIND_CUSTOM;
     type->main_token = identifier;
+    type->custom.kind = CUSTOM_TYPE_KIND_STRUCT;
     type->custom.identifier = identifier;
     type->custom.ref = null;
     return type;
@@ -1168,23 +1263,27 @@ template <> struct fmt::formatter<Type> {
                         g_reset_color);
             } break;
             
-            case TYPE_KIND_SLICE: {
-                result = fmt::format_to(
-                        ctx.out(), 
-                        "{}[]{}{}{}",
-                        g_fcyan_color,
-                        type.slice.constant ? "const " : "",
-                        *type.slice.child,
-                        g_reset_color);
-            } break;
-
             case TYPE_KIND_CUSTOM: {
-                result = fmt::format_to(
-                        ctx.out(), 
-                        "{}{}{}",
-                        g_fcyan_color,
-                        *type.custom.identifier,
-                        g_reset_color);
+                switch (type.custom.kind) {
+                    case CUSTOM_TYPE_KIND_STRUCT: {
+                        result = fmt::format_to(
+                                ctx.out(), 
+                                "{}{}{}",
+                                g_fcyan_color,
+                                *type.custom.identifier,
+                                g_reset_color);
+                    } break;
+
+                    case CUSTOM_TYPE_KIND_SLICE: {
+                        result = fmt::format_to(
+                                ctx.out(), 
+                                "{}[]{}{}{}",
+                                g_fcyan_color,
+                                type.custom.slice.constant ? "const " : "",
+                                *type.custom.slice.child,
+                                g_reset_color);
+                    } break;
+                }
             } break;
             
             default: {

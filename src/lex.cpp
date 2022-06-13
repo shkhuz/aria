@@ -33,16 +33,16 @@ size_t lex_get_col_from_current(LexContext* l) {
 }
 
 void lex_push_tok(LexContext* l, TokenKind kind) {
-    ALLOC_WITH_TYPE(token, Token);
-    token->kind = kind;
-    token->lexeme = kind == TOKEN_KIND_EOF ? "EOF" : std::string(l->start, l->current);
-    token->start = l->start;
-    token->end = l->current;
-    token->srcfile = l->srcfile;
-    token->line = l->line;
-    token->col = lex_get_col_from_start(l);
-    token->ch_count = l->current - l->start;
-    l->srcfile->tokens.push_back(token);
+    l->srcfile->tokens.push_back(token_new(
+        kind,
+        kind == TOKEN_KIND_EOF ? "EOF" : std::string(l->start, l->current),
+        l->start,
+        l->current,
+        l->srcfile,
+        l->line,
+        lex_get_col_from_start(l),
+        l->current - l->start
+    ));
 }
 
 void lex_push_tok_adv(LexContext* l, TokenKind kind) {

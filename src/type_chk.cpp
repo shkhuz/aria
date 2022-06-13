@@ -104,32 +104,39 @@ ImplicitCastStatus check_implicit_cast(
                         to->array.elem_type);
             }
         }
-        else if (from->kind == TYPE_KIND_SLICE) {
-            // Refer diagram above for an explaination
-            if (!from->slice.constant || to->slice.constant) {
-                return check_implicit_cast(
-                        c,
-                        from->slice.child,
-                        to->slice.child);
-            }
-        }
         else if (from->kind == TYPE_KIND_CUSTOM) {
-            if (from->custom.ref == to->custom.ref) {
-                return IC_OK;
+            if (from->custom.kind == to->custom.kind) {
+                switch (from->custom.kind) {
+                    case CUSTOM_TYPE_KIND_STRUCT: {
+                        if (from->custom.ref == to->custom.ref) {
+                            return IC_OK;
+                        }
+                    } break;
+
+                    case CUSTOM_TYPE_KIND_SLICE: {
+                        // Refer diagram above for an explaination
+                        if (!from->custom.slice.constant || to->custom.slice.constant) {
+                            return check_implicit_cast(
+                                    c,
+                                    from->custom.slice.child,
+                                    to->custom.slice.child);
+                        }
+                    } break;
+                }
             }
         }
     }
     else if ((from->kind == TYPE_KIND_PTR && from->ptr.child->kind == TYPE_KIND_ARRAY) &&
-             to->kind == TYPE_KIND_SLICE) {
+             type_is_slice(to)) {
         // cast from pointer-to-array to a slice 
         // `*(const?) [#]type` --> `[](const?) type
         
         // Refer diagram above for an explaination
-        if (!from->ptr.constant || to->slice.constant) { 
+        if (!from->ptr.constant || to->custom.slice.constant) { 
             return check_implicit_cast(
                     c,
                     from->ptr.child->array.elem_type,
-                    to->slice.child);
+                    to->custom.slice.child);
         }
     }
     return IC_ERROR;
@@ -234,13 +241,17 @@ Type* check_type(CheckContext* c, Type* type) {
             else return type;
         } break;
 
-        case TYPE_KIND_SLICE: {
-            if (!check_type(c, type->slice.child)) return null;
-            return type;
-        } break;
-
         case TYPE_KIND_CUSTOM: {
-            return type;
+            switch (type->custom.kind) {
+                case CUSTOM_TYPE_KIND_STRUCT: {
+                    return type;
+                } break;
+
+                case CUSTOM_TYPE_KIND_SLICE: {
+                    if (!check_type(c, type->custom.slice.child)) return null;
+                    return type;
+                } break;
+            }
         } break;
     }
     return null;
@@ -298,7 +309,7 @@ Type* check_constant_expr(CheckContext* c, Expr* expr, Type* cast) {
             type = builtin_type_placeholders.void_ptr;
         } break;
     }
-    expr->type = cast;
+    expr->type = type;
     return type;
 }
 
@@ -325,7 +336,6 @@ Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
     std::vector<Stmt*>& params = expr->function_call.callee->symbol.ref->function.header->params;
     size_t param_len = params.size();
     Type* callee_return_type = expr->function_call.callee->symbol.ref->function.header->return_type;
-    expr->type = cast;
 
     if (arg_len != param_len) {
         if (arg_len < param_len) {
@@ -372,6 +382,7 @@ Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
             }
         }
     }
+    expr->type = callee_return_type;
     return callee_return_type;
 }
 
@@ -692,8 +703,8 @@ Type* check_cast_expr(CheckContext* c, Expr* expr, Type* cast) {
                 return to_type;
             }
         }
-        else if (left_type->kind == TYPE_KIND_SLICE && to_type->kind == TYPE_KIND_SLICE) {
-            if (left_type->slice.constant && !to_type->slice.constant) {
+        else if (type_is_slice(left_type) && type_is_slice(to_type)) {
+            if (left_type->custom.slice.constant && !to_type->custom.slice.constant) {
                 check_error(
                         expr->main_token,
                         "cast to `{}` discards const-ness of `{}`",
@@ -701,7 +712,7 @@ Type* check_cast_expr(CheckContext* c, Expr* expr, Type* cast) {
                         *left_type);
                 addinfo("converting a const-slice to a mutable slice is invalid");
                 addinfo("consider adding `const`: `[]const {:n}`",
-                        *to_type->slice.child);
+                        *to_type->custom.slice.child);
             }
             else {
                 return to_type;
@@ -982,8 +993,8 @@ Type* check_expr(
                 else if (left_type->kind == TYPE_KIND_PTR) {
                     result = left_type->ptr.child;
                 }
-                else if (left_type->kind == TYPE_KIND_SLICE) {
-                    result = left_type->slice.child;
+                else if (type_is_slice(left_type)) {
+                    result = left_type->custom.slice.child;
                 }
                 else {
                     check_error(
@@ -1140,11 +1151,12 @@ void check_assign_stmt(CheckContext* c, Stmt* stmt) {
 
     if (left_type && is_deref_expr(stmt->assign.left)) {
         Type* lhs_deref_child_type = stmt->assign.left->unop.child_type;
-        assert(lhs_deref_child_type->kind == TYPE_KIND_PTR);
         bool constant;
-        switch (lhs_deref_child_type->kind) {
-            case TYPE_KIND_PTR:   constant = lhs_deref_child_type->ptr.constant; break;
-            case TYPE_KIND_SLICE: constant = lhs_deref_child_type->slice.constant; break;
+        if (lhs_deref_child_type->kind == TYPE_KIND_PTR) {
+            constant = lhs_deref_child_type->ptr.constant;
+        }
+        else if (type_is_slice(lhs_deref_child_type)) {
+            constant = lhs_deref_child_type->custom.slice.constant;
         }
         if (constant) {
             check_error(
@@ -1156,10 +1168,14 @@ void check_assign_stmt(CheckContext* c, Stmt* stmt) {
     else if (left_type && stmt->assign.left->kind == EXPR_KIND_INDEX) {
         Type* lhs_operand_type = stmt->assign.left->index.left_type;
         bool constant;
-        switch (lhs_operand_type->kind) {
-            case TYPE_KIND_PTR: constant = lhs_operand_type->ptr.constant; break;
-            case TYPE_KIND_ARRAY: constant = lhs_operand_type->array.constant; break;
-            default: assert(0);
+        if (lhs_operand_type->kind == TYPE_KIND_PTR) {
+            constant = lhs_operand_type->ptr.constant;
+        }
+        else if (lhs_operand_type->kind == TYPE_KIND_ARRAY) {
+            constant = lhs_operand_type->array.constant;
+        }
+        else if (type_is_slice(lhs_operand_type)) {
+            constant = lhs_operand_type->custom.slice.constant;
         }
 
         if (constant) {

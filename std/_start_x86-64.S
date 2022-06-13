@@ -2,13 +2,13 @@
     .global _start
     .global syscall
     .extern main
-    .extern exit
+    .extern sysexit
 
 _start:
     xor %rax, %rax
     call main
     mov %rax, %rdi
-    call exit
+    call sysexit
 
 syscall:
     mov %rdi, %rax

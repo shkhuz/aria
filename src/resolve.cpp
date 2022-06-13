@@ -8,6 +8,7 @@ struct ResolveContext {
     Scope* global_scope;
     Scope* current_scope;
     Stmt* current_func;
+    std::unordered_map<Type*, Stmt*> slice_structs;
     bool error;
 };
 
@@ -178,27 +179,55 @@ void resolve_type(ResolveContext* r, Type* type) {
             resolve_type(r, type->array.elem_type);
         } break;
 
-        case TYPE_KIND_SLICE: {
-            resolve_type(r, type->slice.child);
-        } break;
-
         case TYPE_KIND_CUSTOM: {
-            type->custom.ref = 
-                resolve_assert_symbol_is_in_current_scope_rec(r, type->custom.identifier);
-            if (type->custom.ref) {
-                if (type->custom.ref->kind != STMT_KIND_STRUCT) {
-                    resolve_error(
-                            type->custom.identifier,
-                            "expected a type, but found `{}`",
-                            *type->custom.identifier);
-                    note(
-                            type->custom.ref->main_token,
-                            "`{}` is defined here",
-                            *type->custom.identifier);
-                    addinfo(
-                            "`{}` is not a type definition, so it cannot be used as a type",
-                            *type->custom.ref->main_token);
-                }
+            switch (type->custom.kind) {
+                case CUSTOM_TYPE_KIND_STRUCT: {
+                    type->custom.ref = 
+                        resolve_assert_symbol_is_in_current_scope_rec(r, type->custom.identifier);
+                    if (type->custom.ref) {
+                        if (type->custom.ref->kind != STMT_KIND_STRUCT) {
+                            resolve_error(
+                                    type->custom.identifier,
+                                    "expected a type, but found `{}`",
+                                    *type->custom.identifier);
+                            note(
+                                    type->custom.ref->main_token,
+                                    "`{}` is defined here",
+                                    *type->custom.identifier);
+                            addinfo(
+                                    "`{}` is not a type definition, so it cannot be used as a type",
+                                    *type->custom.ref->main_token);
+                        }
+                    }
+                } break;
+
+                case CUSTOM_TYPE_KIND_SLICE: {
+                    resolve_type(r, type->custom.slice.child);
+                    Stmt* ref = null;
+                    for (auto& it: r->slice_structs) {
+                        if (type_is_equal(type, it.first)) {
+                            ref = it.second;
+                        }
+                    }
+                    if (!ref) {
+                        std::vector<Stmt*> fields;
+                        fields.push_back(field_stmt_new(
+                                token_identifier_placeholder_new("ptr"),
+                                ptr_type_placeholder_new(
+                                    type->custom.slice.constant,
+                                    type->custom.slice.child),
+                                0));
+                        fields.push_back(field_stmt_new(
+                                token_identifier_placeholder_new("len"),
+                                builtin_type_placeholders.uint64,
+                                1));
+                        ref = struct_stmt_new(
+                                token_identifier_placeholder_new(fmt::format("{:n}", *type)),
+                                fields);
+                        r->slice_structs[type] = ref;
+                    }
+                    type->custom.ref = ref;
+                } break;
             }
         } break;
     }
@@ -504,6 +533,11 @@ void resolve(ResolveContext* r) {
     }
     for (size_t i = 0; i < r->srcfile->stmts.size(); i++) {
         resolve_stmt(r, r->srcfile->stmts[i], true);
+    }
+
+    r->srcfile->stmts.reserve(r->srcfile->stmts.size() + r->slice_structs.size());
+    for (auto& it: r->slice_structs) {
+        r->srcfile->stmts.push_back(it.second);
     }
 }
 
