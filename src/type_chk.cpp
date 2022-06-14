@@ -98,10 +98,10 @@ ImplicitCastStatus check_implicit_cast(
         }
         else if (from->kind == TYPE_KIND_ARRAY) {
             if (from->array.lennum == to->array.lennum) {
-                return check_implicit_cast(
-                        c,
+                return type_is_equal(
                         from->array.elem_type,
-                        to->array.elem_type);
+                        to->array.elem_type,
+                        true) ? IC_OK : IC_ERROR;
             }
         }
         else if (from->kind == TYPE_KIND_CUSTOM) {
@@ -116,10 +116,10 @@ ImplicitCastStatus check_implicit_cast(
                     case CUSTOM_TYPE_KIND_SLICE: {
                         // Refer diagram above for an explaination
                         if (!from->custom.slice.constant || to->custom.slice.constant) {
-                            return check_implicit_cast(
-                                    c,
+                            return type_is_equal(
                                     from->custom.slice.child,
-                                    to->custom.slice.child);
+                                    to->custom.slice.child,
+                                    true) ? IC_OK : IC_ERROR;
                         }
                     } break;
                 }
@@ -133,10 +133,10 @@ ImplicitCastStatus check_implicit_cast(
         
         // Refer diagram above for an explaination
         if (!from->ptr.constant || to->custom.slice.constant) { 
-            return check_implicit_cast(
-                    c,
+            return type_is_equal(
                     from->ptr.child->array.elem_type,
-                    to->custom.slice.child);
+                    to->custom.slice.child,
+                    true) ? IC_OK : IC_ERROR;
         }
     }
     return IC_ERROR;
@@ -688,6 +688,31 @@ Type* check_cast_expr(CheckContext* c, Expr* expr, Type* cast) {
                     *left_type,
                     *to_type);
         }
+        else if (left_type->kind == TYPE_KIND_PTR && type_is_integer(to_type)) {
+            return to_type;
+        }
+        /* else if ((left_type->kind == TYPE_KIND_PTR && left_type->ptr.child->kind == TYPE_KIND_ARRAY) && */
+        /*          type_is_slice(to_type)) { */
+        /*     // cast from pointer-to-array to a slice */ 
+        /*     // `*(const?) [#]type` --> `[](const?) type */
+            
+        /*     // Refer diagram above for an explaination */
+        /*     if (!left_type->ptr.constant || to_type->custom.slice.constant) { */ 
+        /*         if (type_is_equal( */
+        /*                 left_type->ptr.child->array.elem_type, */
+        /*                 to_type->custom.slice.child, */
+        /*                 true)) { */
+        /*             return to_type; */
+        /*         } */
+        /*         else { */
+        /*             check_error( */
+        /*                     expr->main_token, */
+        /*                     "cannot cast from `{}` to `{}`", */
+        /*                     *left_type, */
+        /*                     *to_type); */
+        /*         } */
+        /*     } */
+        /* } */
         else if (left_type->kind == TYPE_KIND_PTR && to_type->kind == TYPE_KIND_PTR) {
             if (left_type->ptr.constant && !to_type->ptr.constant) {
                 check_error(
@@ -704,22 +729,31 @@ Type* check_cast_expr(CheckContext* c, Expr* expr, Type* cast) {
             }
         }
         else if (type_is_slice(left_type) && type_is_slice(to_type)) {
-            if (left_type->custom.slice.constant && !to_type->custom.slice.constant) {
+            CHECK_IMPL_CAST(left_type, to_type);
+            if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
                 check_error(
                         expr->main_token,
-                        "cast to `{}` discards const-ness of `{}`",
-                        *to_type,
-                        *left_type);
-                addinfo("converting a const-slice to a mutable slice is invalid");
-                addinfo("consider adding `const`: `[]const {:n}`",
-                        *to_type->custom.slice.child);
+                        "cannot cast from `{}` to `{}`",
+                        *left_type,
+                        *to_type);
             }
+            else if (IS_IMPL_CAST_STATUS(IC_ERROR)) {}  
             else {
                 return to_type;
             }
         }
         else {
-            return to_type;
+            CHECK_IMPL_CAST(left_type, to_type);
+            if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
+                check_error(
+                        expr->main_token,
+                        "cannot cast from `{}` to `{}`",
+                        *left_type,
+                        *to_type);
+            }
+            else if (IS_IMPL_CAST_STATUS(IC_OK)) {
+                return to_type;
+            }
         }
     }
     return null;
@@ -980,6 +1014,7 @@ Type* check_expr(
                     return null;
                 }
             }
+            return null;
         } break;
 
         case EXPR_KIND_INDEX: {

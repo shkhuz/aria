@@ -164,7 +164,7 @@ void lex(LexContext* l) {
                     ->integer.val = val_bi_copy;
                 bigint_clear(&val_bi);
             } break;
-            
+
             case ' ':
             case '\t':
             case '\r': {

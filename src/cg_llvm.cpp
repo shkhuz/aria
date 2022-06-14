@@ -54,15 +54,17 @@ LLVMTypeRef get_llvm_type(CgContext* c, Type* type) {
                     type->array.lennum);
         } break;
 
-        /* case TYPE_KIND_SLICE: { */
-        /*     LLVMTypeRef elems[2]; */
-        /*     elems[0] = LLVMPointerType(get_llvm_type(c, type->custom.slice.child), 0); */
-        /*     elems[1] = get_llvm_type(c, builtin_type_placeholders.uint64); */
-        /*     return LLVMStructType(elems, 2, false); */
-        /* } break; */
-
         case TYPE_KIND_CUSTOM: {
-            return type->custom.ref->structure.llvmtype;
+            if (type->custom.kind == CUSTOM_TYPE_KIND_STRUCT) {
+                return type->custom.ref->structure.llvmtype;
+            }
+            else if(type->custom.kind == CUSTOM_TYPE_KIND_SLICE) {
+                // bad implementation, but will fix it later
+                LLVMTypeRef elems[2];
+                elems[0] = LLVMPointerType(get_llvm_type(c, type->custom.slice.child), 0);
+                elems[1] = get_llvm_type(c, builtin_type_placeholders.uint64);
+                return LLVMStructTypeInContext(c->llvmctx, elems, 2, false);
+            }
         } break;
     }
     assert(0);
@@ -895,7 +897,7 @@ void cg(CgContext* c) {
 
     // So that we can reference other types in struct fields
     for (Stmt* stmt: c->srcfile->stmts) {
-        if (stmt->kind == STMT_KIND_STRUCT) {
+        if (stmt->kind == STMT_KIND_STRUCT && !stmt->structure.is_slice) {
             stmt->structure.llvmtype = 
                 LLVMStructCreateNamed(c->llvmctx, stmt->structure.identifier->lexeme.c_str());
         }
@@ -903,7 +905,7 @@ void cg(CgContext* c) {
     
     // So that accessing a struct field is not invalid
     for (Stmt* stmt: c->srcfile->stmts) {
-        if (stmt->kind == STMT_KIND_STRUCT) {
+        if (stmt->kind == STMT_KIND_STRUCT && !stmt->structure.is_slice) {
             std::vector<LLVMTypeRef> fieldtypes;
             for (Stmt* field: stmt->structure.fields) {
                 fieldtypes.push_back(get_llvm_type(c, field->field.type));

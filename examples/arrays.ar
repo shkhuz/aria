@@ -12,11 +12,11 @@ fn main() void {
     var arr: [2]u8;
     var slice = get();
     var ptr = slice.ptr;
-    write_u8(1, ptr[3]);
+    write_u8(1, ptr[0]);
    
     //slice[0] = 5;
-    write_u8(1, slice[0]);
-    write(1, slice);
+    //write_u8(1, slice[0]);
+    write(1, slice as []const u8);
     
     //var b: *main = 2;
 

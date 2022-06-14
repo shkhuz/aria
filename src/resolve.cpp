@@ -205,7 +205,7 @@ void resolve_type(ResolveContext* r, Type* type) {
                     resolve_type(r, type->custom.slice.child);
                     Stmt* ref = null;
                     for (auto& it: r->slice_structs) {
-                        if (type_is_equal(type, it.first)) {
+                        if (type_is_equal(type, it.first, false)) {
                             ref = it.second;
                         }
                     }
@@ -223,7 +223,8 @@ void resolve_type(ResolveContext* r, Type* type) {
                                 1));
                         ref = struct_stmt_new(
                                 token_identifier_placeholder_new(fmt::format("{:n}", *type)),
-                                fields);
+                                fields,
+                                true);
                         r->slice_structs[type] = ref;
                     }
                     type->custom.ref = ref;

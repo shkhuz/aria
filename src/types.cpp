@@ -320,6 +320,7 @@ struct StructStmt {
     std::vector<Stmt*> fields;
     ssize_t alignment;
     ssize_t bytes_when_packed;
+    bool is_slice;
     LLVMTypeRef llvmtype;
 };
 
@@ -692,39 +693,64 @@ bool type_is_slice(Type* type) {
 }
 
 // literal comparison, no cast
-bool type_is_equal(Type* a, Type* b) {
-    if (a->kind == b->kind) {
-        switch (a->kind) {
+// The `cast_to_const` parameter should be set to true if the function should
+// cast the `from` type to `to` type taking into account their constness (ex:
+// from `*u8` to `*const u8`. If set to false, the function will do a literal
+// comparison.
+bool type_is_equal(Type* from, Type* to, bool cast_to_const) {
+    if (from->kind == to->kind) {
+        switch (from->kind) {
             case TYPE_KIND_BUILTIN: {
-                return a->builtin.kind == b->builtin.kind;
+                return from->builtin.kind == to->builtin.kind;
             } break;
 
             case TYPE_KIND_PTR: {
-                if (a->ptr.constant == b->ptr.constant) {
-                    return type_is_equal(a->ptr.child, b->ptr.child);
+                if (cast_to_const) {
+                    if (!from->ptr.constant || to->ptr.constant) {
+                        return type_is_equal(from->ptr.child, to->ptr.child, cast_to_const);
+                    }
+                }
+                else {
+                    if (from->ptr.constant == to->ptr.constant) {
+                        return type_is_equal(from->ptr.child, to->ptr.child, cast_to_const);
+                    }
                 }
             } break;
 
             case TYPE_KIND_ARRAY: {
-                assert(a->array.len->kind == EXPR_KIND_INTEGER && b->array.len->kind == EXPR_KIND_INTEGER);
-                if (bigint_cmp_mag(a->array.len->integer.val, b->array.len->integer.val) == BIGINT_ORD_EQ &&
-                    a->array.len->integer.val->sign == b->array.len->integer.val->sign) {
-                    if (a->array.constant == b->array.constant) {
-                        return type_is_equal(a->array.elem_type, b->array.elem_type);
+                assert(from->array.len->kind == EXPR_KIND_INTEGER && to->array.len->kind == EXPR_KIND_INTEGER);
+                if (bigint_cmp_mag(from->array.len->integer.val, to->array.len->integer.val) == BIGINT_ORD_EQ &&
+                    from->array.len->integer.val->sign == to->array.len->integer.val->sign) {
+                    if (cast_to_const) {
+                        if (!from->array.constant || to->array.constant) {
+                            return type_is_equal(from->array.elem_type, to->array.elem_type, cast_to_const);
+                        }
+                    }
+                    else {
+                        if (from->array.constant == to->array.constant) {
+                            return type_is_equal(from->array.elem_type, to->array.elem_type, cast_to_const);
+                        }
                     }
                 }
             } break;
 
             case TYPE_KIND_CUSTOM: {
-                if (a->custom.kind == b->custom.kind) {
-                    switch (a->custom.kind) {
+                if (from->custom.kind == to->custom.kind) {
+                    switch (from->custom.kind) {
                         case CUSTOM_TYPE_KIND_STRUCT: {
-                            return is_token_lexeme_eq(a->custom.identifier, b->custom.identifier);
+                            return is_token_lexeme_eq(from->custom.identifier, to->custom.identifier);
                         } break;
 
                         case CUSTOM_TYPE_KIND_SLICE: {
-                            if (a->custom.slice.constant == b->custom.slice.constant) {
-                                return type_is_equal(a->custom.slice.child, b->custom.slice.child);
+                            if (cast_to_const) {
+                                if (!from->custom.slice.constant || to->custom.slice.constant) {
+                                    return type_is_equal(from->custom.slice.child, to->custom.slice.child, cast_to_const);
+                                }
+                            } 
+                            else {
+                                if (from->custom.slice.constant == to->custom.slice.constant) {
+                                    return type_is_equal(from->custom.slice.child, to->custom.slice.child, cast_to_const);
+                                }
                             }
                         } break;
                     }
@@ -911,7 +937,8 @@ Stmt* field_stmt_new(Token* identifier, Type* type, size_t idx) {
 
 Stmt* struct_stmt_new(
         Token* identifier,
-        std::vector<Stmt*> fields) {
+        std::vector<Stmt*> fields,
+        bool is_slice) {
     ALLOC_WITH_TYPE(stmt, Stmt);
     stmt->kind = STMT_KIND_STRUCT;
     stmt->main_token = identifier;
@@ -920,6 +947,7 @@ Stmt* struct_stmt_new(
     stmt->structure.fields = std::move(fields);
     stmt->structure.alignment = -1;
     stmt->structure.bytes_when_packed = -1;
+    stmt->structure.is_slice = is_slice;
     stmt->structure.llvmtype = null;
     return stmt;
 }

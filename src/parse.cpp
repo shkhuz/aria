@@ -567,7 +567,7 @@ Stmt* parse_top_level_stmt(ParseContext* p, bool error_on_no_match) {
             }
             field_idx++;
         }
-        return struct_stmt_new(identifier, std::move(fields));
+        return struct_stmt_new(identifier, std::move(fields), false);
     }
     else if (parse_match_keyword(p, "fn")) {
         return parse_function_stmt(p, false);
