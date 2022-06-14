@@ -17,6 +17,9 @@ fn main() void {
     //slice[0] = 5;
     //write_u8(1, slice[0]);
     write(1, slice as []const u8);
+    write(1, "Hello ");
+    write(1, "Hello ");
+    write(1, "World!");
     
     //var b: *main = 2;
 

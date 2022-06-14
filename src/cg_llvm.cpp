@@ -422,6 +422,36 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
                 case CONSTANT_KIND_NULL: {
                     result = LLVMConstPointerNull(get_llvm_type(c, builtin_type_placeholders.void_ptr));
                 } break;
+
+                case CONSTANT_KIND_STRING: {
+                    LLVMValueRef llvmstr = LLVMConstStringInContext(
+                        c->llvmctx,
+                        expr->constant.token->lexeme.c_str(),
+                        expr->constant.token->lexeme.size(),
+                        true);
+                    // TODO: cache this and retrieve if string is same 
+                    LLVMValueRef llvmstrloc = LLVMAddGlobal(c->llvmmod, LLVMTypeOf(llvmstr), "");
+                    LLVMSetInitializer(llvmstrloc, llvmstr);
+                    result = LLVMBuildInsertValue(
+                            c->llvmbuilder,
+                            LLVMGetUndef(get_llvm_type(c, expr->type)), 
+                            LLVMBuildPointerCast(
+                                    c->llvmbuilder, 
+                                    llvmstrloc, 
+                                    LLVMPointerType(get_llvm_type(c, builtin_type_placeholders.uint8), 0), 
+                                    ""),
+                            0,
+                            "");
+                    result = LLVMBuildInsertValue(
+                            c->llvmbuilder,
+                            result,
+                            LLVMConstInt(
+                                get_llvm_type(c, builtin_type_placeholders.uint64),
+                                expr->constant.token->lexeme.size(),
+                                false),
+                            1,
+                            "");
+                } break;
             }
         } break;
 

@@ -417,6 +417,9 @@ Expr* parse_atom_expr(ParseContext* p) {
     else if (parse_match_keyword(p, "null")) {
         result = constant_expr_new(parse_previous(p), CONSTANT_KIND_NULL);
     }
+    else if (parse_match(p, TOKEN_KIND_STRING)) {
+        result = constant_expr_new(parse_previous(p), CONSTANT_KIND_STRING);
+    }
     else if (parse_match(p, TOKEN_KIND_LBRACK)) {
         Token* lbrack = parse_previous(p);
         std::vector<Expr*> elems;

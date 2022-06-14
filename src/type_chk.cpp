@@ -308,6 +308,10 @@ Type* check_constant_expr(CheckContext* c, Expr* expr, Type* cast) {
         case CONSTANT_KIND_NULL: {
             type = builtin_type_placeholders.void_ptr;
         } break;
+
+        case CONSTANT_KIND_STRING: {
+            type = builtin_type_placeholders.slice_to_const_u8;
+        } break;
     }
     expr->type = type;
     return type;

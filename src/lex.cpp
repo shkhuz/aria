@@ -165,6 +165,32 @@ void lex(LexContext* l) {
                 bigint_clear(&val_bi);
             } break;
 
+            case '\"': {
+                l->current++;
+                while (*l->current != '\"') {
+                    if (*l->current == '\n') {
+                        lex_error_from_start(
+                                l,
+                                "unterminated string literal");
+                        l->current++;
+                        break;
+                        
+                    }
+                    l->current++;
+                }
+                l->srcfile->tokens.push_back(token_new(
+                    TOKEN_KIND_STRING,
+                    std::string(l->start+1, l->current),
+                    l->start,
+                    l->current+1,
+                    l->srcfile,
+                    l->line,
+                    lex_get_col_from_start(l),
+                    (l->current+1) - l->start
+                ));
+                l->current++;
+            } break;
+            
             case ' ':
             case '\t':
             case '\r': {

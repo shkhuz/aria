@@ -12,6 +12,7 @@ struct Srcfile {
 enum TokenKind {
     TOKEN_KIND_IDENTIFIER,
     TOKEN_KIND_KEYWORD,
+    TOKEN_KIND_STRING,
     TOKEN_KIND_INTEGER,
     TOKEN_KIND_LBRACE,
     TOKEN_KIND_RBRACE,
@@ -105,6 +106,7 @@ struct BuiltinTypePlaceholders {
     Type* boolean;
     Type* void_kind;
     Type* void_ptr;
+    Type* slice_to_const_u8;
 };
 BuiltinTypePlaceholders builtin_type_placeholders;
 
@@ -186,10 +188,11 @@ enum ConstantKind {
     CONSTANT_KIND_BOOLEAN_TRUE,
     CONSTANT_KIND_BOOLEAN_FALSE,
     CONSTANT_KIND_NULL,
+    CONSTANT_KIND_STRING,
 };
 
 struct ConstantExpr {
-    Token* keyword;
+    Token* token;
     ConstantKind kind;
 };
 
@@ -1042,13 +1045,13 @@ Expr* integer_expr_new(Token* integer, bigint* val) {
     return expr;
 }
 
-Expr* constant_expr_new(Token* keyword, ConstantKind kind) {
+Expr* constant_expr_new(Token* token, ConstantKind kind) {
     ALLOC_WITH_TYPE(expr, Expr);
     expr->kind = EXPR_KIND_CONSTANT;
-    expr->main_token = keyword;
+    expr->main_token = token;
     expr->type = null;
     expr->parent_func = null;
-    expr->constant.keyword = keyword;
+    expr->constant.token = token;
     expr->constant.kind = kind;
     return expr;
 }
@@ -1212,6 +1215,10 @@ Type* ptr_type_placeholder_new(bool constant, Type* child) {
     return ptr_type_new(null, constant, child); 
 }
 
+Type* slice_type_placeholder_new(bool constant, Type* child) {
+    return slice_type_new(null, constant, child); 
+}
+
 template <> struct fmt::formatter<Token> {
     constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
         return ctx.begin();
@@ -1340,6 +1347,9 @@ void init_types() {
     builtin_type_placeholders.void_kind = builtin_type_placeholder_new(BUILTIN_TYPE_KIND_VOID);
     builtin_type_placeholders.void_ptr = ptr_type_placeholder_new(
             false, 
-            builtin_type_placeholder_new(BUILTIN_TYPE_KIND_VOID));
+            builtin_type_placeholders.void_kind);
+    builtin_type_placeholders.slice_to_const_u8 = slice_type_placeholder_new(
+            true,
+            builtin_type_placeholders.uint8);
 }
 
