@@ -2,11 +2,11 @@
     .global _start
     .global syscall
     .extern main
-    .extern exit
+    .extern sysexit
 
 _start:
     bl main
-    bl exit
+    bl sysexit
 
 syscall:
     mov x8, x0
