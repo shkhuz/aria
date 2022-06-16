@@ -3,10 +3,10 @@
 //    rot: vec2,
 //}
 //
-//struct vec2 {
-//    x: u64, 
-//    y: bool,
-//}
+struct vec2 {
+    x: u64, 
+    y: bool,
+}
 
 fn main() void {
     var arr: [2]u8;
@@ -36,6 +36,9 @@ var a: [3]u8 = [1, 2, 3];
 
 fn get() []const u8 {
     var aa: [3]u8;
+    var s: vec2;
+    // BUG! s is constant!
+    s.x = 1;
     if false { &aa as []u8 } else { &a }
 }
 

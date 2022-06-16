@@ -237,6 +237,9 @@ void resolve_type(ResolveContext* r, Type* type) {
 void resolve_symbol_expr(ResolveContext* r, Expr* expr) {
     expr->symbol.ref = 
         resolve_assert_symbol_is_in_current_scope_rec(r, expr->main_token);
+    if (expr->symbol.ref->kind == STMT_KIND_VARIABLE) {
+        expr->constant = expr->symbol.ref->variable.constant;
+    }
 }
 
 void resolve_function_call_expr(ResolveContext* r, Expr* expr) { 
@@ -459,25 +462,29 @@ void resolve_assign_stmt(ResolveContext* r, Stmt* stmt) {
     resolve_expr(r, stmt->assign.left);
     resolve_expr(r, stmt->assign.right);
 
-    if (stmt->assign.left->kind == EXPR_KIND_SYMBOL && 
-        stmt->assign.left->symbol.ref &&
-        stmt->assign.left->symbol.ref->kind == STMT_KIND_VARIABLE) {
-        if (stmt->assign.left->symbol.ref->variable.constant) {
+    if ((stmt->assign.left->kind == EXPR_KIND_SYMBOL && 
+         stmt->assign.left->symbol.ref &&
+         stmt->assign.left->symbol.ref->kind == STMT_KIND_VARIABLE) ||
+        (stmt->assign.left->kind == EXPR_KIND_UNOP &&
+         stmt->assign.left->unop.op->kind == TOKEN_KIND_STAR) ||
+        (stmt->assign.left->kind == EXPR_KIND_INDEX)) {
+        if (stmt->assign.left->constant) {
             resolve_error(
                     stmt->main_token,
                     "cannot modify immutable constant");
-            note(
-                    stmt->assign.left->symbol.ref->main_token,
-                    "variable defined here");
-            addinfo("to define a mutable variable, use `var`");
+            if (stmt->assign.left->kind == EXPR_KIND_SYMBOL && 
+                stmt->assign.left->symbol.ref &&
+                stmt->assign.left->symbol.ref->kind == STMT_KIND_VARIABLE) {
+                note(
+                        stmt->assign.left->symbol.ref->main_token,
+                        "variable defined here");
+                addinfo("to define a mutable variable, use `var`");
+            }
         }
     }
-    else if (stmt->assign.left->kind == EXPR_KIND_UNOP &&
-             stmt->assign.left->unop.op->kind == TOKEN_KIND_STAR) {
-    }
-    else if (stmt->assign.left->kind == EXPR_KIND_INDEX) {
-    }
     else if (stmt->assign.left->kind == EXPR_KIND_FIELD_ACCESS) {
+        // This is left empty because we check a field access in the 
+        // type_chk phase.
     }
     else {
         resolve_error(

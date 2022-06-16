@@ -244,14 +244,22 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
         } break;
 
         case EXPR_KIND_FIELD_ACCESS: {
-            LLVMValueRef left = cg_expr(c, expr->fieldacc.left, null, true);
-            result = cg_access_struct_field(
-                    c,
-                    left,
-                    get_llvm_type(c, expr->fieldacc.left_type),
-                    expr->fieldacc.rightref->field.idx,
-                    !lvalue, 
-                    get_llvm_type(c, expr->type));
+            if (expr->fieldacc.left_type->kind == TYPE_KIND_CUSTOM) {
+                LLVMValueRef left = cg_expr(c, expr->fieldacc.left, null, true);
+                result = cg_access_struct_field(
+                        c,
+                        left,
+                        get_llvm_type(c, expr->fieldacc.left_type),
+                        expr->fieldacc.rightref->field.idx,
+                        !lvalue, 
+                        get_llvm_type(c, expr->type));
+            }
+            else if (expr->fieldacc.left_type->kind == TYPE_KIND_ARRAY) {
+                result = LLVMConstInt(
+                        get_llvm_type(c, builtin_type_placeholders.uint64),
+                        expr->fieldacc.left_type->array.lennum,
+                        false);
+            }
         } break;
 
         case EXPR_KIND_INDEX: {
@@ -410,7 +418,7 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
         } break;
 
         case EXPR_KIND_CONSTANT: {
-            switch (expr->constant.kind) {
+            switch (expr->constantexpr.kind) {
                 case CONSTANT_KIND_BOOLEAN_TRUE: {
                     result = LLVMConstInt(LLVMInt1Type(), 1, false);
                 } break;
@@ -426,31 +434,13 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
                 case CONSTANT_KIND_STRING: {
                     LLVMValueRef llvmstr = LLVMConstStringInContext(
                         c->llvmctx,
-                        expr->constant.token->lexeme.c_str(),
-                        expr->constant.token->lexeme.size(),
+                        expr->constantexpr.token->lexeme.c_str(),
+                        expr->constantexpr.token->lexeme.size(),
                         true);
                     // TODO: cache this and retrieve if string is same 
                     LLVMValueRef llvmstrloc = LLVMAddGlobal(c->llvmmod, LLVMTypeOf(llvmstr), "");
                     LLVMSetInitializer(llvmstrloc, llvmstr);
-                    result = LLVMBuildInsertValue(
-                            c->llvmbuilder,
-                            LLVMGetUndef(get_llvm_type(c, expr->type)), 
-                            LLVMBuildPointerCast(
-                                    c->llvmbuilder, 
-                                    llvmstrloc, 
-                                    LLVMPointerType(get_llvm_type(c, builtin_type_placeholders.uint8), 0), 
-                                    ""),
-                            0,
-                            "");
-                    result = LLVMBuildInsertValue(
-                            c->llvmbuilder,
-                            result,
-                            LLVMConstInt(
-                                get_llvm_type(c, builtin_type_placeholders.uint64),
-                                expr->constant.token->lexeme.size(),
-                                false),
-                            1,
-                            "");
+                    result = llvmstrloc;
                 } break;
             }
         } break;

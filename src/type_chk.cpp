@@ -299,7 +299,7 @@ Type* check_integer_expr(
 
 Type* check_constant_expr(CheckContext* c, Expr* expr, Type* cast) {
     Type* type = null;
-    switch (expr->constant.kind) {
+    switch (expr->constantexpr.kind) {
         case CONSTANT_KIND_BOOLEAN_TRUE:
         case CONSTANT_KIND_BOOLEAN_FALSE: {
             type = builtin_type_placeholders.boolean;
@@ -310,7 +310,11 @@ Type* check_constant_expr(CheckContext* c, Expr* expr, Type* cast) {
         } break;
 
         case CONSTANT_KIND_STRING: {
-            type = builtin_type_placeholders.slice_to_const_u8;
+            type = ptr_type_placeholder_new(
+                    true,
+                    array_type_placeholder_new(
+                        expr->constantexpr.token->lexeme.size(),
+                        builtin_type_placeholders.uint8));
         } break;
     }
     expr->type = type;
@@ -917,6 +921,13 @@ Type* check_while_expr(CheckContext* c, Expr* expr, Type* cast) {
     return val;
 }
 
+#define field_access_unknown_field() \
+    check_error( \
+            expr->fieldacc.right, \
+            "`{}` does not contain a field `{}`", \
+            *left_type, \
+            *expr->fieldacc.right)
+
 Type* check_expr(
         CheckContext* c, 
         Expr* expr, 
@@ -986,6 +997,7 @@ Type* check_expr(
         case EXPR_KIND_FIELD_ACCESS: {
             Type* left_type = check_expr(c, expr->fieldacc.left, null, true);
             expr->fieldacc.left_type = left_type;
+            expr->constant = expr->fieldacc.left->constant;
             if (left_type) {
                 if (left_type->kind == TYPE_KIND_CUSTOM) {
                     Stmt* field = null;
@@ -1002,11 +1014,18 @@ Type* check_expr(
                         return field->field.type;
                     }
                     else {
-                        check_error(
-                                expr->fieldacc.right,
-                                "`{}` does not contain a field `{}`",
-                                *left_type,
-                                *expr->fieldacc.right);
+                        field_access_unknown_field();
+                        return null;
+                    }
+                }
+                else if (left_type->kind == TYPE_KIND_ARRAY) {
+                    if (expr->fieldacc.right->lexeme == "len") {
+                        expr->constant = true;
+                        expr->type = builtin_type_placeholders.uint64;
+                        return expr->type;
+                    }
+                    else {
+                        field_access_unknown_field();
                         return null;
                     }
                 }
@@ -1223,6 +1242,14 @@ void check_assign_stmt(CheckContext* c, Stmt* stmt) {
                     "cannot mutate read-only location with type `{}`",
                     *lhs_operand_type);
         }
+    }
+    else if (left_type && stmt->assign.left->kind == EXPR_KIND_FIELD_ACCESS &&
+             stmt->assign.left->constant) {
+        // This cannot be checked in the resolve pass because we do not have
+        // the struct type info prior to type_chk pass.
+        check_error(
+                stmt->main_token,
+                "cannot modify immutable constant");
     }
 
     if (left_type && right_type) {

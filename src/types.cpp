@@ -281,10 +281,11 @@ struct Expr {
     ExprKind kind;
     Token* main_token;
     Type* type;
+    bool constant;
     Stmt* parent_func;
     union {
         IntegerExpr integer;
-        ConstantExpr constant;
+        ConstantExpr constantexpr;
         ArrayLiteralExpr arraylit;
         FieldAccessExpr fieldacc;
         SymbolExpr symbol;
@@ -906,6 +907,12 @@ Type* array_type_new(Expr* len, Type* elem_type, Token* lbrack) {
     return type;
 }
 
+Type* array_type_placeholder_new(u64 len, Type* elem_type) {
+    Type* ty = array_type_new(null, elem_type, null);
+    ty->array.lennum = len;
+    return ty;
+}
+
 Type* slice_type_new(Token* lbrack, bool constant, Type* child) {
     ALLOC_WITH_TYPE(type, Type);
     type->kind = TYPE_KIND_CUSTOM;
@@ -1039,6 +1046,7 @@ Expr* integer_expr_new(Token* integer, bigint* val) {
     expr->kind = EXPR_KIND_INTEGER;
     expr->main_token = integer;
     expr->type = null;
+    expr->constant = true;
     expr->parent_func = null;
     expr->integer.integer = integer;
     expr->integer.val = val;
@@ -1050,9 +1058,10 @@ Expr* constant_expr_new(Token* token, ConstantKind kind) {
     expr->kind = EXPR_KIND_CONSTANT;
     expr->main_token = token;
     expr->type = null;
+    expr->constant = true;
     expr->parent_func = null;
-    expr->constant.token = token;
-    expr->constant.kind = kind;
+    expr->constantexpr.token = token;
+    expr->constantexpr.kind = kind;
     return expr;
 }
 
@@ -1061,6 +1070,7 @@ Expr* array_literal_expr_new(std::vector<Expr*> elems, Token* lbrack) {
     expr->kind = EXPR_KIND_ARRAY_LITERAL;
     expr->main_token = lbrack;
     expr->type = null;
+    expr->constant = true;
     expr->parent_func = null;
     expr->arraylit.elems = std::move(elems);
     return expr;
@@ -1071,6 +1081,7 @@ Expr* field_access_expr_new(Expr* left, Token* right, Token* dot) {
     expr->kind = EXPR_KIND_FIELD_ACCESS;
     expr->main_token = dot;
     expr->type = null;
+    expr->constant = true;
     expr->parent_func = null;
     expr->fieldacc.left = left;
     expr->fieldacc.left_type = null;
@@ -1084,6 +1095,7 @@ Expr* symbol_expr_new(Token* identifier) {
     expr->kind = EXPR_KIND_SYMBOL;
     expr->main_token = identifier;
     expr->type = null;
+    expr->constant = true;
     expr->parent_func = null;
     expr->symbol.identifier = identifier;
     expr->symbol.ref = null;
@@ -1095,6 +1107,7 @@ Expr* function_call_expr_new(Expr* callee, std::vector<Expr*> args, Token* rpare
     expr->kind = EXPR_KIND_FUNCTION_CALL;
     expr->main_token = callee->main_token;
     expr->type = null;
+    expr->constant = true;
     expr->parent_func = null;
     expr->function_call.callee = callee;
     expr->function_call.args = std::move(args);
@@ -1107,6 +1120,7 @@ Expr* index_expr_new(Expr* left, Expr* idx, Token* lbrack) {
     expr->kind = EXPR_KIND_INDEX;
     expr->main_token = left->main_token;
     expr->type = null;
+    expr->constant = true;
     expr->parent_func = null;
     expr->index.left = left;
     expr->index.idx = idx;
@@ -1120,6 +1134,7 @@ Expr* binop_expr_new(Expr* left, Expr* right, Token* op) {
     expr->kind = EXPR_KIND_BINOP;
     expr->main_token = op;
     expr->type = null;
+    expr->constant = true;
     expr->parent_func = null;
     expr->binop.left = left;
     expr->binop.right = right;
@@ -1135,6 +1150,7 @@ Expr* unop_expr_new(Expr* child, Token* op) {
     expr->kind = EXPR_KIND_UNOP;
     expr->main_token = op;
     expr->type = null;
+    expr->constant = true;
     expr->parent_func = null;
     expr->unop.child = child;
     expr->unop.op = op;
@@ -1148,6 +1164,7 @@ Expr* cast_expr_new(Expr* left, Type* to, Token* op) {
     expr->kind = EXPR_KIND_CAST;
     expr->main_token = op;
     expr->type = null;
+    expr->constant = true;
     expr->parent_func = null;
     expr->cast.left = left;
     expr->cast.left_type = null;
@@ -1165,6 +1182,7 @@ Expr* block_expr_new(
     expr->kind = EXPR_KIND_BLOCK;
     expr->main_token = lbrace;
     expr->type = null;
+    expr->constant = true;
     expr->parent_func = null;
     expr->block.stmts = std::move(stmts);
     expr->block.value = value;
@@ -1189,6 +1207,7 @@ Expr* if_expr_new(
     expr->kind = EXPR_KIND_IF;
     expr->main_token = if_keyword;
     expr->type = null;
+    expr->constant = true;
     expr->parent_func = null;
     expr->iff.ifbr = ifbr;
     expr->iff.elseifbr = std::move(elseifbr);
@@ -1201,6 +1220,7 @@ Expr* while_expr_new(Token* while_keyword, Expr* cond, Expr* body) {
     expr->kind = EXPR_KIND_WHILE;
     expr->main_token = while_keyword;
     expr->type = null;
+    expr->constant = true;
     expr->parent_func = null;
     expr->whilelp.cond = cond;
     expr->whilelp.body = body;

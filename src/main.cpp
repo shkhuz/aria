@@ -210,11 +210,11 @@ int main(int argc, char* argv[]) {
             parsing_error = true;
             continue;
         }
-        else {
-            for (Token* token : srcfile->tokens) {
-                fmt::print("token: {}\n", *token);
-            }
-        }
+        /* else { */
+        /*     for (Token* token : srcfile->tokens) { */
+        /*         fmt::print("token: {}\n", *token); */
+        /*     } */
+        /* } */
         total_lines_parsed += l.lines;
         
         ParseContext p;
