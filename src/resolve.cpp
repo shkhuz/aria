@@ -237,7 +237,7 @@ void resolve_type(ResolveContext* r, Type* type) {
 void resolve_symbol_expr(ResolveContext* r, Expr* expr) {
     expr->symbol.ref = 
         resolve_assert_symbol_is_in_current_scope_rec(r, expr->main_token);
-    if (expr->symbol.ref->kind == STMT_KIND_VARIABLE) {
+    if (expr->symbol.ref && expr->symbol.ref->kind == STMT_KIND_VARIABLE) {
         expr->constant = expr->symbol.ref->variable.constant;
     }
 }
@@ -466,8 +466,7 @@ void resolve_assign_stmt(ResolveContext* r, Stmt* stmt) {
          stmt->assign.left->symbol.ref &&
          stmt->assign.left->symbol.ref->kind == STMT_KIND_VARIABLE) ||
         (stmt->assign.left->kind == EXPR_KIND_UNOP &&
-         stmt->assign.left->unop.op->kind == TOKEN_KIND_STAR) ||
-        (stmt->assign.left->kind == EXPR_KIND_INDEX)) {
+         stmt->assign.left->unop.op->kind == TOKEN_KIND_STAR)) {
         if (stmt->assign.left->constant) {
             resolve_error(
                     stmt->main_token,
@@ -485,6 +484,10 @@ void resolve_assign_stmt(ResolveContext* r, Stmt* stmt) {
     else if (stmt->assign.left->kind == EXPR_KIND_FIELD_ACCESS) {
         // This is left empty because we check a field access in the 
         // type_chk phase.
+    }
+    else if (stmt->assign.left->kind == EXPR_KIND_INDEX) {
+        // This is left empty because we need LHS type info to determine 
+        // the `constant` field of index expr.
     }
     else {
         resolve_error(

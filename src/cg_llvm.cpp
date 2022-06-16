@@ -38,7 +38,8 @@ LLVMTypeRef get_llvm_type(CgContext* c, Type* type) {
                 case BUILTIN_TYPE_KIND_I64:
                     return LLVMIntTypeInContext(c->llvmctx, builtin_type_bytes(&type->builtin) << 3);
                 case BUILTIN_TYPE_KIND_BOOLEAN:
-                    return LLVMInt1TypeInContext(c->llvmctx);
+                    // There is some kind of bug in LLVMInt1TypeInContext(). Don't use it.
+                    return LLVMInt1Type();
                 case BUILTIN_TYPE_KIND_VOID:
                     return LLVMVoidTypeInContext(c->llvmctx);
             } 
@@ -165,11 +166,15 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
     LLVMValueRef result = null;
     switch (expr->kind) {
         case EXPR_KIND_INTEGER: {
-            result = LLVMConstIntOfStringAndSize(
+            result = LLVMConstInt(
                     get_llvm_type(c, expr->type), 
-                    expr->integer.integer->lexeme.c_str(),
-                    expr->integer.integer->lexeme.size(),
-                    10);
+                    bigint_get_lsd(expr->integer.val),
+                    false);
+            /* result = LLVMConstIntOfStringAndSize( */
+            /*         get_llvm_type(c, expr->type), */ 
+            /*         expr->integer.integer->lexeme.c_str(), */
+            /*         expr->integer.integer->lexeme.size(), */
+            /*         10); */
         } break;
 
         case EXPR_KIND_ARRAY_LITERAL: {

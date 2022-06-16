@@ -60,7 +60,7 @@ build_tests_in_dir() {
         else 
             if [[ $verbose = "" ]] || [[ $verbose = $prog ]]; then
                 echo ""
-                build/ariac $prog std/std.ar >/dev/null
+                (set -x; build/ariac $prog std/std.ar >/dev/null)
             else 
                 compile_file_no_verbose $prog
             fi

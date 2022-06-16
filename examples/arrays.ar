@@ -44,3 +44,4 @@ fn get() []const u8 {
 
 extern fn write_u8(fd: u32, num: u8);
 extern fn write(fd: u32, buf: []const u8);
+extern fn take_bool(b: bool);

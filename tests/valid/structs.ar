@@ -16,7 +16,7 @@ struct KeyInfo {
 
 fn main() {
     var gamestate: GameState;
-    const zero_pos: Vec2;
+    var zero_pos: Vec2;
     zero_pos.x = 0;
     zero_pos.y = 0;
     gamestate.player_pos = zero_pos;

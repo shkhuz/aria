@@ -1,4 +1,4 @@
 fn get(n: usize)
 {
-    let i = n
+    const i = n
 }

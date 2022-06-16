@@ -954,14 +954,14 @@ Type* check_expr(
             bool err = false;
             for (size_t i = 0; i < expr->arraylit.elems.size(); i++) {
                 Type* ty = check_expr(c, expr->arraylit.elems[i], target_elem_type, true);
-                if (i == 0) {
-                    if (!ty) {
-                        err = true;
-                        break;
-                    }
+                if (!ty) {
+                    err = true;
+                    if (i == 0) break;
+                }
+                else if (i == 0) {
                     first_elem_type = ty;
                 }
-                if (i != 0 && ty && first_elem_type) {
+                else if (i != 0) {
                     CHECK_IMPL_CAST(ty, first_elem_type);
                     if (IS_IMPL_CAST_STATUS(IC_ERROR)) {
                         check_error(
@@ -1047,12 +1047,15 @@ Type* check_expr(
             if (left_type) {
                 if (left_type->kind == TYPE_KIND_ARRAY) {
                     result = left_type->array.elem_type;
+                    expr->constant = expr->index.left->constant;
                 }
                 else if (left_type->kind == TYPE_KIND_PTR) {
                     result = left_type->ptr.child;
+                    expr->constant = left_type->ptr.constant;
                 }
                 else if (type_is_slice(left_type)) {
                     result = left_type->custom.slice.child;
+                    expr->constant = left_type->custom.slice.constant;
                 }
                 else {
                     check_error(
@@ -1243,7 +1246,9 @@ void check_assign_stmt(CheckContext* c, Stmt* stmt) {
                     *lhs_operand_type);
         }
     }
-    else if (left_type && stmt->assign.left->kind == EXPR_KIND_FIELD_ACCESS &&
+    else if (left_type && 
+             (stmt->assign.left->kind == EXPR_KIND_FIELD_ACCESS ||
+              stmt->assign.left->kind == EXPR_KIND_INDEX) &&
              stmt->assign.left->constant) {
         // This cannot be checked in the resolve pass because we do not have
         // the struct type info prior to type_chk pass.

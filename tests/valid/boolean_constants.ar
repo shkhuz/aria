@@ -4,6 +4,8 @@ fn main() {
     const c: bool = false;
     
     pass(&a, &b, &c);
+    pass2(a);
 }
 
 fn pass(a: *const bool, b: *const bool, c: *const bool) {}
+fn pass2(b: bool) {} 

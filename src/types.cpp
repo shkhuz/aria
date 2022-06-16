@@ -722,9 +722,10 @@ bool type_is_equal(Type* from, Type* to, bool cast_to_const) {
             } break;
 
             case TYPE_KIND_ARRAY: {
-                assert(from->array.len->kind == EXPR_KIND_INTEGER && to->array.len->kind == EXPR_KIND_INTEGER);
-                if (bigint_cmp_mag(from->array.len->integer.val, to->array.len->integer.val) == BIGINT_ORD_EQ &&
-                    from->array.len->integer.val->sign == to->array.len->integer.val->sign) {
+                if ((from->array.len && to->array.len && 
+                     (bigint_cmp_mag(from->array.len->integer.val, to->array.len->integer.val) == BIGINT_ORD_EQ &&
+                      from->array.len->integer.val->sign == to->array.len->integer.val->sign)) ||
+                    (from->array.lennum == to->array.lennum)) {
                     if (cast_to_const) {
                         if (!from->array.constant || to->array.constant) {
                             return type_is_equal(from->array.elem_type, to->array.elem_type, cast_to_const);

@@ -3,7 +3,7 @@ fn main()
 
 }
 
-fn redecl_var(n: usize)
+fn redecl_var(n: u64)
 {
-    let n = n;
+    const n = n;
 }

@@ -1,4 +1,4 @@
 fn main()
 {
-    let u8: u8;
+    const u8: u8;
 }

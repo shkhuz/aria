@@ -1,3 +1,3 @@
 fn main( {
-    let i: u8;
+    const i: u8;
 }

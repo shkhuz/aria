@@ -1,2 +1,2 @@
 fn main() {
-    let i: usize;
+    const i: usize;
