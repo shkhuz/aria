@@ -1,4 +1,5 @@
-fn get(n: usize)
-{
+fn get(n: usize) {
     const i = n
 }
+
+//! tests/invalid/missing_semicolon.ar:3:1: error: expected `;`, got `}`

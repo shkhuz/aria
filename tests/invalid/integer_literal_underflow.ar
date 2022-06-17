@@ -1,6 +1,4 @@
-// errc: 8
-fn main()
-{
+fn main() {
     const a: u8 = -1;
     const b: u16 = -1;
     const c: u32 = -1;
@@ -10,3 +8,12 @@ fn main()
     const h: i32 = -2147483649;
     const i: i64 = -9223372036854775809;
 }
+
+//! tests/invalid/integer_literal_underflow.ar:2:19: error: literal value outside `u8` range
+//! tests/invalid/integer_literal_underflow.ar:3:20: error: literal value outside `u16` range
+//! tests/invalid/integer_literal_underflow.ar:4:20: error: literal value outside `u32` range
+//! tests/invalid/integer_literal_underflow.ar:5:20: error: literal value outside `u64` range
+//! tests/invalid/integer_literal_underflow.ar:6:19: error: literal value outside `i8` range
+//! tests/invalid/integer_literal_underflow.ar:7:20: error: literal value outside `i16` range
+//! tests/invalid/integer_literal_underflow.ar:8:20: error: literal value outside `i32` range
+//! tests/invalid/integer_literal_underflow.ar:9:20: error: literal value outside `i64` range

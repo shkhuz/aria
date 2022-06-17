@@ -2,7 +2,6 @@ while getopts :v:e flag
 do
     case "${flag}" in
         v) verbose="$OPTARG";;
-        e) existing_compiler=1;;
         :) verbose="";;
     esac
 done
@@ -21,73 +20,106 @@ print_fail() {
     printf "${red_color}FAIL${reset_color}\n"
 }
 
-if [[ $existing_compiler -ne 1 ]] 
-then
-    make clean 2>/dev/null >/dev/null
-    echo -n "Building the compiler..."
-    make build/ariac 2>/dev/null >/dev/null
-    if [[ $? -ne 0 ]]
-    then 
-        print_fail
-        echo "Compiler cannot be compiled; testing ended prematurely"
-        exit
-    else
-        print_ok
-    fi
-fi
-
 ok_count=0
 fail_count=0
 
-compile_file_no_verbose() {
-    build/ariac $1 std/std.ar 2>/dev/null >/dev/null
+# $1: srcfile: string
+# $2: verbose: bool
+compile_invalid_srcfile() {
+    if [[ ! -f $1 ]]; then
+        echo "compile_invalid_srcfile(): $1 not found"
+        return 1
+    fi
+
+    expected=$(grep '//!' $1 | sed 's/^\/\/! //')
+    actual=$(./build/ariac "$1" std/std.ar 2>&1 | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" | grep error:)
+
+    # echo -e "expected:\n$expected"
+
+    if [[ -z "$expected" ]]; then
+        extra_actual_errors=$actual
+    else
+        extra_actual_errors=$(echo "$actual" | grep -v "$expected")
+    fi
+    # echo -e "actual:\n$extra_actual_errors"
+    if [[ ! -z "$extra_actual_errors" && "$2" -eq 1 ]]; then
+        echo -e "$(echo "$extra_actual_errors" | sed 's/^/- /')"
+    fi
+
+    extra_expected_errors=$(echo "$expected" | grep -v "$actual")
+    if [[ ! -z "$extra_expected_errors" && "$2" -eq 1 ]]; then
+        echo -e "$(echo "$extra_expected_errors" | sed 's/^/+ /')"
+    fi
+
+    if [[ ! -z "$extra_actual_errors" || ! -z "$extra_expected_errors" ]]; then
+        return 1
+    fi
+    return 0
+}
+
+# $1: srcfile: string
+# $2: verbose: bool
+compile_valid_srcfile() {
+    if [[ ! -f $1 ]]; then
+        echo "compile_valid_srcfile(): $1 not found"
+        return 1
+    fi
+
+    if [[ "$2" -eq 1 ]]; then
+        build/ariac $1 std/std.ar
+    else
+        build/ariac $1 std/std.ar 2>/dev/null >/dev/null
+    fi
 }
 
 readonly VALID_VAL=0
 readonly INVALID_VAL=1
 
+# $1: directory: string
+# $2: compile_invalid_srcfiles: bool
 build_tests_in_dir() {
     for prog in `find $1 -name "*.ar" | sort`; do
         echo -n "Building $prog..."
 
-        expect_errc=`sed -n -e 's/\/\/\s*errc:\s*//p' $prog`
-        if [[ $expect_errc == "" ]]; then
-            expect_errc=1
-        fi
-
         if [[ -z ${verbose+x} ]]; then
-            compile_file_no_verbose $prog
+            local is_verbose=0
+        elif [[ $verbose = "" ]] || [[ $verbose = $prog ]]; then
+            local is_verbose=1
         else 
-            if [[ $verbose = "" ]] || [[ $verbose = $prog ]]; then
-                echo ""
-                (set -x; build/ariac $prog std/std.ar >/dev/null)
-            else 
-                compile_file_no_verbose $prog
-            fi
+            local is_verbose=0
         fi
 
-        result=$?
-        if [[ $2 -eq $VALID_VAL ]]; then
-            expect_errc=0
+        if [[ "$2" -eq 1 ]]; then
+            output=$(compile_invalid_srcfile $prog $is_verbose)
+        elif [[ "$2" -eq 0 ]]; then
+            output=$(compile_valid_srcfile $prog $is_verbose)
         fi
+        compilestatus=$?
 
-        if [[ $result -eq $expect_errc ]]; then
+        if [[ $compilestatus -eq 0 ]]; then
             print_ok
             ((ok_count++))
         else 
             print_fail
             ((fail_count++))
         fi
+
+        if [[ "$is_verbose" -eq 1 && $compilestatus -ne 0 ]]; then
+            echo "$output"
+            if [[ -n "$output" ]]; then
+                echo ""
+            fi
+        fi
     done
 }
 
-if [[ ! -f build/ariac ]]; then
+if [ ! -f build/ariac ]; then
     echo "Compiler not found; testing ended prematurely"
     exit 1
 fi
 
-build_tests_in_dir "tests/valid/" $VALID_VAL
-build_tests_in_dir "tests/invalid/" $INVALID_VAL
+build_tests_in_dir "tests/valid/" 0
+build_tests_in_dir "tests/invalid/" 1
 
 if [[ $fail_count -ne 0 ]]
 then

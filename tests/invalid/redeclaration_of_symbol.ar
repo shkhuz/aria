@@ -1,9 +1,7 @@
-fn main() 
-{
+fn main() { }
 
-}
-
-fn redecl_var(n: u64)
-{
+fn redecl_var(n: u64) {
     const n = n;
 }
+
+//! tests/invalid/redeclaration_of_symbol.ar:4:11: error: redeclaration of symbol `n`

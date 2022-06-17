@@ -1,2 +1,4 @@
+//! tests/invalid/missing_function_brace.ar:5:1: error: unexpected end of file
+
 fn main() {
     const i: usize;

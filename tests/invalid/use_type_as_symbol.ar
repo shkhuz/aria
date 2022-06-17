@@ -1,4 +1,5 @@
-fn main()
-{
+fn main() {
     const u8: u8;
 }
+
+//! tests/invalid/use_type_as_symbol.ar:2:11: error: cannot use type as a symbol

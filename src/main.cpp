@@ -98,14 +98,13 @@ inline void inittimer(timespec* timer) {
 }
 
 int main(int argc, char* argv[]) {
+    timespec tstart, tend, tmainstart;
+    inittimer(&tmainstart);
     g_exec_path = argv[0];
     init_core();
     init_types();
     init_lex();
     tests();
-    
-    timespec tstart, tend;
-    double compilation_time = 0.0;
     
     inittimer(&tstart);
     
@@ -184,12 +183,12 @@ int main(int argc, char* argv[]) {
     bool read_error = false;
     for (int i = optind; i < argc; i++) {
         Srcfile* srcfile = read_srcfile(
-                                        argv[i],
-                                        MSG_KIND_ROOT_ERROR,
-                                        null,
-                                        0,
-                                        0,
-                                        0);
+                argv[i],
+                MSG_KIND_ROOT_ERROR,
+                null,
+                0,
+                0,
+                0);
         if (!srcfile) {
             read_error = true;
             continue;
@@ -245,7 +244,6 @@ int main(int argc, char* argv[]) {
     
     inittimer(&tend);
     double frontend_time = timediff(tend, tstart);
-    compilation_time += frontend_time;
     printf("Front-end time-taken: %.5fs\n", frontend_time);
     
     inittimer(&tstart);
@@ -276,7 +274,6 @@ int main(int argc, char* argv[]) {
     }
     inittimer(&tend);
     double backend_llvm_time = timediff(tend, tstart);
-    compilation_time += backend_llvm_time;
     printf("Back-end LLVM time-taken: %.5fs\n", backend_llvm_time);
     
     inittimer(&tstart);
@@ -343,7 +340,7 @@ int main(int argc, char* argv[]) {
     rmrf(tmpdir);
     inittimer(&tend);
     double linker_time = timediff(tend, tstart);
-    compilation_time += linker_time;
     printf("Linker time-taken: %.5fs\n", linker_time);
-    printf("Total time-taken: %.5fs\n", compilation_time);    
+    double total_time = timediff(tend, tmainstart);
+    printf("Total time-taken: %.5fs\n", total_time);    
 }

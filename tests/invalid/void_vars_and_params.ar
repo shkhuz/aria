@@ -1,5 +1,3 @@
-// errc: 2
-
 fn main() {
     const something = {
         const a = 1;
@@ -8,3 +6,6 @@ fn main() {
 }
 
 fn cool(arg: void) {}
+
+//! tests/invalid/void_vars_and_params.ar:8:9: error: useless parameter due to type `void`
+//! tests/invalid/void_vars_and_params.ar:2:11: error: useless variable due to type `void`

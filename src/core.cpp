@@ -80,6 +80,8 @@ void* zero_mem(T* mem, size_t count) {
 #define SWAP_VARS(t, a, b) do { t _c = a; a = b; b = _c; } while (0)
 #define COMBINE1(X, Y) X##Y
 #define COMBINE(X,Y) COMBINE1(X,Y)
+#define DBG_PRINT(fmtstr, ...) \
+    fmt::print(":: "); fmt::print(fmtstr, ##__VA_ARGS__); fmt::print("\n")
 
 char* g_error_color = ANSI_FERROR_COLOR;
 char* g_warning_color = ANSI_FWARNING_COLOR;
@@ -91,6 +93,7 @@ char* g_fcyann_color = ANSI_FCYANN;
 
 void init_core() {
     if (!isatty(2)) {
+        DBG_PRINT("stderr not connected; disabling color output");
         g_error_color = "";
         g_warning_color = "";
         g_note_color = "";

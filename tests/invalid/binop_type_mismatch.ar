@@ -1,6 +1,4 @@
-// errc: 18
-fn main()
-{
+fn main() {
     // unsigned + signed
     {
         const a: u8;
@@ -113,3 +111,22 @@ fn main()
         const c = a + b;
     }
 }
+
+//! tests/invalid/binop_type_mismatch.ar:6:21: error: implicit cast error: `u8` and `i8`
+//! tests/invalid/binop_type_mismatch.ar:12:21: error: implicit cast error: `u16` and `i16`
+//! tests/invalid/binop_type_mismatch.ar:18:21: error: implicit cast error: `u32` and `i32`
+//! tests/invalid/binop_type_mismatch.ar:24:21: error: implicit cast error: `u64` and `i64`
+//! tests/invalid/binop_type_mismatch.ar:31:21: error: implicit cast error: `i8` and `u8`
+//! tests/invalid/binop_type_mismatch.ar:37:21: error: implicit cast error: `i16` and `u16`
+//! tests/invalid/binop_type_mismatch.ar:43:21: error: implicit cast error: `i32` and `u32`
+//! tests/invalid/binop_type_mismatch.ar:49:21: error: implicit cast error: `i64` and `u64`
+//! tests/invalid/binop_type_mismatch.ar:56:21: error: implicit cast error: `u8` and `i64`
+//! tests/invalid/binop_type_mismatch.ar:62:21: error: implicit cast error: `u16` and `i64`
+//! tests/invalid/binop_type_mismatch.ar:68:21: error: implicit cast error: `u32` and `i16`
+//! tests/invalid/binop_type_mismatch.ar:74:21: error: implicit cast error: `u64` and `i8`
+//! tests/invalid/binop_type_mismatch.ar:80:21: error: implicit cast error: `u64` and `i32`
+//! tests/invalid/binop_type_mismatch.ar:87:21: error: implicit cast error: `i8` and `u64`
+//! tests/invalid/binop_type_mismatch.ar:93:21: error: implicit cast error: `i16` and `u64`
+//! tests/invalid/binop_type_mismatch.ar:99:21: error: implicit cast error: `i32` and `u16`
+//! tests/invalid/binop_type_mismatch.ar:105:21: error: implicit cast error: `i64` and `u8`
+//! tests/invalid/binop_type_mismatch.ar:111:21: error: implicit cast error: `i64` and `u32`

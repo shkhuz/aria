@@ -1,3 +1,5 @@
 fn main( {
     const i: u8;
 }
+
+//! tests/invalid/missing_function_paren.ar:1:10: error: expected parameter, got `{`
