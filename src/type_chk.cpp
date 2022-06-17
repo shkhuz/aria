@@ -699,28 +699,6 @@ Type* check_cast_expr(CheckContext* c, Expr* expr, Type* cast) {
         else if (left_type->kind == TYPE_KIND_PTR && type_is_integer(to_type)) {
             return to_type;
         }
-        /* else if ((left_type->kind == TYPE_KIND_PTR && left_type->ptr.child->kind == TYPE_KIND_ARRAY) && */
-        /*          type_is_slice(to_type)) { */
-        /*     // cast from pointer-to-array to a slice */ 
-        /*     // `*(const?) [#]type` --> `[](const?) type */
-            
-        /*     // Refer diagram above for an explaination */
-        /*     if (!left_type->ptr.constant || to_type->custom.slice.constant) { */ 
-        /*         if (type_is_equal( */
-        /*                 left_type->ptr.child->array.elem_type, */
-        /*                 to_type->custom.slice.child, */
-        /*                 true)) { */
-        /*             return to_type; */
-        /*         } */
-        /*         else { */
-        /*             check_error( */
-        /*                     expr->main_token, */
-        /*                     "cannot cast from `{}` to `{}`", */
-        /*                     *left_type, */
-        /*                     *to_type); */
-        /*         } */
-        /*     } */
-        /* } */
         else if (left_type->kind == TYPE_KIND_PTR && to_type->kind == TYPE_KIND_PTR) {
             if (left_type->ptr.constant && !to_type->ptr.constant) {
                 check_error(
@@ -749,6 +727,9 @@ Type* check_cast_expr(CheckContext* c, Expr* expr, Type* cast) {
             else {
                 return to_type;
             }
+        }
+        else if (left_type->kind == TYPE_KIND_BUILTIN && to_type->kind == TYPE_KIND_BUILTIN) {
+            return to_type;
         }
         else {
             CHECK_IMPL_CAST(left_type, to_type);
