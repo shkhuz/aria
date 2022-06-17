@@ -952,7 +952,7 @@ void cg(CgContext* c) {
     }
 
     fmt::print(stderr, "======== {} ========\n", c->srcfile->handle->path);
-    LLVMDumpModule(c->llvmmod);
+    /* LLVMDumpModule(c->llvmmod); */
     
     bool error = false;
     char* errors = null;
@@ -975,7 +975,7 @@ void cg(CgContext* c) {
 
     LLVMRunPassManager(g_llvmpm, c->llvmmod);
     fmt::print(stderr, "\n---- Optimizied IR ----\n");
-    LLVMDumpModule(c->llvmmod);
+    /* LLVMDumpModule(c->llvmmod); */
    
     LLVMSetTarget(c->llvmmod, LLVMGetDefaultTargetTriple());
     LLVMSetDataLayout(c->llvmmod, g_llvmtargetdatalayout_str);

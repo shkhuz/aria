@@ -1219,6 +1219,7 @@ void check_assign_stmt(CheckContext* c, Stmt* stmt) {
         else if (type_is_slice(lhs_deref_child_type)) {
             constant = lhs_deref_child_type->custom.slice.constant;
         }
+        else assert(0);
         if (constant) {
             check_error(
                     stmt->assign.left->main_token,
@@ -1238,6 +1239,7 @@ void check_assign_stmt(CheckContext* c, Stmt* stmt) {
         else if (type_is_slice(lhs_operand_type)) {
             constant = lhs_operand_type->custom.slice.constant;
         }
+        else assert(0);
 
         if (constant) {
             check_error(

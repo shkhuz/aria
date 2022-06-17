@@ -1241,7 +1241,7 @@ Type* slice_type_placeholder_new(bool constant, Type* child) {
 }
 
 template <> struct fmt::formatter<Token> {
-    constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
+    constexpr auto parse(format_parse_context& ctx) const -> decltype(ctx.begin()) {
         return ctx.begin();
     }
 

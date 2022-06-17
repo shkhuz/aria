@@ -75,8 +75,8 @@ void* zero_mem(T* mem, size_t count) {
 
 #define STCK_ARR_LEN(arr) sizeof(arr) / sizeof(arr[0])
 #define SIZEOF_IN_BITS(x) ((size_t)8 * sizeof(x))
-#define ALLOC_WITH_TYPE(name, type) type* name = new type
-#define ALLOC_WITH_TYPE_ASSIGN(name, type) name = new type
+#define ALLOC_WITH_TYPE(name, type) type* name = (type*)calloc(1, sizeof(type))
+#define ALLOC_WITH_TYPE_ASSIGN(name, type) name = (type*)calloc(1, sizeof(type))
 #define SWAP_VARS(t, a, b) do { t _c = a; a = b; b = _c; } while (0)
 #define COMBINE1(X, Y) X##Y
 #define COMBINE(X,Y) COMBINE1(X,Y)
