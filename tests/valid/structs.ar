@@ -23,4 +23,6 @@ fn main() {
     gamestate.mouse_pos = zero_pos;
     gamestate.keyboard_input.key = 70;
     gamestate.keyboard_input.modifier = 0;
+    
+    { var newgame: GameState; newgame }.player_pos.y = 1;
 }

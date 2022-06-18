@@ -1,8 +1,26 @@
-while getopts :v:e flag
+while getopts :v:nh flag
 do
     case "${flag}" in
+        h) echo "test.sh: Test framework for the Aria compiler"
+           echo "Usage: ./test.sh [options]"
+           echo ""
+           echo "Options:"
+           echo "  -v <file>                   Print additional info for <file>]"
+           echo "      (set by default for failed tests)"
+           echo "      If * is passed as an argument, ie. if <file> is *, "
+           echo "      then -v is set for all the test files."
+           echo "  -n                          Suppress additional output for all files"
+           echo "      As -v is set for failed tests by default, this option"
+           echo "      is used to suppress all additional output from stderr."
+           echo "  -h                          Display this help and exit"
+           echo ""
+           echo "To report bugs, please see:"
+           echo "<https://github.com/shkhuz/aria/issues/>"
+           exit 0;;
+        n) suppress=1;;
         v) verbose="$OPTARG";;
-        :) verbose="";;
+        :) echo "Argument required for -$OPTARG; exiting" >&2; exit 1;;
+        *) echo "Invalid command line flags; exiting" >&2; exit 1;;
     esac
 done
 
@@ -32,26 +50,35 @@ compile_invalid_srcfile() {
     fi
 
     expected=$(grep '//!' $1 | sed 's/^\/\/! //')
-    actual=$(./build/ariac "$1" std/std.ar 2>&1 | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" | grep error:)
+    buildoutput=$(./build/ariac "$1" std/std.ar 2>&1)
+    buildstatus=$?
+    actual=$(echo "$buildoutput" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" | grep error:)
 
-    # echo -e "expected:\n$expected"
+    # echo -e "expected:\n$expected\nactual:\n$actual"
+
+    if [[ "$buildstatus" -eq 0 ]]; then
+        if [[ "$2" -ne 0 ]]; then
+            echo -e "Compiler exited with $buildstatus, but build should fail"
+        fi
+        return 1
+    fi
 
     if [[ -z "$expected" ]]; then
         extra_actual_errors=$actual
     else
-        extra_actual_errors=$(echo "$actual" | grep -v "$expected")
+        extra_actual_errors=$(echo "$actual" | grep -xvF "$expected")
     fi
-    # echo -e "actual:\n$extra_actual_errors"
-    if [[ ! -z "$extra_actual_errors" && "$2" -eq 1 ]]; then
+
+    if [[ ! -z "$extra_actual_errors" && "$2" -ne 0 ]]; then
         echo -e "$(echo "$extra_actual_errors" | sed 's/^/+ /')"
     fi
 
     if [[ -z "$actual" ]]; then
         extra_expected_errors=$expected
     else 
-        extra_expected_errors=$(echo "$expected" | grep -v "$actual")
+        extra_expected_errors=$(echo "$expected" | grep -xvF "$actual")
     fi
-    if [[ ! -z "$extra_expected_errors" && "$2" -eq 1 ]]; then
+    if [[ ! -z "$extra_expected_errors" && "$2" -ne 0 ]]; then
         echo -e "$(echo "$extra_expected_errors" | sed 's/^/- /')"
     fi
 
@@ -69,10 +96,18 @@ compile_valid_srcfile() {
         return 1
     fi
 
-    if [[ "$2" -eq 1 ]]; then
+    if [[ "$2" -ne 0 ]]; then
         build/ariac $1 std/std.ar 2>&1
     else
         build/ariac $1 std/std.ar 2>/dev/null >/dev/null
+    fi
+    buildstatus=$?
+
+    if [[ "$buildstatus" -ne 0 ]]; then
+        if [[ "$2" -ne 0 ]]; then
+            echo -e "Compiler exited with $buildstatus, but build should succeed"
+        fi
+        return 1
     fi
 }
 
@@ -80,15 +115,21 @@ compile_valid_srcfile() {
 # $2: compile_invalid_srcfiles: bool
 build_tests_in_dir() {
     for prog in `find $1 -name "*.ar" | sort`; do
-        echo -n "Building $prog..."
-
-        if [[ -z ${verbose+x} ]]; then
+        if [[ $suppress -eq 1 ]]; then
             local is_verbose=0
-        elif [[ $verbose = "" ]] || [[ $verbose = $prog ]]; then
+        elif [[ -z ${verbose+x} ]]; then
             local is_verbose=1
+        elif [[ $verbose = "" ]]; then
+            local is_verbose=1
+        elif [[ $verbose = "*" || $verbose = $prog ]]; then
+            local is_verbose=2
         else 
+            # this case is not mixed with the first case
+            # this is deliberate
             local is_verbose=0
         fi
+        
+        echo -ne "Building $prog..."
 
         if [[ "$2" -eq 1 ]]; then
             output=$(compile_invalid_srcfile $prog $is_verbose)
@@ -105,7 +146,7 @@ build_tests_in_dir() {
             ((fail_count++))
         fi
 
-        if [[ "$is_verbose" -eq 1 && $compilestatus -ne 0 ]]; then
+        if [[ ( "$is_verbose" -eq 1 && $compilestatus -ne 0 ) || "$is_verbose" -eq 2 ]]; then
             echo "$output"
             if [[ -n "$output" ]]; then
                 echo ""
