@@ -43,12 +43,16 @@ compile_invalid_srcfile() {
     fi
     # echo -e "actual:\n$extra_actual_errors"
     if [[ ! -z "$extra_actual_errors" && "$2" -eq 1 ]]; then
-        echo -e "$(echo "$extra_actual_errors" | sed 's/^/- /')"
+        echo -e "$(echo "$extra_actual_errors" | sed 's/^/+ /')"
     fi
 
-    extra_expected_errors=$(echo "$expected" | grep -v "$actual")
+    if [[ -z "$actual" ]]; then
+        extra_expected_errors=$expected
+    else 
+        extra_expected_errors=$(echo "$expected" | grep -v "$actual")
+    fi
     if [[ ! -z "$extra_expected_errors" && "$2" -eq 1 ]]; then
-        echo -e "$(echo "$extra_expected_errors" | sed 's/^/+ /')"
+        echo -e "$(echo "$extra_expected_errors" | sed 's/^/- /')"
     fi
 
     if [[ ! -z "$extra_actual_errors" || ! -z "$extra_expected_errors" ]]; then
@@ -66,14 +70,11 @@ compile_valid_srcfile() {
     fi
 
     if [[ "$2" -eq 1 ]]; then
-        build/ariac $1 std/std.ar
+        build/ariac $1 std/std.ar 2>&1
     else
         build/ariac $1 std/std.ar 2>/dev/null >/dev/null
     fi
 }
-
-readonly VALID_VAL=0
-readonly INVALID_VAL=1
 
 # $1: directory: string
 # $2: compile_invalid_srcfiles: bool
