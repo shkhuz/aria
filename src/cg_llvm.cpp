@@ -700,7 +700,7 @@ void cg_function_stmt(CgContext* c, Stmt* stmt) {
         }
 
         LLVMValueRef body_val = cg_expr(c, stmt->function.body, stmt->function.header->return_type, false);
-        if (body_val) LLVMBuildRet(c->llvmbuilder, body_val);
+        if (body_val && !type_is_void(stmt->function.body->type)) LLVMBuildRet(c->llvmbuilder, body_val);
         else LLVMBuildRetVoid(c->llvmbuilder);
     }
 
