@@ -30,6 +30,14 @@ fn main() void {
 
     //var slice: []const u8;
     //slice = get();
+
+    var m = 1 as u8;
+    var mref = &m;
+    write_u8(1, mref[0]);
+
+    var n: [3]u8 = [0, 1, 2];
+    const nref = &n;
+    write_u8(1, nref[0]);
 }
 
 var a: [3]u8 = [1, 2, 3];

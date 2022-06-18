@@ -1031,7 +1031,12 @@ Type* check_expr(
                     expr->constant = expr->index.left->constant;
                 }
                 else if (left_type->kind == TYPE_KIND_PTR) {
-                    result = left_type->ptr.child;
+                    if (left_type->ptr.child->kind == TYPE_KIND_ARRAY) {
+                        result = left_type->ptr.child->array.elem_type;
+                    }
+                    else {
+                        result = left_type->ptr.child;
+                    }
                     expr->constant = left_type->ptr.constant;
                 }
                 else if (type_is_slice(left_type)) {

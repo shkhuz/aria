@@ -161,6 +161,24 @@ LLVMValueRef cg_access_struct_field(
     return result;
 }
 
+LLVMValueRef cg_get_elemptr_in_array(
+        CgContext* c,
+        LLVMValueRef array_ptr,
+        LLVMValueRef index,
+        LLVMTypeRef array_ty) {
+    LLVMValueRef left = array_ptr;
+    LLVMValueRef indices[2];
+    indices[0] = LLVMConstInt(get_llvm_type(builtin_type_placeholders.uint64), 0, false);
+    indices[1] = index;
+    return LLVMBuildGEP2(
+            c->llvmbuilder,
+            array_ty,
+            left,
+            indices,
+            2,
+            "");
+}
+
 LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
     LLVMValueRef result = null;
     switch (expr->kind) {
@@ -271,27 +289,32 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
                 case TYPE_KIND_PTR: {
                     LLVMValueRef left = cg_expr(c, expr->index.left, target, false);
                     LLVMValueRef index = cg_expr(c, expr->index.idx, builtin_type_placeholders.uint64, false);
-                    result = LLVMBuildGEP2(
-                            c->llvmbuilder,
-                            get_llvm_type(expr->type),
-                            left,
-                            &index,
-                            1,
-                            "");
+                    if (expr->index.left_type->ptr.child->kind == TYPE_KIND_ARRAY) {
+                        result = cg_get_elemptr_in_array(
+                                c,
+                                left,
+                                index,
+                                get_llvm_type(expr->index.left_type->ptr.child));
+
+                    }
+                    else {
+                        result = LLVMBuildGEP2(
+                                c->llvmbuilder,
+                                get_llvm_type(expr->type),
+                                left,
+                                &index,
+                                1,
+                                "");
+                    }
                 } break;
 
                 case TYPE_KIND_ARRAY: {
-                    LLVMValueRef left = cg_expr(c, expr->index.left, target, true);
-                    LLVMValueRef indices[2];
-                    indices[0] = LLVMConstInt(get_llvm_type(builtin_type_placeholders.uint64), 0, false);
-                    indices[1] = cg_expr(c, expr->index.idx, builtin_type_placeholders.uint64, false);
-                    result = LLVMBuildGEP2(
-                            c->llvmbuilder,
-                            get_llvm_type(expr->index.left_type),
-                            left,
-                            indices,
-                            2,
-                            "");
+                    result = cg_get_elemptr_in_array(
+                            c,
+                            cg_expr(c, expr->index.left, target, true),
+                            cg_expr(c, expr->index.idx, builtin_type_placeholders.uint64, false),
+                            get_llvm_type(expr->index.left_type));
+
                 } break;
 
                 case TYPE_KIND_CUSTOM: {
@@ -948,8 +971,8 @@ void cg(CgContext* c) {
         cg_stmt(c, stmt);
     }
 
-    /* fmt::print(stderr, "======== {} ========\n", c->srcfile->handle->path); */
-    /* LLVMDumpModule(c->llvmmod); */
+    fmt::print(stderr, "======== {} ========\n", c->srcfile->handle->path);
+    LLVMDumpModule(c->llvmmod);
     
     bool error = false;
     char* errors = null;
