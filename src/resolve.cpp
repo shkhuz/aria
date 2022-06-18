@@ -298,6 +298,7 @@ bool resolve_block_expr(
     }
     if (expr->block.value) {
         CHECK_IS_OK(resolve_expr(r, expr->block.value));
+        expr->constant = expr->block.value->constant;
     }
 
     if (create_new_scope) {
