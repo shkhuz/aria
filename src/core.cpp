@@ -93,7 +93,6 @@ char* g_fcyann_color = ANSI_FCYANN;
 
 void init_core() {
     if (!isatty(2)) {
-        DBG_PRINT("stderr not connected; disabling color output");
         g_error_color = "";
         g_warning_color = "";
         g_note_color = "";

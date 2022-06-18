@@ -159,24 +159,30 @@ void resolve_pre_decl_stmt(
     }
 }
 
-void resolve_type(ResolveContext* r, Type* type);
-void resolve_expr(ResolveContext* r, Expr* expr);
+#define CHECK_IS_OK(expr) \
+    bool COMBINE(err, __LINE__) = expr; if (ok) ok = COMBINE(err, __LINE__)
+
+bool resolve_type(ResolveContext* r, Type* type);
+bool resolve_expr(ResolveContext* r, Expr* expr);
 void resolve_stmt(
         ResolveContext* r, 
         Stmt* stmt, 
         bool ignore_function_level_stmt);
 
-void resolve_type(ResolveContext* r, Type* type) {
+bool resolve_type(ResolveContext* r, Type* type) {
+    bool ok = true;
     switch (type->kind) {
         case TYPE_KIND_BUILTIN: {
         } break;
 
         case TYPE_KIND_PTR: {
-            resolve_type(r, type->ptr.child);
+            // we are directly modifying ok because this is the only 
+            // code that will run in this function
+            ok = resolve_type(r, type->ptr.child);
         } break;
 
         case TYPE_KIND_ARRAY: {
-            resolve_type(r, type->array.elem_type);
+            ok = resolve_type(r, type->array.elem_type);
         } break;
 
         case TYPE_KIND_CUSTOM: {
@@ -197,12 +203,14 @@ void resolve_type(ResolveContext* r, Type* type) {
                             addinfo(
                                     "`{}` is not a type definition, so it cannot be used as a type",
                                     *type->custom.ref->main_token);
+                            ok = false;
                         }
                     }
+                    else ok = false;
                 } break;
 
                 case CUSTOM_TYPE_KIND_SLICE: {
-                    resolve_type(r, type->custom.slice.child);
+                    CHECK_IS_OK(resolve_type(r, type->custom.slice.child));
                     Stmt* ref = null;
                     for (auto& it: r->slice_structs) {
                         if (type_is_equal(type, it.first, false)) {
@@ -232,107 +240,86 @@ void resolve_type(ResolveContext* r, Type* type) {
             }
         } break;
     }
+    return ok;
 }
 
-void resolve_symbol_expr(ResolveContext* r, Expr* expr) {
+bool resolve_symbol_expr(ResolveContext* r, Expr* expr) {
     expr->symbol.ref = 
         resolve_assert_symbol_is_in_current_scope_rec(r, expr->main_token);
     if (expr->symbol.ref && expr->symbol.ref->kind == STMT_KIND_VARIABLE) {
         expr->constant = expr->symbol.ref->variable.constant;
     }
+    if (!expr->symbol.ref) return false;
+    return true;
 }
 
-void resolve_function_call_expr(ResolveContext* r, Expr* expr) { 
+bool resolve_function_call_expr(ResolveContext* r, Expr* expr) { 
     if (expr->function_call.callee->kind != EXPR_KIND_SYMBOL) {
         resolve_error(
                 expr->main_token,
                 "[internal] function ptr/methods calls not implemented yet");
-        return;
+        return false;
     }
 
-    resolve_symbol_expr(r, expr->function_call.callee);
+    bool ok = true;
+    CHECK_IS_OK(resolve_symbol_expr(r, expr->function_call.callee));
     if (expr->function_call.callee->symbol.ref &&
         expr->function_call.callee->symbol.ref->kind !=
             STMT_KIND_FUNCTION) {
         resolve_error(
                 expr->main_token,
                 "callee is not a function");
+        ok = false;
     }
 
     for (Expr* arg: expr->function_call.args) {
-        resolve_expr(r, arg);
+        CHECK_IS_OK(resolve_expr(r, arg));
     }
+    return ok;
 }
 
-void resolve_binop_expr(ResolveContext* r, Expr* expr) {
-    resolve_expr(r, expr->binop.left);
-    resolve_expr(r, expr->binop.right);
-}
-
-void resolve_unop_expr(ResolveContext* r, Expr* expr) {
-    resolve_expr(r, expr->unop.child);
-    if (expr->unop.op->kind == TOKEN_KIND_AMP) {
-        if (expr->unop.child->kind != EXPR_KIND_SYMBOL) {
-            resolve_error(
-                    expr->main_token,
-                    "`&` only accepts l-values as operands");
-        }
-    }
-}
-
-void resolve_cast_expr(ResolveContext* r, Expr* expr) {
-    resolve_expr(r, expr->cast.left);
-    resolve_type(r, expr->cast.to);
-}
-
-void resolve_block_expr(
+bool resolve_block_expr(
         ResolveContext* r, 
         Expr* expr, 
         bool create_new_scope) {
-
+    bool ok = true;
     Scope* scope = null;
     if (create_new_scope) {
         scope_push_existing(scope);
     }
 
+    // TODO: why is pre_decl happening in block?
     for (Stmt* stmt: expr->block.stmts) {
         resolve_pre_decl_stmt(r, stmt, true);
     }
     for (Stmt* stmt: expr->block.stmts) {
+        // TODO: check ok for resolve_stmt
         resolve_stmt(r, stmt, false);
     }
     if (expr->block.value) {
-        resolve_expr(r, expr->block.value);
+        CHECK_IS_OK(resolve_expr(r, expr->block.value));
     }
 
     if (create_new_scope) {
         scope_pop(scope);
     }
+    return ok;
 }
 
-void resolve_if_branch(ResolveContext* r, IfBranch* br) {
+bool resolve_if_branch(ResolveContext* r, IfBranch* br) {
+    bool ok = true;
     if (br->cond) {
-        resolve_expr(r, br->cond);
+        CHECK_IS_OK(resolve_expr(r, br->cond));
     }
-    resolve_expr(r, br->body);
-}
-
-void resolve_if_expr(ResolveContext* r, Expr* expr) {
-    resolve_if_branch(r, expr->iff.ifbr);
-    for (IfBranch* br: expr->iff.elseifbr) {
-        resolve_if_branch(r, br);
-    }
-    if (expr->iff.elsebr) {
-        resolve_if_branch(r, expr->iff.elsebr);
-    }
+    CHECK_IS_OK(resolve_expr(r, br->body));
+    return ok;
 }
 
 void resolve_while_expr(ResolveContext* r, Expr* expr) {
-    resolve_expr(r, expr->whilelp.cond);
-    resolve_expr(r, expr->whilelp.body);
 }
 
-void resolve_expr(ResolveContext* r, Expr* expr) {
+// returns whether resolve is successful
+bool resolve_expr(ResolveContext* r, Expr* expr) {
     expr->parent_func = r->current_func;
     if ((expr->kind == EXPR_KIND_SYMBOL || 
          expr->kind == EXPR_KIND_FIELD_ACCESS || 
@@ -345,57 +332,76 @@ void resolve_expr(ResolveContext* r, Expr* expr) {
         resolve_error(
                 expr->main_token,
                 "only constant expressions are allowed for globals");
-        return;
+        return false;
     }
 
+    bool ok = true;
     switch (expr->kind) {
         case EXPR_KIND_ARRAY_LITERAL: {
             for (Expr* elem: expr->arraylit.elems) {
-                resolve_expr(r, elem);
+                CHECK_IS_OK(resolve_expr(r, elem));
             }
         } break;
 
         case EXPR_KIND_SYMBOL: {
-            resolve_symbol_expr(r, expr);
+            ok = resolve_symbol_expr(r, expr);
         } break;
 
         case EXPR_KIND_FUNCTION_CALL: {
-            resolve_function_call_expr(r, expr);
+            ok = resolve_function_call_expr(r, expr);
         } break;
 
         case EXPR_KIND_FIELD_ACCESS: {
-            resolve_expr(r, expr->fieldacc.left);
+            ok = resolve_expr(r, expr->fieldacc.left);
         } break;
 
         case EXPR_KIND_INDEX: {
-            resolve_expr(r, expr->index.left);
-            resolve_expr(r, expr->index.idx);
+            ok = resolve_expr(r, expr->index.left) && 
+                 resolve_expr(r, expr->index.idx);
         } break;
 
         case EXPR_KIND_BINOP: {
-            resolve_binop_expr(r, expr);
+            ok = resolve_expr(r, expr->binop.left) && 
+                 resolve_expr(r, expr->binop.right);
         } break;
         
         case EXPR_KIND_UNOP: {
-            resolve_unop_expr(r, expr);
+            CHECK_IS_OK(resolve_expr(r, expr->unop.child));
+            if (expr->unop.op->kind == TOKEN_KIND_AMP) {
+                if (expr->unop.child->kind != EXPR_KIND_SYMBOL) {
+                    resolve_error(
+                            expr->main_token,
+                            "`&` only accepts l-values as operands");
+                    ok = false;
+                }
+            }
         } break;
         
         case EXPR_KIND_CAST: {
-            resolve_cast_expr(r, expr);
+            ok = resolve_expr(r, expr->cast.left) &&
+                 resolve_type(r, expr->cast.to);
         } break;
         
         case EXPR_KIND_BLOCK: {
-            resolve_block_expr(r, expr, true);
+            ok = resolve_block_expr(r, expr, true);
         } break;
 
         case EXPR_KIND_IF: {
-            resolve_if_expr(r, expr);
+            CHECK_IS_OK(resolve_if_branch(r, expr->iff.ifbr));
+            for (IfBranch* br: expr->iff.elseifbr) {
+                CHECK_IS_OK(resolve_if_branch(r, br));
+            }
+            if (expr->iff.elsebr) {
+                CHECK_IS_OK(resolve_if_branch(r, expr->iff.elsebr));
+            }
         } break;
         
         case EXPR_KIND_WHILE: {
-            resolve_while_expr(r, expr);
+            ok = resolve_expr(r, expr->whilelp.cond) && 
+                 resolve_expr(r, expr->whilelp.body);
         } break;
     }
+    return ok;
 }
 
 void resolve_function_header(ResolveContext* r, FunctionHeader* header) {
@@ -459,8 +465,9 @@ void resolve_variable_stmt(
 }
 
 void resolve_assign_stmt(ResolveContext* r, Stmt* stmt) {
-    resolve_expr(r, stmt->assign.left);
-    resolve_expr(r, stmt->assign.right);
+    bool ok = true;
+    CHECK_IS_OK(resolve_expr(r, stmt->assign.left));
+    CHECK_IS_OK(resolve_expr(r, stmt->assign.right));
 
     if ((stmt->assign.left->kind == EXPR_KIND_SYMBOL && 
          stmt->assign.left->symbol.ref &&
@@ -479,6 +486,7 @@ void resolve_assign_stmt(ResolveContext* r, Stmt* stmt) {
                         "variable defined here");
                 addinfo("to define a mutable variable, use `var`");
             }
+            ok = false;
         }
     }
     else if (stmt->assign.left->kind == EXPR_KIND_FIELD_ACCESS) {
@@ -489,7 +497,7 @@ void resolve_assign_stmt(ResolveContext* r, Stmt* stmt) {
         // This is left empty because we need LHS type info to determine 
         // the `constant` field of index expr.
     }
-    else {
+    else if (ok) {
         resolve_error(
                 stmt->main_token,
                 "invalid l-value");
