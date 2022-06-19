@@ -266,21 +266,35 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
         } break;
 
         case EXPR_KIND_FIELD_ACCESS: {
-            if (expr->fieldacc.left_type->kind == TYPE_KIND_CUSTOM) {
-                LLVMValueRef left = cg_expr(c, expr->fieldacc.left, null, true);
+            LLVMValueRef left;
+            Type* aggregate_type = expr->fieldacc.left_type;
+            bool is_ptr = false;
+            if (expr->fieldacc.left_type->kind == TYPE_KIND_PTR) {
+                aggregate_type = aggregate_type->ptr.child;
+                is_ptr = true;
+            }
+
+            if (aggregate_type->kind == TYPE_KIND_CUSTOM) {
+                if (is_ptr)
+                    left = cg_expr(c, expr->fieldacc.left, null, false);
+                else 
+                    left = cg_expr(c, expr->fieldacc.left, null, true);
                 result = cg_access_struct_field(
                         c,
                         left,
-                        get_llvm_type(expr->fieldacc.left_type),
+                        get_llvm_type(aggregate_type),
                         expr->fieldacc.rightref->field.idx,
                         !lvalue, 
                         get_llvm_type(expr->type));
             }
-            else if (expr->fieldacc.left_type->kind == TYPE_KIND_ARRAY) {
-                result = LLVMConstInt(
-                        get_llvm_type(builtin_type_placeholders.uint64),
-                        expr->fieldacc.left_type->array.lennum,
-                        false);
+            else if (aggregate_type->kind == TYPE_KIND_ARRAY) {
+                if (expr->fieldacc.right->lexeme == "len") {
+                    result = LLVMConstInt(
+                            get_llvm_type(builtin_type_placeholders.uint64),
+                            aggregate_type->array.lennum,
+                            false);
+                }
+                else assert(0);
             }
         } break;
 

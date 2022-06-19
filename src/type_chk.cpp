@@ -902,11 +902,11 @@ Type* check_while_expr(CheckContext* c, Expr* expr, Type* cast) {
     return val;
 }
 
-#define field_access_unknown_field() \
+#define field_access_unknown_field(type) \
     check_error( \
             expr->fieldacc.right, \
             "`{}` does not contain a field `{}`", \
-            *left_type, \
+            *type, \
             *expr->fieldacc.right)
 
 Type* check_expr(
@@ -980,9 +980,14 @@ Type* check_expr(
             expr->fieldacc.left_type = left_type;
             expr->constant = expr->fieldacc.left->constant;
             if (left_type) {
-                if (left_type->kind == TYPE_KIND_CUSTOM) {
+                if (left_type->kind == TYPE_KIND_CUSTOM ||
+                    (left_type->kind == TYPE_KIND_PTR && left_type->ptr.child->kind == TYPE_KIND_CUSTOM)) {
+                    Type* struct_type = left_type;
+                    if (struct_type->kind == TYPE_KIND_PTR && struct_type->ptr.child->kind == TYPE_KIND_CUSTOM)
+                        struct_type = struct_type->ptr.child;
+                        
                     Stmt* field = null;
-                    for (Stmt* f: left_type->custom.ref->structure.fields) {
+                    for (Stmt* f: struct_type->custom.ref->structure.fields) {
                         if (is_token_lexeme_eq(f->field.identifier, expr->fieldacc.right)) {
                             field = f;
                             break;
@@ -995,18 +1000,22 @@ Type* check_expr(
                         return field->field.type;
                     }
                     else {
-                        field_access_unknown_field();
+                        field_access_unknown_field(struct_type);
                         return null;
                     }
                 }
-                else if (left_type->kind == TYPE_KIND_ARRAY) {
+                else if (left_type->kind == TYPE_KIND_ARRAY ||
+                         (left_type->kind == TYPE_KIND_PTR && left_type->ptr.child->kind == TYPE_KIND_ARRAY)) {
+                    Type* array_type = left_type;
+                    if (array_type->kind == TYPE_KIND_PTR && array_type->ptr.child->kind == TYPE_KIND_CUSTOM)
+                        array_type = array_type->ptr.child;
                     if (expr->fieldacc.right->lexeme == "len") {
                         expr->constant = true;
                         expr->type = builtin_type_placeholders.uint64;
                         return expr->type;
                     }
                     else {
-                        field_access_unknown_field();
+                        field_access_unknown_field(left_type);
                         return null;
                     }
                 }

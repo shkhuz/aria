@@ -33,6 +33,10 @@ fn main() {
         slice[0] = 5;
         take_i32(slice[0]);
     }
+
+    var j: [1]u64 = [0];
+    j[0] = b.len;
+    j[0] = i.len;
 }
 
 fn take_i32(n: i32) { }

@@ -6,15 +6,26 @@ fn syswrite(fd: u32, buf: *const u8, count: u64) {
     syscall(SYS_WRITE, fd, buf as u64, count, 0, 0, 0);
 }
 
-extern fn syscall(number: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64, arg5: u64, arg6: u64) u64;
+extern fn syscall(
+        number: u64, 
+        arg1: u64, 
+        arg2: u64, 
+        arg3: u64, 
+        arg4: u64, 
+        arg5: u64, 
+        arg6: u64) u64;
 
-fn write_u8(fd: u32, num: u8) {
+fn write_u8(num: u8) {
     const ch = num + 48;
-    syswrite(fd, &ch, 1);
+    syswrite(STDOUT_FILENO, &ch, 1);
 }
 
-fn write(fd: u32, buf: []const u8) {
-    syswrite(fd, buf.ptr, buf.len);
+fn write(buf: []const u8) {
+    syswrite(STDOUT_FILENO, buf.ptr, buf.len);
+}
+
+fn ewrite(buf: []const u8) {
+    syswrite(STDERR_FILENO, buf.ptr, buf.len);
 }
 
 extern const SYS_EXIT: u64;
@@ -23,3 +34,10 @@ extern const SYS_WRITE: u64;
 const STDIN_FILENO: u32 = 0;
 const STDOUT_FILENO: u32 = 1;
 const STDERR_FILENO: u32 = 2;
+
+fn assert(cond: bool) {
+    if !cond {
+        ewrite("Assertion failed!");
+        sysexit(1);
+    }
+}

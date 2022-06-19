@@ -10,11 +10,19 @@ struct vec2 {
 
 fn main() void {
     const arr: [3]u8 = [70, 71, 72];
-    const slice = &arr;
-    write(1, slice as []const u8);
-    write(1, "Hello ");
-    write(1, "Hello ");
-    write(1, "World!");
+    const arrref = &arr;
+    write(arrref as []const u8);
+    write("Hello ");
+    write("Hello ");
+    write("World!");
+
+    var vec: vec2;
+    var vecref = &vec;
+    vecref.x = 1;
+    write_u8(vecref.x as u8);
+
+    assert(vecref.x == 2);
+    write_u8(arrref.len as u8);
 }
 
 var a: [3]u8 = [1, 2, 3];
@@ -22,11 +30,11 @@ var a: [3]u8 = [1, 2, 3];
 fn get() []const u8 {
     var aa: [3]u8;
     var s: vec2;
-    // BUG! s is constant!
     s.x = 1;
     if false { &aa as []u8 } else { &a }
 }
 
-extern fn write_u8(fd: u32, num: u8);
-extern fn write(fd: u32, buf: []const u8);
+extern fn write_u8(num: u8);
+extern fn write(buf: []const u8);
 extern fn take_bool(b: bool);
+extern fn assert(cond: bool);
