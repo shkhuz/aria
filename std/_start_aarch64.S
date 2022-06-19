@@ -6,6 +6,7 @@
 
 _start:
     bl main
+    mov x0, #0
     bl sysexit
 
 syscall:
