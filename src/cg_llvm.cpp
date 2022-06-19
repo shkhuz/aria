@@ -986,8 +986,8 @@ void cg(CgContext* c) {
         cg_stmt(c, stmt);
     }
 
-    fmt::print(stderr, "======== {} ========\n", c->srcfile->handle->path);
-    LLVMDumpModule(c->llvmmod);
+    /* fmt::print(stderr, "======== {} ========\n", c->srcfile->handle->path); */
+    /* LLVMDumpModule(c->llvmmod); */
     
     bool error = false;
     char* errors = null;

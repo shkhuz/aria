@@ -17,13 +17,14 @@
 #include "types.cpp"
 #include "msg.cpp"
 #include "lex.cpp"
-#include "parse.cpp"
 #include "resolve.cpp"
 #include "type_chk.cpp"
 #include "cg_llvm.cpp"
 #include <getopt.h>
 
 std::string g_exec_path;
+
+static std::vector<Srcfile*> g_srcfiles;
 
 static Srcfile* read_srcfile(
                              const std::string& path, 
@@ -35,8 +36,14 @@ static Srcfile* read_srcfile(
     FileOrError meta_file = read_file(path);
     switch (meta_file.status) {
         case FileOpenOp::success: {
+            for (size_t i = 0; i < g_srcfiles.size(); i++) {
+                if (meta_file.handle->abs_path == g_srcfiles[i]->handle->abs_path) {
+                    return g_srcfiles[i];
+                }
+            }
             ALLOC_WITH_TYPE(srcfile, Srcfile);
             srcfile->handle = meta_file.handle;
+            g_srcfiles.push_back(srcfile);
             return srcfile;
         } break;
         
@@ -68,6 +75,8 @@ static Srcfile* read_srcfile(
     }
     return null;
 }
+
+#include "parse.cpp"
 
 static void tests() {
     assert(align_to_pow2(7, 8) == 8);
@@ -119,7 +128,7 @@ int main(int argc, char* argv[]) {
         { "help", no_argument, 0, 'h' },
         { 0, 0, 0, 0 },
     };
-    
+
     while (true) {
         int longopt_idx = 0;
         int c = getopt_long(argc, argv, "o:", options, &longopt_idx);
@@ -163,7 +172,7 @@ int main(int argc, char* argv[]) {
             } break;
         }
     }
-    
+
     if (optind == argc) {
         default_msg(
                     MSG_KIND_ROOT_ERROR,
@@ -174,12 +183,11 @@ int main(int argc, char* argv[]) {
                     "no input files");
         terminate_compilation();
     }
-    
+
     if (target_triple) {
         fmt::print("target: {}\n", target_triple);
     }
-    
-    std::vector<Srcfile*> srcfiles;
+
     bool read_error = false;
     for (int i = optind; i < argc; i++) {
         Srcfile* srcfile = read_srcfile(
@@ -193,17 +201,14 @@ int main(int argc, char* argv[]) {
             read_error = true;
             continue;
         }
-        else {
-            srcfiles.push_back(srcfile);
-        }
     }
     if (read_error) terminate_compilation();
     
     size_t total_lines_parsed = 0;
     bool parsing_error = false;
-    for (Srcfile* srcfile: srcfiles) {
+    for (size_t i = 0; i < g_srcfiles.size(); i++) {
         LexContext l;
-        l.srcfile = srcfile;
+        l.srcfile = g_srcfiles[i];
         lex(&l);
         if (l.error) {
             parsing_error = true;
@@ -217,7 +222,7 @@ int main(int argc, char* argv[]) {
         total_lines_parsed += l.lines;
         
         ParseContext p;
-        p.srcfile = srcfile;
+        p.srcfile = g_srcfiles[i];
         parse(&p);
         if (p.error) parsing_error = true;
     }
@@ -225,7 +230,7 @@ int main(int argc, char* argv[]) {
     fmt::print("Total lines parsed: {}\n", total_lines_parsed);
     
     bool resolving_error = false;
-    for (Srcfile* srcfile: srcfiles) {
+    for (Srcfile* srcfile: g_srcfiles) {
         ResolveContext r;
         r.srcfile = srcfile;
         resolve(&r);
@@ -234,7 +239,7 @@ int main(int argc, char* argv[]) {
     if (resolving_error) terminate_compilation();
     
     bool type_chking_error = false;
-    for (Srcfile* srcfile: srcfiles) {
+    for (Srcfile* srcfile: g_srcfiles) {
         CheckContext c;
         c.srcfile = srcfile;
         check(&c);
@@ -259,7 +264,7 @@ int main(int argc, char* argv[]) {
     mkdtemp(tmpdir);
     fmt::print("Temp directory: {}\n", tmpdir);
     
-    for (Srcfile* srcfile: srcfiles) {
+    for (Srcfile* srcfile: g_srcfiles) {
         CgContext c;
         c.srcfile = srcfile;
         c.tmpdir = fmt::format("{}/", tmpdir);;

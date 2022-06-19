@@ -8,6 +8,8 @@ struct vec2 {
     y: bool,
 }
 
+import "ok.ar";
+
 fn main() void {
     const arr: [3]u8 = [70, 71, 72];
     const arrref = &arr;

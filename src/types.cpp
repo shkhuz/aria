@@ -7,6 +7,7 @@ struct Srcfile {
     File* handle;
     std::vector<Token*> tokens;
     std::vector<Stmt*> stmts;
+    size_t id;
 };
 
 enum TokenKind {
@@ -310,6 +311,7 @@ enum StmtKind {
     STMT_KIND_PARAM,
     STMT_KIND_ASSIGN,
     STMT_KIND_RETURN,
+    STMT_KIND_MODULEREF,
     STMT_KIND_EXPR,
 };
 
@@ -375,6 +377,12 @@ struct ReturnStmt {
     Stmt* parent_func;
 };
 
+struct ModuleRefStmt {
+    Token* path;
+    Srcfile* srcfile;
+    std::string module_name;
+};
+
 struct ExprStmt {
     Expr* child;
 };
@@ -391,6 +399,7 @@ struct Stmt {
         ParamStmt param;
         AssignStmt assign;
         ReturnStmt return_stmt;
+        ModuleRefStmt moduleref;
         ExprStmt expr;
     };
 
@@ -403,6 +412,7 @@ std::string aria_keywords[] = {
     "const",
     "var",
     "extern",
+    "import",
     "if",
     "else",
     "while",
@@ -855,7 +865,8 @@ Token* token_new(
     size_t line,
     size_t col,
     size_t ch_count) {
-    ALLOC_WITH_TYPE(token, Token);
+    /* ALLOC_WITH_TYPE(token, Token); */
+    Token* token = new Token;
     token->kind = kind;
     token->lexeme = lexeme;
     token->start = start;
@@ -1030,6 +1041,17 @@ Stmt* assign_stmt_new(Expr* left, Expr* right, Token* op) {
     stmt->assign.left = left;
     stmt->assign.right = right;
     stmt->assign.op = op;
+    return stmt;
+}
+
+Stmt* moduleref_stmt_new(Token* path, Srcfile* srcfile, const std::string& module_name) {
+    ALLOC_WITH_TYPE(stmt, Stmt);
+    stmt->kind = STMT_KIND_MODULEREF;
+    stmt->main_token = path;
+    stmt->parent_func = null;
+    stmt->moduleref.path = path;
+    stmt->moduleref.srcfile = srcfile;
+    stmt->moduleref.module_name = module_name; 
     return stmt;
 }
 

@@ -581,6 +581,57 @@ Stmt* parse_top_level_stmt(ParseContext* p, bool error_on_no_match) {
     else if (parse_match_keyword(p, "var")) {
         return parse_variable_stmt(p, false, false);
     }
+    else if (parse_match_keyword(p, "import")) {
+        Token* pathtok = parse_expect(p, TOKEN_KIND_STRING, "string literal");
+        parse_expect_semicolon(p);
+        if (pathtok->lexeme == "") {
+            error(
+                    pathtok,
+                    "empty import path");
+            p->error = true;
+            return null;
+
+        }
+        
+        std::string pathstr = pathtok->lexeme;
+        size_t last_fslash_in_pathstr = pathstr.find_last_of('/');
+        size_t first_dot_in_pathstr = pathstr.find_first_of('.');
+        
+        std::string pathstr_without_directories_and_ext;
+        if (last_fslash_in_pathstr == std::string::npos) {
+            last_fslash_in_pathstr = 0;
+        }
+        else last_fslash_in_pathstr++;
+        pathstr_without_directories_and_ext = pathstr.substr(last_fslash_in_pathstr, first_dot_in_pathstr-last_fslash_in_pathstr);
+        fmt::print("import module_name: {}\n", pathstr_without_directories_and_ext);
+
+        std::string current_pathstr = p->srcfile->handle->path;
+        size_t last_fslash_in_current_pathstr = current_pathstr.find_last_of('/');
+        if (last_fslash_in_current_pathstr == std::string::npos) 
+            last_fslash_in_current_pathstr = 0;
+        else 
+            last_fslash_in_current_pathstr++;
+        std::string current_srcfile_directory = current_pathstr.substr(0, last_fslash_in_current_pathstr);
+        fmt::print("current srcfile dir: {}\n", current_srcfile_directory);
+
+        std::string pathstr_relative_to_compiler = current_srcfile_directory + pathstr;
+        fmt::print("import file relative to compiler: {}\n", pathstr_relative_to_compiler);
+
+        Srcfile* import_file = read_srcfile(
+                pathstr_relative_to_compiler,
+                MSG_KIND_ERROR,
+                pathtok->srcfile,
+                pathtok->line,
+                pathtok->col,
+                pathtok->ch_count);
+        if (import_file) {
+            return moduleref_stmt_new(pathtok, import_file, pathstr_without_directories_and_ext);
+        }
+        else {
+            p->error = true;
+            return null;
+        }
+    }
     else if (error_on_no_match) {
         error(
                 parse_current(p),
