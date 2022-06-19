@@ -211,7 +211,7 @@ int main(int argc, char* argv[]) {
         }
         /* else { */
         /*     for (Token* token : srcfile->tokens) { */
-        /*         fmt::print("token: {}\n", *token); */
+        /*         fmt::print("token: {}          (kind={})\n", *token, token->kind); */
         /*     } */
         /* } */
         total_lines_parsed += l.lines;

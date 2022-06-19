@@ -128,10 +128,11 @@ void lex(LexContext* l) {
                 while (isalnum(*l->current) || *l->current == '_')
                     l->current++;
                 for (size_t i = 0; i < STCK_ARR_LEN(aria_keywords); i++) {
-                    /* if (stri(aria_keywords[i]) == strni(l->start, l->current)) { */
-                    if (strncmp(aria_keywords[i].data(), l->start, aria_keywords[i].size()) == 0) {
-                        kind = TOKEN_KIND_KEYWORD;
-                        break;
+                    if (aria_keywords[i].size() == (unsigned)(l->current-l->start)) {
+                        if (strncmp(aria_keywords[i].data(), l->start, (l->current-l->start)) == 0) {
+                            kind = TOKEN_KIND_KEYWORD;
+                            break;
+                        }
                     }
                 }
                 lex_push_tok(l, kind);
