@@ -35,9 +35,10 @@ const STDIN_FILENO: u32 = 0;
 const STDOUT_FILENO: u32 = 1;
 const STDERR_FILENO: u32 = 2;
 
-fn assert(cond: bool) {
+fn assert(cond: bool, msg: []const u8) {
     if !cond {
-        ewrite("Assertion failed!");
+        ewrite("Assertion failed: ");
+        ewrite(msg);
         sysexit(1);
     }
 }

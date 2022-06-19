@@ -52,7 +52,7 @@ compile_invalid_srcfile() {
     expected=$(grep '//!' $1 | sed 's/^\/\/! //')
     buildoutput=$(./build/ariac "$1" std/std.ar 2>&1)
     buildstatus=$?
-    actual=$(echo "$buildoutput" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" | grep error:)
+    actual=$(echo "$buildoutput" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" | sed 's/^[^:]*://' | grep error:)
 
     # echo -e "expected:\n$expected\nactual:\n$actual"
 
@@ -90,13 +90,35 @@ compile_invalid_srcfile() {
 
 # $1: srcfile: string
 # $2: verbose: bool
+compile_valid_srcfile_and_run_exec() {
+    compile_valid_srcfile $@
+    if [[ $? -ne 0 ]]; then
+        return 1
+    fi
+    output=$(./a.out 2>&1)
+    execexitcode=$?
+    if [[ $2 -ne 0 ]]; then
+        echo "$output"
+    fi
+    
+    if [[ $execexitcode -ne 0 ]]; then
+        if [[ $2 -ne 0 ]]; then
+            echo "Executable returned $execexitcode, but it should return 0"
+        fi
+        return 1
+    fi
+    return 0
+}
+
+# $1: srcfile: string
+# $2: verbose: bool
 compile_valid_srcfile() {
     if [[ ! -f $1 ]]; then
         echo "compile_valid_srcfile(): $1 not found"
         return 1
     fi
 
-    if [[ "$2" -ne 0 ]]; then
+    if [[ $2 -ne 0 ]]; then
         build/ariac $1 std/std.ar 2>&1
     else
         build/ariac $1 std/std.ar 2>/dev/null >/dev/null
@@ -112,7 +134,7 @@ compile_valid_srcfile() {
 }
 
 # $1: directory: string
-# $2: compile_invalid_srcfiles: bool
+# $2: test_type: int
 build_tests_in_dir() {
     for prog in `find $1 -name "*.ar" | sort`; do
         if [[ $suppress -eq 1 ]]; then
@@ -131,7 +153,9 @@ build_tests_in_dir() {
         
         echo -ne "Building $prog..."
 
-        if [[ "$2" -eq 1 ]]; then
+        if [[ "$2" -eq 2 ]]; then
+            output=$(compile_valid_srcfile_and_run_exec $prog $is_verbose)
+        elif [[ "$2" -eq 1 ]]; then
             output=$(compile_invalid_srcfile $prog $is_verbose)
         elif [[ "$2" -eq 0 ]]; then
             output=$(compile_valid_srcfile $prog $is_verbose)
@@ -155,13 +179,18 @@ build_tests_in_dir() {
     done
 }
 
+COMPILE_VALID=0
+COMPILE_INVALID=1
+COMPILE_VALID_AND_RUN=2
+
 if [ ! -f build/ariac ]; then
     echo "Compiler not found; testing ended prematurely"
     exit 1
 fi
 
-build_tests_in_dir "tests/valid/" 0
-build_tests_in_dir "tests/invalid/" 1
+build_tests_in_dir "tests/valid" $COMPILE_VALID
+build_tests_in_dir "tests/invalid/" $COMPILE_INVALID
+build_tests_in_dir "tests/cg" $COMPILE_VALID_AND_RUN
 
 if [[ $fail_count -ne 0 ]]
 then

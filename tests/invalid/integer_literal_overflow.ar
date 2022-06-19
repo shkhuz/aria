@@ -10,12 +10,12 @@ fn main() {
     const k = 2147483648;
 }
 
-//! tests/invalid/integer_literal_overflow.ar:2:19: error: literal value outside `u8` range
-//! tests/invalid/integer_literal_overflow.ar:3:20: error: literal value outside `u16` range
-//! tests/invalid/integer_literal_overflow.ar:4:20: error: literal value outside `u32` range
-//! tests/invalid/integer_literal_overflow.ar:5:20: error: literal value outside `u64` range
-//! tests/invalid/integer_literal_overflow.ar:6:19: error: literal value outside `i8` range
-//! tests/invalid/integer_literal_overflow.ar:7:20: error: literal value outside `i16` range
-//! tests/invalid/integer_literal_overflow.ar:8:20: error: literal value outside `i32` range
-//! tests/invalid/integer_literal_overflow.ar:9:20: error: literal value outside `i64` range
-//! tests/invalid/integer_literal_overflow.ar:10:15: error: literal value outside `i32` range
+//! 2:19: error: literal value outside `u8` range
+//! 3:20: error: literal value outside `u16` range
+//! 4:20: error: literal value outside `u32` range
+//! 5:20: error: literal value outside `u64` range
+//! 6:19: error: literal value outside `i8` range
+//! 7:20: error: literal value outside `i16` range
+//! 8:20: error: literal value outside `i32` range
+//! 9:20: error: literal value outside `i64` range
+//! 10:15: error: literal value outside `i32` range

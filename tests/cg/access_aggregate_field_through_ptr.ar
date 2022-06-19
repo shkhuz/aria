@@ -1,0 +1,17 @@
+struct vec2 {
+    x: u64, 
+    y: u64,
+}
+
+fn main() {
+    var vec: vec2;
+    var vecref = &vec;
+    vecref.x = 1;
+    assert(vecref.x == 1, "vecref.x");
+
+    const arr: [4]u8 = [0, 1, 2, 3];
+    const arrref = &arr;
+    assert(arrref.len == 4, "arrref.len");
+}
+
+extern fn assert(cond: bool, msg: []const u8);

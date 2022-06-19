@@ -20,7 +20,7 @@ fn main() {
     }
 }
 
-//! tests/invalid/unop_type_mismatch.ar:4:20: error: cannot negate unsigned operand of type `u8`
-//! tests/invalid/unop_type_mismatch.ar:9:19: error: cannot negate unsigned operand of type `u16`
-//! tests/invalid/unop_type_mismatch.ar:14:19: error: cannot negate unsigned operand of type `u32`
-//! tests/invalid/unop_type_mismatch.ar:19:19: error: cannot negate unsigned operand of type `u64`
+//! 4:20: error: cannot negate unsigned operand of type `u8`
+//! 9:19: error: cannot negate unsigned operand of type `u16`
+//! 14:19: error: cannot negate unsigned operand of type `u32`
+//! 19:19: error: cannot negate unsigned operand of type `u64`

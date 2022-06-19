@@ -15,14 +15,6 @@ fn main() void {
     write("Hello ");
     write("Hello ");
     write("World!");
-
-    var vec: vec2;
-    var vecref = &vec;
-    vecref.x = 1;
-    write_u8(vecref.x as u8);
-
-    assert(vecref.x == 2);
-    write_u8(arrref.len as u8);
 }
 
 var a: [3]u8 = [1, 2, 3];
@@ -37,4 +29,4 @@ fn get() []const u8 {
 extern fn write_u8(num: u8);
 extern fn write(buf: []const u8);
 extern fn take_bool(b: bool);
-extern fn assert(cond: bool);
+extern fn assert(cond: bool, msg: []const u8);

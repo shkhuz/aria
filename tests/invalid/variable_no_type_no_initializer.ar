@@ -2,4 +2,4 @@ fn main() {
     const a;
 }
 
-//! tests/invalid/variable_no_type_no_initializer.ar:2:11: error: no type annotations provided
+//! 2:11: error: no type annotations provided

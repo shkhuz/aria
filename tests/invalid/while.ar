@@ -5,4 +5,4 @@ fn main() {
     }
 }
 
-//! tests/invalid/while.ar:4:9: error: this block cannot return a value
+//! 4:9: error: this block cannot return a value

@@ -2,4 +2,4 @@ fn main() {
     const a = b;
 }
 
-//! tests/invalid/unresolved_symbol.ar:2:15: error: unresolved symbol `b`
+//! 2:15: error: unresolved symbol `b`
