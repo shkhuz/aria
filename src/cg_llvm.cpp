@@ -479,6 +479,7 @@ LLVMValueRef cg_expr(CgContext* c, Expr* expr, Type* target, bool lvalue) {
                         true);
                     // TODO: cache this and retrieve if string is same 
                     LLVMValueRef llvmstrloc = LLVMAddGlobal(c->llvmmod, LLVMTypeOf(llvmstr), "");
+                    LLVMSetLinkage(llvmstrloc, LLVMPrivateLinkage);
                     LLVMSetInitializer(llvmstrloc, llvmstr);
                     result = llvmstrloc;
                 } break;

@@ -257,6 +257,7 @@ int main(int argc, char* argv[]) {
     char tmpdir[] = "/tmp/ariac-XXXXXX";
 #endif
     mkdtemp(tmpdir);
+    fmt::print("Temp directory: {}\n", tmpdir);
     
     for (Srcfile* srcfile: srcfiles) {
         CgContext c;
