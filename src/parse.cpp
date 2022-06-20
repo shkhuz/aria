@@ -595,14 +595,15 @@ Stmt* parse_top_level_stmt(ParseContext* p, bool error_on_no_match) {
         
         std::string pathstr = pathtok->lexeme;
         size_t last_fslash_in_pathstr = pathstr.find_last_of('/');
-        size_t first_dot_in_pathstr = pathstr.find_first_of('.');
+        size_t last_dot_in_pathstr = pathstr.find_last_of('.');
+        fmt::print("slash: {}, dot: {}\n", last_fslash_in_pathstr, last_dot_in_pathstr);
         
         std::string pathstr_without_directories_and_ext;
         if (last_fslash_in_pathstr == std::string::npos) {
             last_fslash_in_pathstr = 0;
         }
         else last_fslash_in_pathstr++;
-        pathstr_without_directories_and_ext = pathstr.substr(last_fslash_in_pathstr, first_dot_in_pathstr-last_fslash_in_pathstr);
+        pathstr_without_directories_and_ext = pathstr.substr(last_fslash_in_pathstr, last_dot_in_pathstr-last_fslash_in_pathstr);
         fmt::print("import module_name: {}\n", pathstr_without_directories_and_ext);
 
         std::string current_pathstr = p->srcfile->handle->path;

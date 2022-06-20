@@ -1,0 +1,5 @@
+import "nonexistentfile!@#$4.ar";
+
+fn main() { }
+
+//! 1:8: error: cannot read source file `tests/invalid/nonexistentfile!@#$4.ar`

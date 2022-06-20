@@ -339,11 +339,11 @@ Type* check_symbol_expr(CheckContext* c, Expr* expr, Type* cast) {
 Type* check_function_call_expr(CheckContext* c, Expr* expr, Type* cast) {
     std::vector<Expr*>& args = expr->function_call.args;
     size_t arg_len = args.size();
-    assert(expr->function_call.callee->symbol.ref->kind == STMT_KIND_FUNCTION);
 
-    std::vector<Stmt*>& params = expr->function_call.callee->symbol.ref->function.header->params;
+    Stmt* ref = get_ref_from_expr(expr->function_call.callee);
+    std::vector<Stmt*>& params = ref->function.header->params;
     size_t param_len = params.size();
-    Type* callee_return_type = expr->function_call.callee->symbol.ref->function.header->return_type;
+    Type* callee_return_type = ref->function.header->return_type;
 
     if (arg_len != param_len) {
         if (arg_len < param_len) {
@@ -976,55 +976,60 @@ Type* check_expr(
         } break;
 
         case EXPR_KIND_FIELD_ACCESS: {
-            Type* left_type = check_expr(c, expr->fieldacc.left, null, true);
-            expr->fieldacc.left_type = left_type;
-            expr->constant = expr->fieldacc.left->constant;
-            if (left_type) {
-                if (left_type->kind == TYPE_KIND_CUSTOM ||
-                    (left_type->kind == TYPE_KIND_PTR && left_type->ptr.child->kind == TYPE_KIND_CUSTOM)) {
-                    Type* struct_type = left_type;
-                    if (struct_type->kind == TYPE_KIND_PTR && struct_type->ptr.child->kind == TYPE_KIND_CUSTOM)
-                        struct_type = struct_type->ptr.child;
+            if (is_valid_module_ref_expr(expr->fieldacc.left)) {
+                return expr->type;
+            }
+            else {
+                Type* left_type = check_expr(c, expr->fieldacc.left, null, true);
+                expr->fieldacc.left_type = left_type;
+                expr->constant = expr->fieldacc.left->constant;
+                if (left_type) {
+                    if (left_type->kind == TYPE_KIND_CUSTOM ||
+                        (left_type->kind == TYPE_KIND_PTR && left_type->ptr.child->kind == TYPE_KIND_CUSTOM)) {
+                        Type* struct_type = left_type;
+                        if (struct_type->kind == TYPE_KIND_PTR && struct_type->ptr.child->kind == TYPE_KIND_CUSTOM)
+                            struct_type = struct_type->ptr.child;
+                            
+                        Stmt* field = null;
+                        for (Stmt* f: struct_type->custom.ref->structure.fields) {
+                            if (is_token_lexeme_eq(f->field.identifier, expr->fieldacc.right)) {
+                                field = f;
+                                break;
+                            }
+                        }
                         
-                    Stmt* field = null;
-                    for (Stmt* f: struct_type->custom.ref->structure.fields) {
-                        if (is_token_lexeme_eq(f->field.identifier, expr->fieldacc.right)) {
-                            field = f;
-                            break;
+                        if (field) {
+                            expr->fieldacc.rightref = field;
+                            expr->type = field->field.type;
+                            return field->field.type;
+                        }
+                        else {
+                            field_access_unknown_field(struct_type);
+                            return null;
                         }
                     }
-                    
-                    if (field) {
-                        expr->fieldacc.rightref = field;
-                        expr->type = field->field.type;
-                        return field->field.type;
+                    else if (left_type->kind == TYPE_KIND_ARRAY ||
+                             (left_type->kind == TYPE_KIND_PTR && left_type->ptr.child->kind == TYPE_KIND_ARRAY)) {
+                        Type* array_type = left_type;
+                        if (array_type->kind == TYPE_KIND_PTR && array_type->ptr.child->kind == TYPE_KIND_CUSTOM)
+                            array_type = array_type->ptr.child;
+                        if (expr->fieldacc.right->lexeme == "len") {
+                            expr->constant = true;
+                            expr->type = builtin_type_placeholders.uint64;
+                            return expr->type;
+                        }
+                        else {
+                            field_access_unknown_field(left_type);
+                            return null;
+                        }
                     }
                     else {
-                        field_access_unknown_field(struct_type);
+                        check_error(
+                                expr->main_token,
+                                "cannot access member fields from type `{}`",
+                                *left_type);
                         return null;
                     }
-                }
-                else if (left_type->kind == TYPE_KIND_ARRAY ||
-                         (left_type->kind == TYPE_KIND_PTR && left_type->ptr.child->kind == TYPE_KIND_ARRAY)) {
-                    Type* array_type = left_type;
-                    if (array_type->kind == TYPE_KIND_PTR && array_type->ptr.child->kind == TYPE_KIND_CUSTOM)
-                        array_type = array_type->ptr.child;
-                    if (expr->fieldacc.right->lexeme == "len") {
-                        expr->constant = true;
-                        expr->type = builtin_type_placeholders.uint64;
-                        return expr->type;
-                    }
-                    else {
-                        field_access_unknown_field(left_type);
-                        return null;
-                    }
-                }
-                else {
-                    check_error(
-                            expr->main_token,
-                            "cannot access member fields from type `{}`",
-                            *left_type);
-                    return null;
                 }
             }
             return null;
@@ -1302,7 +1307,7 @@ void check_stmt(CheckContext* c, Stmt* stmt) {
     }
 }
 
-void check(CheckContext* c) {
+void check_top_level(CheckContext* c) {
     c->error = false;
 
     for (Stmt* stmt: c->srcfile->stmts) {
@@ -1329,6 +1334,9 @@ void check(CheckContext* c) {
             } break;
         }
     }
+}
+
+void check(CheckContext* c) {
     for (Stmt* stmt: c->srcfile->stmts) {
         check_stmt(c, stmt);
     }

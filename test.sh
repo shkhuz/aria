@@ -50,7 +50,7 @@ compile_invalid_srcfile() {
     fi
 
     expected=$(grep '//!' $1 | sed 's/^\/\/! //')
-    buildoutput=$(./build/ariac "$1" std/std.ar 2>&1)
+    buildoutput=$(./build/ariac "$1" 2>&1)
     buildstatus=$?
     actual=$(echo "$buildoutput" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" | sed 's/^[^:]*://' | grep error:)
 
@@ -119,9 +119,9 @@ compile_valid_srcfile() {
     fi
 
     if [[ $2 -ne 0 ]]; then
-        build/ariac $1 std/std.ar 2>&1
+        build/ariac $1 2>&1
     else
-        build/ariac $1 std/std.ar 2>/dev/null >/dev/null
+        build/ariac $1 2>/dev/null >/dev/null
     fi
     buildstatus=$?
 

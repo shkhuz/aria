@@ -422,6 +422,20 @@ std::string aria_keywords[] = {
     "as",
 };
 
+bool is_valid_module_ref_expr(Expr* expr) {
+    return (expr->kind == EXPR_KIND_SYMBOL && expr->symbol.ref->kind == STMT_KIND_MODULEREF) ||
+           (expr->kind == EXPR_KIND_FIELD_ACCESS && is_valid_module_ref_expr(expr->fieldacc.left));
+}
+
+Stmt* get_ref_from_expr(Expr* expr) {
+    switch (expr->kind) {
+        case EXPR_KIND_SYMBOL: return expr->symbol.ref;
+        case EXPR_KIND_FIELD_ACCESS: return expr->fieldacc.rightref;
+        default: assert(0);
+    }
+    return null;
+}
+
 bool is_token_lexeme_eq(Token* a, Token* b) {
     if (a->lexeme == b->lexeme) {
         return true;
@@ -1049,6 +1063,7 @@ Stmt* moduleref_stmt_new(Token* path, Srcfile* srcfile, const std::string& modul
     stmt->kind = STMT_KIND_MODULEREF;
     stmt->main_token = path;
     stmt->parent_func = null;
+    path->lexeme = module_name;
     stmt->moduleref.path = path;
     stmt->moduleref.srcfile = srcfile;
     stmt->moduleref.module_name = module_name; 

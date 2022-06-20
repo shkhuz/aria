@@ -48,7 +48,7 @@ void default_msg(
         const std::string& fmt,
         Args... args) {
     bool same_file_note = (kind == MSG_KIND_NOTE && (*last_error_file_path) == srcfile->handle->path);
-    if (!same_file_note && kind != MSG_KIND_ADDINFO) {
+    if (kind != MSG_KIND_ADDINFO && kind != MSG_KIND_NOTE) {
         if (g_first_msg) g_first_msg = false;
         else fmt::print(stderr, "\n");
     }
@@ -202,10 +202,7 @@ void terminate_compilation() {
             g_warning_count > 0 ? g_warning_color : "",
             g_warning_count,
             g_reset_color);
-    // TODO: don't exit with error code `g_error_count`.
-    // instead make it fixed, and when the user needs the error_count
-    // they can get it using a command line switch.
-    std::exit(g_error_count);
+    std::exit(1);
 }
 
 template <typename... Args>

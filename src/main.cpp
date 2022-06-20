@@ -225,6 +225,18 @@ int main(int argc, char* argv[]) {
         p.srcfile = g_srcfiles[i];
         parse(&p);
         if (p.error) parsing_error = true;
+
+        if (i+1 == g_srcfiles.size()) {
+            if (!read_srcfile(
+                    "std/std.ar",
+                    MSG_KIND_ROOT_ERROR,
+                    null,
+                    0,
+                    0,
+                    0)) {
+                parsing_error = true;
+            }
+        }
     }
     if (parsing_error) terminate_compilation();
     fmt::print("Total lines parsed: {}\n", total_lines_parsed);
@@ -239,9 +251,14 @@ int main(int argc, char* argv[]) {
     if (resolving_error) terminate_compilation();
     
     bool type_chking_error = false;
+    std::vector<CheckContext> check_ctxs;
     for (Srcfile* srcfile: g_srcfiles) {
         CheckContext c;
         c.srcfile = srcfile;
+        check_top_level(&c);
+        check_ctxs.emplace_back(c);
+    }
+    for (CheckContext& c: check_ctxs) {
         check(&c);
         if (c.error) type_chking_error = true;
     }
@@ -255,7 +272,6 @@ int main(int argc, char* argv[]) {
     if (init_cg(&target_triple)) terminate_compilation();
     
     std::vector<CgContext> cg_ctxs;
-    bool gen_error = false;
 #if defined (__TERMUX__)
     char tmpdir[] = "/data/data/com.termux/files/usr/tmp/ariac-XXXXXX";
 #else
@@ -263,17 +279,26 @@ int main(int argc, char* argv[]) {
 #endif
     mkdtemp(tmpdir);
     fmt::print("Temp directory: {}\n", tmpdir);
-    
+
     for (Srcfile* srcfile: g_srcfiles) {
         CgContext c;
         c.srcfile = srcfile;
-        c.tmpdir = fmt::format("{}/", tmpdir);;
-        cg(&c);
-        cg_ctxs.push_back(c);
-        if (c.error) gen_error = true;
+        cg_struct_creation_pass(&c);
+        cg_ctxs.emplace_back(c);
     }
+    for (CgContext& c: cg_ctxs) {
+        cg_struct_field_creation_pass(&c);
+    }
+    for (CgContext& c: cg_ctxs) {
+        cg_top_level(&c);
+    }
+    for (CgContext& c: cg_ctxs) {
+        cg(&c);
+    }
+    std::string objpath;
+    bool gen_error = cg_verfiy_and_dump_obj(tmpdir, g_srcfiles[0]->handle->path, &objpath);
     deinit_cg();
-    
+
     if (gen_error) {
         rmrf(tmpdir);
         terminate_compilation();
@@ -281,46 +306,43 @@ int main(int argc, char* argv[]) {
     inittimer(&tend);
     double backend_llvm_time = timediff(tend, tstart);
     printf("Back-end LLVM time-taken: %.5fs\n", backend_llvm_time);
-    
+
     inittimer(&tstart);
-    size_t linkeroptscount = 5 + cg_ctxs.size();
-    char** linkeropts = (char**)malloc(linkeroptscount * sizeof(char*));
+    char* linkeropts[6];
     linkeropts[0] = linker;
     linkeropts[1] = "-o";
     linkeropts[2] = outpath;
-    for (size_t i = 0; i < cg_ctxs.size(); i++) {
-        linkeropts[i+3] = (char*)cg_ctxs[i].objpath.c_str();
-    }
+    linkeropts[3] = (char*)objpath.c_str();
     
     if (strncmp(target_triple, "x86-64", 6) == 0 ||
         strncmp(target_triple, "x86_64", 6) == 0) {
-        linkeropts[cg_ctxs.size()+3] = "std/_start_x86-64.S.o";
+        linkeropts[4] = "std/_start_x86-64.S.o";
     }
     else if (strncmp(target_triple, "aarch64", 7) == 0) {
-        linkeropts[cg_ctxs.size()+3] = "std/_start_aarch64.S.o";
+        linkeropts[4] = "std/_start_aarch64.S.o";
     }
     else {
         root_error("{} target is not supported by aria yet", target_triple);
         rmrf(tmpdir);
         terminate_compilation();
     }
-    fmt::print("_start file: {}\n", linkeropts[cg_ctxs.size()+3]);
-    linkeropts[cg_ctxs.size()+4] = null;
-    
+    fmt::print("_start file: {}\n", linkeropts[4]);
+    linkeropts[5] = null;
+
     int errdesc[2];
     if (pipe2(errdesc, O_CLOEXEC) == -1) {
         root_error("cannot execute pipe2(): {}", strerror(errno));
         rmrf(tmpdir);
         terminate_compilation();
     }
-    
+
     pid_t linkerproc = fork();
     if (linkerproc == -1) {
         root_error("cannot execute fork(): {}", strerror(errno));
         rmrf(tmpdir);
         terminate_compilation();
     }
-    
+
     if (linkerproc) {
         close(errdesc[1]);
         char buf[2];

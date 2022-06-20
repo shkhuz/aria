@@ -1,0 +1,5 @@
+import "";
+
+fn main() { }
+
+//! 1:8: error: empty import path

@@ -42,3 +42,8 @@ fn assert(cond: bool, msg: []const u8) {
         sysexit(1);
     }
 }
+
+struct Vec2 {
+    x: u64,
+    y: u64,
+}

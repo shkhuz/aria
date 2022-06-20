@@ -1,5 +1,12 @@
 var i: i32 = 0;
 
+struct node {}
+
+import "../std/std.ar";
+import "arrays.ar";
+
+const str: []const u8 = "hello";
+
 fn main(argc: i32, argv: **i8) i64 {
     const a: i8 = 1;
     const b = --3;
@@ -17,7 +24,9 @@ fn main(argc: i32, argv: **i8) i64 {
     } 
     else {
         i = 1;
-        write_char(STDOUT_FILENO, {i + wow()} as i8);
+        std.write_u8({i + wow()} as u8);
+        std.write_u8(std.STDERR_FILENO as u8);
+        std.write_u8(arrays.a[0]);
     }
 
     const arr: [3][3]u8 = [ 
@@ -29,11 +38,6 @@ fn main(argc: i32, argv: **i8) i64 {
 
     0
 }
-
-extern fn write_char(fd: u32, ch: i8);
-extern const STDIN_FILENO: u32;
-extern const STDOUT_FILENO: u32;
-extern const STDERR_FILENO: u32;
 
 fn wow() i32 {
     const b = true;

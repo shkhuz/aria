@@ -3,20 +3,25 @@
 //    rot: vec2,
 //}
 //
+
 struct vec2 {
     x: u64, 
     y: bool,
 }
 
+import "../std/std.ar";
 import "ok.ar";
 
 fn main() void {
     const arr: [3]u8 = [70, 71, 72];
     const arrref = &arr;
-    write(arrref as []const u8);
-    write("Hello ");
-    write("Hello ");
-    write("World!");
+    //write(arrref as []const u8);
+    //write("Hello ");
+    //write("Hello ");
+    //write("World!");
+
+    std.write_u8(ok.wow() as u8);
+    std.write(ok.str);
 }
 
 var a: [3]u8 = [1, 2, 3];
@@ -28,7 +33,3 @@ fn get() []const u8 {
     if false { &aa as []u8 } else { &a }
 }
 
-extern fn write_u8(num: u8);
-extern fn write(buf: []const u8);
-extern fn take_bool(b: bool);
-extern fn assert(cond: bool, msg: []const u8);

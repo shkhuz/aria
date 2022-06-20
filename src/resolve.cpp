@@ -45,6 +45,9 @@ Scope* scope_new(Scope* parent) {
     return scope;
 }
 
+#define type_as_symbol_usage_error(token) \
+    resolve_error(token, "cannot use type as a symbol")
+
 ScopeSearchResult resolve_search_in_current_scope_rec(
         ResolveContext* r, 
         Token* identifier) {
@@ -73,9 +76,7 @@ Stmt* resolve_assert_symbol_is_in_current_scope_rec(
         Token* token) {
     BuiltinTypeKind kind = builtin_type_str_to_kind(token->lexeme);
     if (kind != BUILTIN_TYPE_KIND_NONE) {
-        resolve_error(
-                token,
-                "cannot use type as a symbol");
+        type_as_symbol_usage_error(token);
         return null;
     }
 
@@ -94,9 +95,7 @@ Stmt* resolve_assert_symbol_is_in_current_scope_rec(
 void resolve_cpush_in_scope(ResolveContext* r, Token* identifier, Stmt* stmt) {
     BuiltinTypeKind kind = builtin_type_str_to_kind(identifier->lexeme);
     if (kind != BUILTIN_TYPE_KIND_NONE) {
-        resolve_error(
-                identifier,
-                "cannot use type as a symbol");
+        type_as_symbol_usage_error(identifier);
         return;
     }
 
@@ -111,7 +110,7 @@ void resolve_cpush_in_scope(ResolveContext* r, Token* identifier, Stmt* stmt) {
         search_error = true;
     }
     else if (search_result.status == SCOPE_PARENT) {
-        warning(
+        resolve_error(
                 identifier,
                 "`{}` shadows symbol",
                 identifier->lexeme);
@@ -143,6 +142,10 @@ void resolve_pre_decl_stmt(
         bool ignore_function_level_stmt) {
 
     switch (stmt->kind) {
+        case STMT_KIND_MODULEREF: {
+            resolve_cpush_in_scope(r, stmt->moduleref.path, stmt);
+        } break;
+
         case STMT_KIND_STRUCT: {
             resolve_cpush_in_scope(r, stmt->structure.identifier, stmt);
         } break;
@@ -246,36 +249,42 @@ bool resolve_type(ResolveContext* r, Type* type) {
 bool resolve_symbol_expr(ResolveContext* r, Expr* expr) {
     expr->symbol.ref = 
         resolve_assert_symbol_is_in_current_scope_rec(r, expr->main_token);
-    if (expr->symbol.ref && expr->symbol.ref->kind == STMT_KIND_VARIABLE) {
-        expr->constant = expr->symbol.ref->variable.constant;
+    if (expr->symbol.ref) {
+        if (expr->symbol.ref->kind == STMT_KIND_VARIABLE) {
+            expr->constant = expr->symbol.ref->variable.constant;
+        }
+        else if (expr->symbol.ref->kind == STMT_KIND_STRUCT) {
+            type_as_symbol_usage_error(expr->main_token);
+        }
     }
     if (!expr->symbol.ref) return false;
     return true;
 }
 
 bool resolve_function_call_expr(ResolveContext* r, Expr* expr) { 
-    if (expr->function_call.callee->kind != EXPR_KIND_SYMBOL) {
+    bool ok = true;
+    CHECK_IS_OK(resolve_expr(r, expr->function_call.callee));
+    if (!ok) return false;
+    if (is_valid_module_ref_expr(expr->function_call.callee) || expr->function_call.callee->kind == EXPR_KIND_SYMBOL) {
+        Stmt* ref = get_ref_from_expr(expr->function_call.callee);
+        if (ref && ref->kind != STMT_KIND_FUNCTION) {
+            resolve_error(
+                    expr->main_token,
+                    "callee is not a function");
+            ok = false;
+        }
+
+        for (Expr* arg: expr->function_call.args) {
+            CHECK_IS_OK(resolve_expr(r, arg));
+        }
+        return ok;
+    }
+    else {
         resolve_error(
                 expr->main_token,
                 "[internal] function ptr/methods calls not implemented yet");
         return false;
     }
-
-    bool ok = true;
-    CHECK_IS_OK(resolve_symbol_expr(r, expr->function_call.callee));
-    if (expr->function_call.callee->symbol.ref &&
-        expr->function_call.callee->symbol.ref->kind !=
-            STMT_KIND_FUNCTION) {
-        resolve_error(
-                expr->main_token,
-                "callee is not a function");
-        ok = false;
-    }
-
-    for (Expr* arg: expr->function_call.args) {
-        CHECK_IS_OK(resolve_expr(r, arg));
-    }
-    return ok;
 }
 
 bool resolve_block_expr(
@@ -354,6 +363,38 @@ bool resolve_expr(ResolveContext* r, Expr* expr) {
 
         case EXPR_KIND_FIELD_ACCESS: {
             ok = resolve_expr(r, expr->fieldacc.left);
+            if (ok && is_valid_module_ref_expr(expr->fieldacc.left)) {
+                std::vector<Stmt*>* module_stmts = &get_ref_from_expr(expr->fieldacc.left)->moduleref.srcfile->stmts;
+                Stmt* targetref = null;
+                for (size_t i = 0; i < module_stmts->size(); i++) {
+                    if (is_token_lexeme_eq((*module_stmts)[i]->main_token, expr->fieldacc.right)) {
+                        targetref = (*module_stmts)[i];
+                        break;
+                    }
+                }
+
+                if (targetref) {
+                    expr->fieldacc.rightref = targetref;
+                    if (targetref->kind == STMT_KIND_STRUCT) {
+                        ok = false;
+                        type_as_symbol_usage_error(expr->fieldacc.right);
+                        note(
+                                expr->fieldacc.rightref->main_token,
+                                "defined here:");
+                    }
+                    else if (targetref->kind != STMT_KIND_MODULEREF) {
+                        expr->type = stmt_get_type(targetref);
+                    }
+                }
+                else {
+                    ok = false;
+                    resolve_error(
+                            expr->fieldacc.right,
+                            "cannot find `{}` in module `{}`",
+                            *expr->fieldacc.right,
+                            *get_ref_from_expr(expr->fieldacc.left)->moduleref.path);
+                }
+            }
         } break;
 
         case EXPR_KIND_INDEX: {
