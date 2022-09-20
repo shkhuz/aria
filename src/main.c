@@ -1,6 +1,7 @@
 #include "core.h"
 #include "buf.h"
 #include "printf.h"
+#include "bigint.h"
 
 int main() {
     int* buf = NULL;
@@ -14,4 +15,8 @@ int main() {
     }
     aprintf("%lu is a number with /%s/", UINT64_MAX, "www");
     buffree(buf);
+
+    bigint a;
+    bigint_init_u64(&a, 1);
+    bigint_set_u64(&a, 1);
 }
