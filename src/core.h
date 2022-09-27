@@ -1,6 +1,8 @@
 #ifndef CORE_H
 #define CORE_H
 
+#define _GNU_SOURCE
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <assert.h>
