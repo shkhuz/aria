@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build on ${{ runner.os }}
+    name: Build on Linux
     runs-on: ubuntu-latest
 
     steps:
