@@ -58,7 +58,7 @@ compile_invalid_srcfile() {
 
     if [[ "$buildstatus" -eq 0 ]]; then
         if [[ "$2" -ne 0 ]]; then
-            echo -e "Compiler exited with $buildstatus, but build should fail"
+            echo -e "  Compiler exited with $buildstatus, but build should fail"
         fi
         return 1
     fi
@@ -103,7 +103,7 @@ compile_valid_srcfile_and_run_exec() {
     
     if [[ $execexitcode -ne 0 ]]; then
         if [[ $2 -ne 0 ]]; then
-            echo "Executable returned $execexitcode, but it should return 0"
+            echo "  Executable returned $execexitcode, but it should return 0"
         fi
         return 1
     fi
@@ -127,7 +127,7 @@ compile_valid_srcfile() {
 
     if [[ "$buildstatus" -ne 0 ]]; then
         if [[ "$2" -ne 0 ]]; then
-            echo -e "Compiler exited with $buildstatus, but build should succeed"
+            echo -e "  Compiler exited with $buildstatus, but build should succeed"
         fi
         return 1
     fi
