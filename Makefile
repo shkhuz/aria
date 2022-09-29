@@ -3,8 +3,8 @@ C_FILES := $(ALL_C_FILES)
 OBJ_FILES := $(addprefix build/obj/, $(addsuffix .o, $(C_FILES)))
 EXE_FILE := build/ariac
 
-CFLAGS := -std=c99 -Ivendor -I. -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings
-LDFLAGS := -L/usr/lib -lLLVM
+CFLAGS := -std=c99 -Ivendor -I. `llvm-config --cflags` -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings
+LDFLAGS := `llvm-config --ldflags --libs`
 AR_FILE := examples/arrays.ar
 
 ifeq ($(prod), y)
