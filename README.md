@@ -2,27 +2,26 @@
 
 [![Build](https://github.com/shkhuz/aria/actions/workflows/build.yml/badge.svg?branch=master&event=push)](https://github.com/shkhuz/aria/actions/workflows/build.yml)
 
+_Note: The compiler is undergoing major changes at the moment, so the examples in this document and in the examples/ directory might not work._
+
 This repository houses the Aria compiler/toolchain and the language
 specification. 
 
 ## Sample Code
 
-
 ### Fibbonacci
 
 ```rust
-fn main() i32 {
-    writeln_i64(fib(9));
-    0
+const std = @load("std.ar");
+
+def main() {
+    std.print("{}\n", fib(9));
 }
 
-fn fib(n: i32) i32 {
-    if n <= 1 {
-        n
-    } else {
-        fib(n - 1) + fib(n - 2)
-    }
-}   
+def fib(n: i32) {
+    if (n <= 1) n
+    else fib(n-1) + fib(n-2)
+}
 ```
 
 ## Supported Targets
@@ -44,30 +43,29 @@ make
 
 ### Dependencies
 
-- LLVM (any recent version)
-- `ld` linker
+- LLVM
 
 ## Roadmap
 
-- [X] System V compatible functions
+- [ ] System V compatible functions
 - [ ] Basic constructs
   - [X] `if` statements
   - [ ] `switch` statements
   - [ ] `for` loops
   - [X] `while` loops
-- [X] Local variables
-- [X] Global variables
-- [X] Extern variables
-- [X] Structs
+- [ ] Local variables
+- [ ] Global variables
+- [ ] Extern variables
+- [ ] Structs
 - [ ] Unions
 - [ ] Enums
 - [ ] Operators
-  - [X] `+` `-` `==` `!=` `<` `>` `<=` `>=` `-` `&` `*(deref)` `!` `as` `()(function call)` `=` `[](index)` `.(field access)`
+  - [ ] `+` `-` `==` `!=` `<` `>` `<=` `>=` `-` `&` `*(deref)` `!` `as` `()(function call)` `=` `[](index)` `.(field access)`
   - [ ] `*` `/` `and` `or` `&(bitwise)` `|`
-- [X] Block expressions / Implicit return expression
+- [ ] Block expressions / Implicit return expression
 - [ ] Module system
-- [X] Arrays
-- [X] Slices (`[]`)
+- [ ] Arrays
+- [ ] Slices (`[]`)
 
 ## License
 
