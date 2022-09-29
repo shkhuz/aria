@@ -15,7 +15,10 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Install LLVM
-      run: sudo apt-get install -y llvm
+      run: |
+        sudo apt-get install -y llvm
+        sudo ls /usr/lib
+        sudo ls .
 
     - name: Build ariac
       run: make build/ariac
