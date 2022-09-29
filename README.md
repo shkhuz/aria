@@ -1,6 +1,6 @@
 # The Aria project
 
-![GitHub Workflow Status](https://github.com/shkhuz/aria/actions/workflows/build.yml/badge.svg)
+[![Build](https://github.com/shkhuz/aria/actions/workflows/build.yml/badge.svg?branch=master&event=push)](https://github.com/shkhuz/aria/actions/workflows/build.yml)
 
 This repository houses the Aria compiler/toolchain and the language
 specification. 
