@@ -5,17 +5,7 @@
 #include "types.h"
 #include "bigint.h"
 
-typedef struct {
-    TokenKind kind;
-    char* start, *end;
-    Srcfile* srcfile;
-    usize line, col, ch_count;
-    union {
-        struct {
-            bigint val;
-        } integer;
-    };
-} Token;
+typedef struct Srcfile Srcfile;
 
 typedef enum {
     TOKEN_KIND_IDENTIFIER,
@@ -48,5 +38,17 @@ typedef enum {
     TOKEN_KIND_FSLASH,
     TOKEN_KIND_EOF,
 } TokenKind;
+
+typedef struct {
+    TokenKind kind;
+    char* start, *end;
+    Srcfile* srcfile;
+    usize line, col, ch_count;
+    union {
+        struct {
+            bigint val;
+        } integer;
+    };
+} Token;
 
 #endif

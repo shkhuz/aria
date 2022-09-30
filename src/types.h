@@ -1,10 +1,14 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-typedef struct {
+#include "file_io.h"
+#include "token.h"
+
+typedef struct Srcfile {
     File handle;
     Token** tokens;
-    Stmt** stmts;
 } Srcfile;
+
+extern char* g_exec_path;
 
 #endif

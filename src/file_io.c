@@ -31,7 +31,7 @@ FileOrError read_file(const char* path) {
     if (realpath(path, abs_path_buf)) {
         usize abs_path_len = strlen(abs_path_buf);
         abs_path = (char*)malloc(abs_path_len + 1);
-        memcpy(abs_path, abs_path_buf, abs_path_len);
+        memcpy(abs_path, abs_path_buf, abs_path_len+1); // including '\0'
     }
 
     File handle;
