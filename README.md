@@ -44,28 +44,7 @@ make
 ### Dependencies
 
 - LLVM
-
-## Roadmap
-
-- [ ] System V compatible functions
-- [ ] Basic constructs
-  - [X] `if` statements
-  - [ ] `switch` statements
-  - [ ] `for` loops
-  - [X] `while` loops
-- [ ] Local variables
-- [ ] Global variables
-- [ ] Extern variables
-- [ ] Structs
-- [ ] Unions
-- [ ] Enums
-- [ ] Operators
-  - [ ] `+` `-` `==` `!=` `<` `>` `<=` `>=` `-` `&` `*(deref)` `!` `as` `()(function call)` `=` `[](index)` `.(field access)`
-  - [ ] `*` `/` `and` `or` `&(bitwise)` `|`
-- [ ] Block expressions / Implicit return expression
-- [ ] Module system
-- [ ] Arrays
-- [ ] Slices (`[]`)
+- lld
 
 ## License
 
