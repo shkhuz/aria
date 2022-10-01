@@ -38,6 +38,10 @@ build/obj/%.cc.o: %.cc
 debug: $(EXE_FILE)
 	gdb --args $^ $(AR_FILE)
 
+install: $(EXE_FILE)
+	install -Dm557 $^ "$(DESTDIR)/usr/bin/ariac"
+
 clean:
 	rm -rf build/ a.out *.o
 
+.PHONY: run debug install clean
