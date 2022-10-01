@@ -1,7 +1,7 @@
 ALL_C_FILES := $(shell find src -type f -name "*.c") #$(shell find src -type f -name "*.cpp" | grep -v $(NO_CXX_FILES))
 C_FILES := $(ALL_C_FILES)
 OBJ_FILES := $(addprefix build/obj/, $(addsuffix .o, $(C_FILES)))
-EXE_FILE := build/ariac
+EXE_FILE := build/aria
 
 CFLAGS := -std=c99 -Ivendor -I. `llvm-config --cflags` -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings
 LDFLAGS := `llvm-config --ldflags --libs`
@@ -39,7 +39,7 @@ debug: $(EXE_FILE)
 	gdb --args $^ $(AR_FILE)
 
 install: $(EXE_FILE)
-	install -Dm557 $^ "$(DESTDIR)/usr/bin/ariac"
+	install -Dm557 $^ "$(DESTDIR)/usr/bin/aria"
 
 clean:
 	rm -rf build/ a.out *.o
