@@ -1,4 +1,4 @@
-# The Aria project
+# Aria programming language and toolchain
 
 [![Build](https://github.com/shkhuz/aria/actions/workflows/build.yml/badge.svg?branch=master&event=push)](https://github.com/shkhuz/aria/actions/workflows/build.yml)
 
@@ -7,44 +7,30 @@ _Note: The compiler is undergoing major changes at the moment, so the examples i
 This repository houses the Aria compiler/toolchain and the language
 specification. 
 
-## Sample Code
+## Installation
 
-### Fibbonacci
+Dependencies:
 
-```rust
-const std = @load("std.ar");
+- LLVM
+- lld
 
-def main() {
-    std.print("{}\n", fib(9));
-}
+### Arch Linux
 
-def fib(n: i32) {
-    if (n <= 1) n
-    else fib(n-1) + fib(n-2)
-}
+Aria is available on the AUR. Download the package manually or through an
+AUR helper:
+
+```console
+yay -S aria
 ```
 
-## Supported Targets
-
-- x86-64
-- AArch64
-
-For the time being, the Aria compiler only supports Unix enviroments, because
-it makes it easy to extend the compiler without having to worry about other
-platforms. 
-
-## Building
+### Unix
 
 ```sh
 git clone https://github.com/shkhuz/aria.git
 cd aria/
 make
+sudo make install
 ```
-
-### Dependencies
-
-- LLVM
-- lld
 
 ## License
 
