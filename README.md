@@ -16,16 +16,23 @@ Dependencies:
 
 ### Arch Linux
 
-Aria is available on the AUR. Download the package manually or through an
-AUR helper:
+Aria is available on the AUR. Using an AUR helper (Yaourt):
 
 ```console
 yay -S aria
 ```
 
+Or downloading and installing the package manually:
+
+```console
+git clone https://aur.archlinux.org/aria.git
+cd aria/
+makepkg -si
+```
+
 ### Unix
 
-```sh
+```console
 git clone https://github.com/shkhuz/aria.git
 cd aria/
 make
