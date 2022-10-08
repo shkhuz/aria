@@ -1,0 +1,43 @@
+imm std = @import("std.ar");
+imm io = @import("io.ar");
+
+imm Vec2 = struct {
+    x: f32,
+    y: f32,
+};
+
+imm Player = struct {
+    pos: Vec2, 
+    vel: Vec2,
+    alive: bool,
+    name: []u8,
+};
+
+fn Player::new() Self {
+    return Self {
+        Vec2 { x=0, y=0 },
+        Vec2 { x=0, y=0 },
+        true,
+        "",
+    };
+}
+
+fn main() {
+    mut player = Player.new();
+    mut running = true;
+
+    while running {
+        imm events = io.get_events();
+        for ev in events {
+            switch ev.kind {
+                io.Event.key_press => {
+                    if ev.key_code == io.KeyCode.Esc {
+                        running = false;
+                        break;
+                    }
+                },
+                else => {},
+            }
+        }
+    }
+}
