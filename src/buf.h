@@ -21,6 +21,8 @@ typedef struct {
                            b[_bufhdr(b)->len++] = __VA_ARGS__)
 #define buffree(b) ((b) ? (free(_bufhdr(b)), b=NULL) : 0)
 
+#define bufloop(b, c) for (usize c = 0; c < buflen(b); c++) 
+
 void* _bufgrow(const void* buf, usize new_len, usize elem_size);
 
 #endif

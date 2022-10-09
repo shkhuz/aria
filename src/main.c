@@ -6,6 +6,7 @@
 #include "file_io.h"
 #include "msg.h"
 #include "cmd.h"
+#include "lex.h"
 
 #include <getopt.h>
 
@@ -143,8 +144,24 @@ int main(int argc, char* argv[]) {
         terminate_compilation();
     }
 
-    /* bool read_error = false; */
-    /* for (int i = optind; i < argc; i++) { */
-    /*     Srcfile* srcfile = read_srcfile( */
-    /*             argv[i], */
+    bool read_error = false;
+    for (int i = optind; i < argc; i++) {
+        Srcfile* srcfile = read_srcfile(argv[i],
+                                        MSG_KIND_ROOT_ERROR,
+                                        NULL,
+                                        0,
+                                        0,
+                                        0);
+        if (!srcfile) {
+            read_error = true;
+            continue;
+        }
+    }
+    if (read_error) terminate_compilation();
+
+    bool parsing_error = false;
+    bufloop(g_srcfiles, i) {
+        LexContext l = lex_new_context(g_srcfiles[i]);
+    }
 }
+
