@@ -12,5 +12,6 @@ typedef struct {
 } LexContext;
 
 LexContext lex_new_context(Srcfile* srcfile);
+void lex(LexContext* l);
 
 #endif

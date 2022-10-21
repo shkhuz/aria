@@ -2,7 +2,6 @@
 #define TOKEN_H
 
 #include "core.h"
-#include "types.h"
 #include "bigint.h"
 
 typedef struct Srcfile Srcfile;
@@ -41,7 +40,7 @@ typedef enum {
 
 typedef struct {
     TokenKind kind;
-    char* start, *end;
+    const char* start, *end;
     Srcfile* srcfile;
     usize line, col, ch_count;
     union {

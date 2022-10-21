@@ -17,8 +17,8 @@ typedef struct {
 
 #define buffit(b, n) (bufcap(b) >= n ? 0 : \
                         ((b) = _bufgrow((b), (n), sizeof(*(b)))))
-#define bufpush(b, ...) (buffit(b, 1 + buflen(b)), \
-                           b[_bufhdr(b)->len++] = __VA_ARGS__)
+#define bufpush(b, ...) (buffit((b), 1 + buflen((b))), \
+                         (b)[_bufhdr((b))->len++] = __VA_ARGS__)
 #define buffree(b) ((b) ? (free(_bufhdr(b)), b=NULL) : 0)
 
 #define bufloop(b, c) for (usize c = 0; c < buflen(b); c++) 

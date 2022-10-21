@@ -7,7 +7,7 @@ static usize g_error_count;
 static usize g_warning_count;
 static bool g_first_main_msg = true; // only errors and warnings
 
-static int g_barindent;
+static int g_barindent; // used for aligning `|` when printing line numbers
 static const char* last_error_file_path;
 
 #define write_tab_to_stderr() afprintf(stderr, "\x20\x20\x20\x20") // as 4 spaces
@@ -45,6 +45,7 @@ void vmsg(
         const char* fmt,
         va_list args) {
     bool same_file_note = kind == MSG_KIND_NOTE && 
+        last_error_file_path &&
         strcmp(last_error_file_path, srcfile->handle.path) == 0;
     if (kind != MSG_KIND_ADDINFO && kind != MSG_KIND_NOTE) {
         if (g_first_main_msg) g_first_main_msg = false;
@@ -132,7 +133,7 @@ void vmsg(
         const char* beg_of_sline = sline;
 
         g_barindent = afprintf(stderr, "%6lu | ", line) - 2;
-
+        
         const char* color = g_reset_color;
         switch (kind) {
             case MSG_KIND_ERROR:
@@ -188,5 +189,47 @@ void msg(
     va_list args;
     va_start(args, fmt);
     vmsg(kind, srcfile, line, col, ch_count, fmt, args);
+    va_end(args);
+}
+
+void note_tok(Token* token, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vmsg(
+        MSG_KIND_NOTE,
+        token->srcfile,
+        token->line,
+        token->col,
+        token->ch_count,
+        fmt,
+        args);
+    va_end(args);
+}
+
+void fatal_error_tok(Token* token, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vmsg(MSG_KIND_ERROR,
+         token->srcfile,
+         token->line,
+         token->col,
+         token->ch_count,
+         fmt,
+         args);
+    va_end(args);
+    terminate_compilation();
+}
+
+void error_tok(Token* token, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vmsg(
+        MSG_KIND_ERROR,
+        token->srcfile,
+        token->line,
+        token->col,
+        token->ch_count,
+        fmt,
+        args);
     va_end(args);
 }

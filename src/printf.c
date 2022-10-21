@@ -1,5 +1,6 @@
 #include "printf.h"
 #include "buf.h"
+#include "token.h"
 
 typedef enum {
     FPAD_RIGHT = 1,
@@ -14,55 +15,70 @@ typedef enum {
     FSK_OCTAL
 } FmtSpecifierKind;
 
+static int avprint(void* out, bool out_is_file, const char* fmt, va_list args);
+
 // out_is_file (when out != NULL):
 //                true  -> file
 //                false -> buffer
 static void aprintc(void* out, bool out_is_file, char c) {
     if (out && out_is_file) fputc(c, (FILE*)out);
-    else if (out && !out_is_file) bufpush(*((char**)out), c);
+    else if (out && !out_is_file) {
+        bufpush(*((char**)out), c);
+    }
     else putchar(c);
 }
 
-static int aprints(void* out, bool out_is_file, int width, int pad, const char* s) {
+static int aprints(void* out, bool out_is_file, const char* s, int len) {
+    register int pc = 0;
+    if (len) {
+        for (int i = 0; i < len; ++i) {
+            aprintc(out, out_is_file, s[i]);
+            ++pc;
+        }
+    } else {
+        for (; *s; ++s) {
+            aprintc(out, out_is_file, *s);
+            ++pc;
+        }
+    }
+    return pc;
+}
+
+static int aprint(void* out, bool out_is_file, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    int pc = avprint(out, out_is_file, fmt, args);
+    va_end(args);
+    return pc;
+}
+
+static int pad(void* out, bool out_is_file, int srclen, int* width, int padding) {
     register int pc = 0;
     char padchar = ' ';
-
-    if (width > 0) {
-        register int len = strlen(s);
-        if (len >= width) width = 0;
-        else width -= len;
+    if (*width > 0) {
+        if (srclen >= *width) *width = 0;
+        else *width -= srclen;
         
-        if (pad & FPAD_ZERO) padchar = '0';
+        if (padding & FPAD_ZERO) padchar = '0';
     }
     
-    if (!(pad & FPAD_RIGHT)) {
-        for (; width > 0; --width) {
+    if (!(padding & FPAD_RIGHT)) {
+        for (; *width > 0; --(*width)) {
             aprintc(out, out_is_file, padchar);
             ++pc;
         }
     }
-
-    for (; *s; ++s) {
-        aprintc(out, out_is_file, *s);
-        ++pc;
-    }
-
-    for (; width > 0; --width) {
-        aprintc(out, out_is_file, padchar);
-        ++pc;
-    }
-
     return pc;
 }
 
-static int aprint(void* out, bool out_is_file, const char* fmt, va_list args) {
+static int avprint(void* out, bool out_is_file, const char* fmt, va_list args) {
     register int pc = 0;
-    int width, pad;
+    int width, padding;
 
     for (; *fmt != 0;) {
         if (*fmt == '%') {
             ++fmt;
-            width = pad = 0;
+            width = padding = 0;
             
             if (*fmt == '%') {
                 aprintc(out, out_is_file, *fmt);
@@ -72,17 +88,17 @@ static int aprint(void* out, bool out_is_file, const char* fmt, va_list args) {
             else {
                 if (*fmt == '-') {
                     ++fmt;
-                    pad = FPAD_RIGHT;
+                    padding = FPAD_RIGHT;
                 }
                 while (*fmt == '0') {
                     ++fmt;
-                    pad |= FPAD_ZERO;
+                    padding |= FPAD_ZERO;
                 }
                 for (; *fmt > '0' && *fmt <= '9'; ++fmt) {
                     width *= 10;
                     width += *fmt - '0';
                 }
-                
+
                 char size_specifier[2] = { ' ', ' ' };
                 if (*fmt == 'h' ||
                     *fmt == 'l' ||
@@ -91,16 +107,18 @@ static int aprint(void* out, bool out_is_file, const char* fmt, va_list args) {
                     ++fmt;
                 }
 
-                else if (*fmt == 's') {
+                if (*fmt == 's') {
                     char* s = va_arg(args, char*);
-                    pc += aprints(out, out_is_file, width, pad, s?s:"(null)");
+                    pc += pad(out, out_is_file, strlen(s), &width, padding);
+                    pc += aprints(out, out_is_file, s?s:"(null)", 0);
                     ++fmt;
                 }
                 else if (*fmt == 'c') {
                     static char buf[2];
                     buf[0] = va_arg(args, int);
                     buf[1] = '\0';
-                    aprints(out, out_is_file, width, pad, buf);
+                    pc += pad(out, out_is_file, 1, &width, padding);
+                    aprints(out, out_is_file, buf, 0);
                     ++pc;
                     ++fmt;
                 }
@@ -151,30 +169,56 @@ static int aprint(void* out, bool out_is_file, const char* fmt, va_list args) {
                     }
                     else i = unsg;
 
+                    int numlen = 0;
+                    usize i2 = i;
+                    while (i2 != 0) {
+                        numlen++;
+                        i2 /= 10;
+                    }
+                    if (neg) numlen++;
+
                     char* buf = NULL;
+                    int numpadded = pad(&buf, false, numlen, &width, padding); 
+                    pc += numpadded;
+                    pc += numlen;
+
                     if (neg == true) bufpush(buf, '-');
+                    if (i == 0) bufpush(buf, '0');
                     while (i != 0) {
                         char c = (char)(i % 10);
                         bufpush(buf, c + '0');
                         i /= 10;
                     }
                     
-                    usize len = buflen(buf);
-                    usize digitslen = neg ? len-1 : len;
-                    for (usize idx = neg ? 1 : 0; idx < digitslen/2; idx++) {
+                    for (int idx = neg ? 1 : 0; idx < numlen/2; idx++) {
                         char tmp = *(buflast(buf)-idx);
                         *(buflast(buf)-idx) = buf[idx];
                         buf[idx] = tmp;
                     }
+
                     if (out && !out_is_file) {
                         buffree(*((char**)out));
                         *((char**)out) = buf;
                     }
                     else {
-                        for (usize idx = 0; idx < len; idx++) {
+                        for (int idx = 0; idx < numlen + numpadded; idx++) {
                             aprintc(out, out_is_file, buf[idx]);
                         }
                         buffree(buf);
+                    }
+                }
+                else if (*fmt == 't' && fmt[1] == 'o') {
+                    fmt += 2;
+                    Token* t = va_arg(args, Token*);
+                    aprints(out, out_is_file, t->start, t->ch_count);
+                }
+
+                if (padding & FPAD_RIGHT) {
+                    char padchar = ' ';
+                    if (width > 0 && (padding & FPAD_ZERO)) padchar = '0';
+                    for (; width > 0; --width) {
+                        aprintc(out, out_is_file, padchar);
+                        ++pc;
                     }
                 }
             }
@@ -192,35 +236,35 @@ static int aprint(void* out, bool out_is_file, const char* fmt, va_list args) {
 int aprintf(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    register int pc = aprint(NULL, 0, fmt, args);
+    register int pc = avprint(NULL, 0, fmt, args);
     va_end(args);
     return pc;
 }
 
 int avprintf(const char* fmt, va_list args) {
-    return aprint(NULL, 0, fmt, args);
+    return avprint(NULL, 0, fmt, args);
 }
 
 int afprintf(FILE* file, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    register int pc = aprint((void*)file, true, fmt, args);
+    register int pc = avprint((void*)file, true, fmt, args);
     va_end(args);
     return pc;
 }
 
 int avfprintf(FILE* file, const char* fmt, va_list args) {
-    return aprint((void*)file, true, fmt, args);
+    return avprint((void*)file, true, fmt, args);
 }
 
 int asprintf(char** buf, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    register int pc = aprint((void*)buf, false, fmt, args);
+    register int pc = avprint((void*)buf, false, fmt, args);
     va_end(args);
     return pc;
 }
 
 int avsprintf(char** buf, const char* fmt, va_list args) {
-    return aprint((void*)buf, false, fmt, args);
+    return avprint((void*)buf, false, fmt, args);
 }

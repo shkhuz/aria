@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #ifdef __linux__
 #include <linux/limits.h>
@@ -51,5 +52,6 @@ typedef ssize_t ssize;
 
 size_t align_to_pow2(size_t n, size_t pow2);
 size_t get_bits_for_value(u128 n);
+void terminate_compilation();
 
 #endif

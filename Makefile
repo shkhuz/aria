@@ -5,7 +5,7 @@ EXE_FILE := build/aria
 
 CFLAGS := -std=c99 -Ivendor -I. `llvm-config --cflags` -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings
 LDFLAGS := `llvm-config --ldflags --libs`
-AR_FILE := examples/arrays.ar
+AR_FILE := examples/small.ar
 
 ifeq ($(prod), y)
 	CFLAGS_OPTIMIZE := -O3

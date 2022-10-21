@@ -7,6 +7,7 @@
 #include "msg.h"
 #include "cmd.h"
 #include "lex.h"
+#include "parse.h"
 
 #include <getopt.h>
 
@@ -63,10 +64,6 @@ Srcfile* read_srcfile(
     return NULL;
 }
 
-void terminate_compilation() {
-    exit(1);
-}
-
 int main(int argc, char* argv[]) {
     /* int* buf = NULL; */
     /* bufpush(buf, -2); */
@@ -83,6 +80,7 @@ int main(int argc, char* argv[]) {
     /* bigint a; */
     /* bigint_init_u64(&a, 1); */
     /* bigint_set_u64(&a, 1); */
+    init_types();
 
     const char* outpath = "a.out";
     const char* target_triple = NULL;
@@ -162,6 +160,13 @@ int main(int argc, char* argv[]) {
     bool parsing_error = false;
     bufloop(g_srcfiles, i) {
         LexContext l = lex_new_context(g_srcfiles[i]);
+        lex(&l);
+        if (l.error && !parsing_error) parsing_error = true;
+
+        ParseContext p = parse_new_context(g_srcfiles[i]);
+        parse(&p);
+        if (p.error && !parsing_error) parsing_error = true;
     }
+    if (parsing_error) terminate_compilation();
 }
 

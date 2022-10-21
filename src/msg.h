@@ -13,6 +13,7 @@ typedef enum {
 } MsgKind;
 
 void addinfo(const char* fmt, ...);
+void vaddinfo(const char* fmt, va_list args);
 
 void msg(
     MsgKind kind,
@@ -22,5 +23,8 @@ void msg(
     usize ch_count,
     const char* fmt,
     ...);
+void note_tok(Token* token, const char* fmt, ...);
+void fatal_error_tok(Token* token, const char* fmt, ...);
+void error_tok(Token* token, const char* fmt, ...);
 
 #endif
