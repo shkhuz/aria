@@ -1,6 +1,6 @@
 #include "printf.h"
 #include "buf.h"
-#include "token.h"
+#include "types.h"
 
 typedef enum {
     FPAD_RIGHT = 1,
@@ -94,9 +94,16 @@ static int avprint(void* out, bool out_is_file, const char* fmt, va_list args) {
                     ++fmt;
                     padding |= FPAD_ZERO;
                 }
-                for (; *fmt > '0' && *fmt <= '9'; ++fmt) {
-                    width *= 10;
-                    width += *fmt - '0';
+
+                if (*fmt == '*') {
+                    ++fmt;
+                    width = va_arg(args, int);
+                }
+                else {
+                    for (; *fmt > '0' && *fmt <= '9'; ++fmt) {
+                        width *= 10;
+                        width += *fmt - '0';
+                    }
                 }
 
                 char size_specifier[2] = { ' ', ' ' };
