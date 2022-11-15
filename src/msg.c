@@ -5,15 +5,18 @@
 
 static usize g_error_count;
 static usize g_warning_count;
-static bool g_first_main_msg = true; // only errors and warnings
+// only errors and warnings
+static bool g_first_main_msg = true;
 
-static int g_linenumwidth; // used for aligning `|` when printing line numbers
+// used for aligning `|` when printing line numbers
+static int g_linenumwidth;
 static const char* last_error_file_path;
 
 #define write_tab_to_stderr() afprintf(stderr, "\x20\x20\x20\x20") // as 4 spaces
 
 static bool is_root_msg(MsgKind kind) {
     if (kind == MSG_KIND_ROOT_ERROR ||
+        kind == MSG_KIND_ROOT_WARNING ||
         kind == MSG_KIND_ROOT_NOTE) {
         return true;
     }
@@ -93,47 +96,61 @@ void vmsg(
             // TODO: test this
             afprintf(stderr, " %*s", g_linenumwidth + 1, " ");
         }
-        else {
-            afprintf(
-                    stderr,
-                    "%s%s:%lu:%lu: %s",
-                    g_bold_color,
-                    srcfile->handle.path,
-                    line,
-                    disp_col,
-                    g_reset_color);
-        }
     }
 
     switch (kind) {
-        case MSG_KIND_ROOT_ERROR:
+        case MSG_KIND_ROOT_ERROR: {
+            afprintf(stderr, "error: %s", g_error_color);
+            last_error_file_path = srcfile->handle.path;
+            g_error_count++;
+        } break;
+            
         case MSG_KIND_ERROR: {
-            afprintf(stderr, "%serror: %s", g_error_color, g_reset_color);
-            if (kind == MSG_KIND_ERROR) last_error_file_path = srcfile->handle.path;
+            afprintf(stderr, "error: ");
             g_error_count++;
         } break;
 
+        case MSG_KIND_ROOT_WARNING: {
+            afprintf(stderr, "warn: %s", g_warning_color);
+            g_warning_count++;
+        } break;
+            
         case MSG_KIND_WARNING: {
-            afprintf(stderr, "%swarning: %s", g_warning_color, g_reset_color);
-            g_warning_color++;
+            afprintf(stderr, "warn: ");
+            g_warning_count++;
         } break;
 
         case MSG_KIND_ROOT_NOTE: {
-            afprintf(stderr, "%snote: %s", g_note_color, g_reset_color);
+            afprintf(stderr, "note: %s", g_note_color);
         } break;
 
         case MSG_KIND_NOTE: {
-            // TODO: when compiler reaches multiple files support,
-            // test this
-            const char* str;
-            if (same_file_note) str = "%snote: %s";
-            else str = "%snote: %s...";
-            afprintf(stderr, str, g_note_color, g_reset_color);
+            afprintf(stderr, "note: ");
         } break;
     }
 
+    if (!root_msg && !same_file_note) {
+        const char* color;
+        switch (kind) {
+            case MSG_KIND_ERROR: color = g_error_color; break;
+            case MSG_KIND_WARNING: color = g_warning_color; break;
+            case MSG_KIND_NOTE: color = g_note_color; break;
+        }
+
+        // TODO: add `...` before a note to show that it is a different file note.
+        afprintf(
+            stderr,
+            "(%s%s%s):%lu:%lu: %s",
+            g_bold_color,
+            srcfile->handle.path,
+            g_reset_color,
+            line,
+            disp_col,
+            color);
+    }
+
     avfprintf(stderr, fmt, args);
-    afprintf(stderr, "\n");
+    afprintf(stderr, "%s\n", g_reset_color);
 
     if (!root_msg) {
         const char* sline_to_print = sline;
@@ -252,6 +269,20 @@ void error_tok(Token* token, const char* fmt, ...) {
         token->line,
         token->col,
         token->ch_count,
+        fmt,
+        args);
+    va_end(args);
+}
+
+void root_note(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vmsg(
+        MSG_KIND_ROOT_NOTE,
+        NULL,
+        0,
+        0,
+        0,
         fmt,
         args);
     va_end(args);

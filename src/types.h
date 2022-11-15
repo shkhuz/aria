@@ -6,6 +6,7 @@
 #include "bigint.h"
 
 typedef struct Srcfile Srcfile;
+typedef struct Type Type;
 typedef struct Expr Expr;
 typedef struct Stmt Stmt;
 
@@ -18,7 +19,7 @@ typedef enum {
     TOKEN_KIND_IDENTIFIER,
     TOKEN_KIND_KEYWORD,
     TOKEN_KIND_STRING,
-    TOKEN_KIND_INTEGER,
+    TOKEN_KIND_INTEGER_LITERAL,
     TOKEN_KIND_LBRACE,
     TOKEN_KIND_RBRACE,
     TOKEN_KIND_LBRACK,
@@ -54,26 +55,53 @@ typedef struct {
     union {
         struct {
             bigint val;
-        } integer;
+        } intg;
     };
 } Token;
 
 struct Srcfile {
     File handle;
     Token** tokens;
+    Stmt** stmts;
 };
 
 extern StringIntMap* keywords;
 
 typedef enum {
-    EXPR_KIND_NUMBER,
+    TYPE_KIND_PRIMITIVE,
+    TYPE_KIND_PTR,
+} TypeKind;
+
+typedef struct {
+} TypePrimitive;
+
+typedef struct {
+} TypePtr;
+
+struct Type {
+    TypeKind kind;
+    union {
+        TypePrimitive prim;
+        TypePtr ptr;
+    };
+};
+
+typedef enum {
+    EXPR_KIND_TYPE,
+    EXPR_KIND_INTEGER_LITERAL,
     EXPR_KIND_SYMBOL,
+    EXPR_KIND_UNOP,
+    EXPR_KIND_BINOP,
 } ExprKind;
 
 typedef struct {
-    Token* loc;
-    bigint val;
-} ExprCompInteger;
+    Type type;
+} ExprType;
+
+typedef struct {
+    Token* tok;
+    // bigint value is stored inside token
+} ExprIntegerLiteral;
 
 typedef struct {
     Token* identifier;
@@ -110,7 +138,8 @@ struct Expr {
     ExprKind kind;
     Token* head, *tail;
     union {
-        ExprCompInteger intg;
+        ExprType type;
+        ExprIntegerLiteral intl;
         ExprSymbol sym;
         ExprScopedBlock blk;
         ExprUnOp unop;
@@ -118,10 +147,62 @@ struct Expr {
     };
 };
 
-struct Stmt {
+typedef enum {
+    STMT_KIND_FUNCTION_DEF,
+    STMT_KIND_VARIABLE_DECL,
+    STMT_KIND_PARAM,
+    STMT_KIND_EXPR,
+} StmtKind;
 
+typedef struct {
+    Token* head, *tail;
+    Token* identifier;
+    Stmt** params;
+    Expr* ret_type;
+} FunctionHeader;
+
+typedef struct {
+    FunctionHeader header;
+    Expr* body;
+} StmtFunctionDef;
+
+typedef struct {
+    bool immutable;
+    Token* identifier;
+    Expr* type;
+    Expr* initializer;
+} StmtVariableDecl;
+
+typedef struct {
+    Token* identifier;
+    Expr* type;
+} StmtParam;
+
+typedef struct {
+    Expr* child;
+} StmtExpr;
+
+struct Stmt {
+    StmtKind kind;
+    Token* head, *tail;
+    union {
+        StmtFunctionDef funcd;
+        StmtVariableDecl vard;
+        StmtParam param;
+        StmtExpr expr;
+    };
 };
 
 void init_types();
+Token* token_new(
+    TokenKind kind,
+    const char* start,
+    const char* current,
+    Srcfile* srcfile,
+    usize line,
+    usize col,
+    usize ch_count);
+Stmt* stmt_function_def_new(FunctionHeader header, Expr* body);
+Stmt* stmt_param_new(Token* identifier, Expr* type);
 
 #endif

@@ -8,9 +8,9 @@ typedef struct {
     Srcfile* srcfile;
     usize token_idx;
     bool error;
-} ParseContext;
+} ParseCtx;
 
-ParseContext parse_new_context(Srcfile* srcfile);
-void parse(ParseContext* p);
+ParseCtx parse_new_context(Srcfile* srcfile);
+void parse(ParseCtx* p);
 
 #endif

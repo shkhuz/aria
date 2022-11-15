@@ -43,7 +43,6 @@ typedef ssize_t ssize;
 #define CLAMP_MIN(x, min) (MAX(x, min))
 #define CLAMP_MAX(x, max) (MIN(x, max))
 
-#define ALLOC_OBJ_FROM_TYPE(type) (type*)malloc(sizeof(type))
 #define STCK_ARR_LEN(arr) sizeof(arr) / sizeof(arr[0])
 #define SIZEOF_IN_BITS(x) ((size_t)8 * sizeof(x))
 #define SWAP_VARS(t, a, b) do { t _c = a; a = b; b = _c; } while (0)

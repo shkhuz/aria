@@ -9,9 +9,12 @@ typedef struct {
     const char* start, *current, *last_newl;
     usize line;
     bool error;
-} LexContext;
+    // Used to prevent multiple "invalid char" errors 
+    bool ascii_error_table[128];
+    bool invalid_char_error;
+} LexCtx;
 
-LexContext lex_new_context(Srcfile* srcfile);
-void lex(LexContext* l);
+LexCtx lex_new_context(Srcfile* srcfile);
+void lex(LexCtx* l);
 
 #endif

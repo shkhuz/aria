@@ -29,7 +29,7 @@ Srcfile* read_srcfile(
                 if (strcmp(efile.handle.abs_path, g_srcfiles[i]->handle.abs_path) == 0)
                     return g_srcfiles[i];
             }
-            Srcfile* srcfile = ALLOC_OBJ_FROM_TYPE(Srcfile);
+            Srcfile* srcfile = malloc(sizeof(Srcfile));
             srcfile->handle = efile.handle;
             bufpush(g_srcfiles, srcfile);
             return srcfile;
@@ -159,11 +159,11 @@ int main(int argc, char* argv[]) {
 
     bool parsing_error = false;
     bufloop(g_srcfiles, i) {
-        LexContext l = lex_new_context(g_srcfiles[i]);
+        LexCtx l = lex_new_context(g_srcfiles[i]);
         lex(&l);
         if (l.error && !parsing_error) parsing_error = true;
 
-        ParseContext p = parse_new_context(g_srcfiles[i]);
+        ParseCtx p = parse_new_context(g_srcfiles[i]);
         parse(&p);
         if (p.error && !parsing_error) parsing_error = true;
     }
