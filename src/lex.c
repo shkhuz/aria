@@ -10,36 +10,30 @@ LexCtx lex_new_context(Srcfile* srcfile) {
     l.start = srcfile->handle.contents;
     l.current = l.start;
     l.last_newl = l.start;
-    l.line = 1;
     l.error = false;
     memset(l.ascii_error_table, 0, 128);
     l.invalid_char_error = false;
     return l;
 }
 
-static usize get_col(LexCtx* l, const char* c) {
-    usize col = (usize)(c - l->last_newl);
-    if (l->line == 1) col++;
-    return col;
+static Span span_from_start(LexCtx* l) {
+    return span_new(
+        l->srcfile,
+        l->start - l->srcfile->handle.contents,
+        l->current - l->srcfile->handle.contents+1);
 }
 
-static usize get_start_col(LexCtx* l) {
-    return get_col(l, l->start);
+/*
+static Span span_from_current(LexCtx* l, const char* fmt, ...) {
+    return span_new(
+        l->srcfile,
+        l->start - l->srcfile->contents,
+        l->current - l->srcfile->contents);
 }
-
-static usize get_current_col(LexCtx* l) {
-    return get_col(l, l->current);
-}
+*/
 
 static void push_tok(LexCtx* l, TokenKind kind) {
-    Token* t = token_new(
-        kind,
-        l->start,
-        l->current,
-        l->srcfile,
-        l->line,
-        get_start_col(l),
-        (usize)(l->current - l->start));
+    Token* t = token_new(kind, span_from_start(l));
     bufpush(l->srcfile->tokens, t);
 }
 
@@ -55,32 +49,6 @@ static void push_tok_adv_cond(LexCtx* l, char c, TokenKind matched, TokenKind no
     } else {
         push_tok_adv(l, not_matched);
     }
-}
-
-static void error(LexCtx* l, usize col, usize ch_count, const char* fmt, va_list args) {
-    l->error = true;
-    vmsg(
-        MSG_KIND_ERROR,
-        l->srcfile,
-        l->line,
-        col,
-        ch_count,
-        fmt,
-        args);
-}
-
-static void error_from_start(LexCtx* l, const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    error(l, get_start_col(l), l->current - l->start, fmt, args);
-    va_end(args);
-}
-
-static void error_from_current(LexCtx* l, const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    error(l, get_current_col(l), 1, fmt, args);
-    va_end(args);
 }
 
 static inline int char_to_digit(char c) {
@@ -149,23 +117,20 @@ void lex(LexCtx* l) {
                 l->current++;
                 while (*l->current != '\"') {
                     if (*l->current == '\n' || *l->current == '\0') {
-                        error_from_start(l, "unterminated string literal");
+                        Msg msg = msg_with_span(
+                            MSG_KIND_ERROR,
+                            aria_format("unterminated string literal"),
+                            span_from_start(l));
+                        msg_emit(&msg);
                         l->current++;
                         break;
                     }
                     l->current++;
                 }
 
-                Token* t = token_new(
-                    TOKEN_KIND_STRING,
-                    l->start,
-                    l->current+1,
-                    l->srcfile,
-                    l->line,
-                    get_start_col(l),
-                    (usize)(l->current+1 - l->start));
-                bufpush(l->srcfile->tokens, t);
                 l->current++;
+                Token* t = token_new(TOKEN_KIND_STRING, span_from_start(l));
+                bufpush(l->srcfile->tokens, t);
             } break;
 
             case '{': push_tok_adv(l, TOKEN_KIND_LBRACE); break;
@@ -204,13 +169,12 @@ void lex(LexCtx* l) {
             case '\n': {
                 l->last_newl = l->current;
                 l->current++;
-                l->line++;
             } break;
 
             case '\0': {
                 push_tok_adv(l, TOKEN_KIND_EOF);
                 if (l->invalid_char_error) {
-                    root_note("each invalid character is reported only once");
+                    //root_note("each invalid character is reported only once");
                 }
             } return;
 
@@ -218,7 +182,7 @@ void lex(LexCtx* l) {
                 if (*l->current >= 0 && !l->ascii_error_table[(usize)*l->current]) {
                     // Don't print the char in the fmt string. Instead print the
                     // unicode identifier.
-                    error_from_current(l, "invalid character `%c`", *l->current);
+                    //error_from_current(l, "invalid character `%c`", *l->current);
                     l->ascii_error_table[(usize)*l->current] = true;
                     l->invalid_char_error = true;
                 }

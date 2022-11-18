@@ -9,6 +9,7 @@ extern char* g_warning_color;
 extern char* g_note_color;
 extern char* g_bold_color;
 extern char* g_reset_color;
+extern char* g_cornflower_blue_color;
 
 void init_cmd();
 

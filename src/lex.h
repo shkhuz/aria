@@ -7,8 +7,8 @@
 typedef struct {
     Srcfile* srcfile;
     const char* start, *current, *last_newl;
-    usize line;
     bool error;
+
     // Used to prevent multiple "invalid char" errors 
     bool ascii_error_table[128];
     bool invalid_char_error;

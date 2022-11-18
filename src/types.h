@@ -4,6 +4,7 @@
 #include "core.h"
 #include "file_io.h"
 #include "bigint.h"
+#include "span.h"
 
 typedef struct Srcfile Srcfile;
 typedef struct Type Type;
@@ -49,9 +50,7 @@ typedef enum {
 
 typedef struct {
     TokenKind kind;
-    const char* start, *end;
-    Srcfile* srcfile;
-    usize line, col, ch_count;
+    Span span;
     union {
         struct {
             bigint val;
@@ -136,7 +135,7 @@ typedef struct {
 
 struct Expr {
     ExprKind kind;
-    Token* head, *tail;
+    Span span;
     union {
         ExprType type;
         ExprIntegerLiteral intl;
@@ -155,7 +154,7 @@ typedef enum {
 } StmtKind;
 
 typedef struct {
-    Token* head, *tail;
+    Span span;
     Token* identifier;
     Stmt** params;
     Expr* ret_type;
@@ -184,7 +183,7 @@ typedef struct {
 
 struct Stmt {
     StmtKind kind;
-    Token* head, *tail;
+    Span span;
     union {
         StmtFunctionDef funcd;
         StmtVariableDecl vard;
@@ -194,14 +193,7 @@ struct Stmt {
 };
 
 void init_types();
-Token* token_new(
-    TokenKind kind,
-    const char* start,
-    const char* current,
-    Srcfile* srcfile,
-    usize line,
-    usize col,
-    usize ch_count);
+Token* token_new(TokenKind kind, Span span);
 Stmt* stmt_function_def_new(FunctionHeader header, Expr* body);
 Stmt* stmt_param_new(Token* identifier, Expr* type);
 

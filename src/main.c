@@ -15,13 +15,7 @@ char* g_exec_path;
 
 Srcfile** g_srcfiles = NULL;
 
-Srcfile* read_srcfile(
-        const char* path,
-        MsgKind error_kind,
-        Srcfile* error_srcfile,
-        usize error_line,
-        usize error_col,
-        usize error_ch_count) {
+Srcfile* read_srcfile(const char* path, OptionalSpan span) {
     FileOrError efile = read_file(path);
     switch (efile.status) {
         case FOO_SUCCESS: {
@@ -36,29 +30,25 @@ Srcfile* read_srcfile(
         } break;
 
         case FOO_FAILURE: {
-            msg(
-                    error_kind,
-                    error_srcfile,
-                    error_line,
-                    error_col,
-                    error_ch_count,
-                    "cannot read source file `%s%s%s`",
-                    g_bold_color,
-                    path,
-                    g_reset_color);
+            const char* error_msg = "cannot read source file `%s%s%s`";
+            if (span.exists) {
+                Msg msg = msg_with_span(MSG_KIND_ERROR, error_msg, span.span);
+                msg_emit(&msg);
+            } else {
+                Msg msg = msg_with_no_span(MSG_KIND_ERROR, error_msg);
+                msg_emit(&msg);
+            }
         } break;
 
         case FOO_DIRECTORY: {
-            msg(
-                    error_kind,
-                    error_srcfile,
-                    error_line,
-                    error_col,
-                    error_ch_count,
-                    "`%s%s%s` is a directory",
-                    g_bold_color,
-                    path,
-                    g_reset_color);
+            const char* error_msg = "`%s%s%s` is a directory";
+            if (span.exists) {
+                Msg msg = msg_with_span(MSG_KIND_ERROR, error_msg, span.span);
+                msg_emit(&msg);
+            } else {
+                Msg msg = msg_with_no_span(MSG_KIND_ERROR, error_msg);
+                msg_emit(&msg);
+            }
         } break;
     }
     return NULL;
@@ -72,9 +62,9 @@ int main(int argc, char* argv[]) {
     /* bufpush(buf, 2948); */
 
     /* for (usize i = 0; i < buflen(buf); i++) { */
-    /*     aprintf("%d\n", buf[i]); */
+    /*     aria_printf("%d\n", buf[i]); */
     /* } */
-    /* aprintf("%lu is a number with /%s/", UINT64_MAX, "www"); */
+    /* aria_printf("%lu is a number with /%s/", UINT64_MAX, "www"); */
     /* buffree(buf); */
 
     /* bigint a; */
@@ -107,7 +97,7 @@ int main(int argc, char* argv[]) {
             } break;
 
             case 'h': {
-                aprintf(
+                aria_printf(
                         "Aria language compiler\n"
                         "Usage: ariac [options] file...\n"
                         "\n"
@@ -132,24 +122,14 @@ int main(int argc, char* argv[]) {
     }
 
     if (optind == argc) {
-        msg(
-                MSG_KIND_ROOT_ERROR,
-                NULL,
-                0,
-                0,
-                0,
-                "no input files");
+        Msg msg = msg_with_no_span(MSG_KIND_ERROR, "no input files");
+        msg_emit(&msg);
         terminate_compilation();
     }
 
     bool read_error = false;
     for (int i = optind; i < argc; i++) {
-        Srcfile* srcfile = read_srcfile(argv[i],
-                                        MSG_KIND_ROOT_ERROR,
-                                        NULL,
-                                        0,
-                                        0,
-                                        0);
+        Srcfile* srcfile = read_srcfile(argv[i], span_none());
         if (!srcfile) {
             read_error = true;
             continue;

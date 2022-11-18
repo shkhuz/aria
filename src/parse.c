@@ -12,6 +12,7 @@ ParseCtx parse_new_context(Srcfile* srcfile) {
     return p;
 }
 
+/*
 static Token* current(ParseCtx* p) {
     if (p->token_idx < buflen(p->srcfile->tokens)) {
         return p->srcfile->tokens[p->token_idx];
@@ -123,7 +124,6 @@ static Token* expect_comma(ParseCtx* p) {
     return expect(p, TOKEN_KIND_COMMA, "`,`");
 }
 
-/*
 static FunctionHeader parse_function_header(ParseCtx* p) {
     Token* identifier = expect_identifier(p, "function name");
     Token* lparen = expect_lparen(p);

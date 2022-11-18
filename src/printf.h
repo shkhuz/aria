@@ -3,11 +3,13 @@
 
 #include "core.h"
 
-int aprintf(const char* fmt, ...);
-int avprintf(const char* fmt, va_list args);
-int afprintf(FILE* file, const char* fmt, ...);
-int avfprintf(FILE* file, const char* fmt, va_list args);
-int asprintf(char** buf, const char* fmt, ...);
-int avsprintf(char** buf, const char* fmt, va_list args);
+int aria_printf(const char* fmt, ...);
+int aria_vprintf(const char* fmt, va_list args);
+int aria_fprintf(FILE* file, const char* fmt, ...);
+int aria_vfprintf(FILE* file, const char* fmt, va_list args);
+int aria_sprintf(char** buf, const char* fmt, ...);
+int aria_vsprintf(char** buf, const char* fmt, va_list args);
+
+char* aria_format(const char* fmt, ...);
 
 #endif
