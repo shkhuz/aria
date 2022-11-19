@@ -217,8 +217,10 @@ void msg_addl_thin(Msg* m, const char* msg) {
 static void print_source_line(Span span, const char* color, bool print_srcloc) {
     const char* contents = span.srcfile->handle.contents;
     usize beg_of_line, c = span.start;
+    usize disp_col = 0;
     while (c != 0 && contents[c-1] != '\n') {
         c--;
+        if (contents[c] == '\t') disp_col += 3;
     }
     beg_of_line = c;
 
@@ -229,6 +231,7 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
     }
 
     usize col = span.start - beg_of_line + 1;
+    disp_col += col;
     if (print_srcloc) {
         aria_fprintf(
             stderr,
@@ -241,17 +244,21 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
     }
 
     int indent = aria_fprintf(stderr, "  %lu | ", line) - 2;
-    usize span_end_sliced = span.end;
     bool multiline_span = false;
+    usize disp_chcount = 0;
 
     for (usize i = beg_of_line; i < span.end; i++) {
         if (contents[i] == '\n' || contents[i] == '\0') {
-            span_end_sliced = i;
             multiline_span = true;
             break;
         }
-        aria_fprintf(stderr, "%c", contents[i]);
+        else if (contents[i] == '\t') {
+            if (i >= span.start) disp_chcount += 3; 
+            aria_fprintf(stderr, "\x20\x20\x20\x20");
+        }
+        else aria_fprintf(stderr, "%c", contents[i]);
     }
+    disp_chcount += span.end - span.start;
     for (usize i = span.end; contents[i] != '\n' && contents[i] != '\0'; i++) {
         aria_fprintf(stderr, "%c", contents[i]);
     }
@@ -259,9 +266,9 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
     aria_fprintf(stderr, "\n%*s", indent, "");
     aria_fprintf(stderr, "| ");
 
-    for (usize i = 1; i < col; i++) aria_fprintf(stderr, " "); 
+    for (usize i = 1; i < disp_col; i++) aria_fprintf(stderr, " "); 
     aria_fprintf(stderr, "%s", color);
-    for (usize i = span.start; i < span_end_sliced; i++)
+    for (usize i = disp_col; i < disp_col + disp_chcount; i++)
         aria_fprintf(stderr, "^");
     if (multiline_span) aria_fprintf(stderr, " \u00B7\u00B7\u00B7");
     aria_fprintf(stderr, "%s\n", g_reset_color);
