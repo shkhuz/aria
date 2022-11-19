@@ -16,24 +16,15 @@ LexCtx lex_new_context(Srcfile* srcfile) {
     return l;
 }
 
-static Span span_from_start(LexCtx* l) {
+static Span span_from_start_to_current(LexCtx* l) {
     return span_new(
         l->srcfile,
         l->start - l->srcfile->handle.contents,
-        l->current - l->srcfile->handle.contents+1);
+        l->current - l->srcfile->handle.contents);
 }
-
-/*
-static Span span_from_current(LexCtx* l, const char* fmt, ...) {
-    return span_new(
-        l->srcfile,
-        l->start - l->srcfile->contents,
-        l->current - l->srcfile->contents);
-}
-*/
 
 static void push_tok(LexCtx* l, TokenKind kind) {
-    Token* t = token_new(kind, span_from_start(l));
+    Token* t = token_new(kind, span_from_start_to_current(l));
     bufpush(l->srcfile->tokens, t);
 }
 
@@ -53,6 +44,11 @@ static void push_tok_adv_cond(LexCtx* l, char c, TokenKind matched, TokenKind no
 
 static inline int char_to_digit(char c) {
     return c - 48;
+}
+
+static inline void msg_emit(LexCtx* l, Msg* msg) {
+    if (msg->kind == MSG_KIND_ERROR) l->error = true;
+    _msg_emit(msg);
 }
 
 void lex(LexCtx* l) {
@@ -110,7 +106,7 @@ void lex(LexCtx* l) {
                 push_tok(l, TOKEN_KIND_INTEGER_LITERAL);
                 // We don't explicitly deep copy the `val` struct because
                 // it isn't used after this.
-                l->srcfile->tokens[buflen(l->srcfile->tokens)-1]->intg.val = val;
+                //l->srcfile->tokens[buflen(l->srcfile->tokens)-1]->intg.val = val;
             } break;
 
             case '\"': {
@@ -120,8 +116,9 @@ void lex(LexCtx* l) {
                         Msg msg = msg_with_span(
                             MSG_KIND_ERROR,
                             aria_format("unterminated string literal"),
-                            span_from_start(l));
-                        msg_emit(&msg);
+                            span_from_start_to_current(l));
+                        msg_addl_thin(&msg, "terminate with `\"`");
+                        msg_emit(l, &msg);
                         l->current++;
                         break;
                     }
@@ -129,7 +126,7 @@ void lex(LexCtx* l) {
                 }
 
                 l->current++;
-                Token* t = token_new(TOKEN_KIND_STRING, span_from_start(l));
+                Token* t = token_new(TOKEN_KIND_STRING, span_from_start_to_current(l));
                 bufpush(l->srcfile->tokens, t);
             } break;
 
@@ -174,19 +171,28 @@ void lex(LexCtx* l) {
             case '\0': {
                 push_tok_adv(l, TOKEN_KIND_EOF);
                 if (l->invalid_char_error) {
-                    //root_note("each invalid character is reported only once");
+                    Msg msg = msg_with_no_span(
+                        MSG_KIND_NOTE,
+                        "each invalid character is reported only once");
+                    msg_emit(l, &msg);
                 }
             } return;
 
             default: {
-                if (*l->current >= 0 && !l->ascii_error_table[(usize)*l->current]) {
+                char c = *l->current;
+                l->current++;
+                if (c >= 0 && !l->ascii_error_table[(unsigned)c]) {
                     // Don't print the char in the fmt string. Instead print the
                     // unicode identifier.
-                    //error_from_current(l, "invalid character `%c`", *l->current);
-                    l->ascii_error_table[(usize)*l->current] = true;
+                    l->ascii_error_table[(unsigned)c] = true;
                     l->invalid_char_error = true;
+                    Msg msg = msg_with_span(
+                        MSG_KIND_WARNING,
+                        "invalid character",
+                        span_from_start_to_current(l));
+                    msg_addl_fat(&msg, "cool", span_from_start_to_current(l));
+                    msg_emit(l, &msg);
                 }
-                l->current++;
             } break;
         }
     }

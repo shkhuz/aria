@@ -51,11 +51,6 @@ typedef enum {
 typedef struct {
     TokenKind kind;
     Span span;
-    union {
-        struct {
-            bigint val;
-        } intg;
-    };
 } Token;
 
 struct Srcfile {

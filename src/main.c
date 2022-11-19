@@ -33,10 +33,10 @@ Srcfile* read_srcfile(const char* path, OptionalSpan span) {
             const char* error_msg = "cannot read source file `%s%s%s`";
             if (span.exists) {
                 Msg msg = msg_with_span(MSG_KIND_ERROR, error_msg, span.span);
-                msg_emit(&msg);
+                _msg_emit(&msg);
             } else {
                 Msg msg = msg_with_no_span(MSG_KIND_ERROR, error_msg);
-                msg_emit(&msg);
+                _msg_emit(&msg);
             }
         } break;
 
@@ -44,10 +44,10 @@ Srcfile* read_srcfile(const char* path, OptionalSpan span) {
             const char* error_msg = "`%s%s%s` is a directory";
             if (span.exists) {
                 Msg msg = msg_with_span(MSG_KIND_ERROR, error_msg, span.span);
-                msg_emit(&msg);
+                _msg_emit(&msg);
             } else {
                 Msg msg = msg_with_no_span(MSG_KIND_ERROR, error_msg);
-                msg_emit(&msg);
+                _msg_emit(&msg);
             }
         } break;
     }
@@ -123,7 +123,7 @@ int main(int argc, char* argv[]) {
 
     if (optind == argc) {
         Msg msg = msg_with_no_span(MSG_KIND_ERROR, "no input files");
-        msg_emit(&msg);
+        _msg_emit(&msg);
         terminate_compilation();
     }
 
