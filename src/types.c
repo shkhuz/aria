@@ -62,6 +62,14 @@ AstNode* astnode_type_new(Type type, Span span) {
     return astnode;
 }
 
+AstNode* astnode_symbol_new(Token* identifier) {
+    AstNode* astnode = alloc_obj(AstNode);
+    astnode->span = identifier->span;
+    astnode->kind = ASTNODE_KIND_SYMBOL;
+    astnode->sym.identifier = identifier;
+    return astnode;
+}
+
 AstNode* astnode_scoped_block_new(
     Token* lbrace,
     AstNode** stmts,

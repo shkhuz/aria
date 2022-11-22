@@ -215,6 +215,7 @@ Type type_primitive_init(TypePrimitiveKind kind);
 Type type_custom_init(Token* name);
 
 AstNode* astnode_type_new(Type type, Span span);
+AstNode* astnode_symbol_new(Token* identifier);
 AstNode* astnode_scoped_block_new(
     Token* lbrace,
     AstNode** stmts,

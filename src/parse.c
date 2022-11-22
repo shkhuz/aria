@@ -3,7 +3,7 @@
 #include "buf.h"
 #include "msg.h"
 
-static AstNode* parse_astnode(ParseCtx* p);
+static AstNode* parse_root(ParseCtx* p, bool error_on_no_match);
 
 ParseCtx parse_new_context(Srcfile* srcfile) {
     ParseCtx p;
@@ -161,6 +161,25 @@ static AstNode* parse_type(ParseCtx* p) {
     return NULL;
 }
 
+static AstNode* parse_atom_expr(ParseCtx* p, bool error_on_no_match) {
+    if (match(p, TOKEN_KIND_IDENTIFIER)) {
+        return astnode_symbol_new(previous(p));
+    }
+
+    if (error_on_no_match) {
+    	Msg msg = msg_with_span(
+    	    MSG_KIND_ERROR,
+    	    "expected expression",
+    	    current(p)->span);
+    	msg_emit(p, &msg);
+    }
+    return NULL;
+}
+
+static AstNode* parse_expr(ParseCtx* p, bool error_on_no_match) {
+    return parse_atom_expr(p, error_on_no_match);
+}
+
 static AstNode* parse_function_header(ParseCtx* p, Token* keyword) {
     Token* identifier = expect_identifier(p, "function name");
     Token* lparen = expect_lparen(p);
@@ -168,12 +187,12 @@ static AstNode* parse_function_header(ParseCtx* p, Token* keyword) {
     AstNode** params = NULL;
     while (!match(p, TOKEN_KIND_RPAREN)) {
         check_eof(p, lparen);
-        Token* param_identifier = expect_identifier(p, "parameter name");
+        Token* param_identifier =
+            expect(p, TOKEN_KIND_IDENTIFIER, "parameter name or `)`");
         expect_colon(p);
         AstNode* param_type = parse_type(p);
         bufpush(params, astnode_param_new(param_identifier, param_type));
         if (current(p)->kind != TOKEN_KIND_RPAREN) {
-            //expect_comma(p);
             expect(p, TOKEN_KIND_COMMA, "`,' or ')'");
         }
     }
@@ -187,14 +206,27 @@ static AstNode* parse_scoped_block(ParseCtx* p, Token* lbrace) {
     AstNode** stmts = NULL;
     while (current(p)->kind != TOKEN_KIND_RBRACE) {
         check_eof(p, lbrace);
-        AstNode* astnode = parse_astnode(p);
-        if (astnode) bufpush(stmts, astnode);
+        AstNode* stmt = parse_root(p, false);
+        if (stmt) bufpush(stmts, stmt);
+        else {
+            AstNode* expr = parse_expr(p, false);
+            if (!expr) {
+                Msg msg = msg_with_span(
+                    MSG_KIND_ERROR,
+                    "expected a declaration, definition or an expression",
+                    current(p)->span);
+                msg_emit(p, &msg);
+            }
+            expect_semicolon(p);
+            // We directly push an AstNode of type expr_stmt
+            bufpush(stmts, expr);
+        }
     }
     goto_next_tok(p);
     return astnode_scoped_block_new(lbrace, stmts, NULL, previous(p));
 }
 
-static AstNode* parse_astnode(ParseCtx* p) {
+static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
     if (match_keyword(p, "fn")) {
         AstNode* header = parse_function_header(p, previous(p));
         Token* lbrace = expect_lbrace(p);
@@ -202,18 +234,19 @@ static AstNode* parse_astnode(ParseCtx* p) {
         return astnode_function_def_new(header, body);
     }
 
-    Msg msg = msg_with_span(
-        MSG_KIND_ERROR,
-        "expected `fn`, `struct`, `imm` or `mut`",
-        current(p)->span);
-    msg_emit(p, &msg);
-    goto_next_tok(p);
+    if (error_on_no_match) {
+    	Msg msg = msg_with_span(
+    	    MSG_KIND_ERROR,
+    	    "expected a declaration or a definition",
+    	    current(p)->span);
+    	msg_emit(p, &msg);
+    }
     return NULL;
 }
 
 void parse(ParseCtx* p) {
     while (current(p)->kind != TOKEN_KIND_EOF) {
-        AstNode* astnode = parse_astnode(p);
+        AstNode* astnode = parse_root(p, true);
         if (astnode) bufpush(p->srcfile->astnodes, astnode);
     }
     /*
