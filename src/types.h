@@ -8,8 +8,7 @@
 
 typedef struct Srcfile Srcfile;
 typedef struct Type Type;
-typedef struct Expr Expr;
-typedef struct Stmt Stmt;
+typedef struct AstNode AstNode;
 
 typedef struct {
     char* k;
@@ -56,7 +55,7 @@ typedef struct {
 struct Srcfile {
     File handle;
     Token** tokens;
-    Stmt** stmts;
+    AstNode** astnodes;
 };
 
 extern StringIntMap* keywords;
@@ -64,49 +63,74 @@ extern StringIntMap* keywords;
 typedef enum {
     TYPE_KIND_PRIMITIVE,
     TYPE_KIND_PTR,
+    TYPE_KIND_CUSTOM,
 } TypeKind;
 
+typedef enum {
+    TYPE_PRIM_U8,
+    TYPE_PRIM_U16,
+    TYPE_PRIM_U32,
+    TYPE_PRIM_U64,
+    TYPE_PRIM_I8,
+    TYPE_PRIM_I16,
+    TYPE_PRIM_I32,
+    TYPE_PRIM_I64,
+    TYPE_PRIM_VOID,
+    TYPE_PRIM_NONE,
+} TypePrimitiveKind;
+
 typedef struct {
+    TypePrimitiveKind kind;
 } TypePrimitive;
 
 typedef struct {
 } TypePtr;
+
+typedef struct {
+    Token* name;
+} TypeCustom;
 
 struct Type {
     TypeKind kind;
     union {
         TypePrimitive prim;
         TypePtr ptr;
+        TypeCustom custom;
     };
 };
 
-typedef enum {
-    EXPR_KIND_TYPE,
-    EXPR_KIND_INTEGER_LITERAL,
-    EXPR_KIND_SYMBOL,
-    EXPR_KIND_UNOP,
-    EXPR_KIND_BINOP,
-} ExprKind;
+typedef struct {
+    Type u8_type;
+    Type u16_type;
+    Type u32_type;
+    Type u64_type;
+    Type i8_type;
+    Type i16_type;
+    Type i32_type;
+    Type i64_type;
+    Type void_type;
+} TypePlaceholders;
+
+extern TypePlaceholders type_placeholders;
 
 typedef struct {
     Type type;
-} ExprType;
+} AstNodeType;
 
 typedef struct {
     Token* tok;
-    // bigint value is stored inside token
-} ExprIntegerLiteral;
+    bigint val;
+} AstNodeIntegerLiteral;
 
 typedef struct {
     Token* identifier;
-    Stmt* ref;
-} ExprSymbol;
+    AstNode* ref;
+} AstNodeSymbol;
 
 typedef struct {
-    Token* lbrace;
-    Stmt** stmts;
-    Expr* val;
-} ExprScopedBlock;
+    AstNode** stmts;
+    AstNode* val;
+} AstNodeScopedBlock;
 
 typedef enum {
     UNOP_KIND_NEG,
@@ -114,9 +138,9 @@ typedef enum {
 } UnOpKind;
 
 typedef struct {
-    Expr* child;
+    AstNode* child;
     UnOpKind kind;
-} ExprUnOp;
+} AstNodeUnOp;
 
 typedef enum {
     BINOP_KIND_ADD,
@@ -124,72 +148,84 @@ typedef enum {
 } BinOpKind;
 
 typedef struct {
-    Expr* left, *right;
+    AstNode* left, *right;
     BinOpKind kind;
-} ExprBinOp;
-
-struct Expr {
-    ExprKind kind;
-    Span span;
-    union {
-        ExprType type;
-        ExprIntegerLiteral intl;
-        ExprSymbol sym;
-        ExprScopedBlock blk;
-        ExprUnOp unop;
-        ExprBinOp binop;
-    };
-};
-
-typedef enum {
-    STMT_KIND_FUNCTION_DEF,
-    STMT_KIND_VARIABLE_DECL,
-    STMT_KIND_PARAM,
-    STMT_KIND_EXPR,
-} StmtKind;
+} AstNodeBinOp;
 
 typedef struct {
     Span span;
     Token* identifier;
-    Stmt** params;
-    Expr* ret_type;
-} FunctionHeader;
+    AstNode** params;
+    AstNode* ret_type;
+} AstNodeFunctionHeader;
 
 typedef struct {
-    FunctionHeader header;
-    Expr* body;
-} StmtFunctionDef;
+    AstNode* header;
+    AstNode* body;
+} AstNodeFunctionDef;
 
 typedef struct {
     bool immutable;
     Token* identifier;
-    Expr* type;
-    Expr* initializer;
-} StmtVariableDecl;
+    AstNode* type;
+    AstNode* initializer;
+} AstNodeVariableDecl;
 
 typedef struct {
     Token* identifier;
-    Expr* type;
-} StmtParam;
+    AstNode* type;
+} AstNodeParamDecl;
 
-typedef struct {
-    Expr* child;
-} StmtExpr;
+typedef enum {
+    ASTNODE_KIND_TYPE,
+    ASTNODE_KIND_INTEGER_LITERAL,
+    ASTNODE_KIND_SYMBOL,
+    ASTNODE_KIND_SCOPED_BLOCK,
+    ASTNODE_KIND_UNOP,
+    ASTNODE_KIND_BINOP,
+    ASTNODE_KIND_FUNCTION_HEADER,
+    ASTNODE_KIND_FUNCTION_DEF,
+    ASTNODE_KIND_VARIABLE_DECL,
+    ASTNODE_KIND_PARAM_DECL,
+} AstNodeKind;
 
-struct Stmt {
-    StmtKind kind;
+struct AstNode {
+    AstNodeKind kind;
     Span span;
     union {
-        StmtFunctionDef funcd;
-        StmtVariableDecl vard;
-        StmtParam param;
-        StmtExpr expr;
+        AstNodeType type;
+        AstNodeIntegerLiteral intl;
+        AstNodeSymbol sym;
+        AstNodeScopedBlock blk;
+        AstNodeUnOp unop;
+        AstNodeBinOp binop;
+        AstNodeFunctionHeader funch;
+        AstNodeFunctionDef funcd;
+        AstNodeVariableDecl vard;
+        AstNodeParamDecl paramd;
     };
 };
 
 void init_types();
+
 Token* token_new(TokenKind kind, Span span);
-Stmt* stmt_function_def_new(FunctionHeader header, Expr* body);
-Stmt* stmt_param_new(Token* identifier, Expr* type);
+bool is_token_lexeme(Token* token, const char* string);
+
+Type type_primitive_init(TypePrimitiveKind kind);
+Type type_custom_init(Token* name);
+
+AstNode* astnode_type_new(Type type, Span span);
+AstNode* astnode_scoped_block_new(
+    Token* lbrace,
+    AstNode** stmts,
+    AstNode* val,
+    Token* rbrace);
+AstNode* astnode_function_header_new(
+    Token* keyword,
+    Token* identifier,
+    AstNode** params,
+    AstNode* ret_type);
+AstNode* astnode_function_def_new(AstNode* header, AstNode* body);
+AstNode* astnode_param_new(Token* identifier, AstNode* type);
 
 #endif

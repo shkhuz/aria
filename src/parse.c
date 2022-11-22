@@ -3,16 +3,23 @@
 #include "buf.h"
 #include "msg.h"
 
+static AstNode* parse_astnode(ParseCtx* p);
+
 ParseCtx parse_new_context(Srcfile* srcfile) {
     ParseCtx p;
     p.srcfile = srcfile;
-    p.srcfile->stmts = NULL;
+    p.srcfile->astnodes = NULL;
     p.token_idx = 0;
     p.error = false;
     return p;
 }
 
-/*
+static inline void msg_emit(ParseCtx* p, Msg* msg) {
+    if (msg->kind == MSG_KIND_ERROR) p->error = true;
+    _msg_emit(msg);
+    terminate_compilation();
+}
+
 static Token* current(ParseCtx* p) {
     if (p->token_idx < buflen(p->srcfile->tokens)) {
         return p->srcfile->tokens[p->token_idx];
@@ -51,8 +58,12 @@ static void goto_prev_tok(ParseCtx* p) {
 
 static void check_eof(ParseCtx* p, Token* pair) {
     if (current(p)->kind == TOKEN_KIND_EOF) {
-        note_tok(pair, "while matching `%to`...", pair);
-        fatal_error_tok(current(p), "unexpected end of file");
+        Msg msg = msg_with_span(
+            MSG_KIND_ERROR,
+            "unexpected end of file",
+            current(p)->span);
+        msg_addl_fat(&msg, aria_format("while matching `%to`", pair), pair->span);
+        msg_emit(p, &msg);
     }
 }
 
@@ -65,39 +76,28 @@ static bool match(ParseCtx* p, TokenKind kind) {
 }
 
 static bool match_keyword(ParseCtx* p, const char* keyword) {
-    usize len = strlen(keyword);
-    Token* tok = current(p);
-    if (tok->kind == TOKEN_KIND_KEYWORD &&
-        tok->ch_count == len &&
-        strncmp(tok->start, keyword, len) == 0) {
+    if (current(p)->kind == TOKEN_KIND_KEYWORD &&
+        is_token_lexeme(current(p), keyword)) {
         goto_next_tok(p);
         return true;
     }
     return false;
 }
 
-static Token* expect_keyword(ParseCtx* p, const char* keyword) {
-    if (match_keyword(p, keyword)) {
-        return previous(p);
-    }
-    fatal_error_tok(
-        current(p),
-        "expected keyword `%s`, got `%to`",
-        keyword,
-        current(p));
-    return NULL;
-}
-
 static Token* expect(ParseCtx* p, TokenKind kind, const char* expected) {
     if (!match(p, kind)) {
-        fatal_error_tok(
-            current(p),
-            "expected %s, got `%to`",
-            expected,
-            current(p));
+        Msg msg = msg_with_span(
+            MSG_KIND_ERROR,
+            aria_format("expected %s", expected),
+            current(p)->span);
+        msg_emit(p, &msg);
         return NULL;
     }
     return previous(p);
+}
+
+static Token* expect_keyword(ParseCtx* p, const char* keyword) {
+    return expect(p, TOKEN_KIND_KEYWORD, aria_format("keyword `%s`, keyword"));
 }
 
 static Token* expect_identifier(ParseCtx* p, const char* expected) {
@@ -124,46 +124,98 @@ static Token* expect_comma(ParseCtx* p) {
     return expect(p, TOKEN_KIND_COMMA, "`,`");
 }
 
-static FunctionHeader parse_function_header(ParseCtx* p) {
+static TypePrimitiveKind get_kindof_prim_type(Token* tok) {
+    if (tok->kind != TOKEN_KIND_IDENTIFIER) return TYPE_PRIM_NONE;
+    
+    if (is_token_lexeme(tok, "u8")) return TYPE_PRIM_U8;
+    else if (is_token_lexeme(tok, "u16")) return TYPE_PRIM_U16;
+    else if (is_token_lexeme(tok, "u32")) return TYPE_PRIM_U32;
+    else if (is_token_lexeme(tok, "u64")) return TYPE_PRIM_U64;
+    else if (is_token_lexeme(tok, "i8")) return TYPE_PRIM_I8;
+    else if (is_token_lexeme(tok, "i16")) return TYPE_PRIM_I16;
+    else if (is_token_lexeme(tok, "i32")) return TYPE_PRIM_I32;
+    else if (is_token_lexeme(tok, "i64")) return TYPE_PRIM_I64;
+    else if (is_token_lexeme(tok, "void")) return TYPE_PRIM_VOID;
+    return TYPE_PRIM_NONE;
+}
+
+static AstNode* parse_type(ParseCtx* p) {
+    Token* tok = current(p);
+    if (tok->kind == TOKEN_KIND_IDENTIFIER) {
+        goto_next_tok(p);
+        Type type;
+        TypePrimitiveKind kind = get_kindof_prim_type(tok);
+        if (kind != TYPE_PRIM_NONE) {
+            type = type_primitive_init(kind);
+        } else {
+            type = type_custom_init(tok);
+        }
+        return astnode_type_new(type, tok->span);
+    } 
+
+    Msg msg = msg_with_span(
+        MSG_KIND_ERROR,
+        "expected type",
+        tok->span);
+    msg_emit(p, &msg);
+    return NULL;
+}
+
+static AstNode* parse_function_header(ParseCtx* p, Token* keyword) {
     Token* identifier = expect_identifier(p, "function name");
     Token* lparen = expect_lparen(p);
 
-    Stmt** params = NULL;
+    AstNode** params = NULL;
     while (!match(p, TOKEN_KIND_RPAREN)) {
         check_eof(p, lparen);
         Token* param_identifier = expect_identifier(p, "parameter name");
         expect_colon(p);
-        Expr* param_type = parse_expr_type(p);
-        bufpush(params, stmt_param_new(param_identifier, param_type));
+        AstNode* param_type = parse_type(p);
+        bufpush(params, astnode_param_new(param_identifier, param_type));
         if (current(p)->kind != TOKEN_KIND_RPAREN) {
-            expect_comma(p);
+            //expect_comma(p);
+            expect(p, TOKEN_KIND_COMMA, "`,' or ')'");
         }
     }
 
-    Expr* ret_type = type_placeholders.void_type;
-    if (current(p)->kind != TOKEN_KIND_LBRACE) {
-        ret_type = parse_expr_type(p);
-    }
-    return function_header_new(identifier, params, ret_type);
+    AstNode* ret_type = parse_type(p);
+    return astnode_function_header_new(keyword, identifier, params, ret_type);
 }
 
-static Stmt* parse_root_stmt(ParseCtx* p, bool error_on_no_match) {
-    if (match_keyword(p, "fn")) {
-        FunctionHeader header = parse_function_header(p);
-        Token* lbrace = expect_lbrace(p);
-        Expr* body = parse_scoped_block(p, lbrace);
-        return stmt_function_def_new(header, body);
+static AstNode* parse_scoped_block(ParseCtx* p, Token* lbrace) {
+    // TODO: parse val
+    AstNode** stmts = NULL;
+    while (current(p)->kind != TOKEN_KIND_RBRACE) {
+        check_eof(p, lbrace);
+        AstNode* astnode = parse_astnode(p);
+        if (astnode) bufpush(stmts, astnode);
     }
+    goto_next_tok(p);
+    return astnode_scoped_block_new(lbrace, stmts, NULL, previous(p));
 }
-*/
+
+static AstNode* parse_astnode(ParseCtx* p) {
+    if (match_keyword(p, "fn")) {
+        AstNode* header = parse_function_header(p, previous(p));
+        Token* lbrace = expect_lbrace(p);
+        AstNode* body = parse_scoped_block(p, lbrace);
+        return astnode_function_def_new(header, body);
+    }
+
+    Msg msg = msg_with_span(
+        MSG_KIND_ERROR,
+        "expected `fn`, `struct`, `imm` or `mut`",
+        current(p)->span);
+    msg_emit(p, &msg);
+    goto_next_tok(p);
+    return NULL;
+}
 
 void parse(ParseCtx* p) {
-    /*
     while (current(p)->kind != TOKEN_KIND_EOF) {
-        Stmt* stmt = root_stmt(p, true);
-        if (stmt) bufpush(p->srcfile->stmts, stmt);
+        AstNode* astnode = parse_astnode(p);
+        if (astnode) bufpush(p->srcfile->astnodes, astnode);
     }
-    */
     /*
     Token* first = current(p);
     goto_next_tok(p);

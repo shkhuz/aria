@@ -49,8 +49,21 @@ typedef ssize_t ssize;
 #define COMBINE1(X, Y) X##Y
 #define COMBINE(X,Y) COMBINE1(X,Y)
 
+#define alloc_obj(type) (type*)malloc(sizeof(type))
+
 size_t align_to_pow2(size_t n, size_t pow2);
 size_t get_bits_for_value(u128 n);
+// Checks if a slice is equal in contents to a string, NOT VICE VERSA.
+// (ie. compare string and slice but till the length of the string)
+// For example:
+// slice:  "str", 3
+// string: "struct\0"
+// This function will return false.
+// Using strncmp, this comparison will return 0 (equal) even if the
+// contents are different, because the `len` parameter will clamp the string
+// from "struct" to "str", hence returning 0. Though if we strlen before
+// calling strncmp, it would work, but is inefficient.
+bool slice_eql_to_str(const char* slice, int slicelen, const char* str);
 void terminate_compilation();
 
 extern char* g_exec_path;

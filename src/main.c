@@ -30,7 +30,7 @@ Srcfile* read_srcfile(const char* path, OptionalSpan span) {
         } break;
 
         case FOO_FAILURE: {
-            const char* error_msg = "cannot read source file `%s%s%s`";
+            const char* error_msg = aria_format("cannot read source file `%s`", path);
             if (span.exists) {
                 Msg msg = msg_with_span(MSG_KIND_ERROR, error_msg, span.span);
                 _msg_emit(&msg);
@@ -41,7 +41,7 @@ Srcfile* read_srcfile(const char* path, OptionalSpan span) {
         } break;
 
         case FOO_DIRECTORY: {
-            const char* error_msg = "`%s%s%s` is a directory";
+            const char* error_msg = aria_format("`%s` is a directory", path);
             if (span.exists) {
                 Msg msg = msg_with_span(MSG_KIND_ERROR, error_msg, span.span);
                 _msg_emit(&msg);

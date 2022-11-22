@@ -83,15 +83,18 @@ void lex(LexCtx* l) {
 
             case '0': case '1': case '2': case '3': case '4':
             case '5': case '6': case '7': case '8': case '9': {
+                /*
                 // TODO: move these so that we don't initialize them every time.
                 bigint base;
                 bigint_init_u64(&base, 10);
                 bigint val;
                 bigint_init(&val);
+                */
                 
                 while (isdigit(*l->current) || *l->current == '_') {
                     if (*l->current == '_' && !isdigit(*(l->current+1))) break;
 
+                    /*
                     if (*l->current != '_') {
                         int digit = char_to_digit(*l->current);
                         bigint digitbi;
@@ -100,13 +103,10 @@ void lex(LexCtx* l) {
                         bigint_mul(&val, &base, &val);
                         bigint_add(&val, &digitbi, &val);
                     }
+                    */
                     l->current++;
                 }
-
                 push_tok(l, TOKEN_KIND_INTEGER_LITERAL);
-                // We don't explicitly deep copy the `val` struct because
-                // it isn't used after this.
-                //l->srcfile->tokens[buflen(l->srcfile->tokens)-1]->intg.val = val;
             } break;
 
             case '\"': {
@@ -115,9 +115,8 @@ void lex(LexCtx* l) {
                     if (*l->current == '\n' || *l->current == '\0') {
                         Msg msg = msg_with_span(
                             MSG_KIND_ERROR,
-                            aria_format("unterminated string literal"),
+                            "unterminated string literal",
                             span_from_start_to_current(l));
-                        msg_addl_thin(&msg, "terminate with `\"`");
                         msg_emit(l, &msg);
                         l->current++;
                         break;
@@ -187,10 +186,9 @@ void lex(LexCtx* l) {
                     l->ascii_error_table[(unsigned)c] = true;
                     l->invalid_char_error = true;
                     Msg msg = msg_with_span(
-                        MSG_KIND_WARNING,
+                        MSG_KIND_ERROR,
                         "invalid character",
                         span_from_start_to_current(l));
-                    msg_addl_fat(&msg, "cool", span_from_start_to_current(l));
                     msg_emit(l, &msg);
                 }
             } break;

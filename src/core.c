@@ -13,6 +13,24 @@ size_t get_bits_for_value(u128 n) {
     }
     return count;
 }
+
+bool slice_eql_to_str(const char* slice, int slicelen, const char* str) {
+    bool equal = true;
+    const char* c = str;
+    while (*c != '\0') {
+        if (c-str == slicelen) {
+            equal = false;
+            break;
+        }
+        if (*c != slice[c-str]) {
+            equal = false;
+            break;
+        }
+        c++;
+    }
+    if (c-str != slicelen) equal = false;
+    return equal;
+}
     
 void terminate_compilation() {
     exit(1);

@@ -1,5 +1,2 @@
-df
-df
-fd
-	a imm mut iden "dfs".  %..%fd1
-    fd "	df
+fn main() void {
+    fn cool(a: int) void {}
