@@ -85,13 +85,13 @@ AstNode* astnode_scoped_block_new(
 }
 
 AstNode* astnode_function_header_new(
-    Token* keyword,
+    Token* start,
     Token* identifier,
     AstNode** params,
     AstNode* ret_type)
 {
     AstNode* astnode = alloc_obj(AstNode);
-    astnode->span = span_from_two(keyword->span, ret_type->span);
+    astnode->span = span_from_two(start->span, ret_type->span);
     astnode->kind = ASTNODE_KIND_FUNCTION_HEADER;
     astnode->funch.identifier = identifier;
     astnode->funch.params = params;
@@ -105,6 +105,24 @@ AstNode* astnode_function_def_new(AstNode* header, AstNode* body) {
     astnode->kind = ASTNODE_KIND_FUNCTION_DEF;
     astnode->funcd.header = header;
     astnode->funcd.body = body;
+    return astnode;
+}
+
+AstNode* astnode_variable_decl_new(
+    Token* start,
+    bool immutable,
+    Token* identifier,
+    AstNode* type,
+    AstNode* initializer,
+    Token* end)
+{
+    AstNode* astnode = alloc_obj(AstNode);
+    astnode->span = span_from_two(start->span, end->span);
+    astnode->kind = ASTNODE_KIND_VARIABLE_DECL;
+    astnode->vard.immutable = immutable;
+    astnode->vard.identifier = identifier;
+    astnode->vard.type = type;
+    astnode->vard.initializer = initializer;
     return astnode;
 }
 

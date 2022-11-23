@@ -222,7 +222,7 @@ static AstNode* parse_scoped_block(ParseCtx* p, Token* lbrace) {
             AstNode* expr = parse_expr(p, &msg);
             if (current(p)->kind == TOKEN_KIND_RBRACE) val = expr;
             else {
-                expect(p, TOKEN_KIND_SEMICOLON, "`;` or `}`");
+                expect_semicolon(p);
             	// We directly push an AstNode of type expr_stmt
             	bufpush(stmts, expr);
             }
@@ -238,6 +238,27 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
         Token* lbrace = expect_lbrace(p);
         AstNode* body = parse_scoped_block(p, lbrace);
         return astnode_function_def_new(header, body);
+    } else if (match_keyword(p, "imm") || match_keyword(p, "mut")) {
+        Token* keyword = previous(p);
+        bool immutable = true;
+        if (is_token_lexeme(keyword, "mut")) immutable = false; 
+        Token* identifier = expect_identifier(p, "variable name");
+        AstNode* type = NULL;
+        AstNode* initializer = NULL;
+        if (match(p, TOKEN_KIND_COLON)) {
+            type = parse_type(p);
+        }
+        if (match(p, TOKEN_KIND_EQUAL)) {
+            initializer = parse_expr(p, NULL);
+        }
+        expect_semicolon(p);
+        return astnode_variable_decl_new(
+            keyword,
+            immutable,
+            identifier,
+            type,
+            initializer,
+            previous(p));
     }
 
     if (error_on_no_match) {

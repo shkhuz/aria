@@ -222,11 +222,18 @@ AstNode* astnode_scoped_block_new(
     AstNode* val,
     Token* rbrace);
 AstNode* astnode_function_header_new(
-    Token* keyword,
+    Token* start,
     Token* identifier,
     AstNode** params,
     AstNode* ret_type);
 AstNode* astnode_function_def_new(AstNode* header, AstNode* body);
+AstNode* astnode_variable_decl_new(
+    Token* start,
+    bool immutable,
+    Token* identifier,
+    AstNode* type,
+    AstNode* initializer,
+    Token* end);
 AstNode* astnode_param_new(Token* identifier, AstNode* type);
 
 #endif
