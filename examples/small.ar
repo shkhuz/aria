@@ -1,6 +1,6 @@
 fn main() void {
     fn cool(a: int) void {
         fn cool() df {cool}
-        mut name;
+        mut name = cool(a,cool(),mutable({}, {fn cool() void {}}));
     }
 }

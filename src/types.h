@@ -132,6 +132,11 @@ typedef struct {
     AstNode* val;
 } AstNodeScopedBlock;
 
+typedef struct {
+    AstNode* callee;
+    AstNode** args;
+} AstNodeFunctionCall;
+
 typedef enum {
     UNOP_KIND_NEG,
     UNOP_KIND_ADDR,
@@ -181,6 +186,7 @@ typedef enum {
     ASTNODE_KIND_INTEGER_LITERAL,
     ASTNODE_KIND_SYMBOL,
     ASTNODE_KIND_SCOPED_BLOCK,
+    ASTNODE_KIND_FUNCTION_CALL,
     ASTNODE_KIND_UNOP,
     ASTNODE_KIND_BINOP,
     ASTNODE_KIND_FUNCTION_HEADER,
@@ -197,6 +203,7 @@ struct AstNode {
         AstNodeIntegerLiteral intl;
         AstNodeSymbol sym;
         AstNodeScopedBlock blk;
+        AstNodeFunctionCall funcc;
         AstNodeUnOp unop;
         AstNodeBinOp binop;
         AstNodeFunctionHeader funch;
@@ -216,6 +223,7 @@ Type type_custom_init(Token* name);
 
 AstNode* astnode_type_new(Type type, Span span);
 AstNode* astnode_symbol_new(Token* identifier);
+AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end);
 AstNode* astnode_scoped_block_new(
     Token* lbrace,
     AstNode** stmts,

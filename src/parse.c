@@ -4,6 +4,8 @@
 #include "msg.h"
 
 static AstNode* parse_root(ParseCtx* p, bool error_on_no_match);
+static AstNode* parse_expr(ParseCtx* p, const char* custom_msg);
+static AstNode* parse_scoped_block(ParseCtx* p, Token* lbrace);
 
 ParseCtx parse_new_context(Srcfile* srcfile) {
     ParseCtx p;
@@ -62,7 +64,7 @@ static void check_eof(ParseCtx* p, Token* pair) {
             MSG_KIND_ERROR,
             "unexpected end of file",
             current(p)->span);
-        msg_addl_fat(&msg, aria_format("while matching `%to`", pair), pair->span);
+        msg_addl_fat(&msg, "while matching...", pair->span);
         msg_emit(p, &msg);
     }
 }
@@ -161,26 +163,42 @@ static AstNode* parse_type(ParseCtx* p) {
     return NULL;
 }
 
-static AstNode* parse_atom_expr(ParseCtx* p, Msg* custom_msg) {
+static AstNode* parse_atom_expr(ParseCtx* p, const char* custom_msg) {
     if (match(p, TOKEN_KIND_IDENTIFIER)) {
         return astnode_symbol_new(previous(p));
+    } else if (match(p, TOKEN_KIND_LBRACE)) {
+        return parse_scoped_block(p, previous(p));
     }
 
-    if (custom_msg) {
-        msg_emit(p, custom_msg);
-    } else {
-    	Msg msg = msg_with_span(
-    	    MSG_KIND_ERROR,
-    	    "expected expression",
-    	    current(p)->span);
-    	msg_emit(p, &msg);
-    }
+    Msg msg = msg_with_span(
+        MSG_KIND_ERROR,
+        custom_msg ? custom_msg : "expected expression",
+        current(p)->span);
+    msg_emit(p, &msg);
     return NULL;
 }
 
+static AstNode* parse_suffix_expr(ParseCtx* p, const char* custom_msg) {
+    AstNode* left = parse_atom_expr(p, custom_msg);
+    if (match(p, TOKEN_KIND_LPAREN)) {
+        Token* lparen = previous(p);
+        AstNode** args = NULL;
+        while (!match(p, TOKEN_KIND_RPAREN)) {
+            check_eof(p, lparen);
+            AstNode* arg = parse_expr(p, NULL);
+            bufpush(args, arg);
+            if (current(p)->kind != TOKEN_KIND_RPAREN) {
+                expect(p, TOKEN_KIND_COMMA, "`,' or ')'");
+            }
+        }
+        return astnode_function_call_new(left, args, previous(p));
+    }
+    return left;
+}
+
 // Note: `custom_msg` may be passed null
-static AstNode* parse_expr(ParseCtx* p, Msg* custom_msg) {
-    return parse_atom_expr(p, custom_msg);
+static AstNode* parse_expr(ParseCtx* p, const char* custom_msg) {
+    return parse_suffix_expr(p, custom_msg);
 }
 
 static AstNode* parse_function_header(ParseCtx* p, Token* keyword) {
@@ -208,18 +226,16 @@ static AstNode* parse_scoped_block(ParseCtx* p, Token* lbrace) {
     // TODO: parse val
     AstNode** stmts = NULL;
     AstNode* val = NULL;
-    while (current(p)->kind != TOKEN_KIND_RBRACE) {
+    while (!match(p,TOKEN_KIND_RBRACE)) {
         check_eof(p, lbrace);
         AstNode* stmt = parse_root(p, false);
         if (stmt) bufpush(stmts, stmt);
         else {
             // Custom error message for parsing an expression inside a
             // scoped block
-            Msg msg = msg_with_span(
-                MSG_KIND_ERROR,
-                "expected a declaration, definition or an expression",
-                current(p)->span);
-            AstNode* expr = parse_expr(p, &msg);
+            AstNode* expr = parse_expr(
+                p,
+                "expected a declaration, definition or an expression");
             if (current(p)->kind == TOKEN_KIND_RBRACE) val = expr;
             else {
                 expect_semicolon(p);
@@ -228,7 +244,6 @@ static AstNode* parse_scoped_block(ParseCtx* p, Token* lbrace) {
             }
         }
     }
-    goto_next_tok(p);
     return astnode_scoped_block_new(lbrace, stmts, val, previous(p));
 }
 

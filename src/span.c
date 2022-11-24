@@ -1,6 +1,6 @@
 #include "span.h"
 
-Span span_new(Srcfile* srcfile, usize start, usize end) {
+Span span_new(struct Srcfile* srcfile, usize start, usize end) {
     return (Span){
         srcfile,
         start,

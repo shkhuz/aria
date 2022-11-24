@@ -84,6 +84,15 @@ AstNode* astnode_scoped_block_new(
     return astnode;
 }
 
+AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end) {
+    AstNode* astnode = alloc_obj(AstNode);
+    astnode->span = span_from_two(callee->span, end->span);
+    astnode->kind = ASTNODE_KIND_FUNCTION_CALL;
+    astnode->funcc.callee = callee;
+    astnode->funcc.args = args;
+    return astnode;
+}
+
 AstNode* astnode_function_header_new(
     Token* start,
     Token* identifier,

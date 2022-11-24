@@ -3,7 +3,7 @@ C_FILES := $(ALL_C_FILES)
 OBJ_FILES := $(addprefix build/obj/, $(addsuffix .o, $(C_FILES)))
 EXE_FILE := build/aria
 
-CFLAGS := -std=c99 -Ivendor -I. `llvm-config --cflags` -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings
+CFLAGS := -std=c99 -Ivendor -I. `llvm-config --cflags` -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings -Wno-switch-bool
 LDFLAGS := `llvm-config --ldflags --libs`
 AR_FILE := examples/small.ar
 
@@ -13,8 +13,8 @@ else
 	CFLAGS_OPTIMIZE := -g -O0
 endif
 
-CC := gcc
-LD := gcc
+CC := clang
+LD := clang
 
 run: $(EXE_FILE)
 	./$^ -o build/app $(AR_FILE)

@@ -3,10 +3,10 @@
 
 #include "core.h"
 
-typedef struct Srcfile Srcfile;
+struct Srcfile;
 
 typedef struct {
-    Srcfile* srcfile;
+    struct Srcfile* srcfile;
     usize start, end;
 } Span;
 
@@ -15,7 +15,7 @@ typedef struct {
     bool exists;
 } OptionalSpan;
 
-Span span_new(Srcfile* srcfile, usize start, usize end);
+Span span_new(struct Srcfile* srcfile, usize start, usize end);
 Span span_from_two(Span start, Span end);
 
 OptionalSpan span_some(Span span);
