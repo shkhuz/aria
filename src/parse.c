@@ -110,6 +110,10 @@ static Token* expect_lparen(ParseCtx* p) {
     return expect(p, TOKEN_KIND_LPAREN, "`(`");
 }
 
+static Token* expect_rparen(ParseCtx* p) {
+    return expect(p, TOKEN_KIND_RPAREN, "`)`");
+}
+
 static Token* expect_lbrace(ParseCtx* p) {
     return expect(p, TOKEN_KIND_LBRACE, "`{`");
 }
@@ -163,11 +167,47 @@ static AstNode* parse_type(ParseCtx* p) {
     return NULL;
 }
 
+static AstNode* parse_if_branch(ParseCtx* p, Token* keyword, bool elsebr) {
+    AstNode* cond = NULL;
+    if (!elsebr) {
+        expect_lparen(p);
+        cond = parse_expr(p, NULL);
+        expect_rparen(p);
+    }
+    
+    AstNode* body = parse_expr(p, NULL);
+    return astnode_if_branch_new(keyword, cond, body);
+}
+
 static AstNode* parse_atom_expr(ParseCtx* p, const char* custom_msg) {
     if (match(p, TOKEN_KIND_IDENTIFIER)) {
         return astnode_symbol_new(previous(p));
     } else if (match(p, TOKEN_KIND_LBRACE)) {
         return parse_scoped_block(p, previous(p));
+    } else if (match_keyword(p, "if")) {
+        AstNode* ifbr = parse_if_branch(p, previous(p), false);
+        AstNode** elseifbr = NULL;
+        AstNode* elsebr = NULL;
+        
+        for (;;) {
+            if (match_keyword(p, "else")) {
+                Token* keyword = previous(p);
+                if (match_keyword(p, "if")) {
+                    bufpush(elseifbr, parse_if_branch(p, keyword, false));
+                } else {
+                    elsebr = parse_if_branch(p, keyword, true);
+                    break;
+                }
+            }
+            else break;
+        }
+        
+        return astnode_if_new(
+            ifbr,
+            elseifbr,
+            elsebr,
+            elsebr ? elsebr : 
+                (elseifbr ? elseifbr[buflen(elseifbr)-1] : ifbr));
     }
 
     Msg msg = msg_with_span(

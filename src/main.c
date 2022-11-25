@@ -141,7 +141,10 @@ int main(int argc, char* argv[]) {
     bufloop(g_srcfiles, i) {
         LexCtx l = lex_new_context(g_srcfiles[i]);
         lex(&l);
-        if (l.error && !parsing_error) parsing_error = true;
+        if (l.error && !parsing_error) {
+            parsing_error = true;
+            break;
+        }
 
         ParseCtx p = parse_new_context(g_srcfiles[i]);
         parse(&p);

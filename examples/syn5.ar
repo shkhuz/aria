@@ -1,0 +1,11 @@
+struct cool {
+type cool = struct {
+
+enum version {
+type version = enum {
+
+type new_type = int;
+    
+fn main() {
+    
+}

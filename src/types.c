@@ -10,7 +10,10 @@ void init_types() {
     bufpush(keywords, (StringIntMap){ "mut", 0 });
     bufpush(keywords, (StringIntMap){ "fn", 0 });
     bufpush(keywords, (StringIntMap){ "struct", 0 });
-
+    bufpush(keywords, (StringIntMap){ "if", 0 });
+    bufpush(keywords, (StringIntMap){ "else", 0 });
+    bufpush(keywords, (StringIntMap){ "for", 0 });
+    
     bufloop(keywords, i) {
         keywords[i].v = strlen(keywords[i].k);
     }
@@ -82,6 +85,30 @@ AstNode* astnode_scoped_block_new(
     astnode->blk.stmts = stmts;
     astnode->blk.val = val;
     return astnode;
+}
+
+AstNode* astnode_if_branch_new(Token* keyword, AstNode* cond, AstNode* body) {
+    AstNode* astnode = alloc_obj(AstNode);
+    astnode->span = span_from_two(keyword->span, body->span);
+    astnode->kind = ASTNODE_KIND_IF_BRANCH;
+    astnode->ifbr.cond = cond;
+    astnode->ifbr.body = body;
+    return astnode;
+}
+
+AstNode* astnode_if_new(
+    AstNode* ifbr,
+    AstNode** elseifbr,
+    AstNode* elsebr,
+    AstNode* lastbr) 
+{
+    AstNode* astnode = alloc_obj(AstNode);
+    astnode->span = span_from_two(ifbr->span, lastbr->span);
+    astnode->kind = ASTNODE_KIND_IF;
+    astnode->iff.ifbr = ifbr;
+    astnode->iff.elseifbr = elseifbr;
+    astnode->iff.elsebr = elsebr;
+    return astnode;       
 }
 
 AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end) {
