@@ -10,14 +10,16 @@ typedef struct Srcfile Srcfile;
 typedef struct Type Type;
 typedef struct AstNode AstNode;
 
-typedef struct {
-    char* k;
-    int v;
-} StringIntMap;
-
 typedef enum {
     TOKEN_KIND_IDENTIFIER,
-    TOKEN_KIND_KEYWORD,
+    TOKEN_KIND_KEYWORD_IMM,
+    TOKEN_KIND_KEYWORD_MUT,
+    TOKEN_KIND_KEYWORD_FN,
+    TOKEN_KIND_KEYWORD_STRUCT,
+    TOKEN_KIND_KEYWORD_IF,
+    TOKEN_KIND_KEYWORD_ELSE,
+    TOKEN_KIND_KEYWORD_FOR,
+    TOKEN_KIND_KEYWORD_RETURN,
     TOKEN_KIND_STRING,
     TOKEN_KIND_INTEGER_LITERAL,
     TOKEN_KIND_LBRACE,
@@ -52,13 +54,18 @@ typedef struct {
     Span span;
 } Token;
 
+typedef struct {
+    char* k;
+    TokenKind v;
+} StringKwKind;
+
 struct Srcfile {
     File handle;
     Token** tokens;
     AstNode** astnodes;
 };
 
-extern StringIntMap* keywords;
+extern StringKwKind* keywords;
 
 typedef enum {
     TYPE_KIND_PRIMITIVE,
@@ -144,6 +151,10 @@ typedef struct {
 } AstNodeIf;
 
 typedef struct {
+    AstNode* operand;
+} AstNodeReturn;
+
+typedef struct {
     AstNode* callee;
     AstNode** args;
 } AstNodeFunctionCall;
@@ -199,6 +210,7 @@ typedef enum {
     ASTNODE_KIND_SCOPED_BLOCK,
     ASTNODE_KIND_IF_BRANCH,
     ASTNODE_KIND_IF,
+    ASTNODE_KIND_RETURN,
     ASTNODE_KIND_FUNCTION_CALL,
     ASTNODE_KIND_UNOP,
     ASTNODE_KIND_BINOP,
@@ -218,6 +230,7 @@ struct AstNode {
         AstNodeScopedBlock blk;
         AstNodeIfBranch ifbr;
         AstNodeIf iff;
+        AstNodeReturn ret;
         AstNodeFunctionCall funcc;
         AstNodeUnOp unop;
         AstNodeBinOp binop;
@@ -251,6 +264,7 @@ AstNode* astnode_if_new(
     AstNode** elseifbr,
     AstNode* elsebr,
     AstNode* lastbr);
+AstNode* astnode_return_new(Token* keyword, AstNode* operand);
 
 AstNode* astnode_function_header_new(
     Token* start,

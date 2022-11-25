@@ -72,9 +72,8 @@ void lex(LexCtx* l) {
                 }
 
                 bufloop(keywords, i) {
-                    if (keywords[i].v == (l->current-l->start) &&
-                        strncmp(l->start, keywords[i].k, keywords[i].v) == 0) {
-                        kind = TOKEN_KIND_KEYWORD;
+                    if (slice_eql_to_str(l->start, l->current-l->start, keywords[i].k)) {
+                        kind = keywords[i].v;
                         break;
                     }
                 }

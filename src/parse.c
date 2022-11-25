@@ -77,15 +77,6 @@ static bool match(ParseCtx* p, TokenKind kind) {
     return false;
 }
 
-static bool match_keyword(ParseCtx* p, const char* keyword) {
-    if (current(p)->kind == TOKEN_KIND_KEYWORD &&
-        is_token_lexeme(current(p), keyword)) {
-        goto_next_tok(p);
-        return true;
-    }
-    return false;
-}
-
 static Token* expect(ParseCtx* p, TokenKind kind, const char* expected) {
     if (!match(p, kind)) {
         Msg msg = msg_with_span(
@@ -96,10 +87,6 @@ static Token* expect(ParseCtx* p, TokenKind kind, const char* expected) {
         return NULL;
     }
     return previous(p);
-}
-
-static Token* expect_keyword(ParseCtx* p, const char* keyword) {
-    return expect(p, TOKEN_KIND_KEYWORD, aria_format("keyword `%s`, keyword"));
 }
 
 static Token* expect_identifier(ParseCtx* p, const char* expected) {
@@ -184,15 +171,15 @@ static AstNode* parse_atom_expr(ParseCtx* p, const char* custom_msg) {
         return astnode_symbol_new(previous(p));
     } else if (match(p, TOKEN_KIND_LBRACE)) {
         return parse_scoped_block(p, previous(p));
-    } else if (match_keyword(p, "if")) {
+    } else if (match(p, TOKEN_KIND_KEYWORD_IF)) {
         AstNode* ifbr = parse_if_branch(p, previous(p), false);
         AstNode** elseifbr = NULL;
         AstNode* elsebr = NULL;
         
         for (;;) {
-            if (match_keyword(p, "else")) {
+            if (match(p, TOKEN_KIND_KEYWORD_ELSE)) {
                 Token* keyword = previous(p);
-                if (match_keyword(p, "if")) {
+                if (match(p, TOKEN_KIND_KEYWORD_IF)) {
                     bufpush(elseifbr, parse_if_branch(p, keyword, false));
                 } else {
                     elsebr = parse_if_branch(p, keyword, true);
@@ -208,7 +195,13 @@ static AstNode* parse_atom_expr(ParseCtx* p, const char* custom_msg) {
             elsebr,
             elsebr ? elsebr : 
                 (elseifbr ? elseifbr[buflen(elseifbr)-1] : ifbr));
-    }
+    } /*else if (match(p, TOKEN_KIND_KEYWORD_RETURN)) {
+        Token* keyword = previous(p);
+        AstNode* operand = 
+        if (can_token_start_expr(current(p))) {
+        
+        }
+    }*/
 
     Msg msg = msg_with_span(
         MSG_KIND_ERROR,
@@ -288,15 +281,15 @@ static AstNode* parse_scoped_block(ParseCtx* p, Token* lbrace) {
 }
 
 static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
-    if (match_keyword(p, "fn")) {
+    if (match(p, TOKEN_KIND_KEYWORD_FN)) {
         AstNode* header = parse_function_header(p, previous(p));
         Token* lbrace = expect_lbrace(p);
         AstNode* body = parse_scoped_block(p, lbrace);
         return astnode_function_def_new(header, body);
-    } else if (match_keyword(p, "imm") || match_keyword(p, "mut")) {
+    } else if (match(p, TOKEN_KIND_KEYWORD_IMM) || match(p, TOKEN_KIND_KEYWORD_MUT)) {
         Token* keyword = previous(p);
         bool immutable = true;
-        if (is_token_lexeme(keyword, "mut")) immutable = false; 
+        if (keyword->kind == TOKEN_KIND_KEYWORD_MUT) immutable = false; 
         Token* identifier = expect_identifier(p, "variable name");
         AstNode* type = NULL;
         AstNode* initializer = NULL;

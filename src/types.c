@@ -1,22 +1,19 @@
 #include "types.h"
 #include "buf.h"
 
-StringIntMap* keywords = NULL;
+StringKwKind* keywords = NULL;
 
 TypePlaceholders type_placeholders;
 
 void init_types() {
-    bufpush(keywords, (StringIntMap){ "imm", 0 });
-    bufpush(keywords, (StringIntMap){ "mut", 0 });
-    bufpush(keywords, (StringIntMap){ "fn", 0 });
-    bufpush(keywords, (StringIntMap){ "struct", 0 });
-    bufpush(keywords, (StringIntMap){ "if", 0 });
-    bufpush(keywords, (StringIntMap){ "else", 0 });
-    bufpush(keywords, (StringIntMap){ "for", 0 });
-    
-    bufloop(keywords, i) {
-        keywords[i].v = strlen(keywords[i].k);
-    }
+    bufpush(keywords, (StringKwKind){ "imm", TOKEN_KIND_KEYWORD_IMM });
+    bufpush(keywords, (StringKwKind){ "mut", TOKEN_KIND_KEYWORD_MUT });
+    bufpush(keywords, (StringKwKind){ "fn", TOKEN_KIND_KEYWORD_FN });
+    bufpush(keywords, (StringKwKind){ "struct", TOKEN_KIND_KEYWORD_STRUCT });
+    bufpush(keywords, (StringKwKind){ "if", TOKEN_KIND_KEYWORD_IF });
+    bufpush(keywords, (StringKwKind){ "else", TOKEN_KIND_KEYWORD_ELSE });
+    bufpush(keywords, (StringKwKind){ "for", TOKEN_KIND_KEYWORD_FOR });
+    bufpush(keywords, (StringKwKind){ "return", TOKEN_KIND_KEYWORD_RETURN });
 
     type_placeholders.u8_type = type_primitive_init(TYPE_PRIM_U8);
     type_placeholders.u16_type = type_primitive_init(TYPE_PRIM_U16);
@@ -109,6 +106,14 @@ AstNode* astnode_if_new(
     astnode->iff.elseifbr = elseifbr;
     astnode->iff.elsebr = elsebr;
     return astnode;       
+}
+
+AstNode* astnode_return_new(Token* keyword, AstNode* operand) {
+    AstNode* astnode = alloc_obj(AstNode);
+    astnode->span = span_from_two(keyword->span, operand ? operand->span : keyword->span);
+    astnode->kind = ASTNODE_KIND_RETURN;
+    astnode->ret.operand = operand;
+    return astnode;
 }
 
 AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end) {
