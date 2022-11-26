@@ -125,7 +125,7 @@ typedef struct {
 } AstNodeType;
 
 typedef struct {
-    Token* tok;
+    Token* token;
     bigint val;
 } AstNodeIntegerLiteral;
 
@@ -252,6 +252,7 @@ Type type_custom_init(Token* name);
 
 AstNode* astnode_type_new(Type type, Span span);
 
+AstNode* astnode_integer_literal_new(Token* token, bigint val);
 AstNode* astnode_symbol_new(Token* identifier);
 AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end);
 AstNode* astnode_scoped_block_new(

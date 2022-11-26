@@ -44,7 +44,8 @@ bool can_token_start_expr(Token* token) {
     if (token->kind == TOKEN_KIND_IDENTIFIER
         || token->kind == TOKEN_KIND_LBRACE
         || token->kind == TOKEN_KIND_KEYWORD_IF
-        || token->kind == TOKEN_KIND_KEYWORD_RETURN) {
+        || token->kind == TOKEN_KIND_KEYWORD_RETURN
+        || token->kind == TOKEN_KIND_INTEGER_LITERAL) {
         return true;    
     }
     return false;
@@ -69,6 +70,15 @@ AstNode* astnode_type_new(Type type, Span span) {
     astnode->span = span;
     astnode->kind = ASTNODE_KIND_TYPE;
     astnode->type.type = type;
+    return astnode;
+}
+
+AstNode* astnode_integer_literal_new(Token* token, bigint val) {
+    AstNode* astnode = alloc_obj(AstNode);
+    astnode->span = token->span;
+    astnode->kind = ASTNODE_KIND_INTEGER_LITERAL;
+    astnode->intl.token = token;
+    astnode->intl.val = val;
     return astnode;
 }
 

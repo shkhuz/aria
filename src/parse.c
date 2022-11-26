@@ -195,6 +195,27 @@ static AstNode* parse_atom_expr(ParseCtx* p, const char* custom_msg) {
             operand = parse_expr(p, NULL);
         }
         return astnode_return_new(keyword, operand);
+    } else if (match(p, TOKEN_KIND_INTEGER_LITERAL)) {
+        Token* token = p->prev;
+        bigint val;
+        bigint_init(&val);
+        // TODO: move so that these are only initialized once
+        bigint base;
+        bigint_init_u64(&base, 10);
+        bigint digit;
+        bigint_init(&digit);
+        
+        for (usize i = token->span.start; i < token->span.end; i++) {
+            char c = token->span.srcfile->handle.contents[i];
+            if (c != '_') {
+            	int d = c - '0';
+                bigint_set_u64(&digit, (u64)d);
+            	bigint_mul(&val, &base, &val);
+            	bigint_add(&val, &digit, &val);
+            }
+        }
+        
+        return astnode_integer_literal_new(token, val);
     }
     // NOTE: Add the case to `can_token_begin_expr()`
 
