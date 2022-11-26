@@ -245,6 +245,7 @@ void init_types();
 
 Token* token_new(TokenKind kind, Span span);
 bool is_token_lexeme(Token* token, const char* string);
+bool can_token_start_expr(Token* token);
 
 Type type_primitive_init(TypePrimitiveKind kind);
 Type type_custom_init(Token* name);

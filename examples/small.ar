@@ -3,6 +3,8 @@ fn main() void {
         fn cool() df {cool}
         mut name = cool(a,cool(),mutable({}, {fn cool() void {}}));
         imm war = if (cool) call() else cool;
+        if (main) if (cool) foo else foo;
         func();
+        return {};
     }
 }

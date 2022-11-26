@@ -6,6 +6,8 @@
 
 typedef struct {
     Srcfile* srcfile;
+    Token* current;
+    Token* prev;
     usize token_idx;
     bool error;
 } ParseCtx;

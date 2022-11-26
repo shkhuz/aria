@@ -40,6 +40,16 @@ bool is_token_lexeme(Token* token, const char* string) {
         string);
 }
 
+bool can_token_start_expr(Token* token) {
+    if (token->kind == TOKEN_KIND_IDENTIFIER
+        || token->kind == TOKEN_KIND_LBRACE
+        || token->kind == TOKEN_KIND_KEYWORD_IF
+        || token->kind == TOKEN_KIND_KEYWORD_RETURN) {
+        return true;    
+    }
+    return false;
+}
+
 Type type_primitive_init(TypePrimitiveKind kind) {
     Type type;
     type.kind = TYPE_KIND_PRIMITIVE;
