@@ -24,10 +24,16 @@ typedef struct {
 
 typedef struct {
     AstNode** stmts;
-    AstNode* val;
 } AstNodeScopedBlock;
 
+typedef enum {
+    IFBR_IF,
+    IFBR_ELSEIF,
+    IFBR_ELSE,
+} IfBranchKind;
+
 typedef struct {
+    IfBranchKind kind;
     AstNode* cond;
     AstNode* body;
 } AstNodeIfBranch;
@@ -71,7 +77,7 @@ typedef struct {
     Span span;
     Token* identifier;
     AstNode** params;
-    AstNode* ret_type;
+    AstNode* ret_typespec;
 } AstNodeFunctionHeader;
 
 typedef struct {
@@ -82,13 +88,13 @@ typedef struct {
 typedef struct {
     bool immutable;
     Token* identifier;
-    AstNode* type;
+    AstNode* typespec;
     AstNode* initializer;
 } AstNodeVariableDecl;
 
 typedef struct {
     Token* identifier;
-    AstNode* type;
+    AstNode* typespec;
 } AstNodeParamDecl;
 
 typedef enum {
@@ -107,6 +113,7 @@ typedef enum {
     ASTNODE_FUNCTION_DEF,
     ASTNODE_VARIABLE_DECL,
     ASTNODE_PARAM_DECL,
+    ASTNODE_EXPRSTMT,
 } AstNodeKind;
 
 struct AstNode {
@@ -128,6 +135,7 @@ struct AstNode {
         AstNodeFunctionDef funcd;
         AstNodeVariableDecl vard;
         AstNodeParamDecl paramd;
+        AstNode* exprstmt;
     };
 };
 
@@ -139,9 +147,12 @@ AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end);
 AstNode* astnode_scoped_block_new(
     Token* lbrace,
     AstNode** stmts,
-    AstNode* val,
     Token* rbrace);
-AstNode* astnode_if_branch_new(Token* keyword, AstNode* cond, AstNode* body);
+AstNode* astnode_if_branch_new(
+    Token* keyword, 
+    IfBranchKind kind,
+    AstNode* cond, 
+    AstNode* body);
 AstNode* astnode_if_new(
     AstNode* ifbr,
     AstNode** elseifbr,
@@ -153,15 +164,16 @@ AstNode* astnode_function_header_new(
     Token* start,
     Token* identifier,
     AstNode** params,
-    AstNode* ret_type);
+    AstNode* ret_typespec);
 AstNode* astnode_function_def_new(AstNode* header, AstNode* body);
 AstNode* astnode_variable_decl_new(
     Token* start,
     bool immutable,
     Token* identifier,
-    AstNode* type,
+    AstNode* typespec,
     AstNode* initializer,
     Token* end);
-AstNode* astnode_param_new(Token* identifier, AstNode* type);
+AstNode* astnode_param_new(Token* identifier, AstNode* typespec);
+AstNode* astnode_exprstmt_new(AstNode* expr);
 
 #endif

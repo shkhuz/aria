@@ -33,24 +33,24 @@ AstNode* astnode_symbol_new(Token* identifier, bool is_typespec) {
     return astnode;
 }
 
-AstNode* astnode_scoped_block_new(
-    Token* lbrace,
-    AstNode** stmts,
-    AstNode* val,
-    Token* rbrace)
-{
+AstNode* astnode_scoped_block_new(Token* lbrace, AstNode** stmts, Token* rbrace) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_SCOPED_BLOCK, 
         span_from_two(lbrace->span, rbrace->span));
     astnode->blk.stmts = stmts;
-    astnode->blk.val = val;
     return astnode;
 }
 
-AstNode* astnode_if_branch_new(Token* keyword, AstNode* cond, AstNode* body) {
+AstNode* astnode_if_branch_new(
+    Token* keyword, 
+    IfBranchKind kind,
+    AstNode* cond, 
+    AstNode* body)
+{
     AstNode* astnode = astnode_alloc(
         ASTNODE_IF_BRANCH,
         span_from_two(keyword->span, body->span));
+    astnode->ifbr.kind = kind;
     astnode->ifbr.cond = cond;
     astnode->ifbr.body = body;
     return astnode;
@@ -92,14 +92,14 @@ AstNode* astnode_function_header_new(
     Token* start,
     Token* identifier,
     AstNode** params,
-    AstNode* ret_type)
+    AstNode* ret_typespec)
 {
     AstNode* astnode = astnode_alloc(
         ASTNODE_FUNCTION_HEADER,
-        span_from_two(start->span, ret_type->span));
+        span_from_two(start->span, ret_typespec->span));
     astnode->funch.identifier = identifier;
     astnode->funch.params = params;
-    astnode->funch.ret_type = ret_type;
+    astnode->funch.ret_typespec = ret_typespec;
     return astnode;
 }
 
@@ -116,7 +116,7 @@ AstNode* astnode_variable_decl_new(
     Token* start,
     bool immutable,
     Token* identifier,
-    AstNode* type,
+    AstNode* typespec,
     AstNode* initializer,
     Token* end)
 {
@@ -125,16 +125,24 @@ AstNode* astnode_variable_decl_new(
         span_from_two(start->span, end->span));
     astnode->vard.immutable = immutable;
     astnode->vard.identifier = identifier;
-    astnode->vard.type = type;
+    astnode->vard.typespec = typespec;
     astnode->vard.initializer = initializer;
     return astnode;
 }
 
-AstNode* astnode_param_new(Token* identifier, AstNode* type) {
+AstNode* astnode_param_new(Token* identifier, AstNode* typespec) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_PARAM_DECL,
-        span_from_two(identifier->span, type->span));
+        span_from_two(identifier->span, typespec->span));
     astnode->paramd.identifier = identifier;
-    astnode->paramd.type = type;
+    astnode->paramd.typespec = typespec;
+    return astnode;
+}
+
+AstNode* astnode_exprstmt_new(AstNode* expr) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_EXPRSTMT, 
+        expr->span);
+    astnode->exprstmt = expr;
     return astnode;
 }

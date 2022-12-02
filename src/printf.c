@@ -223,7 +223,7 @@ static int aria_vprint(void* out, bool out_is_file, const char* fmt, va_list arg
                         out_is_file,
                         &span.srcfile->handle.contents[span.start],
                         span.end - span.start);
-                }
+                } 
 
                 if (padding & FPAD_RIGHT) {
                     char padchar = ' ';

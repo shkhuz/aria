@@ -1,12 +1,21 @@
 fn main() void {
-    fn cool(a: int) void {
-        fn cool() df {cool}
+    fn cool(a: int, b: int) void {
+        fn cool() df {cool;}
         mut name = cool(a,cool(),mutable({}, {fn cool() void {}}));
-        imm war = if (cool) call() else cool;
+        imm war = if (cool) {call();} else cool;
+        {mut name = {cool;};}
+        
         if (main) {
             if (cool) 1 else {}
         }
         func(1, 2);
-        return {2};
+        return 2;
     }
 }
+
+// (if (cond) 
+//      ...
+//  elseif (cond)
+//      ... 
+//  else
+//      ...)
