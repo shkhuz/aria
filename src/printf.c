@@ -1,6 +1,6 @@
 #include "printf.h"
 #include "buf.h"
-#include "types.h"
+#include "misc.h"
 
 typedef enum {
     FPAD_RIGHT = 1,

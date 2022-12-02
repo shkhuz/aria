@@ -1,11 +1,35 @@
-struct cool {
-type cool = struct {
+import "std.ar" as std;
 
-enum version {
-type version = enum {
+type IoHandle = std.io.handle;
+imm print = std.io.print;
 
-type new_type = int;
+type Volume = distinct f32;
+
+type Player = struct {
+    skill: SkillKind,
+    x: u32,
+    y: u32,
+};
+
+type SkillKind = enum {
+    moderate,
+    good,
+    best,
+};
+
+fn main() void {
+    imm player = init() ? return;
+}
+
+fn init() ?Player {
+    imm player = Player {
+        .x = 0,
+        .y = 0,
+        .skill = .good,
+    };
+    if (player.print()) {
     
-fn main() {
-    
+    }
+    std.print("{}, {}", [player.x, player.y]);
+    return player;
 }

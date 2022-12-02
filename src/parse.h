@@ -2,7 +2,8 @@
 #define PARSE_H
 
 #include "core.h"
-#include "types.h"
+#include "misc.h"
+#include "ast.h"
 
 typedef struct {
     Srcfile* srcfile;

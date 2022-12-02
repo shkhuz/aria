@@ -3,6 +3,7 @@
 #include "cmd.h"
 #include "printf.h"
 #include "buf.h"
+#include "misc.h"
 
 static bool did_msg = false;
 
@@ -102,17 +103,17 @@ void _msg_emit(Msg* msg) {
     const char* color = "";
     const char* msg_color = g_cornflower_blue_color;
     switch (msg->kind) {
-        case MSG_KIND_ERROR: {
+        case MSG_ERROR: {
             color = g_error_color;
             aria_fprintf(stderr, "%serror%s: %s", color, g_bold_color, msg_color);
         } break;
 
-        case MSG_KIND_WARNING: {
+        case MSG_WARNING: {
             color = g_warning_color;
             aria_fprintf(stderr, "%swarning%s: %s", color, g_bold_color, msg_color);
         } break;
 
-        case MSG_KIND_NOTE: {
+        case MSG_NOTE: {
             color = g_note_color;
             aria_fprintf(stderr, "%snote%s: %s", color, g_bold_color, msg_color);
         } break;

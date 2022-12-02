@@ -2,7 +2,7 @@
 #define LEX_H
 
 #include "core.h"
-#include "types.h"
+#include "misc.h"
 
 typedef struct {
     Srcfile* srcfile;

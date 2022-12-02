@@ -3,8 +3,6 @@
 
 #include "core.h"
 
-struct Srcfile;
-
 typedef struct {
     struct Srcfile* srcfile;
     usize start, end;

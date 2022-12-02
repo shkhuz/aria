@@ -1,12 +1,12 @@
 #ifndef MSG_H
 #define MSG_H
 
-#include "types.h"
+#include "span.h"
 
 typedef enum {
-    MSG_KIND_ERROR,
-    MSG_KIND_WARNING,
-    MSG_KIND_NOTE,
+    MSG_ERROR,
+    MSG_WARNING,
+    MSG_NOTE,
 } MsgKind;
 
 typedef struct {

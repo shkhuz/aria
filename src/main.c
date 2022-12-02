@@ -1,12 +1,13 @@
 #include "core.h"
 #include "buf.h"
-#include "types.h"
+#include "misc.h"
 #include "printf.h"
 #include "bigint.h"
 #include "file_io.h"
 #include "msg.h"
 #include "cmd.h"
 #include "lex.h"
+#include "ast.h"
 #include "parse.h"
 
 #include <getopt.h>
@@ -32,10 +33,10 @@ Srcfile* read_srcfile(const char* path, OptionalSpan span) {
         case FOO_FAILURE: {
             const char* error_msg = aria_format("cannot read source file `%s`", path);
             if (span.exists) {
-                Msg msg = msg_with_span(MSG_KIND_ERROR, error_msg, span.span);
+                Msg msg = msg_with_span(MSG_ERROR, error_msg, span.span);
                 _msg_emit(&msg);
             } else {
-                Msg msg = msg_with_no_span(MSG_KIND_ERROR, error_msg);
+                Msg msg = msg_with_no_span(MSG_ERROR, error_msg);
                 _msg_emit(&msg);
             }
         } break;
@@ -43,10 +44,10 @@ Srcfile* read_srcfile(const char* path, OptionalSpan span) {
         case FOO_DIRECTORY: {
             const char* error_msg = aria_format("`%s` is a directory", path);
             if (span.exists) {
-                Msg msg = msg_with_span(MSG_KIND_ERROR, error_msg, span.span);
+                Msg msg = msg_with_span(MSG_ERROR, error_msg, span.span);
                 _msg_emit(&msg);
             } else {
-                Msg msg = msg_with_no_span(MSG_KIND_ERROR, error_msg);
+                Msg msg = msg_with_no_span(MSG_ERROR, error_msg);
                 _msg_emit(&msg);
             }
         } break;
@@ -122,7 +123,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (optind == argc) {
-        Msg msg = msg_with_no_span(MSG_KIND_ERROR, "no input files");
+        Msg msg = msg_with_no_span(MSG_ERROR, "no input files");
         _msg_emit(&msg);
         terminate_compilation();
     }

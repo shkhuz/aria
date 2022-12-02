@@ -47,7 +47,7 @@ static inline int char_to_digit(char c) {
 }
 
 static inline void msg_emit(LexCtx* l, Msg* msg) {
-    if (msg->kind == MSG_KIND_ERROR) l->error = true;
+    if (msg->kind == MSG_ERROR) l->error = true;
     _msg_emit(msg);
 }
 
@@ -66,7 +66,7 @@ void lex(LexCtx* l) {
             case 'O': case 'P': case 'Q': case 'R': case 'S':
             case 'T': case 'U': case 'V': case 'W': case 'X':
             case 'Y': case 'Z': case '_': {
-                TokenKind kind = TOKEN_KIND_IDENTIFIER;
+                TokenKind kind = TOKEN_IDENTIFIER;
                 while (isalnum(*l->current) || *l->current == '_') {
                     l->current++;
                 }
@@ -105,7 +105,7 @@ void lex(LexCtx* l) {
                     */
                     l->current++;
                 }
-                push_tok(l, TOKEN_KIND_INTEGER_LITERAL);
+                push_tok(l, TOKEN_INTEGER_LITERAL);
             } break;
 
             case '\"': {
@@ -113,7 +113,7 @@ void lex(LexCtx* l) {
                 while (*l->current != '\"') {
                     if (*l->current == '\n' || *l->current == '\0') {
                         Msg msg = msg_with_span(
-                            MSG_KIND_ERROR,
+                            MSG_ERROR,
                             "unterminated string literal",
                             span_from_start_to_current(l));
                         msg_emit(l, &msg);
@@ -124,34 +124,34 @@ void lex(LexCtx* l) {
                 }
 
                 l->current++;
-                Token* t = token_new(TOKEN_KIND_STRING, span_from_start_to_current(l));
+                Token* t = token_new(TOKEN_STRING, span_from_start_to_current(l));
                 bufpush(l->srcfile->tokens, t);
             } break;
 
-            case '{': push_tok_adv(l, TOKEN_KIND_LBRACE); break;
-            case '}': push_tok_adv(l, TOKEN_KIND_RBRACE); break;
-            case '[': push_tok_adv(l, TOKEN_KIND_LBRACK); break;
-            case ']': push_tok_adv(l, TOKEN_KIND_RBRACK); break;
-            case '(': push_tok_adv(l, TOKEN_KIND_LPAREN); break;
-            case ')': push_tok_adv(l, TOKEN_KIND_RPAREN); break;
-            case ':': push_tok_adv(l, TOKEN_KIND_COLON); break;
-            case ';': push_tok_adv(l, TOKEN_KIND_SEMICOLON); break;
-            case '.': push_tok_adv(l, TOKEN_KIND_DOT); break;
-            case ',': push_tok_adv(l, TOKEN_KIND_COMMA); break;
-            case '=': push_tok_adv_cond(l, '=', TOKEN_KIND_DOUBLE_EQUAL, TOKEN_KIND_EQUAL); break;
-            case '!': push_tok_adv_cond(l, '=', TOKEN_KIND_BANG_EQUAL, TOKEN_KIND_BANG); break;
-            case '<': push_tok_adv_cond(l, '=', TOKEN_KIND_LANGBR_EQUAL, TOKEN_KIND_LANGBR); break;
-            case '>': push_tok_adv_cond(l, '=', TOKEN_KIND_RANGBR_EQUAL, TOKEN_KIND_RANGBR); break;
-            case '&': push_tok_adv_cond(l, '&', TOKEN_KIND_DOUBLE_AMP, TOKEN_KIND_AMP); break;
-            case '+': push_tok_adv(l, TOKEN_KIND_PLUS); break;
-            case '-': push_tok_adv(l, TOKEN_KIND_MINUS); break;
-            case '*': push_tok_adv(l, TOKEN_KIND_STAR); break;
+            case '{': push_tok_adv(l, TOKEN_LBRACE); break;
+            case '}': push_tok_adv(l, TOKEN_RBRACE); break;
+            case '[': push_tok_adv(l, TOKEN_LBRACK); break;
+            case ']': push_tok_adv(l, TOKEN_RBRACK); break;
+            case '(': push_tok_adv(l, TOKEN_LPAREN); break;
+            case ')': push_tok_adv(l, TOKEN_RPAREN); break;
+            case ':': push_tok_adv(l, TOKEN_COLON); break;
+            case ';': push_tok_adv(l, TOKEN_SEMICOLON); break;
+            case '.': push_tok_adv(l, TOKEN_DOT); break;
+            case ',': push_tok_adv(l, TOKEN_COMMA); break;
+            case '=': push_tok_adv_cond(l, '=', TOKEN_DOUBLE_EQUAL, TOKEN_EQUAL); break;
+            case '!': push_tok_adv_cond(l, '=', TOKEN_BANG_EQUAL, TOKEN_BANG); break;
+            case '<': push_tok_adv_cond(l, '=', TOKEN_LANGBR_EQUAL, TOKEN_LANGBR); break;
+            case '>': push_tok_adv_cond(l, '=', TOKEN_RANGBR_EQUAL, TOKEN_RANGBR); break;
+            case '&': push_tok_adv_cond(l, '&', TOKEN_DOUBLE_AMP, TOKEN_AMP); break;
+            case '+': push_tok_adv(l, TOKEN_PLUS); break;
+            case '-': push_tok_adv(l, TOKEN_MINUS); break;
+            case '*': push_tok_adv(l, TOKEN_STAR); break;
 
             case '/': {
                 if (*(l->current+1) == '/') {
                     while (*l->current != '\n' && *l->current != '\0') l->current++;
                 } else {
-                    push_tok_adv(l, TOKEN_KIND_FSLASH);
+                    push_tok_adv(l, TOKEN_FSLASH);
                 }
             } break;
 
@@ -167,10 +167,10 @@ void lex(LexCtx* l) {
             } break;
 
             case '\0': {
-                push_tok_adv(l, TOKEN_KIND_EOF);
+                push_tok_adv(l, TOKEN_EOF);
                 if (l->invalid_char_error) {
                     Msg msg = msg_with_no_span(
-                        MSG_KIND_NOTE,
+                        MSG_NOTE,
                         "each invalid character is reported only once");
                     msg_emit(l, &msg);
                 }
@@ -185,7 +185,7 @@ void lex(LexCtx* l) {
                     l->ascii_error_table[(unsigned)c] = true;
                     l->invalid_char_error = true;
                     Msg msg = msg_with_span(
-                        MSG_KIND_ERROR,
+                        MSG_ERROR,
                         "invalid character",
                         span_from_start_to_current(l));
                     msg_emit(l, &msg);
