@@ -6,12 +6,16 @@ fn main() void {
         {mut name = {cool;};}
         
         if (main) {
-            if (cool) 1 else {}
+            if (cool) 1 else {type Cool = Cool;}
         }
         func(1, 2);
         return 2;
+        yield 1;
     }
 }
+
+type Main = ff;
+type Main = *Main;
 
 // (if (cond) 
 //      ...

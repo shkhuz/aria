@@ -24,6 +24,7 @@ typedef struct {
 
 typedef struct {
     AstNode** stmts;
+    AstNode* val;
 } AstNodeScopedBlock;
 
 typedef enum {
@@ -74,6 +75,11 @@ typedef struct {
 } AstNodeBinOp;
 
 typedef struct {
+    Token* identifier;
+    AstNode* right;
+} AstNodeTypeDecl;
+
+typedef struct {
     Span span;
     Token* identifier;
     AstNode** params;
@@ -109,6 +115,7 @@ typedef enum {
     ASTNODE_FUNCTION_CALL,
     ASTNODE_UNOP,
     ASTNODE_BINOP,
+    ASTNODE_TYPEDECL,
     ASTNODE_FUNCTION_HEADER,
     ASTNODE_FUNCTION_DEF,
     ASTNODE_VARIABLE_DECL,
@@ -123,7 +130,7 @@ struct AstNode {
         AstNodeTypespecPtr typeptr;
         AstNodeIntegerLiteral intl;
         // Also used for `ASTNODE_TYPESPEC_SYMBOL`
-        AstNodeSymbol sym; 
+        AstNodeSymbol sym;
         AstNodeScopedBlock blk;
         AstNodeIfBranch ifbr;
         AstNodeIf iff;
@@ -131,6 +138,7 @@ struct AstNode {
         AstNodeFunctionCall funcc;
         AstNodeUnOp unop;
         AstNodeBinOp binop;
+        AstNodeTypeDecl typedecl;
         AstNodeFunctionHeader funch;
         AstNodeFunctionDef funcd;
         AstNodeVariableDecl vard;
@@ -147,11 +155,12 @@ AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end);
 AstNode* astnode_scoped_block_new(
     Token* lbrace,
     AstNode** stmts,
+    AstNode* val,
     Token* rbrace);
 AstNode* astnode_if_branch_new(
-    Token* keyword, 
+    Token* keyword,
     IfBranchKind kind,
-    AstNode* cond, 
+    AstNode* cond,
     AstNode* body);
 AstNode* astnode_if_new(
     AstNode* ifbr,
@@ -160,6 +169,7 @@ AstNode* astnode_if_new(
     AstNode* lastbr);
 AstNode* astnode_return_new(Token* keyword, AstNode* operand);
 
+AstNode* astnode_typedecl_new(Token* keyword, Token* identifier, AstNode* right);
 AstNode* astnode_function_header_new(
     Token* start,
     Token* identifier,
