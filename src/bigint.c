@@ -126,7 +126,7 @@ static bigint_err _bigint_add(const bigint* a, const bigint* b, bigint* c) {
     size_t oldused, MIN, MAX, i;
     u64 u;
     bigint_err err;
-    
+
     if (a->used < b->used) {
         SWAP_VARS(const bigint*, a, b);
     }
@@ -228,17 +228,17 @@ bigint_err bigint_neg(const bigint* a, bigint* b) {
         return err;
     }
 
-    b->sign = 
-        ((!bigint_iszero(b) && !bigint_isneg(b)) ? 
-         BIGINT_SIGN_NEG : 
+    b->sign =
+        ((!bigint_iszero(b) && !bigint_isneg(b)) ?
+         BIGINT_SIGN_NEG :
          BIGINT_SIGN_ZPOS);
     return BIGINT_ERR_OKAY;
 }
 
 static bigint_err _bigint_mul(
-        const bigint* a, 
-        const bigint* b, 
-        bigint* c, 
+        const bigint* a,
+        const bigint* b,
+        bigint* c,
         size_t size_in_digits) {
     bigint t;
     bigint_err err;
@@ -255,7 +255,7 @@ static bigint_err _bigint_mul(
         u64 u = 0;
         pb = MIN(b->used, size_in_digits - ix);
         for (iy = 0; iy < pb; iy++) {
-            u128 r = (u128)t.d[ix + iy] + 
+            u128 r = (u128)t.d[ix + iy] +
                      ((u128)a->d[ix] * (u128)b->d[iy]) +
                      (u128)u;
             t.d[ix + iy] = (u64)(r & (u128)BIGINT_MASK);

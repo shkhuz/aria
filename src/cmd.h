@@ -2,7 +2,7 @@
 #define CMD_H
 
 #define EC_8BITCOLOR(colorstr, boldstr) \
-    "\x1B[" boldstr ";38;5;" colorstr "m" 
+    "\x1B[" boldstr ";38;5;" colorstr "m"
 
 extern char* g_error_color;
 extern char* g_warning_color;

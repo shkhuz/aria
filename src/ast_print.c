@@ -8,18 +8,21 @@ static bool indent_block = true;
 
 static void print_node(AstNode* astnode);
 
-static void print_symbol(AstNode* astnode) {
-    aria_printf("%to", astnode->sym.identifier);
+static void print_token(Token* token) {
+    printf(
+        "%.*s",
+        (int)(token->span.end - token->span.start),
+        &token->span.srcfile->handle.contents[token->span.start]);
 }
 
 static inline void format() {
-    aria_printf("\n");
-    for (int i = 0; i < indent; i++) aria_printf(" ");
+    printf("\n");
+    for (int i = 0; i < indent; i++) printf(" ");
 }
 
 static void print_node(AstNode* astnode) {
     if (!astnode) {
-        aria_printf("nil");
+        printf("nil");
         return;
     }
 
@@ -37,37 +40,37 @@ static void print_node(AstNode* astnode) {
     }
 
     switch (astnode->kind) {
-        case ASTNODE_TYPESPEC_SYMBOL: {
-            print_symbol(astnode);
+        case ASTNODE_TYPESPEC_IDENTIFIER: {
+            print_node(astnode->typeident.child);
         } break;
 
         case ASTNODE_TYPESPEC_PTR: {
-            aria_printf("*");
+            printf("*");
             print_node(astnode->typeptr.child);
         } break;
 
         case ASTNODE_INTEGER_LITERAL: {
-            aria_printf("%to", astnode->intl.token);
+            print_token(astnode->intl.token);
         } break;
 
         case ASTNODE_SYMBOL: {
-            print_symbol(astnode);
+            print_token(astnode->sym.identifier);
         } break;
 
         case ASTNODE_SCOPED_BLOCK: {
             bool indented = indent_block;
             if (indent_block) indent += 4;
-            aria_printf("(block");
+            printf("(block");
             bufloop(astnode->blk.stmts, i) {
                 print_node(astnode->blk.stmts[i]);
             }
             if (astnode->blk.val) {
                 format();
-                aria_printf("(yield ");
+                printf("(yield ");
                 print_node(astnode->blk.val);
-                aria_printf(")");
+                printf(")");
             }
-            aria_printf(")");
+            printf(")");
             // Here indent_block may be changed by an external function, that's
             // why we save `indent_block` at the start
             if (indented) indent -= 4;
@@ -75,19 +78,19 @@ static void print_node(AstNode* astnode) {
 
         case ASTNODE_IF_BRANCH: {
             switch (astnode->ifbr.kind) {
-                case IFBR_IF: aria_printf("if "); break;
-                case IFBR_ELSEIF: aria_printf("else if "); break;
-                case IFBR_ELSE: aria_printf("else "); break;
+                case IFBR_IF: printf("if "); break;
+                case IFBR_ELSEIF: printf("else if "); break;
+                case IFBR_ELSE: printf("else "); break;
             }
             if (astnode->ifbr.kind != IFBR_ELSE) {
                 print_node(astnode->ifbr.cond);
-                aria_printf(" ");
+                printf(" ");
             }
             print_node(astnode->ifbr.body);
         } break;
 
         case ASTNODE_IF: {
-            aria_printf("(");
+            printf("(");
             indent += 1;
             print_formatting = false;
             print_node(astnode->iff.ifbr);
@@ -96,83 +99,97 @@ static void print_node(AstNode* astnode) {
             }
             if (astnode->iff.elsebr) print_node(astnode->iff.elsebr);
             indent -= 1;
-            aria_printf(")");
+            printf(")");
         } break;
 
         case ASTNODE_RETURN: {
-            aria_printf("(return");
+            printf("(return");
             if (astnode->ret.operand) {
-                aria_printf(" ");
+                printf(" ");
                 print_node(astnode->ret.operand);
             }
-            aria_printf(")");
+            printf(")");
         } break;
 
         case ASTNODE_FUNCTION_CALL: {
-            aria_printf("(call ");
+            printf("(call ");
             print_node(astnode->funcc.callee);
             bufloop(astnode->funcc.args, i) {
-                aria_printf(" ");
+                printf(" ");
                 print_node(astnode->funcc.args[i]);
             }
-            aria_printf(")");
+            printf(")");
+        } break;
+
+        case ASTNODE_ACCESS: {
+            printf("(access ");
+            print_node(astnode->acc.left);
+            printf(" ");
+            print_token(astnode->acc.right);
+            printf(")");
         } break;
 
         case ASTNODE_TYPEDECL: {
-            aria_printf("(typedecl %to ", astnode->typedecl.identifier);
+            printf("(typedecl ");
+            print_token(astnode->typedecl.identifier);
+            printf(" ");
             indent += 4;
             print_node(astnode->typedecl.right);
             indent -= 4;
-            aria_printf(")");
+            printf(")");
         } break;
 
         case ASTNODE_FUNCTION_HEADER: {
-            aria_printf("fn %to (", astnode->funch.identifier);
+            printf("fn ");
+            print_token(astnode->funch.identifier);
+            printf(" (");
             bufloop(astnode->funch.params, i) {
                 print_node(astnode->funch.params[i]);
-                if (i != buflen(astnode->funch.params)-1) aria_printf(", ");
+                if (i != buflen(astnode->funch.params)-1) printf(", ");
             }
-            aria_printf(") ");
+            printf(") ");
             print_node(astnode->funch.ret_typespec);
         } break;
 
         case ASTNODE_FUNCTION_DEF: {
-            aria_printf("(");
+            printf("(");
             print_node(astnode->funcd.header);
-            aria_printf(" ");
+            printf(" ");
             indent += 4;
             indent_block = false;
             print_node(astnode->funcd.body);
             indent -= 4;
-            aria_printf(")");
+            printf(")");
         } break;
 
         case ASTNODE_VARIABLE_DECL: {
-            aria_printf("(storage ");
-            if (astnode->vard.immutable) aria_printf("imm ");
-            else aria_printf("mut ");
-            aria_printf("%to ", astnode->vard.identifier);
+            printf("(storage ");
+            if (astnode->vard.immutable) printf("imm ");
+            else printf("mut ");
+            print_token(astnode->vard.identifier);
+            printf(" ");
             print_node(astnode->vard.typespec);
-            aria_printf(" = ");
+            printf(" = ");
             indent += 4;
             indent_block = false;
             print_node(astnode->vard.initializer);
             indent -= 4;
-            aria_printf(")");
+            printf(")");
         } break;
 
         case ASTNODE_PARAM_DECL: {
-            aria_printf("%to ", astnode->paramd.identifier);
+            print_token(astnode->paramd.identifier);
+            printf(" ");
             print_node(astnode->paramd.typespec);
         } break;
 
         case ASTNODE_EXPRSTMT: {
-            aria_printf("(expr ");
+            printf("(expr ");
             indent += 4;
             indent_block = false;
             print_node(astnode->exprstmt);
             indent -= 4;
-            aria_printf(")");
+            printf(")");
         } break;
     }
 }

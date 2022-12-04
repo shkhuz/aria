@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
 
     const char* outpath = "a.out";
     const char* target_triple = NULL;
-    
+
     struct option options[] = {
         { "output", required_argument, 0, 'o' },
         { "target", required_argument, 0, 't' },
@@ -99,17 +99,15 @@ int main(int argc, char* argv[]) {
             } break;
 
             case 'h': {
-                aria_printf(
+                printf(
                         "Aria language compiler\n"
-                        "Usage: ariac [options] file...\n"
+                        "Usage: aria [options] file...\n"
                         "\n"
                         "Options:\n"
                         "  -o, --output=<file>        Place the output into <file>\n"
                         "  --target=<triple>          Specify a target triple for cross compilation\n"
                         "  --help                     Display this help and exit\n"
                         "\n"
-                        "To report bugs, please see:\n"
-                        "<https://github.com/shkhuz/aria/issues/>\n"
                         );
                 exit(0);
             } break;

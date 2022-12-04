@@ -57,7 +57,7 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
     usize col = span.start - beg_of_line + 1;
     disp_col += col;
     if (print_srcloc) {
-        aria_fprintf(
+        fprintf(
             stderr,
             "  %s--> %s:%lu:%lu%s\n",
             EC_8BITCOLOR("244", "1"),
@@ -67,7 +67,7 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
             g_reset_color);
     }
 
-    int indent = aria_fprintf(stderr, "  %lu | ", line) - 2;
+    int indent = fprintf(stderr, "  %lu | ", line) - 2;
     bool multiline_span = false;
     usize disp_chcount = 0;
 
@@ -77,55 +77,55 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
             break;
         }
         else if (contents[i] == '\t') {
-            if (i >= span.start) disp_chcount += 3; 
-            aria_fprintf(stderr, "\x20\x20\x20\x20");
+            if (i >= span.start) disp_chcount += 3;
+            fprintf(stderr, "\x20\x20\x20\x20");
         }
-        else aria_fprintf(stderr, "%c", contents[i]);
+        else fprintf(stderr, "%c", contents[i]);
     }
     disp_chcount += span.end - span.start;
     for (usize i = span.end; contents[i] != '\n' && contents[i] != '\0'; i++) {
-        aria_fprintf(stderr, "%c", contents[i]);
+        fprintf(stderr, "%c", contents[i]);
     }
 
-    aria_fprintf(stderr, "\n%*s", indent, "");
-    aria_fprintf(stderr, "| ");
+    fprintf(stderr, "\n%*s", indent, "");
+    fprintf(stderr, "| ");
 
-    for (usize i = 1; i < disp_col; i++) aria_fprintf(stderr, " "); 
-    aria_fprintf(stderr, "%s", color);
+    for (usize i = 1; i < disp_col; i++) fprintf(stderr, " ");
+    fprintf(stderr, "%s", color);
     for (usize i = disp_col; i < disp_col + disp_chcount; i++)
-        aria_fprintf(stderr, "^");
-    if (multiline_span) aria_fprintf(stderr, " \u00B7\u00B7\u00B7");
-    aria_fprintf(stderr, "%s\n", g_reset_color);
+        fprintf(stderr, "^");
+    if (multiline_span) fprintf(stderr, " \u00B7\u00B7\u00B7");
+    fprintf(stderr, "%s\n", g_reset_color);
 }
 
 void _msg_emit(Msg* msg) {
-    if (did_msg) aria_printf("\n");
+    if (did_msg) printf("\n");
     const char* color = "";
     const char* msg_color = g_cornflower_blue_color;
     switch (msg->kind) {
         case MSG_ERROR: {
             color = g_error_color;
-            aria_fprintf(stderr, "%serror%s: %s", color, g_bold_color, msg_color);
+            fprintf(stderr, "%serror%s: %s", color, g_bold_color, msg_color);
         } break;
 
         case MSG_WARNING: {
             color = g_warning_color;
-            aria_fprintf(stderr, "%swarning%s: %s", color, g_bold_color, msg_color);
+            fprintf(stderr, "%swarning%s: %s", color, g_bold_color, msg_color);
         } break;
 
         case MSG_NOTE: {
             color = g_note_color;
-            aria_fprintf(stderr, "%snote%s: %s", color, g_bold_color, msg_color);
+            fprintf(stderr, "%snote%s: %s", color, g_bold_color, msg_color);
         } break;
     }
-    aria_fprintf(stderr, "%s", msg->msg);
-    aria_fprintf(stderr, "%s\n", g_reset_color);
+    fprintf(stderr, "%s", msg->msg);
+    fprintf(stderr, "%s\n", g_reset_color);
 
     if (msg->span.exists) {
         print_source_line(msg->span.span, color, true);
 
         bufloop(msg->addl_fat, i) {
-            aria_fprintf(
+            fprintf(
                 stderr,
                 "  %s> note:%s %s\n",
                 g_note_color,
@@ -138,7 +138,7 @@ void _msg_emit(Msg* msg) {
         }
 
         bufloop(msg->addl_thin, i) {
-            aria_fprintf(
+            fprintf(
                 stderr,
                 "  %s= note:%s %s\n",
                 g_note_color,

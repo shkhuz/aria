@@ -7,6 +7,10 @@ typedef struct AstNode AstNode;
 
 typedef struct {
     AstNode* child;
+} AstNodeTypespecIdentifier;
+
+typedef struct {
+    AstNode* child;
 } AstNodeTypespecPtr;
 
 typedef struct {
@@ -53,6 +57,11 @@ typedef struct {
     AstNode* callee;
     AstNode** args;
 } AstNodeFunctionCall;
+
+typedef struct {
+    AstNode* left;
+    Token* right;
+} AstNodeAccess;
 
 typedef enum {
     UNOP_NEG,
@@ -104,7 +113,7 @@ typedef struct {
 } AstNodeParamDecl;
 
 typedef enum {
-    ASTNODE_TYPESPEC_SYMBOL,
+    ASTNODE_TYPESPEC_IDENTIFIER,
     ASTNODE_TYPESPEC_PTR,
     ASTNODE_INTEGER_LITERAL,
     ASTNODE_SYMBOL,
@@ -113,6 +122,7 @@ typedef enum {
     ASTNODE_IF,
     ASTNODE_RETURN,
     ASTNODE_FUNCTION_CALL,
+    ASTNODE_ACCESS,
     ASTNODE_UNOP,
     ASTNODE_BINOP,
     ASTNODE_TYPEDECL,
@@ -127,15 +137,16 @@ struct AstNode {
     AstNodeKind kind;
     Span span;
     union {
+        AstNodeTypespecIdentifier typeident;
         AstNodeTypespecPtr typeptr;
         AstNodeIntegerLiteral intl;
-        // Also used for `ASTNODE_TYPESPEC_SYMBOL`
         AstNodeSymbol sym;
         AstNodeScopedBlock blk;
         AstNodeIfBranch ifbr;
         AstNodeIf iff;
         AstNodeReturn ret;
         AstNodeFunctionCall funcc;
+        AstNodeAccess acc;
         AstNodeUnOp unop;
         AstNodeBinOp binop;
         AstNodeTypeDecl typedecl;
@@ -147,11 +158,13 @@ struct AstNode {
     };
 };
 
+AstNode* astnode_typespec_identifier_new(AstNode* child);
 AstNode* astnode_typespec_ptr_new(Token* star, AstNode* child);
 
 AstNode* astnode_integer_literal_new(Token* token, bigint val);
-AstNode* astnode_symbol_new(Token* identifier, bool is_typespec);
+AstNode* astnode_symbol_new(Token* identifier);
 AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end);
+AstNode* astnode_access_new(AstNode* left, Token* right);
 AstNode* astnode_scoped_block_new(
     Token* lbrace,
     AstNode** stmts,

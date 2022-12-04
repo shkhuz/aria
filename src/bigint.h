@@ -18,7 +18,7 @@
     _bigint_free((mem), sizeof(u64) * (size_t)(size_in_digits))
 
 #define bigint_iszero(a)    ((a)->used == 0)
-#define bigint_isneg(a)     ((a)->sign == BIGINT_SIGN_NEG) 
+#define bigint_isneg(a)     ((a)->sign == BIGINT_SIGN_NEG)
 
 typedef enum {
     BIGINT_ERR_OKAY = 0,

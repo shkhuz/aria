@@ -102,16 +102,6 @@ static inline Token* expect_comma(ParseCtx* p) {
     return expect(p, TOKEN_COMMA, "`,`");
 }
 
-static AstNode* parse_symbol(ParseCtx* p, bool is_type) {
-    Token* first = p->prev;
-    assert(first->kind == TOKEN_IDENTIFIER);
-    return astnode_symbol_new(first, is_type);
-}
-
-static inline AstNode* parse_typespec_symbol(ParseCtx* p) {
-    return parse_symbol(p, true);
-}
-
 static AstNode* parse_typespec_ptr(ParseCtx* p) {
     Token* star = p->prev;
     AstNode* child = parse_typespec(p);
@@ -122,7 +112,14 @@ static AstNode* parse_typespec(ParseCtx* p) {
     if (match(p, TOKEN_STAR)) {
         return parse_typespec_ptr(p);
     } else if (match(p, TOKEN_IDENTIFIER)) {
-        return parse_typespec_symbol(p);
+        // Should we call `parse_expr` here, or should we do
+        // the parsing manually only allowing accessor exprs?
+        AstNode* left = astnode_symbol_new(p->prev);
+        while (match(p, TOKEN_DOT)) {
+            Token* right = expect_identifier(p, "symbol name");
+            left = astnode_access_new(left, right);
+        }
+        return astnode_typespec_identifier_new(left);
     }
 
     Msg msg = msg_with_span(
@@ -140,7 +137,7 @@ static AstNode* parse_if_branch(ParseCtx* p, Token* keyword, IfBranchKind kind) 
         cond = parse_expr(p);
         expect_rparen(p);
     }
-    
+
     AstNode* body = parse_expr(p);
     if (body->kind == ASTNODE_IF) {
         Msg msg = msg_with_span(
@@ -154,9 +151,9 @@ static AstNode* parse_if_branch(ParseCtx* p, Token* keyword, IfBranchKind kind) 
 }
 
 static inline AstNode* get_last_if_branch(
-    AstNode* ifbr, 
-    AstNode** elseifbr, 
-    AstNode* elsebr) 
+    AstNode* ifbr,
+    AstNode** elseifbr,
+    AstNode* elsebr)
 {
     if (elsebr) return elsebr;
     else if (elseifbr) return elseifbr[buflen(elseifbr)-1];
@@ -165,14 +162,14 @@ static inline AstNode* get_last_if_branch(
 
 static AstNode* parse_atom_expr(ParseCtx* p) {
     if (match(p, TOKEN_IDENTIFIER)) {
-        return parse_symbol(p, false);
+        return astnode_symbol_new(p->prev);
     } else if (match(p, TOKEN_LBRACE)) {
         return parse_scoped_block(p);
     } else if (match(p, TOKEN_KEYWORD_IF)) {
         AstNode* ifbr = parse_if_branch(p, p->prev, IFBR_IF);
         AstNode** elseifbr = NULL;
         AstNode* elsebr = NULL;
-        
+
         for (;;) {
             if (match(p, TOKEN_KEYWORD_ELSE)) {
                 Token* keyword = p->prev;
@@ -185,7 +182,7 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
             }
             else break;
         }
-        
+
         return astnode_if_new(
             ifbr,
             elseifbr,
@@ -207,17 +204,17 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         bigint_init_u64(&base, 10);
         bigint digit;
         bigint_init(&digit);
-        
+
         for (usize i = token->span.start; i < token->span.end; i++) {
             char c = token->span.srcfile->handle.contents[i];
             if (c != '_') {
-            	int d = c - '0';
+                int d = c - '0';
                 bigint_set_u64(&digit, (u64)d);
-            	bigint_mul(&val, &base, &val);
-            	bigint_add(&val, &digit, &val);
+                bigint_mul(&val, &base, &val);
+                bigint_add(&val, &digit, &val);
             }
         }
-        
+
         return astnode_integer_literal_new(token, val);
     }
     // NOTE: Add the case to `can_token_begin_expr()`
@@ -232,18 +229,25 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
 
 static AstNode* parse_suffix_expr(ParseCtx* p) {
     AstNode* left = parse_atom_expr(p);
-    if (match(p, TOKEN_LPAREN)) {
-        Token* lparen = p->prev;
-        AstNode** args = NULL;
-        while (!match(p, TOKEN_RPAREN)) {
-            check_eof(p, lparen);
-            AstNode* arg = parse_expr(p);
-            bufpush(args, arg);
-            if (p->current->kind != TOKEN_RPAREN) {
-                expect(p, TOKEN_COMMA, "`,' or ')'");
+    while (p->current->kind == TOKEN_LPAREN
+           || p->current->kind == TOKEN_DOT) {
+        if (match(p, TOKEN_LPAREN)) {
+            Token* lparen = p->prev;
+            AstNode** args = NULL;
+            while (!match(p, TOKEN_RPAREN)) {
+                check_eof(p, lparen);
+                AstNode* arg = parse_expr(p);
+                bufpush(args, arg);
+                if (p->current->kind != TOKEN_RPAREN) {
+                    expect(p, TOKEN_COMMA, "`,' or ')'");
+                }
             }
+            left = astnode_function_call_new(left, args, p->prev);
+        } else if (match(p, TOKEN_DOT)) {
+            Token* right = expect_identifier(p, "symbol name");
+            left = astnode_access_new(left, right);
         }
-        return astnode_function_call_new(left, args, p->prev);
+        // NOTE: also add above in the while cond
     }
     return left;
 }
@@ -297,10 +301,10 @@ static AstNode* parse_scoped_block(ParseCtx* p) {
                 break;
             } else {
                 AstNode* expr = parse_expr(p);
-                if ((expr->kind == ASTNODE_IF 
+                if ((expr->kind == ASTNODE_IF
                      && get_last_if_branch(
-                            expr->iff.ifbr, 
-                            expr->iff.elseifbr, 
+                            expr->iff.ifbr,
+                            expr->iff.elseifbr,
                             expr->iff.elsebr)->ifbr.body->kind == ASTNODE_SCOPED_BLOCK)
                     || expr->kind == ASTNODE_SCOPED_BLOCK) {
                 } else {
@@ -331,7 +335,7 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
     } else if (match(p, TOKEN_KEYWORD_IMM) || match(p, TOKEN_KEYWORD_MUT)) {
         Token* keyword = p->prev;
         bool immutable = true;
-        if (keyword->kind == TOKEN_KEYWORD_MUT) immutable = false; 
+        if (keyword->kind == TOKEN_KEYWORD_MUT) immutable = false;
         Token* identifier = expect_identifier(p, "variable name");
         AstNode* type = NULL;
         if (match(p, TOKEN_COLON)) {
@@ -350,11 +354,11 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
     }
 
     if (error_on_no_match) {
-    	Msg msg = msg_with_span(
-    	    MSG_ERROR,
-    	    "expected a declaration or a definition",
-    	    p->current->span);
-    	msg_emit(p, &msg);
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            "expected a declaration or a definition",
+            p->current->span);
+        msg_emit(p, &msg);
     }
     return NULL;
 }

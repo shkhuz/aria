@@ -8,6 +8,14 @@ AstNode* astnode_alloc(AstNodeKind kind, Span span) {
     return astnode;
 }
 
+AstNode* astnode_typespec_identifier_new(AstNode* child) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_TYPESPEC_IDENTIFIER,
+        child->span);
+    astnode->typeident.child = child;
+    return astnode;
+}
+
 AstNode* astnode_typespec_ptr_new(Token* star, AstNode* child) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_TYPESPEC_PTR,
@@ -25,9 +33,9 @@ AstNode* astnode_integer_literal_new(Token* token, bigint val) {
     return astnode;
 }
 
-AstNode* astnode_symbol_new(Token* identifier, bool is_typespec) {
+AstNode* astnode_symbol_new(Token* identifier) {
     AstNode* astnode = astnode_alloc(
-        is_typespec ? ASTNODE_TYPESPEC_SYMBOL : ASTNODE_SYMBOL,
+        ASTNODE_SYMBOL,
         identifier->span);
     astnode->sym.identifier = identifier;
     return astnode;
@@ -91,6 +99,15 @@ AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end) 
         span_from_two(callee->span, end->span));
     astnode->funcc.callee = callee;
     astnode->funcc.args = args;
+    return astnode;
+}
+
+AstNode* astnode_access_new(AstNode* left, Token* right) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_ACCESS,
+        span_from_two(left->span, right->span));
+    astnode->acc.left = left;
+    astnode->acc.right = right;
     return astnode;
 }
 
