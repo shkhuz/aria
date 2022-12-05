@@ -3,6 +3,11 @@
 
 #include "span.h"
 
+typedef struct {
+    usize line;
+    usize col;
+} SrcLoc;
+
 typedef enum {
     MSG_ERROR,
     MSG_WARNING,
@@ -30,6 +35,7 @@ Msg msg_with_span(MsgKind kind, const char* msg, Span span);
 Msg msg_with_no_span(MsgKind kind, const char* msg);
 void msg_addl_fat(Msg* m, const char* msg, Span span);
 void msg_addl_thin(Msg* m, const char* msg);
+SrcLoc compute_srcloc_from_span(Span span);
 // This function is not to be used directly. The module in which it is called
 // will define a helper function named `msg_emit` (without the underscore)
 // and that makes sure that the necessary flags are set for the module

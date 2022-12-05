@@ -35,6 +35,28 @@ void msg_addl_thin(Msg* m, const char* msg) {
     bufpush(m->addl_thin, (SubMsgThin){ msg });
 }
 
+// NOTE: If this function is modified, then change
+// `print_source_line()` too.
+SrcLoc compute_srcloc_from_span(Span span) {
+    const char* contents = span.srcfile->handle.contents;
+    usize c = span.start;
+    while (c != 0 && contents[c-1] != '\n') c--;
+
+    usize col = span.start - c + 1;
+    usize line = 1;
+
+    // If this is too computationally expensive, we could try embedding the
+    // line number into the token itself, which would increase the memory
+    // consumption by 8 bytes/token though.
+    while (c > 0) {
+        c--;
+        if (contents[c] == '\n') line++;
+    }
+    return (SrcLoc){ .line = line, .col = col };
+}
+
+// NOTE: If this function is modified, then change
+// `compute_srcloc_from_span()` too.
 static void print_source_line(Span span, const char* color, bool print_srcloc) {
     const char* contents = span.srcfile->handle.contents;
     usize beg_of_line, c = span.start;
@@ -45,7 +67,10 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
     }
     beg_of_line = c;
 
+    usize col = span.start - beg_of_line + 1;
+    disp_col += col;
     usize line = 1;
+
     // If this is too computationally expensive, we could try embedding the
     // line number into the token itself, which would increase the memory
     // consumption by 8 bytes/token though.
@@ -54,8 +79,6 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
         if (contents[c] == '\n') line++;
     }
 
-    usize col = span.start - beg_of_line + 1;
-    disp_col += col;
     if (print_srcloc) {
         fprintf(
             stderr,

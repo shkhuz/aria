@@ -2,8 +2,9 @@
 #include "printf.h"
 #include "buf.h"
 #include "msg.h"
+#include "compile.h"
 
-LexCtx lex_new_context(Srcfile* srcfile) {
+LexCtx lex_new_context(Srcfile* srcfile, CompileCtx* compile_ctx) {
     LexCtx l;
     l.srcfile = srcfile;
     l.srcfile->tokens = NULL;
@@ -11,9 +12,16 @@ LexCtx lex_new_context(Srcfile* srcfile) {
     l.current = l.start;
     l.last_newl = l.start;
     l.error = false;
+    l.compile_ctx = compile_ctx;
     memset(l.ascii_error_table, 0, 128);
     l.invalid_char_error = false;
     return l;
+}
+
+static inline void msg_emit(LexCtx* l, Msg* msg) {
+    if (msg->kind == MSG_ERROR) l->error = true;
+    _msg_emit(msg);
+    register_msg(l->compile_ctx, *msg);
 }
 
 static Span span_from_start_to_current(LexCtx* l) {
@@ -44,11 +52,6 @@ static void push_tok_adv_cond(LexCtx* l, char c, TokenKind matched, TokenKind no
 
 static inline int char_to_digit(char c) {
     return c - 48;
-}
-
-static inline void msg_emit(LexCtx* l, Msg* msg) {
-    if (msg->kind == MSG_ERROR) l->error = true;
-    _msg_emit(msg);
 }
 
 void lex(LexCtx* l) {
@@ -89,7 +92,7 @@ void lex(LexCtx* l) {
                 bigint val;
                 bigint_init(&val);
                 */
-                
+
                 while (isdigit(*l->current) || *l->current == '_') {
                     if (*l->current == '_' && !isdigit(*(l->current+1))) break;
 

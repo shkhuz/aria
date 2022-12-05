@@ -10,10 +10,14 @@ typedef struct {
     Token* current;
     Token* prev;
     usize token_idx;
-    bool error;
+    struct CompileCtx* compile_ctx;
+    jmp_buf* error_handler_pos;
 } ParseCtx;
 
-ParseCtx parse_new_context(Srcfile* srcfile);
+ParseCtx parse_new_context(
+    Srcfile* srcfile,
+    struct CompileCtx* compile_ctx,
+    jmp_buf* error_handler_pos);
 void parse(ParseCtx* p);
 
 #endif

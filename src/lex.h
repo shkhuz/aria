@@ -8,13 +8,14 @@ typedef struct {
     Srcfile* srcfile;
     const char* start, *current, *last_newl;
     bool error;
+    struct CompileCtx* compile_ctx;
 
-    // Used to prevent multiple "invalid char" errors 
+    // Used to prevent multiple "invalid char" errors
     bool ascii_error_table[128];
     bool invalid_char_error;
 } LexCtx;
 
-LexCtx lex_new_context(Srcfile* srcfile);
+LexCtx lex_new_context(Srcfile* srcfile, struct CompileCtx* compile_ctx);
 void lex(LexCtx* l);
 
 #endif

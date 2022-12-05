@@ -2,27 +2,35 @@
 #include "printf.h"
 #include "buf.h"
 #include "msg.h"
+#include "compile.h"
 
 static AstNode* parse_root(ParseCtx* p, bool error_on_no_match);
 static AstNode* parse_expr(ParseCtx* p);
 static AstNode* parse_scoped_block(ParseCtx* p);
 static AstNode* parse_typespec(ParseCtx* p);
 
-ParseCtx parse_new_context(Srcfile* srcfile) {
+ParseCtx parse_new_context(
+    Srcfile* srcfile,
+    CompileCtx* compile_ctx,
+    jmp_buf* error_handler_pos)
+{
     ParseCtx p;
     p.srcfile = srcfile;
     p.srcfile->astnodes = NULL;
     p.token_idx = 0;
     p.current = p.srcfile->tokens[0];
     p.prev = NULL;
-    p.error = false;
+    p.compile_ctx = compile_ctx;
+    p.error_handler_pos = error_handler_pos;
     return p;
 }
 
 static inline void msg_emit(ParseCtx* p, Msg* msg) {
-    if (msg->kind == MSG_ERROR) p->error = true;
     _msg_emit(msg);
-    terminate_compilation();
+    register_msg(p->compile_ctx, *msg);
+    if (msg->kind == MSG_ERROR) {
+        longjmp(*p->error_handler_pos, 1);
+    }
 }
 
 static void goto_next_tok(ParseCtx* p) {

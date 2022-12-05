@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <setjmp.h>
 
 #ifdef __linux__
 #include <linux/limits.h>

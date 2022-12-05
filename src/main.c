@@ -10,6 +10,7 @@
 #include "ast.h"
 #include "parse.h"
 #include "ast_print.h"
+#include "compile.h"
 
 #include <getopt.h>
 
@@ -137,19 +138,36 @@ int main(int argc, char* argv[]) {
     }
     if (read_error) terminate_compilation();
 
+    CompileCtx compile_ctx = compile_new_context();
+
     bool parsing_error = false;
+    jmp_buf parse_error_handler_pos;
+
     bufloop(g_srcfiles, i) {
-        LexCtx l = lex_new_context(g_srcfiles[i]);
+        LexCtx l = lex_new_context(g_srcfiles[i], &compile_ctx);
         lex(&l);
         if (l.error) {
             parsing_error = true;
             continue;
         }
 
-        ParseCtx p = parse_new_context(g_srcfiles[i]);
-        parse(&p);
-        if (p.error) parsing_error = true;
-        else ast_print(p.srcfile->astnodes);
+        ParseCtx p = parse_new_context(
+            g_srcfiles[i],
+            &compile_ctx,
+            &parse_error_handler_pos);
+        if (!setjmp(parse_error_handler_pos)) {
+            parse(&p);
+            ast_print(p.srcfile->astnodes);
+        } else {
+            parsing_error = true;
+            break;
+        }
+    }
+    bufloop(compile_ctx.msgs, i) {
+        if (compile_ctx.msgs[i].span.exists) {
+            SrcLoc loc = compute_srcloc_from_span(compile_ctx.msgs[i].span.span);
+            printf("(%lu, %lu) %s\n", loc.line, loc.col, compile_ctx.msgs[i].msg);
+        }
     }
     if (parsing_error) terminate_compilation();
 }
