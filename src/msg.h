@@ -8,6 +8,11 @@ typedef struct {
     usize col;
 } SrcLoc;
 
+typedef struct {
+    SrcLoc srcloc;
+    bool exists;
+} OptionalSrcLoc;
+
 typedef enum {
     MSG_ERROR,
     MSG_WARNING,
@@ -45,6 +50,8 @@ SrcLoc compute_srcloc_from_span(Span span);
 // occured.
 // Exception: `main.c` and some others use this directly because they do not
 // have the flags stored in their ctx.
-void _msg_emit(Msg* msg);
+// Also registers the message in the given `CompileCtx`.
+struct CompileCtx;
+void _msg_emit(Msg* msg, struct CompileCtx* compile_ctx);
 
 #endif

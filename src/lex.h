@@ -2,10 +2,12 @@
 #define LEX_H
 
 #include "core.h"
-#include "misc.h"
+
+struct CompileCtx;
+struct Srcfile;
 
 typedef struct {
-    Srcfile* srcfile;
+    struct Srcfile* srcfile;
     const char* start, *current, *last_newl;
     bool error;
     struct CompileCtx* compile_ctx;
@@ -15,7 +17,7 @@ typedef struct {
     bool invalid_char_error;
 } LexCtx;
 
-LexCtx lex_new_context(Srcfile* srcfile, struct CompileCtx* compile_ctx);
+LexCtx lex_new_context(struct Srcfile* srcfile, struct CompileCtx* compile_ctx);
 void lex(LexCtx* l);
 
 #endif

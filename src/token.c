@@ -1,5 +1,5 @@
 #include "token.h"
-#include "misc.h"
+#include "compile.h"
 
 Token* token_new(TokenKind kind, Span span) {
     Token* token = alloc_obj(Token);

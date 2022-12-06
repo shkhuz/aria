@@ -38,6 +38,7 @@ FileOrError read_file(const char* path) {
     handle.path = path;
     handle.abs_path = abs_path;
     handle.contents = contents;
+    handle.len = size;
     return (FileOrError){ handle, FOO_SUCCESS };
 }
 

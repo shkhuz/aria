@@ -31,7 +31,16 @@ bool slice_eql_to_str(const char* slice, int slicelen, const char* str) {
     if (c-str != slicelen) equal = false;
     return equal;
 }
-    
+
+char* format_string(const char* fmt, ...) {
+    char* buf;
+    va_list args;
+    va_start(args, fmt);
+    vasprintf(&buf, fmt, args);
+    va_end(args);
+    return buf;
+}
+
 void terminate_compilation() {
     exit(1);
 }

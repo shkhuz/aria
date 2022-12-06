@@ -1,3 +1,5 @@
+# DEPRECIATED! Use the `src/tests/tests.c` for the majority of tests.
+
 while getopts :v:nh flag
 do
     case "${flag}" in

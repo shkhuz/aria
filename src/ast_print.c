@@ -1,6 +1,6 @@
 #include "ast_print.h"
 #include "buf.h"
-#include "printf.h"
+#include "compile.h"
 
 static int indent;
 static bool print_formatting = false;

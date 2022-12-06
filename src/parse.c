@@ -1,5 +1,4 @@
 #include "parse.h"
-#include "printf.h"
 #include "buf.h"
 #include "msg.h"
 #include "compile.h"
@@ -26,8 +25,7 @@ ParseCtx parse_new_context(
 }
 
 static inline void msg_emit(ParseCtx* p, Msg* msg) {
-    _msg_emit(msg);
-    register_msg(p->compile_ctx, *msg);
+    _msg_emit(msg, p->compile_ctx);
     if (msg->kind == MSG_ERROR) {
         longjmp(*p->error_handler_pos, 1);
     }
@@ -66,11 +64,11 @@ static bool match(ParseCtx* p, TokenKind kind) {
     return false;
 }
 
-static Token* expect(ParseCtx* p, TokenKind kind, const char* expected) {
+static Token* expect(ParseCtx* p, TokenKind kind, const char* msgstr) {
     if (!match(p, kind)) {
         Msg msg = msg_with_span(
             MSG_ERROR,
-            aria_format("expected %s", expected),
+            msgstr,
             p->current->span);
         msg_emit(p, &msg);
         return NULL;
@@ -78,36 +76,36 @@ static Token* expect(ParseCtx* p, TokenKind kind, const char* expected) {
     return p->prev;
 }
 
-static inline Token* expect_identifier(ParseCtx* p, const char* expected) {
-    return expect(p, TOKEN_IDENTIFIER, expected);
+static inline Token* expect_identifier(ParseCtx* p, const char* msg) {
+    return expect(p, TOKEN_IDENTIFIER, msg);
 }
 
 static inline Token* expect_lparen(ParseCtx* p) {
-    return expect(p, TOKEN_LPAREN, "`(`");
+    return expect(p, TOKEN_LPAREN, "expected `(`");
 }
 
 static inline Token* expect_rparen(ParseCtx* p) {
-    return expect(p, TOKEN_RPAREN, "`)`");
+    return expect(p, TOKEN_RPAREN, "expected `)`");
 }
 
 static inline Token* expect_lbrace(ParseCtx* p) {
-    return expect(p, TOKEN_LBRACE, "`{`");
+    return expect(p, TOKEN_LBRACE, "expected `{`");
 }
 
 static inline Token* expect_equal(ParseCtx* p) {
-    return expect(p, TOKEN_EQUAL, "`=`");
+    return expect(p, TOKEN_EQUAL, "expected `=`");
 }
 
 static inline Token* expect_colon(ParseCtx* p) {
-    return expect(p, TOKEN_COLON, "`:`");
+    return expect(p, TOKEN_COLON, "expected `:`");
 }
 
 static inline Token* expect_semicolon(ParseCtx* p) {
-    return expect(p, TOKEN_SEMICOLON, "`;`");
+    return expect(p, TOKEN_SEMICOLON, "expected `;`");
 }
 
 static inline Token* expect_comma(ParseCtx* p) {
-    return expect(p, TOKEN_COMMA, "`,`");
+    return expect(p, TOKEN_COMMA, "expected `,`");
 }
 
 static AstNode* parse_typespec_ptr(ParseCtx* p) {
@@ -124,7 +122,7 @@ static AstNode* parse_typespec(ParseCtx* p) {
         // the parsing manually only allowing accessor exprs?
         AstNode* left = astnode_symbol_new(p->prev);
         while (match(p, TOKEN_DOT)) {
-            Token* right = expect_identifier(p, "symbol name");
+            Token* right = expect_identifier(p, "expected symbol name");
             left = astnode_access_new(left, right);
         }
         return astnode_typespec_identifier_new(left);
@@ -247,12 +245,12 @@ static AstNode* parse_suffix_expr(ParseCtx* p) {
                 AstNode* arg = parse_expr(p);
                 bufpush(args, arg);
                 if (p->current->kind != TOKEN_RPAREN) {
-                    expect(p, TOKEN_COMMA, "`,' or ')'");
+                    expect(p, TOKEN_COMMA, "expected `,' or ')'");
                 }
             }
             left = astnode_function_call_new(left, args, p->prev);
         } else if (match(p, TOKEN_DOT)) {
-            Token* right = expect_identifier(p, "symbol name");
+            Token* right = expect_identifier(p, "expected symbol name");
             left = astnode_access_new(left, right);
         }
         // NOTE: also add above in the while cond
@@ -266,19 +264,19 @@ static AstNode* parse_expr(ParseCtx* p) {
 
 static AstNode* parse_function_header(ParseCtx* p) {
     Token* keyword = p->prev;
-    Token* identifier = expect_identifier(p, "function name");
+    Token* identifier = expect_identifier(p, "expected function name");
     Token* lparen = expect_lparen(p);
 
     AstNode** params = NULL;
     while (!match(p, TOKEN_RPAREN)) {
         check_eof(p, lparen);
         Token* param_identifier =
-            expect(p, TOKEN_IDENTIFIER, "parameter name or `)`");
+            expect(p, TOKEN_IDENTIFIER, "expected parameter name or `)`");
         expect_colon(p);
         AstNode* param_type = parse_typespec(p);
         bufpush(params, astnode_param_new(param_identifier, param_type));
         if (p->current->kind != TOKEN_RPAREN) {
-            expect(p, TOKEN_COMMA, "`,' or ')'");
+            expect(p, TOKEN_COMMA, "expected `,' or ')'");
         }
     }
 
@@ -335,7 +333,7 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
         return astnode_function_def_new(header, body);
     } else if (match(p, TOKEN_KEYWORD_TYPE)) {
         Token* keyword = p->prev;
-        Token* identifier = expect_identifier(p, "identifier");
+        Token* identifier = expect_identifier(p, "expected identifier");
         expect_equal(p);
         AstNode* right = parse_typespec(p);
         expect_semicolon(p);
@@ -344,7 +342,7 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
         Token* keyword = p->prev;
         bool immutable = true;
         if (keyword->kind == TOKEN_KEYWORD_MUT) immutable = false;
-        Token* identifier = expect_identifier(p, "variable name");
+        Token* identifier = expect_identifier(p, "expected variable name");
         AstNode* type = NULL;
         if (match(p, TOKEN_COLON)) {
             type = parse_typespec(p);

@@ -65,6 +65,7 @@ size_t get_bits_for_value(u128 n);
 // from "struct" to "str", hence returning 0. Though if we strlen before
 // calling strncmp, it would work, but is inefficient.
 bool slice_eql_to_str(const char* slice, int slicelen, const char* str);
+char* format_string(const char* fmt, ...);
 void terminate_compilation();
 
 extern char* g_exec_path;

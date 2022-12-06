@@ -1,11 +1,8 @@
 #include "msg.h"
 #include "core.h"
 #include "cmd.h"
-#include "printf.h"
 #include "buf.h"
-#include "misc.h"
-
-static bool did_msg = false;
+#include "compile.h"
 
 Msg msg_with_span(MsgKind kind, const char* msg, Span span) {
     Msg m;
@@ -58,12 +55,12 @@ SrcLoc compute_srcloc_from_span(Span span) {
 // NOTE: If this function is modified, then change
 // `compute_srcloc_from_span()` too.
 static void print_source_line(Span span, const char* color, bool print_srcloc) {
-    const char* contents = span.srcfile->handle.contents;
+    File* handle = &span.srcfile->handle;
     usize beg_of_line, c = span.start;
     usize disp_col = 0;
-    while (c != 0 && contents[c-1] != '\n') {
+    while (c != 0 && handle->contents[c-1] != '\n') {
         c--;
-        if (contents[c] == '\t') disp_col += 3;
+        if (handle->contents[c] == '\t') disp_col += 3;
     }
     beg_of_line = c;
 
@@ -76,7 +73,7 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
     // consumption by 8 bytes/token though.
     while (c > 0) {
         c--;
-        if (contents[c] == '\n') line++;
+        if (handle->contents[c] == '\n') line++;
     }
 
     if (print_srcloc) {
@@ -84,7 +81,7 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
             stderr,
             "  %s--> %s:%lu:%lu%s\n",
             EC_8BITCOLOR("244", "1"),
-            span.srcfile->handle.path,
+            handle->path,
             line,
             col,
             g_reset_color);
@@ -95,19 +92,24 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
     usize disp_chcount = 0;
 
     for (usize i = beg_of_line; i < span.end; i++) {
-        if ((contents[i] == '\n' || contents[i] == '\0') && span.end-span.start != 1) {
+        if ((handle->contents[i] == '\n' || handle->contents[i] == '\0')
+            && span.end-span.start != 1) {
             multiline_span = true;
             break;
         }
-        else if (contents[i] == '\t') {
+        else if (handle->contents[i] == '\t') {
             if (i >= span.start) disp_chcount += 3;
             fprintf(stderr, "\x20\x20\x20\x20");
         }
-        else fprintf(stderr, "%c", contents[i]);
+        else fprintf(stderr, "%c", handle->contents[i]);
     }
     disp_chcount += span.end - span.start;
-    for (usize i = span.end; contents[i] != '\n' && contents[i] != '\0'; i++) {
-        fprintf(stderr, "%c", contents[i]);
+    for (
+        usize i = span.end;
+        handle->contents[i] != '\n' && handle->contents[i] != '\0' && i < handle->len;
+        i++)
+    {
+        fprintf(stderr, "%c", handle->contents[i]);
     }
 
     fprintf(stderr, "\n%*s", indent, "");
@@ -121,8 +123,11 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
     fprintf(stderr, "%s\n", g_reset_color);
 }
 
-void _msg_emit(Msg* msg) {
-    if (did_msg) printf("\n");
+void _msg_emit(Msg* msg, CompileCtx* compile_ctx) {
+    register_msg(compile_ctx, *msg);
+    if (!(compile_ctx->print_msg_to_stderr)) return;
+
+    if (compile_ctx->did_msg) fprintf(stderr, "\n");
     const char* color = "";
     const char* msg_color = g_cornflower_blue_color;
     switch (msg->kind) {
@@ -150,14 +155,14 @@ void _msg_emit(Msg* msg) {
         bufloop(msg->addl_fat, i) {
             fprintf(
                 stderr,
-                "  %s> note:%s %s\n",
+                "  %s= note:%s %s\n",
                 g_note_color,
                 g_reset_color,
                 msg->addl_fat[i].msg);
             print_source_line(
                 msg->addl_fat[i].span,
                 g_note_color,
-                msg->span.span.srcfile != msg->addl_fat[i].span.srcfile);
+                true/*msg->span.span.srcfile != msg->addl_fat[i].span.srcfile*/);
         }
 
         bufloop(msg->addl_thin, i) {
@@ -170,7 +175,7 @@ void _msg_emit(Msg* msg) {
         }
     }
 
-    if (!did_msg) {
-        did_msg = true;
+    if (!(compile_ctx->did_msg)) {
+        compile_ctx->did_msg = true;
     }
 }

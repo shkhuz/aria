@@ -1,56 +1,48 @@
 #include "core.h"
 #include "buf.h"
-#include "misc.h"
-#include "printf.h"
 #include "bigint.h"
 #include "file_io.h"
 #include "msg.h"
 #include "cmd.h"
-#include "lex.h"
-#include "ast.h"
-#include "parse.h"
-#include "ast_print.h"
 #include "compile.h"
 
 #include <getopt.h>
 
 char* g_exec_path;
 
-Srcfile** g_srcfiles = NULL;
-
-Srcfile* read_srcfile(const char* path, OptionalSpan span) {
+Srcfile* read_srcfile(const char* path, OptionalSpan span, CompileCtx* compile_ctx) {
     FileOrError efile = read_file(path);
     switch (efile.status) {
         case FOO_SUCCESS: {
-            for (usize i = 0; i < buflen(g_srcfiles); i++) {
-                if (strcmp(efile.handle.abs_path, g_srcfiles[i]->handle.abs_path) == 0)
-                    return g_srcfiles[i];
+            for (usize i = 0; i < buflen(compile_ctx->srcfiles); i++) {
+                if (strcmp(efile.handle.abs_path, compile_ctx->srcfiles[i]->handle.abs_path) == 0)
+                    return compile_ctx->srcfiles[i];
             }
             Srcfile* srcfile = malloc(sizeof(Srcfile));
             srcfile->handle = efile.handle;
-            bufpush(g_srcfiles, srcfile);
+            bufpush(compile_ctx->srcfiles, srcfile);
             return srcfile;
         } break;
 
         case FOO_FAILURE: {
-            const char* error_msg = aria_format("cannot read source file `%s`", path);
+            const char* error_msg = format_string("cannot read source file `%s`", path);
             if (span.exists) {
                 Msg msg = msg_with_span(MSG_ERROR, error_msg, span.span);
-                _msg_emit(&msg);
+                _msg_emit(&msg, compile_ctx);
             } else {
                 Msg msg = msg_with_no_span(MSG_ERROR, error_msg);
-                _msg_emit(&msg);
+                _msg_emit(&msg, compile_ctx);
             }
         } break;
 
         case FOO_DIRECTORY: {
-            const char* error_msg = aria_format("`%s` is a directory", path);
+            const char* error_msg = format_string("`%s` is a directory", path);
             if (span.exists) {
                 Msg msg = msg_with_span(MSG_ERROR, error_msg, span.span);
-                _msg_emit(&msg);
+                _msg_emit(&msg, compile_ctx);
             } else {
                 Msg msg = msg_with_no_span(MSG_ERROR, error_msg);
-                _msg_emit(&msg);
+                _msg_emit(&msg, compile_ctx);
             }
         } break;
     }
@@ -73,7 +65,7 @@ int main(int argc, char* argv[]) {
     /* bigint a; */
     /* bigint_init_u64(&a, 1); */
     /* bigint_set_u64(&a, 1); */
-    init_types();
+    init_global_compiler_state();
 
     const char* outpath = "a.out";
     const char* target_triple = NULL;
@@ -122,53 +114,25 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    CompileCtx compile_ctx = compile_new_context();
+
     if (optind == argc) {
         Msg msg = msg_with_no_span(MSG_ERROR, "no input files");
-        _msg_emit(&msg);
+        _msg_emit(&msg, &compile_ctx);
         terminate_compilation();
     }
 
     bool read_error = false;
     for (int i = optind; i < argc; i++) {
-        Srcfile* srcfile = read_srcfile(argv[i], span_none());
+        Srcfile* srcfile = read_srcfile(argv[i], span_none(), &compile_ctx);
         if (!srcfile) {
             read_error = true;
             continue;
         }
     }
     if (read_error) terminate_compilation();
+    else compile_ctx.num_srcfiles = buflen(compile_ctx.srcfiles);
 
-    CompileCtx compile_ctx = compile_new_context();
-
-    bool parsing_error = false;
-    jmp_buf parse_error_handler_pos;
-
-    bufloop(g_srcfiles, i) {
-        LexCtx l = lex_new_context(g_srcfiles[i], &compile_ctx);
-        lex(&l);
-        if (l.error) {
-            parsing_error = true;
-            continue;
-        }
-
-        ParseCtx p = parse_new_context(
-            g_srcfiles[i],
-            &compile_ctx,
-            &parse_error_handler_pos);
-        if (!setjmp(parse_error_handler_pos)) {
-            parse(&p);
-            ast_print(p.srcfile->astnodes);
-        } else {
-            parsing_error = true;
-            break;
-        }
-    }
-    bufloop(compile_ctx.msgs, i) {
-        if (compile_ctx.msgs[i].span.exists) {
-            SrcLoc loc = compute_srcloc_from_span(compile_ctx.msgs[i].span.span);
-            printf("(%lu, %lu) %s\n", loc.line, loc.col, compile_ctx.msgs[i].msg);
-        }
-    }
-    if (parsing_error) terminate_compilation();
+    //compile(&compile_ctx);
+    //if (compile_ctx.parsing_error) terminate_compilation();
 }
-

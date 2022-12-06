@@ -2,11 +2,13 @@
 #define PARSE_H
 
 #include "core.h"
-#include "misc.h"
 #include "ast.h"
 
+struct CompileCtx;
+struct Srcfile;
+
 typedef struct {
-    Srcfile* srcfile;
+    struct Srcfile* srcfile;
     Token* current;
     Token* prev;
     usize token_idx;
@@ -15,7 +17,7 @@ typedef struct {
 } ParseCtx;
 
 ParseCtx parse_new_context(
-    Srcfile* srcfile,
+    struct Srcfile* srcfile,
     struct CompileCtx* compile_ctx,
     jmp_buf* error_handler_pos);
 void parse(ParseCtx* p);

@@ -1,5 +1,4 @@
 #include "lex.h"
-#include "printf.h"
 #include "buf.h"
 #include "msg.h"
 #include "compile.h"
@@ -20,8 +19,7 @@ LexCtx lex_new_context(Srcfile* srcfile, CompileCtx* compile_ctx) {
 
 static inline void msg_emit(LexCtx* l, Msg* msg) {
     if (msg->kind == MSG_ERROR) l->error = true;
-    _msg_emit(msg);
-    register_msg(l->compile_ctx, *msg);
+    _msg_emit(msg, l->compile_ctx);
 }
 
 static Span span_from_start_to_current(LexCtx* l) {

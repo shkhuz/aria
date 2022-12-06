@@ -4,6 +4,7 @@
 #define EC_8BITCOLOR(colorstr, boldstr) \
     "\x1B[" boldstr ";38;5;" colorstr "m"
 
+extern char* g_green_color;
 extern char* g_error_color;
 extern char* g_warning_color;
 extern char* g_note_color;
