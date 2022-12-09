@@ -20,6 +20,7 @@ ParseCtx parse_new_context(
     p.current = p.srcfile->tokens[0];
     p.prev = NULL;
     p.compile_ctx = compile_ctx;
+    p.error = false;
     p.error_handler_pos = error_handler_pos;
     return p;
 }
@@ -27,7 +28,15 @@ ParseCtx parse_new_context(
 static inline void msg_emit(ParseCtx* p, Msg* msg) {
     _msg_emit(msg, p->compile_ctx);
     if (msg->kind == MSG_ERROR) {
+        p->error = true;
         longjmp(*p->error_handler_pos, 1);
+    }
+}
+
+static inline void msg_emit_non_fatal(ParseCtx* p, Msg* msg) {
+    _msg_emit(msg, p->compile_ctx);
+    if (msg->kind == MSG_ERROR) {
+        p->error = true;
     }
 }
 
@@ -138,6 +147,7 @@ static AstNode* parse_typespec(ParseCtx* p) {
 
 static AstNode* parse_if_branch(ParseCtx* p, Token* keyword, IfBranchKind kind) {
     AstNode* cond = NULL;
+
     if (kind != IFBR_ELSE) {
         expect_lparen(p);
         cond = parse_expr(p);
@@ -148,9 +158,9 @@ static AstNode* parse_if_branch(ParseCtx* p, Token* keyword, IfBranchKind kind) 
     if (body->kind == ASTNODE_IF) {
         Msg msg = msg_with_span(
             MSG_ERROR,
-            "`if` body may not contain another `if`",
+            "`if` branch may not contain another `if`",
             body->span);
-        msg_addl_thin(&msg, "enclose `if` body with `{}`");
+        msg_addl_thin(&msg, "enclose body with `{}`");
         msg_emit(p, &msg);
     }
     return astnode_if_branch_new(keyword, kind, cond, body);
@@ -245,7 +255,7 @@ static AstNode* parse_suffix_expr(ParseCtx* p) {
                 AstNode* arg = parse_expr(p);
                 bufpush(args, arg);
                 if (p->current->kind != TOKEN_RPAREN) {
-                    expect(p, TOKEN_COMMA, "expected `,' or ')'");
+                    expect(p, TOKEN_COMMA, "expected `,` or `)`");
                 }
             }
             left = astnode_function_call_new(left, args, p->prev);
@@ -253,7 +263,7 @@ static AstNode* parse_suffix_expr(ParseCtx* p) {
             Token* right = expect_identifier(p, "expected symbol name");
             left = astnode_access_new(left, right);
         }
-        // NOTE: also add above in the while cond
+        // NOTE: also add above in the while cond in `parse_suffix_expr` above
     }
     return left;
 }
@@ -276,7 +286,7 @@ static AstNode* parse_function_header(ParseCtx* p) {
         AstNode* param_type = parse_typespec(p);
         bufpush(params, astnode_param_new(param_identifier, param_type));
         if (p->current->kind != TOKEN_RPAREN) {
-            expect(p, TOKEN_COMMA, "expected `,' or ')'");
+            expect(p, TOKEN_COMMA, "expected `,` or `)`");
         }
     }
 

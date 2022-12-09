@@ -13,6 +13,7 @@ typedef struct {
     Token* prev;
     usize token_idx;
     struct CompileCtx* compile_ctx;
+    bool error;
     jmp_buf* error_handler_pos;
 } ParseCtx;
 

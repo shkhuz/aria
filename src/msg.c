@@ -91,19 +91,28 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
     bool multiline_span = false;
     usize disp_chcount = 0;
 
+    usize end_of_span = span.end;
     for (usize i = beg_of_line; i < span.end; i++) {
         if ((handle->contents[i] == '\n' || handle->contents[i] == '\0')
             && span.end-span.start != 1) {
             multiline_span = true;
+            while (isspace(handle->contents[i])) i--;
+            // Now point is on the last non-whitespace char.
+            // We advance by one because the end is exclusive.
+            i++;
+            end_of_span = i;
             break;
         }
         else if (handle->contents[i] == '\t') {
             if (i >= span.start) disp_chcount += 3;
             fprintf(stderr, "\x20\x20\x20\x20");
         }
-        else fprintf(stderr, "%c", handle->contents[i]);
+        else {
+            fprintf(stderr, "%c", handle->contents[i]);
+        }
     }
-    disp_chcount += span.end - span.start;
+
+    disp_chcount += end_of_span - span.start;
     for (
         usize i = span.end;
         handle->contents[i] != '\n' && handle->contents[i] != '\0' && i < handle->len;

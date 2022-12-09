@@ -55,10 +55,11 @@ void compile(CompileCtx* c) {
             &parse_error_handler_pos);
         if (!setjmp(parse_error_handler_pos)) {
             parse(&p);
-            ast_print(p.srcfile->astnodes);
+            if (p.error) c->parsing_error = true;
+            else ast_print(p.srcfile->astnodes);
         } else {
             c->parsing_error = true;
-            break;
+            continue;
         }
     }
 }
