@@ -21,4 +21,4 @@ jobs:
         run: make build/aria
 
       - name: Test Aria
-        run: make test v=y
+        run: make test

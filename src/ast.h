@@ -11,12 +11,19 @@ typedef struct {
 } AstNodeTypespecIdentifier;
 
 typedef struct {
+    bool immutable;
     AstNode* child;
 } AstNodeTypespecPtr;
 
 typedef struct {
-    AstNode* symbol;
-} AstNodeTypespecSymbol;
+    AstNode** fields;
+    AstNode** stmts;
+} AstNodeTypespecStruct;
+
+typedef struct {
+    Token* identifier;
+    AstNode* typespec;
+} AstNodeField;
 
 typedef struct {
     Token* token;
@@ -116,6 +123,8 @@ typedef struct {
 typedef enum {
     ASTNODE_TYPESPEC_IDENTIFIER,
     ASTNODE_TYPESPEC_PTR,
+    ASTNODE_TYPESPEC_STRUCT,
+    ASTNODE_FIELD,
     ASTNODE_INTEGER_LITERAL,
     ASTNODE_SYMBOL,
     ASTNODE_SCOPED_BLOCK,
@@ -140,6 +149,8 @@ struct AstNode {
     union {
         AstNodeTypespecIdentifier typeident;
         AstNodeTypespecPtr typeptr;
+        AstNodeTypespecStruct typestruct;
+        AstNodeField field;
         AstNodeIntegerLiteral intl;
         AstNodeSymbol sym;
         AstNodeScopedBlock blk;
@@ -160,7 +171,14 @@ struct AstNode {
 };
 
 AstNode* astnode_typespec_identifier_new(AstNode* child);
-AstNode* astnode_typespec_ptr_new(Token* star, AstNode* child);
+AstNode* astnode_typespec_ptr_new(Token* star, bool immutable, AstNode* child);
+AstNode* astnode_typespec_struct_new(
+    Token* keyword,
+    AstNode** fields,
+    AstNode** stmts,
+    Token* rbrace);
+
+AstNode* astnode_field_new(Token* identifier, AstNode* typespec);
 
 AstNode* astnode_integer_literal_new(Token* token, bigint val);
 AstNode* astnode_symbol_new(Token* identifier);

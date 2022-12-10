@@ -41,6 +41,8 @@ Msg msg_with_no_span(MsgKind kind, const char* msg);
 void msg_addl_fat(Msg* m, const char* msg, Span span);
 void msg_addl_thin(Msg* m, const char* msg);
 SrcLoc compute_srcloc_from_span(Span span);
+struct CompileCtx;
+void _msg_emit_no_register(Msg* msg, struct CompileCtx* compile_ctx);
 // This function is not to be used directly. The module in which it is called
 // will define a helper function named `msg_emit` (without the underscore)
 // and that makes sure that the necessary flags are set for the module
@@ -51,7 +53,6 @@ SrcLoc compute_srcloc_from_span(Span span);
 // Exception: `main.c` and some others use this directly because they do not
 // have the flags stored in their ctx.
 // Also registers the message in the given `CompileCtx`.
-struct CompileCtx;
 void _msg_emit(Msg* msg, struct CompileCtx* compile_ctx);
 
 #endif

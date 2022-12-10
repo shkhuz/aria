@@ -16,11 +16,35 @@ AstNode* astnode_typespec_identifier_new(AstNode* child) {
     return astnode;
 }
 
-AstNode* astnode_typespec_ptr_new(Token* star, AstNode* child) {
+AstNode* astnode_typespec_ptr_new(Token* star, bool immutable, AstNode* child) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_TYPESPEC_PTR,
         span_from_two(star->span, child->span));
+    astnode->typeptr.immutable = immutable;
     astnode->typeptr.child = child;
+    return astnode;
+}
+
+AstNode* astnode_typespec_struct_new(
+    Token* keyword,
+    AstNode** fields,
+    AstNode** stmts,
+    Token* rbrace)
+{
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_TYPESPEC_STRUCT,
+        span_from_two(keyword->span, rbrace->span));
+    astnode->typestruct.fields = fields;
+    astnode->typestruct.stmts = stmts;
+    return astnode;
+}
+
+AstNode* astnode_field_new(Token* identifier, AstNode* typespec) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_FIELD,
+        span_from_two(identifier->span, typespec->span));
+    astnode->field.identifier = identifier;
+    astnode->field.typespec = typespec;
     return astnode;
 }
 

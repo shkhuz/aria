@@ -118,8 +118,17 @@ static void _test_invalid(
         error = true;
     }
 
-    if (error) fprintf(stderr, "\n  >> At file %s:%lu", test_call_filename, test_call_line);
-    else {
+    if (error) {
+        fprintf(stderr, "\n  >> At file %s:%lu", test_call_filename, test_call_line);
+#ifndef TEST_PRINT_COMPILER_MSGS
+        fprintf(stderr, "\n");
+        bufloop(test_ctx.msgs, i) {
+            test_ctx.print_msg_to_stderr = true;
+            _msg_emit_no_register(&test_ctx.msgs[i], &test_ctx);
+            test_ctx.print_msg_to_stderr = false;
+        }
+#endif
+    } else {
 #ifndef TEST_PRINT_COMPILER_MSGS
         fprintf(stderr, "%sok%s", g_green_color, g_reset_color);
 #endif
@@ -280,6 +289,8 @@ int main() {
         1,
         17);
 
+    // TEST: eof error struct typespec
+
     test_invalid_one_errspan(
         "expected identifier in typespec access expr error",
         "fn main() my.1 {}",
@@ -293,6 +304,8 @@ int main() {
         "expected symbol name",
         1,
         17);
+
+    // TEST: imm keyword in typespec ptr
 
     test_invalid_one_errspan(
         "expected type error",
@@ -390,7 +403,7 @@ int main() {
         2,
         14);
 
-    // more `expected expression` tests
+    // TEST: more `expected expression` tests
 
     test_invalid_one_errspan(
         "missing comma in function call",

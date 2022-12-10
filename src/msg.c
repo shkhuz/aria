@@ -132,8 +132,7 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
     fprintf(stderr, "%s\n", g_reset_color);
 }
 
-void _msg_emit(Msg* msg, CompileCtx* compile_ctx) {
-    register_msg(compile_ctx, *msg);
+void _msg_emit_no_register(Msg* msg, CompileCtx* compile_ctx) {
     if (!(compile_ctx->print_msg_to_stderr)) return;
 
     if (compile_ctx->did_msg) fprintf(stderr, "\n");
@@ -187,4 +186,9 @@ void _msg_emit(Msg* msg, CompileCtx* compile_ctx) {
     if (!(compile_ctx->did_msg)) {
         compile_ctx->did_msg = true;
     }
+}
+
+void _msg_emit(Msg* msg, CompileCtx* compile_ctx) {
+    register_msg(compile_ctx, *msg);
+    _msg_emit_no_register(msg, compile_ctx);
 }

@@ -119,13 +119,45 @@ static inline Token* expect_comma(ParseCtx* p) {
 
 static AstNode* parse_typespec_ptr(ParseCtx* p) {
     Token* star = p->prev;
+    bool immutable = false;
+    if (match(p, TOKEN_KEYWORD_IMM)) {
+        immutable = true;
+    }
     AstNode* child = parse_typespec(p);
-    return astnode_typespec_ptr_new(star, child);
+    return astnode_typespec_ptr_new(star, immutable, child);
 }
 
 static AstNode* parse_typespec(ParseCtx* p) {
     if (match(p, TOKEN_STAR)) {
         return parse_typespec_ptr(p);
+    } else if (match(p, TOKEN_KEYWORD_STRUCT)) {
+        Token* keyword = p->prev;
+        Token* lbrace = expect_lbrace(p);
+        AstNode** stmts = NULL;
+        AstNode** fields = NULL;
+        while (!match(p, TOKEN_RBRACE)) {
+            check_eof(p, lbrace);
+            if (match(p, TOKEN_IDENTIFIER)) {
+                Token* identifier = p->prev;
+                expect_colon(p);
+                AstNode* typespec = parse_typespec(p);
+                if (p->current->kind != TOKEN_RBRACE) {
+                    expect_comma(p);
+                }
+                bufpush(fields, astnode_field_new(identifier, typespec));
+            } else {
+                AstNode* stmt = parse_root(p, false);
+                if (stmt) bufpush(stmts, stmt);
+                else {
+                    Msg msg = msg_with_span(
+                        MSG_ERROR,
+                        "expected a declaration, definition or a field",
+                        p->current->span);
+                    msg_emit(p, &msg);
+                }
+            }
+        }
+        return astnode_typespec_struct_new(keyword, fields, stmts, p->prev);
     } else if (match(p, TOKEN_IDENTIFIER)) {
         // Should we call `parse_expr` here, or should we do
         // the parsing manually only allowing accessor exprs?

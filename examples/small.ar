@@ -14,12 +14,13 @@ fn main() void {
     }
 }
 
-type Main = ff;
-type Main = *Main;
+type Cool = struct {
+    type name = u8;
+    a: usize,
+    b: struct {},
 
-// (if (cond)
-//      ...
-//  elseif (cond)
-//      ...
-//  else
-//      ...)
+    type name = u8;
+};
+
+type Main = ff;
+type Main = *imm Main;

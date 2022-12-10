@@ -26,7 +26,9 @@ static void print_node(AstNode* astnode) {
         return;
     }
 
-    if (astnode->kind == ASTNODE_IF
+    if (astnode->kind == ASTNODE_TYPESPEC_STRUCT
+        || astnode->kind == ASTNODE_FIELD
+        || astnode->kind == ASTNODE_IF
         || astnode->kind == ASTNODE_IF_BRANCH
         || astnode->kind == ASTNODE_TYPEDECL
         || astnode->kind == ASTNODE_FUNCTION_DEF
@@ -46,7 +48,31 @@ static void print_node(AstNode* astnode) {
 
         case ASTNODE_TYPESPEC_PTR: {
             printf("*");
+            if (astnode->typeptr.immutable) printf("imm ");
             print_node(astnode->typeptr.child);
+        } break;
+
+        case ASTNODE_TYPESPEC_STRUCT: {
+            indent += 4;
+            printf("(struct");
+            bufloop(astnode->typestruct.fields, i) {
+                print_node(astnode->typestruct.fields[i]);
+            }
+            bufloop(astnode->typestruct.stmts, i) {
+                print_node(astnode->typestruct.stmts[i]);
+            }
+            printf(")");
+            indent -= 4;
+        } break;
+
+        case ASTNODE_FIELD: {
+            printf("(field ");
+            print_token(astnode->field.identifier);
+            printf(" ");
+            indent += 4;
+            print_node(astnode->field.typespec);
+            indent -= 4;
+            printf(")");
         } break;
 
         case ASTNODE_INTEGER_LITERAL: {
