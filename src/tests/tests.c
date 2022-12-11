@@ -10,6 +10,10 @@ typedef struct {
     OptionalSrcLoc srcloc;
 } TestMsgSpec;
 
+bool g_error = false;
+usize total_tests = 0;
+usize passed_tests = 0;
+
 static void _test_invalid(
     const char* test_call_filename,
     usize test_call_line,
@@ -18,6 +22,7 @@ static void _test_invalid(
     usize num_msgs,
     TestMsgSpec* msgs)
 {
+    total_tests++;
 #ifdef TEST_PRINT_COMPILER_MSGS
     fprintf(stderr, "\n");
 #endif
@@ -119,6 +124,7 @@ static void _test_invalid(
     }
 
     if (error) {
+        g_error = true;
         fprintf(stderr, "\n  >> At file %s:%lu", test_call_filename, test_call_line);
 #ifndef TEST_PRINT_COMPILER_MSGS
         fprintf(stderr, "\n");
@@ -129,11 +135,12 @@ static void _test_invalid(
         }
 #endif
     } else {
+        passed_tests++;
 #ifndef TEST_PRINT_COMPILER_MSGS
         fprintf(stderr, "%sok%s", g_green_color, g_reset_color);
 #endif
     }
-    printf("\n");
+    fprintf(stderr, "\n");
 }
 
 #define test_invalid(testname, srccode, num_msgs, msgs) \
@@ -492,4 +499,15 @@ int main() {
 
     // REMINDER: At scoped block
 
+    fprintf(
+        stderr,
+        "total tests %lu; passed %s%lu%s; failed %s%lu%s\n",
+        total_tests,
+        passed_tests == total_tests ? g_bold_green_color : "",
+        passed_tests,
+        g_reset_color,
+        passed_tests != total_tests ? g_bold_red_color : "",
+        total_tests - passed_tests,
+        g_reset_color);
+    if (g_error) exit(1);
 }

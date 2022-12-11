@@ -137,7 +137,7 @@ void _msg_emit_no_register(Msg* msg, CompileCtx* compile_ctx) {
 
     if (compile_ctx->did_msg) fprintf(stderr, "\n");
     const char* color = "";
-    const char* msg_color = g_cornflower_blue_color;
+    const char* msg_color = g_bold_cornflower_blue_color;
     switch (msg->kind) {
         case MSG_ERROR: {
             color = g_error_color;

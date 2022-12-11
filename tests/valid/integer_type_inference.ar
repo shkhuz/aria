@@ -1,5 +1,0 @@
-fn main() {
-    const a: i8 = 1;
-    const b: i8 = 127;
-    const addition: i8 = a + b;
-}

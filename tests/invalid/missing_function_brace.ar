@@ -1,4 +1,0 @@
-//! 5:1: error: unexpected end of file
-
-fn main() {
-    const i: usize;

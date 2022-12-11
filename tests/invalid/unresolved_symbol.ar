@@ -1,5 +1,0 @@
-fn main() {
-    const a = b;
-}
-
-//! 2:15: error: unresolved symbol `b`

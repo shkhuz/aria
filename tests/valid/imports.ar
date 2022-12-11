@@ -1,9 +1,0 @@
-import "../../std/std.ar";
-
-fn main() { 
-    // bug: equality fails
-    std.assert(1 == 1, "cannot fail");
-    // bug: type parsing
-    const vec: std.Vec2;
-    std.write_u8(std.STDOUT_FILENO as u8);
-}

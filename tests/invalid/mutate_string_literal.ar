@@ -1,6 +1,0 @@
-fn main() {
-    var strlit = "hell0 world!";
-    strlit[4] = 65;
-}
-
-//! 3:11: error: cannot mutate read-only location with type `*const [12]u8`

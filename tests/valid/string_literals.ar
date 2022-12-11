@@ -1,8 +1,0 @@
-fn main() {
-    const hello_string = "hello world!";
-    take_hello_string_as_ptr(hello_string);
-    take_hello_string_as_slice(hello_string);
-}
-
-fn take_hello_string_as_ptr(str: *const [12]u8) { }
-fn take_hello_string_as_slice(str: []const u8) { }

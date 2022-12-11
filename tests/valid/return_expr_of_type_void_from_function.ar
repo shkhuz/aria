@@ -1,5 +1,0 @@
-fn main() {
-    ret_void()
-}
-
-fn ret_void() { }

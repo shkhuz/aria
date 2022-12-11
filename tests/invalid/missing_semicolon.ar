@@ -1,5 +1,0 @@
-fn main() {
-    const i = 0
-}
-
-//! 3:1: error: expected `;`, got `}`

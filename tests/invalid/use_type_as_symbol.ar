@@ -1,5 +1,0 @@
-fn main() {
-    const u8: u8;
-}
-
-//! 2:11: error: cannot use type as a symbol
