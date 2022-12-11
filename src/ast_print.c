@@ -65,6 +65,16 @@ static void print_node(AstNode* astnode) {
             indent -= 4;
         } break;
 
+        case ASTNODE_DIRECTIVE: {
+            printf("(");
+            print_token(astnode->directive.callee);
+            bufloop(astnode->funcc.args, i) {
+                printf(" ");
+                print_node(astnode->funcc.args[i]);
+            }
+            printf(")");
+        } break;
+
         case ASTNODE_FIELD: {
             printf("(field ");
             print_token(astnode->field.identifier);

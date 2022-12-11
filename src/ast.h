@@ -21,6 +21,11 @@ typedef struct {
 } AstNodeTypespecStruct;
 
 typedef struct {
+    Token* callee;
+    AstNode** args;
+} AstNodeDirective;
+
+typedef struct {
     Token* identifier;
     AstNode* typespec;
 } AstNodeField;
@@ -124,6 +129,7 @@ typedef enum {
     ASTNODE_TYPESPEC_IDENTIFIER,
     ASTNODE_TYPESPEC_PTR,
     ASTNODE_TYPESPEC_STRUCT,
+    ASTNODE_DIRECTIVE,
     ASTNODE_FIELD,
     ASTNODE_INTEGER_LITERAL,
     ASTNODE_SYMBOL,
@@ -150,6 +156,7 @@ struct AstNode {
         AstNodeTypespecIdentifier typeident;
         AstNodeTypespecPtr typeptr;
         AstNodeTypespecStruct typestruct;
+        AstNodeDirective directive;
         AstNodeField field;
         AstNodeIntegerLiteral intl;
         AstNodeSymbol sym;
@@ -178,6 +185,7 @@ AstNode* astnode_typespec_struct_new(
     AstNode** stmts,
     Token* rbrace);
 
+AstNode* astnode_directive_new(Token* callee, AstNode** args, Token* rparen);
 AstNode* astnode_field_new(Token* identifier, AstNode* typespec);
 
 AstNode* astnode_integer_literal_new(Token* token, bigint val);

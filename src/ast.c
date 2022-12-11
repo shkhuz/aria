@@ -39,6 +39,15 @@ AstNode* astnode_typespec_struct_new(
     return astnode;
 }
 
+AstNode* astnode_directive_new(Token* callee, AstNode** args, Token* rparen) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_DIRECTIVE,
+        span_from_two(callee->span, rparen->span));
+    astnode->directive.callee = callee;
+    astnode->directive.args = args;
+    return astnode;
+}
+
 AstNode* astnode_field_new(Token* identifier, AstNode* typespec) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_FIELD,

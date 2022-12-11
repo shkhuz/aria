@@ -7,20 +7,24 @@
 #include "parse.h"
 #include "ast_print.h"
 
-StringKwKind* keywords = NULL;
+StringTokenKindTup* keywords = NULL;
+StringTokenKindTup* directives = NULL;
 
 void init_global_compiler_state() {
     init_cmd();
-    bufpush(keywords, (StringKwKind){ "imm", TOKEN_KEYWORD_IMM });
-    bufpush(keywords, (StringKwKind){ "mut", TOKEN_KEYWORD_MUT });
-    bufpush(keywords, (StringKwKind){ "fn", TOKEN_KEYWORD_FN });
-    bufpush(keywords, (StringKwKind){ "type", TOKEN_KEYWORD_TYPE });
-    bufpush(keywords, (StringKwKind){ "struct", TOKEN_KEYWORD_STRUCT });
-    bufpush(keywords, (StringKwKind){ "if", TOKEN_KEYWORD_IF });
-    bufpush(keywords, (StringKwKind){ "else", TOKEN_KEYWORD_ELSE });
-    bufpush(keywords, (StringKwKind){ "for", TOKEN_KEYWORD_FOR });
-    bufpush(keywords, (StringKwKind){ "return", TOKEN_KEYWORD_RETURN });
-    bufpush(keywords, (StringKwKind){ "yield", TOKEN_KEYWORD_YIELD });
+
+    bufpush(keywords, (StringTokenKindTup){ "imm", TOKEN_KEYWORD_IMM });
+    bufpush(keywords, (StringTokenKindTup){ "mut", TOKEN_KEYWORD_MUT });
+    bufpush(keywords, (StringTokenKindTup){ "fn", TOKEN_KEYWORD_FN });
+    bufpush(keywords, (StringTokenKindTup){ "type", TOKEN_KEYWORD_TYPE });
+    bufpush(keywords, (StringTokenKindTup){ "struct", TOKEN_KEYWORD_STRUCT });
+    bufpush(keywords, (StringTokenKindTup){ "if", TOKEN_KEYWORD_IF });
+    bufpush(keywords, (StringTokenKindTup){ "else", TOKEN_KEYWORD_ELSE });
+    bufpush(keywords, (StringTokenKindTup){ "for", TOKEN_KEYWORD_FOR });
+    bufpush(keywords, (StringTokenKindTup){ "return", TOKEN_KEYWORD_RETURN });
+    bufpush(keywords, (StringTokenKindTup){ "yield", TOKEN_KEYWORD_YIELD });
+
+    bufpush(directives, (StringTokenKindTup){ "import", TOKEN_DIRECTIVE_IMPORT });
 }
 
 CompileCtx compile_new_context() {

@@ -26,7 +26,7 @@ static void _test_invalid(
 #ifdef TEST_PRINT_COMPILER_MSGS
     fprintf(stderr, "\n");
 #endif
-    fprintf(stderr, "Testing \"%s\"... ", testname);
+    fprintf(stderr, "Testing \"%s\" (%lu)... ", testname, test_call_line);
 #ifdef TEST_PRINT_COMPILER_MSGS
     fprintf(stderr, "\n");
 #endif
@@ -215,23 +215,23 @@ int main() {
     );
 
     test_invalid_one_errspan(
-        "eof error on function call",
+        "eof error in function call",
         "fn main() void{\n"
-        "   call( \n",
+        "   call(\n",
         "unexpected end of file",
         3,
         1);
 
     test_invalid_one_errspan(
-        "eof error on function call",
+        "eof error in function call",
         "fn main() void{\n"
-        "   call(1, \n",
+        "   call(1,\n",
         "unexpected end of file",
         3,
         1);
 
     test_invalid_one_errspan(
-        "eof error on function call",
+        "eof error in function call",
         "fn main() void{\n"
         "   call(1, 2, 3, a, b, \n",
         "unexpected end of file",
@@ -239,12 +239,19 @@ int main() {
         1);
 
     test_invalid_one_errspan(
-        "eof error on function call",
+        "eof error in function call",
         "fn main() void{\n"
         "   call(",
         "unexpected end of file",
         2,
         9);
+
+    test_invalid_one_errspan(
+        "eof error in directive",
+        "type Main = @import(\n",
+        "unexpected end of file",
+        2,
+        1);
 
     test_invalid_one_errspan(
         "eof error in function header",
@@ -296,7 +303,20 @@ int main() {
         1,
         17);
 
-    // TEST: eof error struct typespec
+    test_invalid_one_errspan(
+        "eof error in struct typespec",
+        "type Main = struct {\n",
+        "unexpected end of file",
+        2,
+        1);
+
+    test_invalid_one_errspan(
+        "eof error in struct typespec",
+        "type Main = struct {\n"
+        "   a: u8,\n",
+        "unexpected end of file",
+        3,
+        1);
 
     test_invalid_one_errspan(
         "expected identifier in typespec access expr error",
@@ -311,8 +331,6 @@ int main() {
         "expected symbol name",
         1,
         17);
-
-    // TEST: imm keyword in typespec ptr
 
     test_invalid_one_errspan(
         "expected type error",
@@ -430,6 +448,8 @@ int main() {
         2,
         16);
 
+    // TEST: "missing rparen in directive"
+
     test_invalid_one_errspan(
         "expected identifier in access expr error",
         "fn main() void{\n"
@@ -491,7 +511,7 @@ int main() {
         10);
 
     test_invalid_one_errspan(
-        "missing comma in function call",
+        "missing comma in function header",
         "fn main(a: usize b: usize) void{}\n",
         "expected `,` or `)`",
         1,

@@ -9,7 +9,7 @@
 typedef struct {
     char* k;
     TokenKind v;
-} StringKwKind;
+} StringTokenKindTup;
 
 struct AstNode;
 
@@ -21,7 +21,8 @@ struct Srcfile {
     struct AstNode** astnodes;
 };
 
-extern StringKwKind* keywords;
+extern StringTokenKindTup* keywords;
+extern StringTokenKindTup* directives;
 
 typedef struct CompileCtx CompileCtx;
 

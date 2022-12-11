@@ -117,6 +117,26 @@ static inline Token* expect_comma(ParseCtx* p) {
     return expect(p, TOKEN_COMMA, "expected `,`");
 }
 
+static AstNode** parse_args(ParseCtx* p, Token* lparen) {
+    AstNode** args = NULL;
+    while (!match(p, TOKEN_RPAREN)) {
+        check_eof(p, lparen);
+        AstNode* arg = parse_expr(p);
+        bufpush(args, arg);
+        if (p->current->kind != TOKEN_RPAREN) {
+            expect(p, TOKEN_COMMA, "expected `,` or `)`");
+        }
+    }
+    return args;
+}
+
+static AstNode* parse_directive(ParseCtx* p) {
+    Token* callee = p->prev;
+    Token* lparen = expect_lparen(p);
+    AstNode** args = parse_args(p, lparen);
+    return astnode_directive_new(callee, args, p->prev);
+}
+
 static AstNode* parse_typespec_ptr(ParseCtx* p) {
     Token* star = p->prev;
     bool immutable = false;
@@ -158,6 +178,8 @@ static AstNode* parse_typespec(ParseCtx* p) {
             }
         }
         return astnode_typespec_struct_new(keyword, fields, stmts, p->prev);
+    } else if (match(p, TOKEN_DIRECTIVE_IMPORT)) {
+        return parse_directive(p);
     } else if (match(p, TOKEN_IDENTIFIER)) {
         // Should we call `parse_expr` here, or should we do
         // the parsing manually only allowing accessor exprs?
@@ -281,15 +303,7 @@ static AstNode* parse_suffix_expr(ParseCtx* p) {
            || p->current->kind == TOKEN_DOT) {
         if (match(p, TOKEN_LPAREN)) {
             Token* lparen = p->prev;
-            AstNode** args = NULL;
-            while (!match(p, TOKEN_RPAREN)) {
-                check_eof(p, lparen);
-                AstNode* arg = parse_expr(p);
-                bufpush(args, arg);
-                if (p->current->kind != TOKEN_RPAREN) {
-                    expect(p, TOKEN_COMMA, "expected `,` or `)`");
-                }
-            }
+            AstNode** args = parse_args(p, lparen);
             left = astnode_function_call_new(left, args, p->prev);
         } else if (match(p, TOKEN_DOT)) {
             Token* right = expect_identifier(p, "expected symbol name");

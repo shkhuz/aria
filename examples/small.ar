@@ -1,3 +1,5 @@
+type std = @import(1);
+
 fn main() void {
     fn cool(a: int, b: int) my.void {
         fn cool() df {cool;}
