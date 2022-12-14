@@ -79,15 +79,13 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
     if (print_srcloc) {
         fprintf(
             stderr,
-            "  %s--> %s:%lu:%lu%s\n",
-            EC_8BITCOLOR("244", "1"),
+            "  %s--> %s%s\n",
+            g_bold_grey_color,
             handle->path,
-            line,
-            col,
             g_reset_color);
     }
 
-    int indent = fprintf(stderr, "  %lu | ", line) - 2;
+    int indent = fprintf(stderr, "  %lu | ", line) - 3; // 3 for ` | `
     bool multiline_span = false;
     usize disp_chcount = 0;
 
@@ -97,8 +95,8 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
             && span.end-span.start != 1) {
             multiline_span = true;
             while (isspace(handle->contents[i])) i--;
-            // Now point is on the last non-whitespace char.
-            // We advance by one because the end is exclusive.
+            // Now the point is on the last non-whitespace char.
+            // We advance it by one because the end is exclusive.
             i++;
             end_of_span = i;
             break;
@@ -113,23 +111,21 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
     }
 
     disp_chcount += end_of_span - span.start;
-    for (
-        usize i = span.end;
-        handle->contents[i] != '\n' && handle->contents[i] != '\0' && i < handle->len;
-        i++)
-    {
+    for (usize i = span.end;
+         handle->contents[i] != '\n' && handle->contents[i] != '\0' && i < handle->len;
+         i++) {
         fprintf(stderr, "%c", handle->contents[i]);
     }
 
-    fprintf(stderr, "\n%*s", indent, "");
-    fprintf(stderr, "| ");
+    fprintf(stderr, "\n%*s | ", indent, "");
 
     for (usize i = 1; i < disp_col; i++) fprintf(stderr, " ");
     fprintf(stderr, "%s", color);
     for (usize i = disp_col; i < disp_col + disp_chcount; i++)
         fprintf(stderr, "^");
-    if (multiline_span) fprintf(stderr, " \u00B7\u00B7\u00B7");
-    fprintf(stderr, "%s\n", g_reset_color);
+    if (multiline_span) fprintf(stderr, " ...");
+    fprintf(stderr, "%s", g_reset_color);
+    fprintf(stderr, "\n");
 }
 
 void _msg_emit_no_register(Msg* msg, CompileCtx* compile_ctx) {
@@ -163,20 +159,20 @@ void _msg_emit_no_register(Msg* msg, CompileCtx* compile_ctx) {
         bufloop(msg->addl_fat, i) {
             fprintf(
                 stderr,
-                "  %s= note:%s %s\n",
+                "  %snote:%s %s\n",
                 g_note_color,
                 g_reset_color,
                 msg->addl_fat[i].msg);
             print_source_line(
                 msg->addl_fat[i].span,
                 g_note_color,
-                true/*msg->span.span.srcfile != msg->addl_fat[i].span.srcfile*/);
+                msg->span.span.srcfile != msg->addl_fat[i].span.srcfile);
         }
 
         bufloop(msg->addl_thin, i) {
             fprintf(
                 stderr,
-                "  %s= note:%s %s\n",
+                "  %snote:%s %s\n",
                 g_note_color,
                 g_reset_color,
                 msg->addl_thin[i].msg);

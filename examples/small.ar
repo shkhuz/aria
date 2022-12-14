@@ -1,11 +1,27 @@
 type std = @import(1);
 
+// immutable with runtime known
+// immutable with compile time known
+// mutable with rumtime known
+// mutable with compile time known
+
+imm x = ${yield 1;};
+
+imm primes = ${
+    imm sum = ${
+        yield $cool;
+    };
+    imm sum = $1;
+    yield sum;
+};
+
 fn main() void {
     fn cool(a: int, b: int) my.void {
         fn cool() df {cool;}
         mut name = cool(a,cool(),mutable({}, {fn cool() void {}}));
         imm war = if (cool) {call();} else cool;
         {mut name = {cool;};}
+        if (main) {} else if (main) {} else if (main) {}
 
         if (main) {
             if (cool.a.b) 1 else {type Cool = Cool;}

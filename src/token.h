@@ -42,6 +42,7 @@ typedef enum {
     TOKEN_PLUS,
     TOKEN_MINUS,
     TOKEN_STAR,
+    TOKEN_DOLLAR,
     TOKEN_FSLASH,
     TOKEN_EOF,
 } TokenKind;

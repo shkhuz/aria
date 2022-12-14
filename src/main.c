@@ -50,11 +50,17 @@ Srcfile* read_srcfile(const char* path, OptionalSpan span, CompileCtx* compile_c
 }
 
 int main(int argc, char* argv[]) {
-    /* int* buf = NULL; */
-    /* bufpush(buf, -2); */
-    /* bufpush(buf, -3); */
-    /* bufpush(buf, 4); */
-    /* bufpush(buf, 2948); */
+     int* buf = NULL;
+     bufpush(buf, -2);
+     bufpush(buf, -3);
+     bufpush(buf, 4);
+     bufpush(buf, 2948);
+     assert(bufpop(buf) == 2948);
+     assert(bufpop(buf) == 4);
+     assert(bufpop(buf) == -3);
+     assert(bufpop(buf) == -2);
+     assert(bufpop(buf) == 0);
+     assert(bufpop(buf) == 0);
 
     /* for (usize i = 0; i < buflen(buf); i++) { */
     /*     aria_printf("%d\n", buf[i]); */
@@ -65,6 +71,7 @@ int main(int argc, char* argv[]) {
     /* bigint a; */
     /* bigint_init_u64(&a, 1); */
     /* bigint_set_u64(&a, 1); */
+
     init_global_compiler_state();
 
     const char* outpath = "a.out";

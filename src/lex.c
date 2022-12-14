@@ -133,6 +133,7 @@ void lex(LexCtx* l) {
             } break;
 
             case '\"': {
+                bool error = false;
                 l->current++;
                 while (*l->current != '\"') {
                     if (*l->current == '\n' || *l->current == '\0') {
@@ -141,15 +142,17 @@ void lex(LexCtx* l) {
                             "unterminated string literal",
                             span_from_start_to_current(l));
                         msg_emit(l, &msg);
-                        l->current++;
+                        error = true;
                         break;
                     }
                     l->current++;
                 }
 
-                l->current++;
-                Token* t = token_new(TOKEN_STRING, span_from_start_to_current(l));
-                bufpush(l->srcfile->tokens, t);
+                if (!error) {
+                    l->current++;
+                    Token* t = token_new(TOKEN_STRING, span_from_start_to_current(l));
+                    bufpush(l->srcfile->tokens, t);
+                }
             } break;
 
             case '{': push_tok_adv(l, TOKEN_LBRACE); break;
@@ -170,6 +173,7 @@ void lex(LexCtx* l) {
             case '+': push_tok_adv(l, TOKEN_PLUS); break;
             case '-': push_tok_adv(l, TOKEN_MINUS); break;
             case '*': push_tok_adv(l, TOKEN_STAR); break;
+            case '$': push_tok_adv(l, TOKEN_DOLLAR); break;
 
             case '/': {
                 if (*(l->current+1) == '/') {

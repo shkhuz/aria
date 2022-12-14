@@ -1,5 +1,13 @@
 #include "buf.h"
 
+usize buflen(const void* buf) {
+    return buf ? _bufhdr(buf)->len : 0;
+}
+
+usize bufcap(const void* buf) {
+    return buf ? _bufhdr(buf)->cap : 0;
+}
+
 void* _bufgrow(const void* buf, usize new_len, usize elem_size) {
     usize new_cap = CLAMP_MIN(2 * bufcap(buf), MAX(new_len, 16));
     assert(new_len <= new_cap);

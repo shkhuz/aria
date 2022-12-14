@@ -22,6 +22,7 @@ ParseCtx parse_new_context(
     p.compile_ctx = compile_ctx;
     p.error = false;
     p.error_handler_pos = error_handler_pos;
+    p.comptime_marker_stack = NULL;
     return p;
 }
 
@@ -226,7 +227,7 @@ static inline AstNode* get_last_if_branch(
     AstNode* elsebr)
 {
     if (elsebr) return elsebr;
-    else if (elseifbr) return elseifbr[buflen(elseifbr)-1];
+    else if (elseifbr) return *buflast(elseifbr);
     return ifbr;
 }
 
@@ -315,7 +316,25 @@ static AstNode* parse_suffix_expr(ParseCtx* p) {
 }
 
 static AstNode* parse_expr(ParseCtx* p) {
-    return parse_suffix_expr(p);
+    bool error = false;
+    if (match(p, TOKEN_DOLLAR)) {
+        if (buflen(p->comptime_marker_stack) > 0) {
+            error = true;
+            Msg msg = msg_with_span(
+                MSG_WARNING,
+                "redundant `$`",
+                p->prev->span);
+            msg_addl_fat(
+                &msg,
+                "already in a compile-time scope",
+                (*buflast(p->comptime_marker_stack))->span);
+            msg_emit(p, &msg);
+        }
+        else bufpush(p->comptime_marker_stack, p->prev);
+    }
+    AstNode* expr = parse_suffix_expr(p);
+    if (!error) bufpop(p->comptime_marker_stack);
+    return expr;
 }
 
 static AstNode* parse_function_header(ParseCtx* p) {
@@ -344,6 +363,7 @@ static AstNode* parse_scoped_block(ParseCtx* p) {
     Token* lbrace = p->prev;
     AstNode** stmts = NULL;
     AstNode* val = NULL;
+
     while (!match(p, TOKEN_RBRACE)) {
         check_eof(p, lbrace);
         AstNode* stmt = parse_root(p, false);
