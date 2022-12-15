@@ -8,7 +8,7 @@
 #include "ast_print.h"
 
 StringTokenKindTup* keywords = NULL;
-StringTokenKindTup* directives = NULL;
+StringDirectiveKindTup* directives = NULL;
 
 void init_global_compiler_state() {
     init_cmd();
@@ -24,7 +24,7 @@ void init_global_compiler_state() {
     bufpush(keywords, (StringTokenKindTup){ "return", TOKEN_KEYWORD_RETURN });
     bufpush(keywords, (StringTokenKindTup){ "yield", TOKEN_KEYWORD_YIELD });
 
-    bufpush(directives, (StringTokenKindTup){ "import", TOKEN_DIRECTIVE_IMPORT });
+    bufpush(directives, (StringDirectiveKindTup){ "import", DIRECTIVE_IMPORT });
 }
 
 CompileCtx compile_new_context() {

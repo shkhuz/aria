@@ -8,14 +8,6 @@ AstNode* astnode_alloc(AstNodeKind kind, Span span) {
     return astnode;
 }
 
-AstNode* astnode_typespec_identifier_new(AstNode* child) {
-    AstNode* astnode = astnode_alloc(
-        ASTNODE_TYPESPEC_IDENTIFIER,
-        child->span);
-    astnode->typeident.child = child;
-    return astnode;
-}
-
 AstNode* astnode_typespec_ptr_new(Token* star, bool immutable, AstNode* child) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_TYPESPEC_PTR,
@@ -39,12 +31,19 @@ AstNode* astnode_typespec_struct_new(
     return astnode;
 }
 
-AstNode* astnode_directive_new(Token* callee, AstNode** args, Token* rparen) {
+AstNode* astnode_directive_new(
+    Token* start,
+    Token* callee,
+    AstNode** args,
+    DirectiveKind kind,
+    Token* rparen)
+{
     AstNode* astnode = astnode_alloc(
         ASTNODE_DIRECTIVE,
-        span_from_two(callee->span, rparen->span));
+        span_from_two(start->span, rparen->span));
     astnode->directive.callee = callee;
     astnode->directive.args = args;
+    astnode->directive.kind = DIRECTIVE_NONE;
     return astnode;
 }
 

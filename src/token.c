@@ -17,6 +17,7 @@ bool is_token_lexeme(Token* token, const char* string) {
 
 bool can_token_start_expr(Token* token) {
     if (token->kind == TOKEN_IDENTIFIER
+        || token->kind == TOKEN_AT
         || token->kind == TOKEN_LBRACE
         || token->kind == TOKEN_KEYWORD_IF
         || token->kind == TOKEN_KEYWORD_RETURN

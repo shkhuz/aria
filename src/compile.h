@@ -5,11 +5,17 @@
 #include "core.h"
 #include "file_io.h"
 #include "token.h"
+#include "ast.h"
 
 typedef struct {
     char* k;
     TokenKind v;
 } StringTokenKindTup;
+
+typedef struct {
+    char* k;
+    DirectiveKind v;
+} StringDirectiveKindTup;
 
 struct AstNode;
 
@@ -22,7 +28,7 @@ struct Srcfile {
 };
 
 extern StringTokenKindTup* keywords;
-extern StringTokenKindTup* directives;
+extern StringDirectiveKindTup* directives;
 
 typedef struct CompileCtx CompileCtx;
 

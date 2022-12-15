@@ -131,13 +131,6 @@ static AstNode** parse_args(ParseCtx* p, Token* lparen) {
     return args;
 }
 
-static AstNode* parse_directive(ParseCtx* p) {
-    Token* callee = p->prev;
-    Token* lparen = expect_lparen(p);
-    AstNode** args = parse_args(p, lparen);
-    return astnode_directive_new(callee, args, p->prev);
-}
-
 static AstNode* parse_typespec_ptr(ParseCtx* p) {
     Token* star = p->prev;
     bool immutable = false;
@@ -146,6 +139,30 @@ static AstNode* parse_typespec_ptr(ParseCtx* p) {
     }
     AstNode* child = parse_typespec(p);
     return astnode_typespec_ptr_new(star, immutable, child);
+}
+
+static AstNode* parse_directive(ParseCtx* p) {
+    Token* start = p->prev;
+    Token* identifier = expect_identifier(p, "expected directive name");
+    DirectiveKind kind = DIRECTIVE_NONE;
+    bufloop(directives, i) {
+        if (slice_eql_to_str(&identifier->span.srcfile->handle.contents[identifier->span.start], identifier->span.end - identifier->span.start, directives[i].k)) {
+            kind = directives[i].v;
+            break;
+        }
+    }
+
+    if (kind == DIRECTIVE_NONE) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            "unknown directive",
+            identifier->span);
+        msg_emit_non_fatal(p, &msg);
+    }
+
+    Token* lparen = expect_lparen(p);
+    AstNode** args = parse_args(p, lparen);
+    return astnode_directive_new(start, identifier, args, kind, p->prev);
 }
 
 static AstNode* parse_typespec(ParseCtx* p) {
@@ -179,17 +196,15 @@ static AstNode* parse_typespec(ParseCtx* p) {
             }
         }
         return astnode_typespec_struct_new(keyword, fields, stmts, p->prev);
-    } else if (match(p, TOKEN_DIRECTIVE_IMPORT)) {
+    } else if (match(p, TOKEN_AT)) {
         return parse_directive(p);
     } else if (match(p, TOKEN_IDENTIFIER)) {
-        // Should we call `parse_expr` here, or should we do
-        // the parsing manually only allowing accessor exprs?
         AstNode* left = astnode_symbol_new(p->prev);
         while (match(p, TOKEN_DOT)) {
             Token* right = expect_identifier(p, "expected symbol name");
             left = astnode_access_new(left, right);
         }
-        return astnode_typespec_identifier_new(left);
+        return left;
     }
 
     Msg msg = msg_with_span(
@@ -232,8 +247,11 @@ static inline AstNode* get_last_if_branch(
 }
 
 static AstNode* parse_atom_expr(ParseCtx* p) {
+    // NOTE: Add the case to `can_token_begin_expr()`
     if (match(p, TOKEN_IDENTIFIER)) {
         return astnode_symbol_new(p->prev);
+    } else if (match(p, TOKEN_AT)) {
+        return parse_directive(p);
     } else if (match(p, TOKEN_LBRACE)) {
         return parse_scoped_block(p);
     } else if (match(p, TOKEN_KEYWORD_IF)) {

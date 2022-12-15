@@ -81,29 +81,6 @@ void lex(LexCtx* l) {
                 push_tok(l, kind);
             } break;
 
-            case '@': {
-                l->current++;
-                while (isalnum(*l->current) || *l->current == '_') {
-                    l->current++;
-                }
-
-                TokenKind kind = TOKEN_EOF;
-                bufloop(directives, i) {
-                    if (slice_eql_to_str(l->start+1, l->current-(l->start+1), directives[i].k)) {
-                        kind = directives[i].v;
-                        break;
-                    }
-                }
-                if (kind == TOKEN_EOF) {
-                    Msg msg = msg_with_span(
-                        MSG_ERROR,
-                        "unknown directive",
-                        span_from_start_to_current(l));
-                    msg_emit(l, &msg);
-                }
-                else push_tok(l, kind);
-            } break;
-
             case '0': case '1': case '2': case '3': case '4':
             case '5': case '6': case '7': case '8': case '9': {
                 /*
@@ -173,6 +150,7 @@ void lex(LexCtx* l) {
             case '+': push_tok_adv(l, TOKEN_PLUS); break;
             case '-': push_tok_adv(l, TOKEN_MINUS); break;
             case '*': push_tok_adv(l, TOKEN_STAR); break;
+            case '@': push_tok_adv(l, TOKEN_AT); break;
             case '$': push_tok_adv(l, TOKEN_DOLLAR); break;
 
             case '/': {

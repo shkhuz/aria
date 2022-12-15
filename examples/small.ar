@@ -27,7 +27,7 @@ fn main() void {
             if (cool.a.b) 1 else {type Cool = Cool;}
         }
         func(1, 2);
-        return 2;
+        return @import(1).a;
         yield 1;
     }
 }

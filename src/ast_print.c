@@ -42,10 +42,6 @@ static void print_node(AstNode* astnode) {
     }
 
     switch (astnode->kind) {
-        case ASTNODE_TYPESPEC_IDENTIFIER: {
-            print_node(astnode->typeident.child);
-        } break;
-
         case ASTNODE_TYPESPEC_PTR: {
             printf("*");
             if (astnode->typeptr.immutable) printf("imm ");
@@ -66,7 +62,7 @@ static void print_node(AstNode* astnode) {
         } break;
 
         case ASTNODE_DIRECTIVE: {
-            printf("(");
+            printf("(@");
             print_token(astnode->directive.callee);
             bufloop(astnode->funcc.args, i) {
                 printf(" ");

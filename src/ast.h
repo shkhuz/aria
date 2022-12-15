@@ -7,10 +7,6 @@
 typedef struct AstNode AstNode;
 
 typedef struct {
-    AstNode* child;
-} AstNodeTypespecIdentifier;
-
-typedef struct {
     bool immutable;
     AstNode* child;
 } AstNodeTypespecPtr;
@@ -20,9 +16,15 @@ typedef struct {
     AstNode** stmts;
 } AstNodeTypespecStruct;
 
+typedef enum {
+    DIRECTIVE_IMPORT,
+    DIRECTIVE_NONE,
+} DirectiveKind;
+
 typedef struct {
     Token* callee;
     AstNode** args;
+    DirectiveKind kind;
 } AstNodeDirective;
 
 typedef struct {
@@ -153,7 +155,6 @@ struct AstNode {
     AstNodeKind kind;
     Span span;
     union {
-        AstNodeTypespecIdentifier typeident;
         AstNodeTypespecPtr typeptr;
         AstNodeTypespecStruct typestruct;
         AstNodeDirective directive;
@@ -177,7 +178,6 @@ struct AstNode {
     };
 };
 
-AstNode* astnode_typespec_identifier_new(AstNode* child);
 AstNode* astnode_typespec_ptr_new(Token* star, bool immutable, AstNode* child);
 AstNode* astnode_typespec_struct_new(
     Token* keyword,
@@ -185,7 +185,12 @@ AstNode* astnode_typespec_struct_new(
     AstNode** stmts,
     Token* rbrace);
 
-AstNode* astnode_directive_new(Token* callee, AstNode** args, Token* rparen);
+AstNode* astnode_directive_new(
+    Token* start,
+    Token* callee,
+    AstNode** args,
+    DirectiveKind kind,
+    Token* rparen);
 AstNode* astnode_field_new(Token* identifier, AstNode* typespec);
 
 AstNode* astnode_integer_literal_new(Token* token, bigint val);
