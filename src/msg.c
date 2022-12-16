@@ -79,13 +79,17 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
     if (print_srcloc) {
         fprintf(
             stderr,
-            "  %s--> %s%s\n",
+            "  %s--> %s:%lu:%lu%s\n",
             g_bold_grey_color,
             handle->path,
+            line,
+            col,
             g_reset_color);
     }
 
-    int indent = fprintf(stderr, "  %lu | ", line) - 3; // 3 for ` | `
+    int indent = snprintf(NULL, 0, "  %lu", line);
+    fprintf(stderr, "%*s |", indent, "");
+    fprintf(stderr, "\n%*lu | ", indent, line);
     bool multiline_span = false;
     usize disp_chcount = 0;
 
@@ -166,7 +170,7 @@ void _msg_emit_no_register(Msg* msg, CompileCtx* compile_ctx) {
             print_source_line(
                 msg->addl_fat[i].span,
                 g_note_color,
-                msg->span.span.srcfile != msg->addl_fat[i].span.srcfile);
+                true/*msg->span.span.srcfile != msg->addl_fat[i].span.srcfile*/);
         }
 
         bufloop(msg->addl_thin, i) {

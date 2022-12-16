@@ -16,7 +16,7 @@ imm primes = ${
 };
 
 fn main() void {
-    fn cool(a: int, b: int) my.void {
+    fn cool(: int, b: int) my.void {
         fn cool() df {cool;}
         mut name = cool(a,cool(),mutable({}, {fn cool() void {}}));
         imm war = if (cool) {call();} else cool;
