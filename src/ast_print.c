@@ -61,6 +61,16 @@ static void print_node(AstNode* astnode) {
             indent -= 4;
         } break;
 
+        case ASTNODE_GENERIC_TYPESPEC: {
+            printf("(:: ");
+            print_node(astnode->genty.left);
+            bufloop(astnode->genty.args, i) {
+                printf(" ");
+                print_node(astnode->genty.args[i]);
+            }
+            printf(")");
+        } break;
+
         case ASTNODE_DIRECTIVE: {
             printf("(@");
             print_token(astnode->directive.callee);

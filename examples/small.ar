@@ -5,18 +5,22 @@ type std = @import(1);
 // mutable with rumtime known
 // mutable with compile time known
 
-imm x = ${yield 1;};
+imm x = {yield 1;};
 
-imm primes = ${
-    imm sum = ${
-        yield $cool;
+type Main = struct {
+    buf: std.Vec::(u32),
+};
+
+imm primes = {
+    imm sum = {
+        yield cool;
     };
-    imm sum = $1;
+    imm sum = 1;
     yield sum;
 };
 
 fn main() void {
-    fn cool(: int, b: int) my.void {
+    fn cool(a: int, b: int) std.Vec::(usize, u8, *std.Vec::(u8)) {
         fn cool() df {cool;}
         mut name = cool(a,cool(),mutable({}, {fn cool() void {}}));
         imm war = if (cool) {call();} else cool;

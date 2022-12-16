@@ -138,10 +138,10 @@ void lex(LexCtx* l) {
             case ']': push_tok_adv(l, TOKEN_RBRACK); break;
             case '(': push_tok_adv(l, TOKEN_LPAREN); break;
             case ')': push_tok_adv(l, TOKEN_RPAREN); break;
-            case ':': push_tok_adv(l, TOKEN_COLON); break;
             case ';': push_tok_adv(l, TOKEN_SEMICOLON); break;
             case '.': push_tok_adv(l, TOKEN_DOT); break;
             case ',': push_tok_adv(l, TOKEN_COMMA); break;
+            case ':': push_tok_adv_cond(l, ':', TOKEN_DOUBLE_COLON, TOKEN_COLON); break;
             case '=': push_tok_adv_cond(l, '=', TOKEN_DOUBLE_EQUAL, TOKEN_EQUAL); break;
             case '!': push_tok_adv_cond(l, '=', TOKEN_BANG_EQUAL, TOKEN_BANG); break;
             case '<': push_tok_adv_cond(l, '=', TOKEN_LANGBR_EQUAL, TOKEN_LANGBR); break;

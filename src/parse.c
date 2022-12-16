@@ -22,7 +22,6 @@ ParseCtx parse_new_context(
     p.compile_ctx = compile_ctx;
     p.error = false;
     p.error_handler_pos = error_handler_pos;
-    p.comptime_marker_stack = NULL;
     return p;
 }
 
@@ -118,27 +117,28 @@ static inline Token* expect_comma(ParseCtx* p) {
     return expect(p, TOKEN_COMMA, "expected `,`");
 }
 
-static AstNode** parse_args(ParseCtx* p, Token* lparen) {
+static AstNode** parse_args(
+        ParseCtx* p,
+        Token* lparen,
+        bool expr,
+        bool at_least_one) {
     AstNode** args = NULL;
-    while (!match(p, TOKEN_RPAREN)) {
+    while (p->current->kind != TOKEN_RPAREN || at_least_one) {
         check_eof(p, lparen);
-        AstNode* arg = parse_expr(p);
+        at_least_one = false;
+        AstNode* arg = NULL;
+        if (expr) {
+            arg = parse_expr(p);
+        } else {
+            arg = parse_typespec(p);
+        }
         bufpush(args, arg);
         if (p->current->kind != TOKEN_RPAREN) {
             expect(p, TOKEN_COMMA, "expected `,` or `)`");
         }
     }
+    expect_rparen(p);
     return args;
-}
-
-static AstNode* parse_typespec_ptr(ParseCtx* p) {
-    Token* star = p->prev;
-    bool immutable = false;
-    if (match(p, TOKEN_KEYWORD_IMM)) {
-        immutable = true;
-    }
-    AstNode* child = parse_typespec(p);
-    return astnode_typespec_ptr_new(star, immutable, child);
 }
 
 static AstNode* parse_directive(ParseCtx* p) {
@@ -146,7 +146,10 @@ static AstNode* parse_directive(ParseCtx* p) {
     Token* identifier = expect_identifier(p, "expected directive name");
     DirectiveKind kind = DIRECTIVE_NONE;
     bufloop(directives, i) {
-        if (slice_eql_to_str(&identifier->span.srcfile->handle.contents[identifier->span.start], identifier->span.end - identifier->span.start, directives[i].k)) {
+        if (slice_eql_to_str(
+                &identifier->span.srcfile->handle.contents[identifier->span.start],
+                identifier->span.end - identifier->span.start,
+                directives[i].k)) {
             kind = directives[i].v;
             break;
         }
@@ -161,14 +164,23 @@ static AstNode* parse_directive(ParseCtx* p) {
     }
 
     Token* lparen = expect_lparen(p);
-    AstNode** args = parse_args(p, lparen);
+    AstNode** args = parse_args(p, lparen, true, false);
     return astnode_directive_new(start, identifier, args, kind, p->prev);
 }
 
-static AstNode* parse_typespec(ParseCtx* p) {
-    if (match(p, TOKEN_STAR)) {
-        return parse_typespec_ptr(p);
-    } else if (match(p, TOKEN_KEYWORD_STRUCT)) {
+static AstNode* parse_generic_typespec(ParseCtx* p, AstNode* left) {
+    Token* lparen = expect_lparen(p);
+    AstNode** args = parse_args(p, lparen, false, true);
+    return astnode_generic_typespec_new(left, args, p->prev);
+}
+
+static AstNode* parse_access_expr(ParseCtx* p, AstNode* left) {
+    Token* right = expect_identifier(p, "expected symbol name");
+    return astnode_access_new(left, right);
+}
+
+static AstNode* parse_atom_typespec(ParseCtx* p) {
+    if (match(p, TOKEN_KEYWORD_STRUCT)) {
         Token* keyword = p->prev;
         Token* lbrace = expect_lbrace(p);
         AstNode** stmts = NULL;
@@ -199,12 +211,7 @@ static AstNode* parse_typespec(ParseCtx* p) {
     } else if (match(p, TOKEN_AT)) {
         return parse_directive(p);
     } else if (match(p, TOKEN_IDENTIFIER)) {
-        AstNode* left = astnode_symbol_new(p->prev);
-        while (match(p, TOKEN_DOT)) {
-            Token* right = expect_identifier(p, "expected symbol name");
-            left = astnode_access_new(left, right);
-        }
-        return left;
+        return astnode_symbol_new(p->prev);
     }
 
     Msg msg = msg_with_span(
@@ -213,6 +220,36 @@ static AstNode* parse_typespec(ParseCtx* p) {
         p->current->span);
     msg_emit(p, &msg);
     return NULL;
+}
+
+static AstNode* parse_suffix_typespec(ParseCtx* p) {
+    AstNode* left = parse_atom_typespec(p);
+    while (p->current->kind == TOKEN_DOUBLE_COLON
+           || p->current->kind == TOKEN_DOT) {
+        if (match(p, TOKEN_DOUBLE_COLON)) {
+            left = parse_generic_typespec(p, left);
+        } else if (match(p, TOKEN_DOT)) {
+            left = parse_access_expr(p, left);
+        }
+    }
+    return left;
+}
+
+static AstNode* parse_ptr_typespec(ParseCtx* p) {
+    if (match(p, TOKEN_STAR)) {
+        Token* star = p->prev;
+        bool immutable = false;
+        if (match(p, TOKEN_KEYWORD_IMM)) {
+            immutable = true;
+        }
+        AstNode* child = parse_typespec(p);
+        return astnode_typespec_ptr_new(star, immutable, child);
+    }
+    return parse_suffix_typespec(p);
+}
+
+static AstNode* parse_typespec(ParseCtx* p) {
+    return parse_ptr_typespec(p);
 }
 
 static AstNode* parse_if_branch(ParseCtx* p, Token* keyword, IfBranchKind kind) {
@@ -319,14 +356,16 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
 static AstNode* parse_suffix_expr(ParseCtx* p) {
     AstNode* left = parse_atom_expr(p);
     while (p->current->kind == TOKEN_LPAREN
-           || p->current->kind == TOKEN_DOT) {
+           || p->current->kind == TOKEN_DOT
+           || p->current->kind == TOKEN_DOUBLE_COLON) {
         if (match(p, TOKEN_LPAREN)) {
             Token* lparen = p->prev;
-            AstNode** args = parse_args(p, lparen);
+            AstNode** args = parse_args(p, lparen, true, false);
             left = astnode_function_call_new(left, args, p->prev);
         } else if (match(p, TOKEN_DOT)) {
-            Token* right = expect_identifier(p, "expected symbol name");
-            left = astnode_access_new(left, right);
+            left = parse_access_expr(p, left);
+        } else if (match(p, TOKEN_DOUBLE_COLON)) {
+            left = parse_generic_typespec(p, left);
         }
         // NOTE: also add above in the while cond in `parse_suffix_expr` above
     }
@@ -334,25 +373,7 @@ static AstNode* parse_suffix_expr(ParseCtx* p) {
 }
 
 static AstNode* parse_expr(ParseCtx* p) {
-    bool error = false;
-    if (match(p, TOKEN_DOLLAR)) {
-        if (buflen(p->comptime_marker_stack) > 0) {
-            error = true;
-            Msg msg = msg_with_span(
-                MSG_WARNING,
-                "redundant `$`",
-                p->prev->span);
-            msg_addl_fat(
-                &msg,
-                "already in a compile-time scope",
-                (*buflast(p->comptime_marker_stack))->span);
-            msg_emit(p, &msg);
-        }
-        else bufpush(p->comptime_marker_stack, p->prev);
-    }
-    AstNode* expr = parse_suffix_expr(p);
-    if (!error) bufpop(p->comptime_marker_stack);
-    return expr;
+    return parse_suffix_expr(p);
 }
 
 static AstNode* parse_function_header(ParseCtx* p) {

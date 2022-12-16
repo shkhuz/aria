@@ -31,6 +31,15 @@ AstNode* astnode_typespec_struct_new(
     return astnode;
 }
 
+AstNode* astnode_generic_typespec_new(AstNode* left, AstNode** args, Token* end) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_GENERIC_TYPESPEC,
+        span_from_two(left->span, end->span));
+    astnode->genty.left = left;
+    astnode->genty.args = args;
+    return astnode;
+}
+
 AstNode* astnode_directive_new(
     Token* start,
     Token* callee,

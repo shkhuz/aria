@@ -15,8 +15,6 @@ typedef struct {
     struct CompileCtx* compile_ctx;
     bool error;
     jmp_buf* error_handler_pos;
-
-    Token** comptime_marker_stack;
 } ParseCtx;
 
 ParseCtx parse_new_context(

@@ -16,6 +16,11 @@ typedef struct {
     AstNode** stmts;
 } AstNodeTypespecStruct;
 
+typedef struct {
+    AstNode* left;
+    AstNode** args;
+} AstNodeGenericTypespec;
+
 typedef enum {
     DIRECTIVE_IMPORT,
     DIRECTIVE_NONE,
@@ -128,9 +133,9 @@ typedef struct {
 } AstNodeParamDecl;
 
 typedef enum {
-    ASTNODE_TYPESPEC_IDENTIFIER,
     ASTNODE_TYPESPEC_PTR,
     ASTNODE_TYPESPEC_STRUCT,
+    ASTNODE_GENERIC_TYPESPEC,
     ASTNODE_DIRECTIVE,
     ASTNODE_FIELD,
     ASTNODE_INTEGER_LITERAL,
@@ -157,6 +162,7 @@ struct AstNode {
     union {
         AstNodeTypespecPtr typeptr;
         AstNodeTypespecStruct typestruct;
+        AstNodeGenericTypespec genty;
         AstNodeDirective directive;
         AstNodeField field;
         AstNodeIntegerLiteral intl;
@@ -184,6 +190,7 @@ AstNode* astnode_typespec_struct_new(
     AstNode** fields,
     AstNode** stmts,
     Token* rbrace);
+AstNode* astnode_generic_typespec_new(AstNode* left, AstNode** args, Token* end);
 
 AstNode* astnode_directive_new(
     Token* start,
