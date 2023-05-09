@@ -8,7 +8,7 @@ type std = @import(1);
 imm x = {yield 1;};
 
 type Main = struct {
-    buf: std.Vec::(u32),
+    buf: Vec<u32>,
 };
 
 imm primes = {
@@ -19,10 +19,13 @@ imm primes = {
     yield sum;
 };
 
+//^ ~ `
+
 fn main() void {
-    fn cool(a: int, b: int) std.Vec::(usize, u8, *std.Vec::(u8)) {
+    fn cool(a: int, b: int) std.Vec<usize, u8, *std.Vec<u8>> {
         fn cool() df {cool;}
         mut name = cool(a,cool(),mutable({}, {fn cool() void {}}));
+        mut place = Vec::<u32>.new();
         imm war = if (cool) {call();} else cool;
         {mut name = {cool;};}
         if (main) {} else if (main) {} else if (main) {}

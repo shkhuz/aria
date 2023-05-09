@@ -5,17 +5,31 @@
 #include "span.h"
 
 typedef enum {
-    TOKEN_IDENTIFIER,
     TOKEN_KEYWORD_IMM,
     TOKEN_KEYWORD_MUT,
+    TOKEN_KEYWORD_PUB,
     TOKEN_KEYWORD_FN,
     TOKEN_KEYWORD_TYPE,
     TOKEN_KEYWORD_STRUCT,
+    TOKEN_KEYWORD_UNION,
+    TOKEN_KEYWORD_ENUM,
+    TOKEN_KEYWORD_TRAIT,
+    TOKEN_KEYWORD_IMPL,
+    TOKEN_KEYWORD_USE,
+    TOKEN_KEYWORD_WHERE,
+    TOKEN_KEYWORD_IMPORT,
     TOKEN_KEYWORD_IF,
     TOKEN_KEYWORD_ELSE,
     TOKEN_KEYWORD_FOR,
+    TOKEN_KEYWORD_WHILE,
     TOKEN_KEYWORD_RETURN,
     TOKEN_KEYWORD_YIELD,
+    TOKEN_KEYWORD_AS,
+    TOKEN_KEYWORD_AND,
+    TOKEN_KEYWORD_OR,
+    TOKEN_KEYWORD_NOT,
+
+    TOKEN_IDENTIFIER,
     TOKEN_STRING,
     TOKEN_INTEGER_LITERAL,
     TOKEN_LBRACE,
@@ -56,5 +70,6 @@ typedef struct {
 Token* token_new(TokenKind kind, Span span);
 bool is_token_lexeme(Token* token, const char* string);
 bool can_token_start_expr(Token* token);
+char* tokenkind_to_string(TokenKind kind);
 
 #endif

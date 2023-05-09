@@ -517,6 +517,13 @@ int main() {
         1,
         18);
 
+    test_invalid_one_errspan(
+        "missing `>` in generic type specifier",
+        "fn main() void { imm x: HashMap<i32, i32;\n",
+        "expected `,` or `>`",
+        1,
+        41);
+
     // REMINDER: At scoped block
 
     fprintf(

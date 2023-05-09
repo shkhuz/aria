@@ -62,13 +62,13 @@ static void print_node(AstNode* astnode) {
         } break;
 
         case ASTNODE_GENERIC_TYPESPEC: {
-            printf("(:: ");
             print_node(astnode->genty.left);
+            printf("<");
             bufloop(astnode->genty.args, i) {
-                printf(" ");
                 print_node(astnode->genty.args[i]);
+                if (i != buflen(astnode->genty.args)-1) printf(", ");
             }
-            printf(")");
+            printf(">");
         } break;
 
         case ASTNODE_DIRECTIVE: {
@@ -164,11 +164,9 @@ static void print_node(AstNode* astnode) {
         } break;
 
         case ASTNODE_ACCESS: {
-            printf("(access ");
             print_node(astnode->acc.left);
-            printf(" ");
+            printf(".");
             print_token(astnode->acc.right);
-            printf(")");
         } break;
 
         case ASTNODE_TYPEDECL: {

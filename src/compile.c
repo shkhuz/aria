@@ -15,6 +15,7 @@ void init_global_compiler_state() {
 
     bufpush(keywords, (StringTokenKindTup){ "imm", TOKEN_KEYWORD_IMM });
     bufpush(keywords, (StringTokenKindTup){ "mut", TOKEN_KEYWORD_MUT });
+    bufpush(keywords, (StringTokenKindTup){ "pub", TOKEN_KEYWORD_PUB });
     bufpush(keywords, (StringTokenKindTup){ "fn", TOKEN_KEYWORD_FN });
     bufpush(keywords, (StringTokenKindTup){ "type", TOKEN_KEYWORD_TYPE });
     bufpush(keywords, (StringTokenKindTup){ "struct", TOKEN_KEYWORD_STRUCT });

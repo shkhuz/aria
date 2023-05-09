@@ -26,3 +26,18 @@ bool can_token_start_expr(Token* token) {
     }
     return false;
 }
+
+char* tokenkind_to_string(TokenKind kind) {
+    switch (kind) {
+        case TOKEN_LBRACE: return "{";
+        case TOKEN_RBRACE: return "}";
+        case TOKEN_LBRACK: return "[";
+        case TOKEN_RBRACK: return "]";
+        case TOKEN_LPAREN: return "(";
+        case TOKEN_RPAREN: return ")";
+        case TOKEN_LANGBR: return "<";
+        case TOKEN_RANGBR: return ">";
+        default: abort();
+
+    }
+}

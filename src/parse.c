@@ -79,6 +79,13 @@ static Token* expect(ParseCtx* p, TokenKind kind, const char* msgstr) {
             MSG_ERROR,
             msgstr,
             p->current->span);
+        if (kind == TOKEN_IDENTIFIER) {
+            bufloop(keywords, i) {
+                if (is_token_lexeme(p->current, keywords[i].k)) {
+                    msg_addl_thin(&msg, format_string("`%s` is a keyword", keywords[i].k));
+                }
+            }
+        }
         msg_emit(p, &msg);
         return NULL;
     }
@@ -117,14 +124,19 @@ static inline Token* expect_comma(ParseCtx* p) {
     return expect(p, TOKEN_COMMA, "expected `,`");
 }
 
+static inline Token* expect_langbr(ParseCtx* p) {
+    return expect(p, TOKEN_LANGBR, "expected `<`");
+}
+
 static AstNode** parse_args(
         ParseCtx* p,
-        Token* lparen,
+        Token* opening,
+        TokenKind closing,
         bool expr,
         bool at_least_one) {
     AstNode** args = NULL;
-    while (p->current->kind != TOKEN_RPAREN || at_least_one) {
-        check_eof(p, lparen);
+    while (p->current->kind != closing || at_least_one) {
+        check_eof(p, opening);
         at_least_one = false;
         AstNode* arg = NULL;
         if (expr) {
@@ -133,11 +145,11 @@ static AstNode** parse_args(
             arg = parse_typespec(p);
         }
         bufpush(args, arg);
-        if (p->current->kind != TOKEN_RPAREN) {
-            expect(p, TOKEN_COMMA, "expected `,` or `)`");
+        if (p->current->kind != closing) {
+            expect(p, TOKEN_COMMA, format_string("expected `,` or `%s`", tokenkind_to_string(closing)));
         }
     }
-    expect_rparen(p);
+    expect(p, closing, format_string("expected `%s`", tokenkind_to_string(closing)));
     return args;
 }
 
@@ -164,13 +176,12 @@ static AstNode* parse_directive(ParseCtx* p) {
     }
 
     Token* lparen = expect_lparen(p);
-    AstNode** args = parse_args(p, lparen, true, false);
+    AstNode** args = parse_args(p, lparen, TOKEN_RPAREN, true, false);
     return astnode_directive_new(start, identifier, args, kind, p->prev);
 }
 
-static AstNode* parse_generic_typespec(ParseCtx* p, AstNode* left) {
-    Token* lparen = expect_lparen(p);
-    AstNode** args = parse_args(p, lparen, false, true);
+static AstNode* parse_generic_typespec(ParseCtx* p, AstNode* left, Token* langbr) {
+    AstNode** args = parse_args(p, langbr, TOKEN_RANGBR, false, true);
     return astnode_generic_typespec_new(left, args, p->prev);
 }
 
@@ -224,10 +235,20 @@ static AstNode* parse_atom_typespec(ParseCtx* p) {
 
 static AstNode* parse_suffix_typespec(ParseCtx* p) {
     AstNode* left = parse_atom_typespec(p);
-    while (p->current->kind == TOKEN_DOUBLE_COLON
-           || p->current->kind == TOKEN_DOT) {
-        if (match(p, TOKEN_DOUBLE_COLON)) {
-            left = parse_generic_typespec(p, left);
+
+    while (p->current->kind == TOKEN_LANGBR
+           || p->current->kind == TOKEN_DOT
+           || p->current->kind == TOKEN_DOUBLE_COLON) {
+        if (match(p, TOKEN_LANGBR) || match(p, TOKEN_DOUBLE_COLON)) {
+            if (p->prev->kind == TOKEN_DOUBLE_COLON) {
+                Msg msg = msg_with_span(
+                    MSG_WARNING,
+                    "no need to prepend `::` when already in type ctx",
+                    p->prev->span);
+                msg_emit_non_fatal(p, &msg);
+                expect_langbr(p);
+            }
+            left = parse_generic_typespec(p, left, p->prev);
         } else if (match(p, TOKEN_DOT)) {
             left = parse_access_expr(p, left);
         }
@@ -360,12 +381,13 @@ static AstNode* parse_suffix_expr(ParseCtx* p) {
            || p->current->kind == TOKEN_DOUBLE_COLON) {
         if (match(p, TOKEN_LPAREN)) {
             Token* lparen = p->prev;
-            AstNode** args = parse_args(p, lparen, true, false);
+            AstNode** args = parse_args(p, lparen, TOKEN_RPAREN, true, false);
             left = astnode_function_call_new(left, args, p->prev);
         } else if (match(p, TOKEN_DOT)) {
             left = parse_access_expr(p, left);
         } else if (match(p, TOKEN_DOUBLE_COLON)) {
-            left = parse_generic_typespec(p, left);
+            expect_langbr(p);
+            left = parse_generic_typespec(p, left, p->prev);
         }
         // NOTE: also add above in the while cond in `parse_suffix_expr` above
     }
