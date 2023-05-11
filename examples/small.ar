@@ -7,18 +7,17 @@ imm x = {yield 1;};
 
 struct Main {
     buf: Vec<u32>,
+    buf: [[], []u16, std.Vec<u8>],
+    buf: [2][u8],
 }
 
 imm primes = {
     imm sum = {
-        yield cool;
+        yield [2]u32{ 0 };
     };
-    imm tup = .[1, 2, 3];
     imm sum = 1;
     yield sum;
 };
-
-//^ ~ `
 
 fn main() void {
     fn cool(a: int, b: int) std.Vec<usize, u8, *std.Vec<u8>> {

@@ -47,6 +47,29 @@ static void print_node(AstNode* astnode) {
             print_node(astnode->typeptr.child);
         } break;
 
+        case ASTNODE_TYPESPEC_SLICE: {
+            printf("[]");
+            if (astnode->typeslice.immutable) printf("imm ");
+            print_node(astnode->typeslice.child);
+        } break;
+
+        case ASTNODE_TYPESPEC_ARRAY: {
+            printf("(tyarr [");
+            print_node(astnode->typearray.size);
+            printf("]");
+            print_node(astnode->typearray.child);
+            printf(")");
+        } break;
+
+        case ASTNODE_TYPESPEC_TUPLE: {
+            printf("(tytup");
+            bufloop(astnode->typetup.elems, i) {
+                printf(" ");
+                print_node(astnode->typetup.elems[i]);
+            }
+            printf(")");
+        } break;
+
         case ASTNODE_GENERIC_TYPESPEC: {
             print_node(astnode->genty.left);
             printf("<");
@@ -79,6 +102,16 @@ static void print_node(AstNode* astnode) {
 
         case ASTNODE_INTEGER_LITERAL: {
             print_token(astnode->intl.token);
+        } break;
+
+        case ASTNODE_ARRAY_LITERAL: {
+            printf("(array ");
+            print_node(astnode->arrayl.typespec);
+            bufloop(astnode->arrayl.elems, i) {
+                printf(" ");
+                print_node(astnode->arrayl.elems[i]);
+            }
+            printf(")");
         } break;
 
         case ASTNODE_TUPLE_LITERAL: {

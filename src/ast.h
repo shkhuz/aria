@@ -12,6 +12,20 @@ typedef struct {
 } AstNodeTypespecPtr;
 
 typedef struct {
+    bool immutable;
+    AstNode* child;
+} AstNodeTypespecSlice;
+
+typedef struct {
+    AstNode* size;
+    AstNode* child;
+} AstNodeTypespecArray;
+
+typedef struct {
+    AstNode** elems;
+} AstNodeTypespecTuple;
+
+typedef struct {
     AstNode* left;
     AstNode** args;
 } AstNodeGenericTypespec;
@@ -36,6 +50,11 @@ typedef struct {
     Token* token;
     bigint val;
 } AstNodeIntegerLiteral;
+
+typedef struct {
+    AstNode* typespec;
+    AstNode** elems;
+} AstNodeArrayLiteral;
 
 typedef struct {
     AstNode** elems;
@@ -133,10 +152,14 @@ typedef struct {
 
 typedef enum {
     ASTNODE_TYPESPEC_PTR,
+    ASTNODE_TYPESPEC_SLICE,
+    ASTNODE_TYPESPEC_ARRAY,
+    ASTNODE_TYPESPEC_TUPLE,
     ASTNODE_GENERIC_TYPESPEC,
     ASTNODE_DIRECTIVE,
     ASTNODE_FIELD,
     ASTNODE_INTEGER_LITERAL,
+    ASTNODE_ARRAY_LITERAL,
     ASTNODE_TUPLE_LITERAL,
     ASTNODE_SYMBOL,
     ASTNODE_SCOPED_BLOCK,
@@ -160,10 +183,14 @@ struct AstNode {
     Span span;
     union {
         AstNodeTypespecPtr typeptr;
+        AstNodeTypespecSlice typeslice;
+        AstNodeTypespecArray typearray;
+        AstNodeTypespecTuple typetup;
         AstNodeGenericTypespec genty;
         AstNodeDirective directive;
         AstNodeField field;
         AstNodeIntegerLiteral intl;
+        AstNodeArrayLiteral arrayl;
         AstNodeTupleLiteral tupl;
         AstNodeSymbol sym;
         AstNodeScopedBlock blk;
@@ -184,6 +211,9 @@ struct AstNode {
 };
 
 AstNode* astnode_typespec_ptr_new(Token* star, bool immutable, AstNode* child);
+AstNode* astnode_typespec_slice_new(Token* lbrack, bool immutable, AstNode* child);
+AstNode* astnode_typespec_array_new(Token* lbrack, AstNode* size, AstNode* child);
+AstNode* astnode_typespec_tuple_new(Token* lbrack, AstNode** elems, Token* rbrack);
 AstNode* astnode_generic_typespec_new(AstNode* left, AstNode** args, Token* end);
 
 AstNode* astnode_directive_new(
@@ -195,6 +225,7 @@ AstNode* astnode_directive_new(
 AstNode* astnode_field_new(Token* identifier, AstNode* typespec);
 
 AstNode* astnode_integer_literal_new(Token* token, bigint val);
+AstNode* astnode_array_literal_new(AstNode* typespec, AstNode** elems, Token* end);
 AstNode* astnode_tuple_literal_new(Token* start, AstNode** elems, Token* end);
 AstNode* astnode_symbol_new(Token* identifier);
 AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end);

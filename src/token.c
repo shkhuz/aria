@@ -15,6 +15,16 @@ bool is_token_lexeme(Token* token, const char* string) {
         string);
 }
 
+bool can_token_start_typespec(Token* token) {
+    if (token->kind == TOKEN_IDENTIFIER
+        || token->kind == TOKEN_AT
+        || token->kind == TOKEN_LBRACK
+        || token->kind == TOKEN_STAR) {
+        return true;
+    }
+    return false;
+}
+
 bool can_token_start_expr(Token* token) {
     if (token->kind == TOKEN_IDENTIFIER
         || token->kind == TOKEN_AT
@@ -40,6 +50,5 @@ char* tokenkind_to_string(TokenKind kind) {
         case TOKEN_LANGBR: return "<";
         case TOKEN_RANGBR: return ">";
         default: abort();
-
     }
 }

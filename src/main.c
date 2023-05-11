@@ -49,16 +49,25 @@ Srcfile* read_srcfile(const char* path, OptionalSpan span, CompileCtx* compile_c
     return NULL;
 }
 
+#define tmp(x) (printf("length: %lu\n", x), x)
+
 int main(int argc, char* argv[]) {
      int* buf = NULL;
      bufpush(buf, -2);
      bufpush(buf, -3);
      bufpush(buf, 4);
+     bufpush(buf, 4);
+     bufpush(buf, 4);
      bufpush(buf, 2948);
+     bufinsert(buf, 1, 999);
      assert(bufpop(buf) == 2948);
      assert(bufpop(buf) == 4);
+     assert(bufpop(buf) == 4);
+     assert(bufpop(buf) == 4);
      assert(bufpop(buf) == -3);
+     assert(bufpop(buf) == 999);
      assert(bufpop(buf) == -2);
+     assert(bufpop(buf) == 0);
      assert(bufpop(buf) == 0);
      assert(bufpop(buf) == 0);
 

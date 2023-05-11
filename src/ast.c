@@ -17,6 +17,32 @@ AstNode* astnode_typespec_ptr_new(Token* star, bool immutable, AstNode* child) {
     return astnode;
 }
 
+AstNode* astnode_typespec_slice_new(Token* lbrack, bool immutable, AstNode* child) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_TYPESPEC_SLICE,
+        span_from_two(lbrack->span, child->span));
+    astnode->typeslice.immutable = immutable;
+    astnode->typeslice.child = child;
+    return astnode;
+}
+
+AstNode* astnode_typespec_array_new(Token* lbrack, AstNode* size, AstNode* child) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_TYPESPEC_ARRAY,
+        span_from_two(lbrack->span, child->span));
+    astnode->typearray.size = size;
+    astnode->typearray.child = child;
+    return astnode;
+}
+
+AstNode* astnode_typespec_tuple_new(Token* lbrack, AstNode** elems, Token* rbrack) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_TYPESPEC_TUPLE,
+        span_from_two(lbrack->span, rbrack->span));
+    astnode->typetup.elems = elems;
+    return astnode;
+}
+
 AstNode* astnode_generic_typespec_new(AstNode* left, AstNode** args, Token* end) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_GENERIC_TYPESPEC,
@@ -57,6 +83,15 @@ AstNode* astnode_integer_literal_new(Token* token, bigint val) {
         token->span);
     astnode->intl.token = token;
     astnode->intl.val = val;
+    return astnode;
+}
+
+AstNode* astnode_array_literal_new(AstNode* typespec, AstNode** elems, Token* end) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_ARRAY_LITERAL,
+        span_from_two(typespec->span, end->span));
+    astnode->arrayl.typespec = typespec;
+    astnode->arrayl.elems = elems;
     return astnode;
 }
 

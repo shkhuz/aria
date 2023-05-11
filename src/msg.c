@@ -88,8 +88,8 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
     }
 
     int indent = snprintf(NULL, 0, "  %lu", line);
-    fprintf(stderr, "%*s |", indent, "");
-    fprintf(stderr, "\n%*lu | ", indent, line);
+    fprintf(stderr, "%*s %s|%s", indent, "", g_bold_grey_color, g_reset_color);
+    fprintf(stderr, "\n%s%*lu |%s ", g_bold_grey_color, indent, line, g_reset_color);
     bool multiline_span = false;
     usize disp_chcount = 0;
 
@@ -121,7 +121,7 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
         fprintf(stderr, "%c", handle->contents[i]);
     }
 
-    fprintf(stderr, "\n%*s | ", indent, "");
+    fprintf(stderr, "\n%*s %s|%s ", indent, "", g_bold_grey_color, g_reset_color);
 
     for (usize i = 1; i < disp_col; i++) fprintf(stderr, " ");
     fprintf(stderr, "%s", color);

@@ -517,6 +517,20 @@ int main() {
         1,
         41);
 
+    test_invalid_one_errspan(
+        "eof error on typespec lbrack",
+        "fn main() void { imm x: [; }\n",
+        "unexpected end of file",
+        2,
+        1);
+
+    test_invalid_one_errspan(
+        "missing array type after specifying size",
+        "fn main() void { imm x: [1]; }\n",
+        "expected type",
+        1,
+        26);
+
     // REMINDER: At scoped block
 
     fprintf(

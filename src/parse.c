@@ -108,6 +108,10 @@ static inline Token* expect_lbrace(ParseCtx* p) {
     return expect(p, TOKEN_LBRACE, "expected `{`");
 }
 
+static inline Token* expect_rbrack(ParseCtx* p) {
+    return expect(p, TOKEN_RBRACK, "expected `]`");
+}
+
 static inline Token* expect_equal(ParseCtx* p) {
     return expect(p, TOKEN_EQUAL, "expected `=`");
 }
@@ -146,7 +150,10 @@ static AstNode** parse_args(
         }
         bufpush(args, arg);
         if (p->current->kind != closing) {
-            expect(p, TOKEN_COMMA, format_string("expected `,` or `%s`", tokenkind_to_string(closing)));
+            expect(
+                p,
+                TOKEN_COMMA,
+                format_string("expected `,` or `%s`", tokenkind_to_string(closing)));
         }
     }
     expect(p, closing, format_string("expected `%s`", tokenkind_to_string(closing)));
@@ -180,6 +187,90 @@ static AstNode* parse_directive(ParseCtx* p) {
     return astnode_directive_new(start, identifier, args, kind, p->prev);
 }
 
+typedef enum {
+    LTK_SLICE,
+    LTK_ARRAY,
+    LTK_TUPLE,
+    LTK_NONE,
+} LBrackTypespecKind;
+
+static AstNode* parse_atom_typespec(ParseCtx* p) {
+    if (match(p, TOKEN_AT)) {
+        return parse_directive(p);
+    } else if (match(p, TOKEN_IDENTIFIER)) {
+        return astnode_symbol_new(p->prev);
+    } else if (match(p, TOKEN_STAR)) {
+        Token* star = p->prev;
+        bool immutable = false;
+        if (match(p, TOKEN_KEYWORD_IMM)) {
+            immutable = true;
+        }
+        AstNode* child = parse_typespec(p);
+        return astnode_typespec_ptr_new(star, immutable, child);
+    } else if (match(p, TOKEN_LBRACK)) {
+        Token* lbrack = p->prev;
+
+        usize stored_token_idx = p->token_idx;
+        Token* stored_current_tok = p->current;
+        Token* stored_prev_tok = p->prev;
+
+        usize pair = 1;
+        bool emptypair = false;
+        LBrackTypespecKind kind = LTK_NONE;
+
+        if (p->current->kind == TOKEN_RBRACK) emptypair = true;
+
+        while (pair != 0) {
+            check_eof(p, lbrack);
+            if (p->current->kind == TOKEN_RBRACK) pair--;
+            else if (p->current->kind == TOKEN_LBRACK) pair++;
+            goto_next_tok(p);
+        }
+
+        if (can_token_start_typespec(p->current)) {
+            if (emptypair) kind = LTK_SLICE;
+            else kind = LTK_ARRAY;
+        } else if (p->current->kind == TOKEN_KEYWORD_IMM
+                   || p->current->kind == TOKEN_KEYWORD_MUT) {
+            kind = LTK_SLICE;
+        } else {
+            kind = LTK_TUPLE;
+        }
+
+        p->token_idx = stored_token_idx;
+        p->current = stored_current_tok;
+        p->prev = stored_prev_tok;
+
+        assert(kind != LTK_NONE);
+
+        if (kind == LTK_SLICE) {
+            expect_rbrack(p);
+            bool immutable = false;
+            if (match(p, TOKEN_KEYWORD_IMM)) {
+                immutable = true;
+            }
+            AstNode* child = parse_typespec(p);
+            return astnode_typespec_slice_new(lbrack, immutable, child);
+        } else if (kind == LTK_ARRAY) {
+            AstNode* size = parse_expr(p);
+            expect_rbrack(p);
+            AstNode* child = parse_typespec(p);
+            return astnode_typespec_array_new(lbrack, size, child);
+        } else if (kind == LTK_TUPLE) {
+            AstNode** elems = parse_args(p, lbrack, TOKEN_RBRACK, false, false);
+            return astnode_typespec_tuple_new(lbrack, elems, p->prev);
+        } else abort();
+    }
+    // NOTE: Add the case to `can_token_begin_typespec()`
+
+    Msg msg = msg_with_span(
+        MSG_ERROR,
+        "expected type",
+        p->current->span);
+    msg_emit(p, &msg);
+    return NULL;
+}
+
 static AstNode* parse_generic_typespec(ParseCtx* p, AstNode* left, Token* langbr) {
     AstNode** args = parse_args(p, langbr, TOKEN_RANGBR, false, true);
     return astnode_generic_typespec_new(left, args, p->prev);
@@ -188,21 +279,6 @@ static AstNode* parse_generic_typespec(ParseCtx* p, AstNode* left, Token* langbr
 static AstNode* parse_access_expr(ParseCtx* p, AstNode* left) {
     Token* right = expect_identifier(p, "expected symbol name");
     return astnode_access_new(left, right);
-}
-
-static AstNode* parse_atom_typespec(ParseCtx* p) {
-    if (match(p, TOKEN_AT)) {
-        return parse_directive(p);
-    } else if (match(p, TOKEN_IDENTIFIER)) {
-        return astnode_symbol_new(p->prev);
-    }
-
-    Msg msg = msg_with_span(
-        MSG_ERROR,
-        "expected type",
-        p->current->span);
-    msg_emit(p, &msg);
-    return NULL;
 }
 
 static AstNode* parse_suffix_typespec(ParseCtx* p) {
@@ -228,21 +304,8 @@ static AstNode* parse_suffix_typespec(ParseCtx* p) {
     return left;
 }
 
-static AstNode* parse_ptr_typespec(ParseCtx* p) {
-    if (match(p, TOKEN_STAR)) {
-        Token* star = p->prev;
-        bool immutable = false;
-        if (match(p, TOKEN_KEYWORD_IMM)) {
-            immutable = true;
-        }
-        AstNode* child = parse_typespec(p);
-        return astnode_typespec_ptr_new(star, immutable, child);
-    }
-    return parse_suffix_typespec(p);
-}
-
 static AstNode* parse_typespec(ParseCtx* p) {
-    return parse_ptr_typespec(p);
+    return parse_suffix_typespec(p);
 }
 
 static AstNode* parse_if_branch(ParseCtx* p, Token* keyword, IfBranchKind kind) {
@@ -338,7 +401,6 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
     } else if (match(p, TOKEN_DOT)) {
         Token* start = p->prev;
         if (match(p, TOKEN_LBRACK)) {
-            // tuple
             AstNode** elems = parse_args(p, start, TOKEN_RBRACK, true, false);
             return astnode_tuple_literal_new(start, elems, p->prev);
         } else if (match(p, TOKEN_IDENTIFIER)) {
@@ -351,6 +413,11 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
             msg_addl_thin(&msg, "`.` denotes a literal (enum, struct, tuple)");
             msg_emit(p, &msg);
         }
+    } else if (p->current->kind == TOKEN_LBRACK) {
+        AstNode* typespec = parse_typespec(p);
+        Token* lbrace = expect_lbrace(p);
+        AstNode** elems = parse_args(p, lbrace, TOKEN_RBRACE, true, false);
+        return astnode_array_literal_new(typespec, elems, p->prev);
     }
     // NOTE: Add the case to `can_token_begin_expr()`
 
@@ -465,13 +532,13 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
         while (!match(p, TOKEN_RBRACE)) {
             check_eof(p, lbrace);
             if (match(p, TOKEN_IDENTIFIER)) {
-                Token* identifier = p->prev;
+                Token* field_identifier = p->prev;
                 expect_colon(p);
-                AstNode* typespec = parse_typespec(p);
+                AstNode* field_typespec = parse_typespec(p);
                 if (p->current->kind != TOKEN_RBRACE) {
                     expect_comma(p);
                 }
-                bufpush(fields, astnode_field_new(identifier, typespec));
+                bufpush(fields, astnode_field_new(field_identifier, field_typespec));
             } else {
                 Msg msg = msg_with_span(
                     MSG_ERROR,
