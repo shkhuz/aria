@@ -17,20 +17,6 @@ AstNode* astnode_typespec_ptr_new(Token* star, bool immutable, AstNode* child) {
     return astnode;
 }
 
-AstNode* astnode_typespec_struct_new(
-    Token* keyword,
-    AstNode** fields,
-    AstNode** stmts,
-    Token* rbrace)
-{
-    AstNode* astnode = astnode_alloc(
-        ASTNODE_TYPESPEC_STRUCT,
-        span_from_two(keyword->span, rbrace->span));
-    astnode->typestruct.fields = fields;
-    astnode->typestruct.stmts = stmts;
-    return astnode;
-}
-
 AstNode* astnode_generic_typespec_new(AstNode* left, AstNode** args, Token* end) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_GENERIC_TYPESPEC,
@@ -71,6 +57,14 @@ AstNode* astnode_integer_literal_new(Token* token, bigint val) {
         token->span);
     astnode->intl.token = token;
     astnode->intl.val = val;
+    return astnode;
+}
+
+AstNode* astnode_tuple_literal_new(Token* start, AstNode** elems, Token* end) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_TUPLE_LITERAL,
+        span_from_two(start->span, end->span));
+    astnode->tupl.elems = elems;
     return astnode;
 }
 
@@ -152,15 +146,6 @@ AstNode* astnode_access_new(AstNode* left, Token* right) {
     return astnode;
 }
 
-AstNode* astnode_typedecl_new(Token* keyword, Token* identifier, AstNode* right) {
-    AstNode* astnode = astnode_alloc(
-        ASTNODE_TYPEDECL,
-        span_from_two(keyword->span, right->span));
-    astnode->typedecl.identifier = identifier;
-    astnode->typedecl.right = right;
-    return astnode;
-}
-
 AstNode* astnode_function_header_new(
     Token* start,
     Token* identifier,
@@ -217,5 +202,18 @@ AstNode* astnode_exprstmt_new(AstNode* expr) {
         ASTNODE_EXPRSTMT,
         expr->span);
     astnode->exprstmt = expr;
+    return astnode;
+}
+
+AstNode* astnode_struct_new(
+    Token* keyword,
+    Token* identifier,
+    AstNode** fields,
+    Token* rbrace) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_STRUCT,
+        span_from_two(keyword->span, rbrace->span));
+    astnode->strct.identifier = identifier;
+    astnode->strct.fields = fields;
     return astnode;
 }

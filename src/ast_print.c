@@ -26,11 +26,10 @@ static void print_node(AstNode* astnode) {
         return;
     }
 
-    if (astnode->kind == ASTNODE_TYPESPEC_STRUCT
+    if (astnode->kind == ASTNODE_STRUCT
         || astnode->kind == ASTNODE_FIELD
         || astnode->kind == ASTNODE_IF
         || astnode->kind == ASTNODE_IF_BRANCH
-        || astnode->kind == ASTNODE_TYPEDECL
         || astnode->kind == ASTNODE_FUNCTION_DEF
         || astnode->kind == ASTNODE_VARIABLE_DECL
         || astnode->kind == ASTNODE_EXPRSTMT) {
@@ -46,19 +45,6 @@ static void print_node(AstNode* astnode) {
             printf("*");
             if (astnode->typeptr.immutable) printf("imm ");
             print_node(astnode->typeptr.child);
-        } break;
-
-        case ASTNODE_TYPESPEC_STRUCT: {
-            indent += 4;
-            printf("(struct");
-            bufloop(astnode->typestruct.fields, i) {
-                print_node(astnode->typestruct.fields[i]);
-            }
-            bufloop(astnode->typestruct.stmts, i) {
-                print_node(astnode->typestruct.stmts[i]);
-            }
-            printf(")");
-            indent -= 4;
         } break;
 
         case ASTNODE_GENERIC_TYPESPEC: {
@@ -93,6 +79,15 @@ static void print_node(AstNode* astnode) {
 
         case ASTNODE_INTEGER_LITERAL: {
             print_token(astnode->intl.token);
+        } break;
+
+        case ASTNODE_TUPLE_LITERAL: {
+            printf("(tuple");
+            bufloop(astnode->tupl.elems, i) {
+                printf(" ");
+                print_node(astnode->tupl.elems[i]);
+            }
+            printf(")");
         } break;
 
         case ASTNODE_SYMBOL: {
@@ -169,16 +164,6 @@ static void print_node(AstNode* astnode) {
             print_token(astnode->acc.right);
         } break;
 
-        case ASTNODE_TYPEDECL: {
-            printf("(typedecl ");
-            print_token(astnode->typedecl.identifier);
-            printf(" ");
-            indent += 4;
-            print_node(astnode->typedecl.right);
-            indent -= 4;
-            printf(")");
-        } break;
-
         case ASTNODE_FUNCTION_HEADER: {
             printf("fn ");
             print_token(astnode->funch.identifier);
@@ -231,6 +216,17 @@ static void print_node(AstNode* astnode) {
             indent -= 4;
             printf(")");
         } break;
+
+        case ASTNODE_STRUCT: {
+            indent += 4;
+            printf("(struct");
+            bufloop(astnode->strct.fields, i) {
+                print_node(astnode->strct.fields[i]);
+            }
+            printf(")");
+            indent -= 4;
+        } break;
+
     }
 }
 

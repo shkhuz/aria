@@ -191,35 +191,7 @@ static AstNode* parse_access_expr(ParseCtx* p, AstNode* left) {
 }
 
 static AstNode* parse_atom_typespec(ParseCtx* p) {
-    if (match(p, TOKEN_KEYWORD_STRUCT)) {
-        Token* keyword = p->prev;
-        Token* lbrace = expect_lbrace(p);
-        AstNode** stmts = NULL;
-        AstNode** fields = NULL;
-        while (!match(p, TOKEN_RBRACE)) {
-            check_eof(p, lbrace);
-            if (match(p, TOKEN_IDENTIFIER)) {
-                Token* identifier = p->prev;
-                expect_colon(p);
-                AstNode* typespec = parse_typespec(p);
-                if (p->current->kind != TOKEN_RBRACE) {
-                    expect_comma(p);
-                }
-                bufpush(fields, astnode_field_new(identifier, typespec));
-            } else {
-                AstNode* stmt = parse_root(p, false);
-                if (stmt) bufpush(stmts, stmt);
-                else {
-                    Msg msg = msg_with_span(
-                        MSG_ERROR,
-                        "expected a declaration, definition or a field",
-                        p->current->span);
-                    msg_emit(p, &msg);
-                }
-            }
-        }
-        return astnode_typespec_struct_new(keyword, fields, stmts, p->prev);
-    } else if (match(p, TOKEN_AT)) {
+    if (match(p, TOKEN_AT)) {
         return parse_directive(p);
     } else if (match(p, TOKEN_IDENTIFIER)) {
         return astnode_symbol_new(p->prev);
@@ -363,6 +335,22 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         }
 
         return astnode_integer_literal_new(token, val);
+    } else if (match(p, TOKEN_DOT)) {
+        Token* start = p->prev;
+        if (match(p, TOKEN_LBRACK)) {
+            // tuple
+            AstNode** elems = parse_args(p, start, TOKEN_RBRACK, true, false);
+            return astnode_tuple_literal_new(start, elems, p->prev);
+        } else if (match(p, TOKEN_IDENTIFIER)) {
+            // enum literal
+        } else {
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                "expected identifier, `{` or `[`",
+                p->current->span);
+            msg_addl_thin(&msg, "`.` denotes a literal (enum, struct, tuple)");
+            msg_emit(p, &msg);
+        }
     }
     // NOTE: Add the case to `can_token_begin_expr()`
 
@@ -468,13 +456,31 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
         expect_lbrace(p);
         AstNode* body = parse_scoped_block(p);
         return astnode_function_def_new(header, body);
-    } else if (match(p, TOKEN_KEYWORD_TYPE)) {
+    } else if (match(p, TOKEN_KEYWORD_STRUCT)) {
         Token* keyword = p->prev;
         Token* identifier = expect_identifier(p, "expected identifier");
-        expect_equal(p);
-        AstNode* right = parse_typespec(p);
-        expect_semicolon(p);
-        return astnode_typedecl_new(keyword, identifier, right);
+        Token* lbrace = expect_lbrace(p);
+
+        AstNode** fields = NULL;
+        while (!match(p, TOKEN_RBRACE)) {
+            check_eof(p, lbrace);
+            if (match(p, TOKEN_IDENTIFIER)) {
+                Token* identifier = p->prev;
+                expect_colon(p);
+                AstNode* typespec = parse_typespec(p);
+                if (p->current->kind != TOKEN_RBRACE) {
+                    expect_comma(p);
+                }
+                bufpush(fields, astnode_field_new(identifier, typespec));
+            } else {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    "expected a field",
+                    p->current->span);
+                msg_emit(p, &msg);
+            }
+        }
+        return astnode_struct_new(keyword, identifier, fields, p->prev);
     } else if (match(p, TOKEN_KEYWORD_IMM) || match(p, TOKEN_KEYWORD_MUT)) {
         Token* keyword = p->prev;
         bool immutable = true;

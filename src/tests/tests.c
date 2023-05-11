@@ -247,13 +247,6 @@ int main() {
         9);
 
     test_invalid_one_errspan(
-        "eof error in directive",
-        "type Main = @import(\n",
-        "unexpected end of file",
-        2,
-        1);
-
-    test_invalid_one_errspan(
         "eof error in function header",
         "fn main(\n",
         "unexpected end of file",
@@ -305,14 +298,14 @@ int main() {
 
     test_invalid_one_errspan(
         "eof error in struct typespec",
-        "type Main = struct {\n",
+        "struct Main {\n",
         "unexpected end of file",
         2,
         1);
 
     test_invalid_one_errspan(
         "eof error in struct typespec",
-        "type Main = struct {\n"
+        "struct Main {\n"
         "   a: u8,\n",
         "unexpected end of file",
         3,

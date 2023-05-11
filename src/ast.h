@@ -12,11 +12,6 @@ typedef struct {
 } AstNodeTypespecPtr;
 
 typedef struct {
-    AstNode** fields;
-    AstNode** stmts;
-} AstNodeTypespecStruct;
-
-typedef struct {
     AstNode* left;
     AstNode** args;
 } AstNodeGenericTypespec;
@@ -41,6 +36,10 @@ typedef struct {
     Token* token;
     bigint val;
 } AstNodeIntegerLiteral;
+
+typedef struct {
+    AstNode** elems;
+} AstNodeTupleLiteral;
 
 typedef struct {
     Token* identifier;
@@ -104,11 +103,6 @@ typedef struct {
 } AstNodeBinOp;
 
 typedef struct {
-    Token* identifier;
-    AstNode* right;
-} AstNodeTypeDecl;
-
-typedef struct {
     Span span;
     Token* identifier;
     AstNode** params;
@@ -132,13 +126,18 @@ typedef struct {
     AstNode* typespec;
 } AstNodeParamDecl;
 
+typedef struct {
+    Token* identifier;
+    AstNode** fields;
+} AstNodeStruct;
+
 typedef enum {
     ASTNODE_TYPESPEC_PTR,
-    ASTNODE_TYPESPEC_STRUCT,
     ASTNODE_GENERIC_TYPESPEC,
     ASTNODE_DIRECTIVE,
     ASTNODE_FIELD,
     ASTNODE_INTEGER_LITERAL,
+    ASTNODE_TUPLE_LITERAL,
     ASTNODE_SYMBOL,
     ASTNODE_SCOPED_BLOCK,
     ASTNODE_IF_BRANCH,
@@ -148,12 +147,12 @@ typedef enum {
     ASTNODE_ACCESS,
     ASTNODE_UNOP,
     ASTNODE_BINOP,
-    ASTNODE_TYPEDECL,
     ASTNODE_FUNCTION_HEADER,
     ASTNODE_FUNCTION_DEF,
     ASTNODE_VARIABLE_DECL,
     ASTNODE_PARAM_DECL,
     ASTNODE_EXPRSTMT,
+    ASTNODE_STRUCT,
 } AstNodeKind;
 
 struct AstNode {
@@ -161,11 +160,11 @@ struct AstNode {
     Span span;
     union {
         AstNodeTypespecPtr typeptr;
-        AstNodeTypespecStruct typestruct;
         AstNodeGenericTypespec genty;
         AstNodeDirective directive;
         AstNodeField field;
         AstNodeIntegerLiteral intl;
+        AstNodeTupleLiteral tupl;
         AstNodeSymbol sym;
         AstNodeScopedBlock blk;
         AstNodeIfBranch ifbr;
@@ -175,21 +174,16 @@ struct AstNode {
         AstNodeAccess acc;
         AstNodeUnOp unop;
         AstNodeBinOp binop;
-        AstNodeTypeDecl typedecl;
         AstNodeFunctionHeader funch;
         AstNodeFunctionDef funcd;
         AstNodeVariableDecl vard;
         AstNodeParamDecl paramd;
         AstNode* exprstmt;
+        AstNodeStruct strct;
     };
 };
 
 AstNode* astnode_typespec_ptr_new(Token* star, bool immutable, AstNode* child);
-AstNode* astnode_typespec_struct_new(
-    Token* keyword,
-    AstNode** fields,
-    AstNode** stmts,
-    Token* rbrace);
 AstNode* astnode_generic_typespec_new(AstNode* left, AstNode** args, Token* end);
 
 AstNode* astnode_directive_new(
@@ -201,6 +195,7 @@ AstNode* astnode_directive_new(
 AstNode* astnode_field_new(Token* identifier, AstNode* typespec);
 
 AstNode* astnode_integer_literal_new(Token* token, bigint val);
+AstNode* astnode_tuple_literal_new(Token* start, AstNode** elems, Token* end);
 AstNode* astnode_symbol_new(Token* identifier);
 AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end);
 AstNode* astnode_access_new(AstNode* left, Token* right);
@@ -221,7 +216,6 @@ AstNode* astnode_if_new(
     AstNode* lastbr);
 AstNode* astnode_return_new(Token* keyword, AstNode* operand);
 
-AstNode* astnode_typedecl_new(Token* keyword, Token* identifier, AstNode* right);
 AstNode* astnode_function_header_new(
     Token* start,
     Token* identifier,
@@ -237,5 +231,10 @@ AstNode* astnode_variable_decl_new(
     Token* end);
 AstNode* astnode_param_new(Token* identifier, AstNode* typespec);
 AstNode* astnode_exprstmt_new(AstNode* expr);
+AstNode* astnode_struct_new(
+    Token* keyword,
+    Token* identifier,
+    AstNode** fields,
+    Token* rbrace);
 
 #endif
