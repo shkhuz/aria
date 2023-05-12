@@ -361,8 +361,8 @@ int main() {
         "   if (true {}\n"
         "}\n",
         "expected `)`",
-        2,
-        13);
+        3,
+        1);
 
     test_invalid_one_errspan(
         "if expr missing lparen in else if cond",
@@ -381,8 +381,8 @@ int main() {
         "   else if (true {}\n"
         "}\n",
         "expected `)`",
-        3,
-        18);
+        4,
+        1);
 
     test_invalid_one_errspan(
         "if expr inside if body without `{}`",

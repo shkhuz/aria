@@ -6,7 +6,7 @@
 imm x = {yield 1;};
 
 struct Main {
-    buf: Vec<u32>,
+    buf: ff.Vec<u32>,
     buf: ((), []u16, std.Vec<u8>),
     buf: [2](u8, u16, u32),
 }
@@ -17,6 +17,10 @@ imm primes = {
     };
     imm sum = ();
     imm sum = (1, 2, 3);
+    imm newliteral = Player {
+        .pos = 1,
+        .vel = oldvel(),
+    };
     yield sum;
 };
 
@@ -32,7 +36,7 @@ fn main() void {
         if (main) {
             if (cool.a.b) 1 else {}
         }
-        func(1, 2);
+        func(1, My.Player::<u32>.newtype {.name = 1}, 2, New {.f = 1});
         return @import(1).a;
         yield 1;
     }

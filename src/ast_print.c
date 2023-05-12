@@ -92,10 +92,10 @@ static void print_node(AstNode* astnode) {
 
         case ASTNODE_FIELD: {
             printf("(field ");
-            print_token(astnode->field.identifier);
+            print_token(astnode->field.key);
             printf(" ");
             indent += 4;
-            print_node(astnode->field.typespec);
+            print_node(astnode->field.value);
             indent -= 4;
             printf(")");
         } break;
@@ -119,6 +119,15 @@ static void print_node(AstNode* astnode) {
             bufloop(astnode->tupl.elems, i) {
                 printf(" ");
                 print_node(astnode->tupl.elems[i]);
+            }
+            printf(")");
+        } break;
+
+        case ASTNODE_AGGREGATE_LITERAL: {
+            printf("(aggliteral ");
+            print_node(astnode->aggl.typespec);
+            bufloop(astnode->strct.fields, i) {
+                print_node(astnode->strct.fields[i]);
             }
             printf(")");
         } break;
@@ -192,9 +201,11 @@ static void print_node(AstNode* astnode) {
         } break;
 
         case ASTNODE_ACCESS: {
+            printf("(");
             print_node(astnode->acc.left);
             printf(".");
-            print_token(astnode->acc.right);
+            print_node(astnode->acc.right);
+            printf(")");
         } break;
 
         case ASTNODE_FUNCTION_HEADER: {
@@ -259,7 +270,6 @@ static void print_node(AstNode* astnode) {
             printf(")");
             indent -= 4;
         } break;
-
     }
 }
 

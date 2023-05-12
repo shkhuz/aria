@@ -42,8 +42,8 @@ typedef struct {
 } AstNodeDirective;
 
 typedef struct {
-    Token* identifier;
-    AstNode* typespec;
+    Token* key;
+    AstNode* value;
 } AstNodeField;
 
 typedef struct {
@@ -59,6 +59,11 @@ typedef struct {
 typedef struct {
     AstNode** elems;
 } AstNodeTupleLiteral;
+
+typedef struct {
+    AstNode* typespec;
+    AstNode** fields;
+} AstNodeAggregateLiteral;
 
 typedef struct {
     Token* identifier;
@@ -98,7 +103,7 @@ typedef struct {
 
 typedef struct {
     AstNode* left;
-    Token* right;
+    AstNode* right;
 } AstNodeAccess;
 
 typedef enum {
@@ -161,6 +166,7 @@ typedef enum {
     ASTNODE_INTEGER_LITERAL,
     ASTNODE_ARRAY_LITERAL,
     ASTNODE_TUPLE_LITERAL,
+    ASTNODE_AGGREGATE_LITERAL,
     ASTNODE_SYMBOL,
     ASTNODE_SCOPED_BLOCK,
     ASTNODE_IF_BRANCH,
@@ -192,6 +198,7 @@ struct AstNode {
         AstNodeIntegerLiteral intl;
         AstNodeArrayLiteral arrayl;
         AstNodeTupleLiteral tupl;
+        AstNodeAggregateLiteral aggl;
         AstNodeSymbol sym;
         AstNodeScopedBlock blk;
         AstNodeIfBranch ifbr;
@@ -222,14 +229,17 @@ AstNode* astnode_directive_new(
     AstNode** args,
     DirectiveKind kind,
     Token* rparen);
-AstNode* astnode_field_new(Token* identifier, AstNode* typespec);
+AstNode* astnode_field_new(Token* key, AstNode* value);
+AstNode* astnode_field_in_literal_new(Token* start, Token* key, AstNode* value);
 
 AstNode* astnode_integer_literal_new(Token* token, bigint val);
 AstNode* astnode_array_literal_new(AstNode* typespec, AstNode** elems, Token* end);
 AstNode* astnode_tuple_literal_new(Token* start, AstNode** elems, Token* end);
+AstNode* astnode_aggregate_literal_new(AstNode* typespec, AstNode** fields, Token* end);
+
 AstNode* astnode_symbol_new(Token* identifier);
 AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end);
-AstNode* astnode_access_new(AstNode* left, Token* right);
+AstNode* astnode_access_new(AstNode* left, AstNode* right);
 AstNode* astnode_scoped_block_new(
     Token* lbrace,
     AstNode** stmts,

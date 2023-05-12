@@ -68,12 +68,21 @@ AstNode* astnode_directive_new(
     return astnode;
 }
 
-AstNode* astnode_field_new(Token* identifier, AstNode* typespec) {
+AstNode* astnode_field_new(Token* key, AstNode* value) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_FIELD,
-        span_from_two(identifier->span, typespec->span));
-    astnode->field.identifier = identifier;
-    astnode->field.typespec = typespec;
+        span_from_two(key->span, value->span));
+    astnode->field.key = key;
+    astnode->field.value = value;
+    return astnode;
+}
+
+AstNode* astnode_field_in_literal_new(Token* start, Token* key, AstNode* value) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_FIELD,
+        span_from_two(start->span, value->span));
+    astnode->field.key = key;
+    astnode->field.value = value;
     return astnode;
 }
 
@@ -100,6 +109,15 @@ AstNode* astnode_tuple_literal_new(Token* start, AstNode** elems, Token* end) {
         ASTNODE_TUPLE_LITERAL,
         span_from_two(start->span, end->span));
     astnode->tupl.elems = elems;
+    return astnode;
+}
+
+AstNode* astnode_aggregate_literal_new(AstNode* typespec, AstNode** fields, Token* end) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_AGGREGATE_LITERAL,
+        span_from_two(typespec->span, end->span));
+    astnode->aggl.typespec = typespec;
+    astnode->aggl.fields = fields;
     return astnode;
 }
 
@@ -172,7 +190,7 @@ AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end) 
     return astnode;
 }
 
-AstNode* astnode_access_new(AstNode* left, Token* right) {
+AstNode* astnode_access_new(AstNode* left, AstNode* right) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_ACCESS,
         span_from_two(left->span, right->span));

@@ -128,6 +128,10 @@ static inline Token* expect_comma(ParseCtx* p) {
     return expect(p, TOKEN_COMMA, "expected `,`");
 }
 
+static inline Token* expect_dot(ParseCtx* p) {
+    return expect(p, TOKEN_DOT, "expected `.`");
+}
+
 static inline Token* expect_langbr(ParseCtx* p) {
     return expect(p, TOKEN_LANGBR, "expected `<`");
 }
@@ -187,11 +191,40 @@ static AstNode* parse_directive(ParseCtx* p) {
     return astnode_directive_new(start, identifier, args, kind, p->prev);
 }
 
+static AstNode* parse_generic_typespec(ParseCtx* p, AstNode* left, bool expr) {
+    if (match(p, TOKEN_DOUBLE_COLON) && !expr) {
+        Msg msg = msg_with_span(
+            MSG_WARNING,
+            "no need to prepend `::` when already in type ctx",
+            p->prev->span);
+        msg_emit_non_fatal(p, &msg);
+    }
+    Token* langbr = expect_langbr(p);
+    AstNode** args = parse_args(p, langbr, TOKEN_RANGBR, false, true);
+    return astnode_generic_typespec_new(left, args, p->prev);
+}
+
+static AstNode* parse_access_expr(ParseCtx* p, AstNode* left, bool expr) {
+    AstNode* right = astnode_symbol_new(expect_identifier(p, "expected symbol name"));
+    if ((p->current->kind == TOKEN_LANGBR && !expr) || p->current->kind == TOKEN_DOUBLE_COLON) {
+        right = parse_generic_typespec(p, right, expr);
+    }
+    return astnode_access_new(left, right);
+}
+
 static AstNode* parse_atom_typespec(ParseCtx* p) {
     if (match(p, TOKEN_AT)) {
         return parse_directive(p);
     } else if (match(p, TOKEN_IDENTIFIER)) {
-        return astnode_symbol_new(p->prev);
+        AstNode* left = astnode_symbol_new(p->prev);
+        if (p->current->kind == TOKEN_DOUBLE_COLON || p->current->kind == TOKEN_LANGBR) {
+            left = parse_generic_typespec(p, left, false);
+        }
+
+        while (match(p, TOKEN_DOT)) {
+            left = parse_access_expr(p, left, false);
+        }
+        return left;
     } else if (match(p, TOKEN_STAR)) {
         Token* star = p->prev;
         bool immutable = false;
@@ -241,41 +274,8 @@ static AstNode* parse_atom_typespec(ParseCtx* p) {
     return NULL;
 }
 
-static AstNode* parse_generic_typespec(ParseCtx* p, AstNode* left, Token* langbr) {
-    AstNode** args = parse_args(p, langbr, TOKEN_RANGBR, false, true);
-    return astnode_generic_typespec_new(left, args, p->prev);
-}
-
-static AstNode* parse_access_expr(ParseCtx* p, AstNode* left) {
-    Token* right = expect_identifier(p, "expected symbol name");
-    return astnode_access_new(left, right);
-}
-
-static AstNode* parse_suffix_typespec(ParseCtx* p) {
-    AstNode* left = parse_atom_typespec(p);
-
-    while (p->current->kind == TOKEN_LANGBR
-           || p->current->kind == TOKEN_DOT
-           || p->current->kind == TOKEN_DOUBLE_COLON) {
-        if (match(p, TOKEN_LANGBR) || match(p, TOKEN_DOUBLE_COLON)) {
-            if (p->prev->kind == TOKEN_DOUBLE_COLON) {
-                Msg msg = msg_with_span(
-                    MSG_WARNING,
-                    "no need to prepend `::` when already in type ctx",
-                    p->prev->span);
-                msg_emit_non_fatal(p, &msg);
-                expect_langbr(p);
-            }
-            left = parse_generic_typespec(p, left, p->prev);
-        } else if (match(p, TOKEN_DOT)) {
-            left = parse_access_expr(p, left);
-        }
-    }
-    return left;
-}
-
 static AstNode* parse_typespec(ParseCtx* p) {
-    return parse_suffix_typespec(p);
+    return parse_atom_typespec(p);
 }
 
 static AstNode* parse_if_branch(ParseCtx* p, Token* keyword, IfBranchKind kind) {
@@ -312,7 +312,33 @@ static inline AstNode* get_last_if_branch(
 static AstNode* parse_atom_expr(ParseCtx* p) {
     // NOTE: Add the case to `can_token_begin_expr()`
     if (match(p, TOKEN_IDENTIFIER)) {
-        return astnode_symbol_new(p->prev);
+        AstNode* left = astnode_symbol_new(p->prev);
+        if (p->current->kind == TOKEN_DOUBLE_COLON) {
+            left = parse_generic_typespec(p, left, true);
+        }
+
+        while (match(p, TOKEN_DOT)) {
+            left = parse_access_expr(p, left, true);
+        }
+
+        if (match(p, TOKEN_LBRACE)) {
+            Token* lbrace = p->prev;
+            AstNode** fields = NULL;
+            while (!match(p, TOKEN_RBRACE)) {
+                check_eof(p, lbrace);
+                Token* dot = expect_dot(p);
+                Token* field_name = expect_identifier(p, "expected field name");
+                expect_equal(p);
+                AstNode* field_value = parse_expr(p);
+                if (p->current->kind != TOKEN_RBRACE) {
+                    expect_comma(p);
+                }
+                bufpush(fields, astnode_field_in_literal_new(dot, field_name, field_value));
+            }
+            return astnode_aggregate_literal_new(left, fields, p->prev);
+        } else {
+            return left;
+        }
     } else if (match(p, TOKEN_AT)) {
         return parse_directive(p);
     } else if (match(p, TOKEN_LBRACE)) {
@@ -418,16 +444,14 @@ static AstNode* parse_suffix_expr(ParseCtx* p) {
     AstNode* left = parse_atom_expr(p);
     while (p->current->kind == TOKEN_LPAREN
            || p->current->kind == TOKEN_DOT
-           || p->current->kind == TOKEN_DOUBLE_COLON) {
+           || p->current->kind == TOKEN_LBRACE) {
         if (match(p, TOKEN_LPAREN)) {
             Token* lparen = p->prev;
             AstNode** args = parse_args(p, lparen, TOKEN_RPAREN, true, false);
             left = astnode_function_call_new(left, args, p->prev);
         } else if (match(p, TOKEN_DOT)) {
-            left = parse_access_expr(p, left);
-        } else if (match(p, TOKEN_DOUBLE_COLON)) {
-            expect_langbr(p);
-            left = parse_generic_typespec(p, left, p->prev);
+            left = parse_access_expr(p, left, true);
+        } else if (match(p, TOKEN_LBRACE)) {
         }
         // NOTE: also add above in the while cond in `parse_suffix_expr` above
     }
