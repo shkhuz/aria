@@ -21,22 +21,36 @@ ParseCtx parse_new_context(
     p.prev = NULL;
     p.compile_ctx = compile_ctx;
     p.error = false;
+    p.error_when_suppressed = false;
+    p.suppress_error = false;
     p.error_handler_pos = error_handler_pos;
     return p;
 }
 
 static inline void msg_emit(ParseCtx* p, Msg* msg) {
-    _msg_emit(msg, p->compile_ctx);
-    if (msg->kind == MSG_ERROR) {
-        p->error = true;
-        longjmp(*p->error_handler_pos, 1);
+    if (p->suppress_error) {
+        if (msg->kind == MSG_ERROR) {
+            p->error_when_suppressed = true;
+        }
+    } else {
+        _msg_emit(msg, p->compile_ctx);
+        if (msg->kind == MSG_ERROR) {
+            p->error = true;
+            longjmp(*p->error_handler_pos, 1);
+        }
     }
 }
 
 static inline void msg_emit_non_fatal(ParseCtx* p, Msg* msg) {
-    _msg_emit(msg, p->compile_ctx);
-    if (msg->kind == MSG_ERROR) {
-        p->error = true;
+    if (p->suppress_error) {
+        if (msg->kind == MSG_ERROR) {
+            p->error_when_suppressed = true;
+        }
+    } else {
+        _msg_emit(msg, p->compile_ctx);
+        if (msg->kind == MSG_ERROR) {
+            p->error = true;
+        }
     }
 }
 
@@ -60,7 +74,7 @@ static void check_eof(ParseCtx* p, Token* pair) {
             MSG_ERROR,
             "unexpected end of file",
             p->current->span);
-        msg_addl_fat(&msg, "while matching...", pair->span);
+        msg_addl_fat(&msg, "while matching pair of:", pair->span);
         msg_emit(p, &msg);
     }
 }
@@ -414,10 +428,54 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
             msg_emit(p, &msg);
         }
     } else if (p->current->kind == TOKEN_LBRACK) {
-        AstNode* typespec = parse_typespec(p);
-        Token* lbrace = expect_lbrace(p);
-        AstNode** elems = parse_args(p, lbrace, TOKEN_RBRACE, true, false);
-        return astnode_array_literal_new(typespec, elems, p->prev);
+        usize stored_token_idx = p->token_idx;
+        Token* stored_current_tok = p->current;
+        Token* stored_prev_tok = p->prev;
+
+        Token* lbrack = p->current;
+        goto_next_tok(p);
+        bool emptypair = false;
+        if (p->current->kind == TOKEN_RBRACK) emptypair = true;
+        usize pair = 1;
+        bool array_literal;
+        while (pair != 0) {
+            check_eof(p, lbrack);
+            if (p->current->kind == TOKEN_RBRACK) pair--;
+            else if (p->current->kind == TOKEN_LBRACK) pair++;
+            goto_next_tok(p);
+        }
+
+        p->suppress_error = true;
+        bool stored_error_when_suppressed = p->error_when_suppressed;
+        parse_typespec(p);
+        if (p->error_when_suppressed) array_literal = false;
+        else if (match(p, TOKEN_LBRACE)) array_literal = true;
+        else array_literal = false;
+        p->error_when_suppressed = stored_error_when_suppressed;
+        p->suppress_error = false;
+
+        p->token_idx = stored_token_idx;
+        p->current = stored_current_tok;
+        p->prev = stored_prev_tok;
+
+        if (array_literal) {
+            if (emptypair) {
+                goto_next_tok(p);
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    "expected array size expression",
+                    p->current->span);
+                msg_emit(p, &msg);
+            }
+            AstNode* typespec = parse_typespec(p);
+            Token* lbrace = expect_lbrace(p);
+            AstNode** elems = parse_args(p, lbrace, TOKEN_RBRACE, true, false);
+            return astnode_array_literal_new(typespec, elems, p->prev);
+        } else {
+            goto_next_tok(p);
+            AstNode** elems = parse_args(p, lbrack, TOKEN_RBRACK, true, false);
+            return astnode_tuple_literal_new(lbrack, elems, p->prev);
+        }
     }
     // NOTE: Add the case to `can_token_begin_expr()`
 

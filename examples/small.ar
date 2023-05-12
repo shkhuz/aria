@@ -13,13 +13,14 @@ struct Main {
 
 imm primes = {
     imm sum = {
-        yield [2]u32{ 0 };
+        yield [1]u32{ 0 };
     };
-    imm sum = 1;
+    imm sum = [];
     yield sum;
 };
 
 fn main() void {
+    println([12]);
     fn cool(a: int, b: int) std.Vec<usize, u8, *std.Vec<u8>> {
         fn cool() df {cool;}
         mut name = cool(a,cool(),mutable({}, {fn cool() void {}}));

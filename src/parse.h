@@ -14,6 +14,8 @@ typedef struct {
     usize token_idx;
     struct CompileCtx* compile_ctx;
     bool error;
+    bool error_when_suppressed;
+    bool suppress_error;
     jmp_buf* error_handler_pos;
 } ParseCtx;
 
