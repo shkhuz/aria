@@ -7,20 +7,20 @@ imm x = {yield 1;};
 
 struct Main {
     buf: Vec<u32>,
-    buf: [[], []u16, std.Vec<u8>],
-    buf: [2][u8],
+    buf: ((), []u16, std.Vec<u8>),
+    buf: [2](u8, u16, u32),
 }
 
 imm primes = {
     imm sum = {
         yield [1]u32{ 0 };
     };
-    imm sum = [];
+    imm sum = ();
+    imm sum = (1, 2, 3);
     yield sum;
 };
 
 fn main() void {
-    println([12]);
     fn cool(a: int, b: int) std.Vec<usize, u8, *std.Vec<u8>> {
         fn cool() df {cool;}
         mut name = cool(a,cool(),mutable({}, {fn cool() void {}}));

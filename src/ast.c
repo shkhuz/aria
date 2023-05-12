@@ -35,10 +35,10 @@ AstNode* astnode_typespec_array_new(Token* lbrack, AstNode* size, AstNode* child
     return astnode;
 }
 
-AstNode* astnode_typespec_tuple_new(Token* lbrack, AstNode** elems, Token* rbrack) {
+AstNode* astnode_typespec_tuple_new(Token* start, AstNode** elems, Token* end) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_TYPESPEC_TUPLE,
-        span_from_two(lbrack->span, rbrack->span));
+        span_from_two(start->span, end->span));
     astnode->typetup.elems = elems;
     return astnode;
 }

@@ -385,16 +385,6 @@ int main() {
         18);
 
     test_invalid_one_errspan(
-        "if expr cond in else clause",
-        "fn main() void {\n"
-        "   if (true) {}\n"
-        "   else (false) {}\n"
-        "}\n",
-        "expected expression",
-        3,
-        9);
-
-    test_invalid_one_errspan(
         "if expr inside if body without `{}`",
         "fn main() void {\n"
         "   if (true) if (true) {}\n"
@@ -518,18 +508,18 @@ int main() {
         41);
 
     test_invalid_one_errspan(
-        "eof error on typespec lbrack",
-        "fn main() void { imm x: [; }\n",
-        "unexpected end of file",
-        2,
-        1);
-
-    test_invalid_one_errspan(
         "missing array type after specifying size",
         "fn main() void { imm x: [1]; }\n",
         "expected type",
         1,
-        26);
+        28);
+
+    test_invalid_one_errspan(
+        "missing array type after specifying size",
+        "fn main() void { imm x = .(1, 2); }\n",
+        "expected identifier, `{` or `[`",
+        1,
+        27);
 
     // REMINDER: At scoped block
 

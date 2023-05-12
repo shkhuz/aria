@@ -213,7 +213,7 @@ struct AstNode {
 AstNode* astnode_typespec_ptr_new(Token* star, bool immutable, AstNode* child);
 AstNode* astnode_typespec_slice_new(Token* lbrack, bool immutable, AstNode* child);
 AstNode* astnode_typespec_array_new(Token* lbrack, AstNode* size, AstNode* child);
-AstNode* astnode_typespec_tuple_new(Token* lbrack, AstNode** elems, Token* rbrack);
+AstNode* astnode_typespec_tuple_new(Token* start, AstNode** elems, Token* end);
 AstNode* astnode_generic_typespec_new(AstNode* left, AstNode** args, Token* end);
 
 AstNode* astnode_directive_new(
