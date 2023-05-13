@@ -521,6 +521,20 @@ int main() {
         1,
         27);
 
+    test_invalid_one_errspan(
+        "missing type after `impl` keyword",
+        "impl {}\n",
+        "expected type",
+        1,
+        6);
+
+    test_invalid_one_errspan(
+        "missing type after `impl` `for` keyword",
+        "impl ToString for {}\n",
+        "expected type",
+        1,
+        19);
+
     // REMINDER: At scoped block
 
     fprintf(

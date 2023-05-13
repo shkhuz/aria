@@ -19,6 +19,7 @@ void init_global_compiler_state() {
     bufpush(keywords, (StringTokenKindTup){ "fn", TOKEN_KEYWORD_FN });
     bufpush(keywords, (StringTokenKindTup){ "type", TOKEN_KEYWORD_TYPE });
     bufpush(keywords, (StringTokenKindTup){ "struct", TOKEN_KEYWORD_STRUCT });
+    bufpush(keywords, (StringTokenKindTup){ "impl", TOKEN_KEYWORD_IMPL });
     bufpush(keywords, (StringTokenKindTup){ "if", TOKEN_KEYWORD_IF });
     bufpush(keywords, (StringTokenKindTup){ "else", TOKEN_KEYWORD_ELSE });
     bufpush(keywords, (StringTokenKindTup){ "for", TOKEN_KEYWORD_FOR });

@@ -5,6 +5,12 @@
 
 imm x = {yield 1;};
 
+impl ToString.cool for *Main<T> {
+    fn cool() void {}
+}
+
+impl usize {}
+
 struct Main {
     buf: ff.Vec<u32>,
     buf: ((), []u16, std.Vec<u8>),

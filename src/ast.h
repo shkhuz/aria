@@ -156,6 +156,19 @@ typedef struct {
 } AstNodeStruct;
 
 typedef enum {
+    IMPL_AGGREGATE,
+    IMPL_TRAIT,
+} ImplKind;
+
+typedef struct {
+    ImplKind implkind;
+    // NULL in case of IMPL_AGGREGATE
+    AstNode* trait;
+    AstNode* typespec;
+    AstNode** children;
+} AstNodeImpl;
+
+typedef enum {
     ASTNODE_TYPESPEC_PTR,
     ASTNODE_TYPESPEC_SLICE,
     ASTNODE_TYPESPEC_ARRAY,
@@ -182,6 +195,7 @@ typedef enum {
     ASTNODE_PARAM_DECL,
     ASTNODE_EXPRSTMT,
     ASTNODE_STRUCT,
+    ASTNODE_IMPL,
 } AstNodeKind;
 
 struct AstNode {
@@ -214,6 +228,7 @@ struct AstNode {
         AstNodeParamDecl paramd;
         AstNode* exprstmt;
         AstNodeStruct strct;
+        AstNodeImpl impl;
     };
 };
 
@@ -276,6 +291,13 @@ AstNode* astnode_struct_new(
     Token* keyword,
     Token* identifier,
     AstNode** fields,
+    Token* rbrace);
+AstNode* astnode_impl_new(
+    Token* keyword,
+    ImplKind implkind,
+    AstNode* trait,
+    AstNode* typespec,
+    AstNode** children,
     Token* rbrace);
 
 #endif

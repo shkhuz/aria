@@ -27,6 +27,7 @@ static void print_node(AstNode* astnode) {
     }
 
     if (astnode->kind == ASTNODE_STRUCT
+        || astnode->kind == ASTNODE_IMPL
         || astnode->kind == ASTNODE_FIELD
         || astnode->kind == ASTNODE_IF
         || astnode->kind == ASTNODE_IF_BRANCH
@@ -269,6 +270,21 @@ static void print_node(AstNode* astnode) {
             }
             printf(")");
             indent -= 4;
+        } break;
+
+        case ASTNODE_IMPL: {
+            printf("(impl ");
+            if (astnode->impl.implkind == IMPL_TRAIT) {
+                print_node(astnode->impl.trait);
+                printf(" for ");
+            }
+            print_node(astnode->impl.typespec);
+            indent += 4;
+            bufloop(astnode->impl.children, i) {
+                print_node(astnode->impl.children[i]);
+            }
+            indent -= 4;
+            printf(")");
         } break;
     }
 }

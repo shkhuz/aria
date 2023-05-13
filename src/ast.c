@@ -270,3 +270,20 @@ AstNode* astnode_struct_new(
     astnode->strct.fields = fields;
     return astnode;
 }
+
+AstNode* astnode_impl_new(
+    Token* keyword,
+    ImplKind implkind,
+    AstNode* trait,
+    AstNode* typespec,
+    AstNode** children,
+    Token* rbrace) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_IMPL,
+        span_from_two(keyword->span, rbrace->span));
+    astnode->impl.implkind = implkind;
+    astnode->impl.trait = trait;
+    astnode->impl.typespec = typespec;
+    astnode->impl.children = children;
+    return astnode;
+}
