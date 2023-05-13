@@ -401,24 +401,16 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         return astnode_integer_literal_new(token, val);
     } else if (match(p, TOKEN_DOT)) {
         Token* start = p->prev;
-        if (match(p, TOKEN_LBRACK)) {
-            AstNode** elems = parse_args(p, start, TOKEN_RBRACK, true, false);
-            return astnode_tuple_literal_new(start, elems, p->prev);
-        } else if (match(p, TOKEN_IDENTIFIER)) {
-            // enum literal
-        } else {
-            Msg msg = msg_with_span(
-                MSG_ERROR,
-                "expected identifier, `{` or `[`",
-                p->current->span);
-            msg_addl_thin(&msg, "`.` denotes a literal (enum, struct, array)");
-            msg_emit(p, &msg);
-        }
-    } else if (p->current->kind == TOKEN_LBRACK) {
-        AstNode* typespec = parse_typespec(p);
-        Token* lbrace = expect_lbrace(p);
-        AstNode** elems = parse_args(p, lbrace, TOKEN_RBRACE, true, false);
-        return astnode_array_literal_new(typespec, elems, p->prev);
+        // enum literal
+        expect_identifier(p, "expected enum variant name");
+        assert(false && "Not implemented");
+    } else if (match(p, TOKEN_LBRACK)) {
+        Token* lbrack = p->prev;
+        AstNode** elems = parse_args(p, lbrack, TOKEN_RBRACK, true, false);
+        // TODO: if we want to specify a type for the literal, we could check
+        // for it after the `]`. But it would signify the child type, not the
+        // array literal type.
+        return astnode_array_literal_new(lbrack, elems, p->prev);
     } else if (match(p, TOKEN_LPAREN)) {
         Token* lparen = p->prev;
         if (match(p, TOKEN_RPAREN)) {
@@ -448,15 +440,13 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
 static AstNode* parse_suffix_expr(ParseCtx* p) {
     AstNode* left = parse_atom_expr(p);
     while (p->current->kind == TOKEN_LPAREN
-           || p->current->kind == TOKEN_DOT
-           || p->current->kind == TOKEN_LBRACE) {
+           || p->current->kind == TOKEN_DOT) {
         if (match(p, TOKEN_LPAREN)) {
             Token* lparen = p->prev;
             AstNode** args = parse_args(p, lparen, TOKEN_RPAREN, true, false);
             left = astnode_function_call_new(left, args, p->prev);
         } else if (match(p, TOKEN_DOT)) {
             left = parse_access_expr(p, left, true);
-        } else if (match(p, TOKEN_LBRACE)) {
         }
         // NOTE: also add above in the while cond in `parse_suffix_expr` above
     }

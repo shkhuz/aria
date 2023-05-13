@@ -106,8 +106,7 @@ static void print_node(AstNode* astnode) {
         } break;
 
         case ASTNODE_ARRAY_LITERAL: {
-            printf("(array ");
-            print_node(astnode->arrayl.typespec);
+            printf("(array");
             bufloop(astnode->arrayl.elems, i) {
                 printf(" ");
                 print_node(astnode->arrayl.elems[i]);

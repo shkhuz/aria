@@ -581,9 +581,9 @@ int main() {
         28);
 
     test_invalid_one_errspan(
-        "missing array type after specifying size",
+        "invalid tuple literal syntax",
         "fn main() void { imm x = .(1, 2); }\n",
-        "expected identifier, `{` or `[`",
+        "expected enum variant name",
         1,
         27);
 
@@ -616,6 +616,34 @@ int main() {
         "struct Main {}\n"
         "impl Main {}\n"
         "fn main() void {}\n");
+
+    test_valid(
+        "array literal",
+        "fn main() void { imm x: [_]i32 = [0, 1, 2, 3]; }\n");
+
+    test_valid(
+        "array literal",
+        "fn main() void { imm x: [4]i32 = [0, 1, 2, 3]; }\n");
+
+    test_valid(
+        "array literal",
+        "fn main() void { imm x = [0, 1, 2, 3]; }\n");
+
+    test_valid(
+        "tuple literal",
+        "fn main() void { imm x = (1, 2); }\n");
+
+    test_valid(
+        "tuple literal",
+        "fn main() void { imm x: (i32) = (1,); }\n");
+
+    test_valid(
+        "tuple literal",
+        "fn main() void { imm x: () = (); }\n");
+
+    test_valid(
+        "tuple literal",
+        "fn main() void { imm x = (); }\n");
 
     // REMINDER: At scoped block
 

@@ -95,11 +95,10 @@ AstNode* astnode_integer_literal_new(Token* token, bigint val) {
     return astnode;
 }
 
-AstNode* astnode_array_literal_new(AstNode* typespec, AstNode** elems, Token* end) {
+AstNode* astnode_array_literal_new(Token* lbrack, AstNode** elems, Token* end) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_ARRAY_LITERAL,
-        span_from_two(typespec->span, end->span));
-    astnode->arrayl.typespec = typespec;
+        span_from_two(lbrack->span, end->span));
     astnode->arrayl.elems = elems;
     return astnode;
 }
