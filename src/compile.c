@@ -36,6 +36,7 @@ CompileCtx compile_new_context() {
     c.msgs = NULL;
     c.parsing_error = false;
     c.print_msg_to_stderr = true;
+    c.print_ast = false;
     c.did_msg = false;
     return c;
 }
@@ -62,7 +63,7 @@ void compile(CompileCtx* c) {
         if (!setjmp(parse_error_handler_pos)) {
             parse(&p);
             if (p.error) c->parsing_error = true;
-            else ast_print(p.srcfile->astnodes);
+            else if (c->print_ast) ast_print(p.srcfile->astnodes);
         } else {
             c->parsing_error = true;
             continue;

@@ -131,6 +131,7 @@ int main(int argc, char* argv[]) {
     }
 
     CompileCtx compile_ctx = compile_new_context();
+    compile_ctx.print_ast = true;
 
     if (optind == argc) {
         Msg msg = msg_with_no_span(MSG_ERROR, "no input files");

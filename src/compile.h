@@ -38,6 +38,7 @@ struct CompileCtx {
     Msg* msgs;
     bool parsing_error;
     bool print_msg_to_stderr;
+    bool print_ast;
     bool did_msg;
 };
 

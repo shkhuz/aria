@@ -6,6 +6,7 @@
 
 extern char* g_green_color;
 extern char* g_bold_green_color;
+extern char* g_red_color;
 extern char* g_bold_red_color;
 extern char* g_error_color;
 extern char* g_warning_color;

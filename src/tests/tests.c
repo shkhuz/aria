@@ -14,13 +14,12 @@ bool g_error = false;
 usize total_tests = 0;
 usize passed_tests = 0;
 
-static void _test_invalid(
-    const char* test_call_filename,
+static void initialize_test(
+    CompileCtx* out_test_ctx,
+    Srcfile* srcfiles,
     usize test_call_line,
     const char* testname,
-    const char* srccode,
-    usize num_msgs,
-    TestMsgSpec* msgs)
+    const char* srccode)
 {
     total_tests++;
 #ifdef TEST_PRINT_COMPILER_MSGS
@@ -30,20 +29,18 @@ static void _test_invalid(
 #ifdef TEST_PRINT_COMPILER_MSGS
     fprintf(stderr, "\n");
 #endif
-    Srcfile srcfiles[] = {
-        (Srcfile){
-            .handle = (File){
-                .path = "<anon>",
-                .abs_path = "<anon>",
-                .contents = srccode,
-                .len = strlen(srccode),
-            },
-            .tokens = NULL,
-            .astnodes = NULL,
+    *srcfiles = (Srcfile){
+        .handle = (File){
+            .path = "<anon>",
+            .abs_path = "<anon>",
+            .contents = srccode,
+            .len = strlen(srccode),
         },
+        .tokens = NULL,
+        .astnodes = NULL,
     };
-    Srcfile* srcfiles_ptr = srcfiles;
 
+    Srcfile* srcfiles_ptr = srcfiles;
     CompileCtx test_ctx = compile_new_context();
 #ifdef TEST_PRINT_COMPILER_MSGS
     test_ctx.print_msg_to_stderr = true;
@@ -53,12 +50,90 @@ static void _test_invalid(
     test_ctx.srcfiles = &srcfiles_ptr;
     test_ctx.num_srcfiles = 1;
     compile(&test_ctx);
+    *out_test_ctx = test_ctx;
+}
+
+static void print_test_result(
+    CompileCtx* test_ctx,
+    bool error,
+    const char* test_call_filename,
+    usize test_call_line)
+{
+    if (error) {
+        g_error = true;
+        fprintf(stderr, "\n  >> At %s:%lu", test_call_filename, test_call_line);
+#ifndef TEST_PRINT_COMPILER_MSGS
+        fprintf(stderr, "\n");
+        bufloop(test_ctx->msgs, i) {
+            test_ctx->print_msg_to_stderr = true;
+            _msg_emit_no_register(&test_ctx->msgs[i], test_ctx);
+            test_ctx->print_msg_to_stderr = false;
+        }
+#endif
+    } else {
+        passed_tests++;
+#ifndef TEST_PRINT_COMPILER_MSGS
+        fprintf(stderr, "%sok%s", g_green_color, g_reset_color);
+#endif
+    }
+    fprintf(stderr, "\n");
+}
+
+static void print_fail_text() {
+#ifndef TEST_PRINT_COMPILER_MSGS
+    fprintf(stderr, "%sfail%s", g_red_color, g_reset_color);
+#endif
+}
+
+static void _test_valid(
+    const char* test_call_filename,
+    usize test_call_line,
+    const char* testname,
+    const char* srccode)
+{
+    CompileCtx test_ctx;
+    Srcfile srcfiles[1];
+    initialize_test(&test_ctx, &srcfiles[0], test_call_line, testname, srccode);
+
+    bool error = false;
+    if (buflen(test_ctx.msgs) > 0) {
+        if (!error) print_fail_text();
+        error = true;
+        fprintf(
+            stderr,
+            "\n  >> Expected no msgs, got %lu msgs",
+            buflen(test_ctx.msgs));
+    }
+
+    print_test_result(
+        &test_ctx,
+        error,
+        test_call_filename,
+        test_call_line);
+}
+
+#define test_valid(testname, srccode) \
+    (_test_valid(__FILE__, __LINE__, (testname), (srccode)))
+
+static void _test_invalid(
+    const char* test_call_filename,
+    usize test_call_line,
+    const char* testname,
+    const char* srccode,
+    usize num_msgs,
+    TestMsgSpec* msgs)
+{
+    CompileCtx test_ctx;
+    Srcfile srcfiles[1];
+    initialize_test(&test_ctx, &srcfiles[0], test_call_line, testname, srccode);
 
     bool error = false;
     if (buflen(test_ctx.msgs) == num_msgs) {
         for (usize i = 0; i < num_msgs; i++) {
             if (test_ctx.msgs[i].kind == msgs[i].kind) {
                 if (strcmp(test_ctx.msgs[i].msg, msgs[i].msg) != 0) {
+                    if (!error) print_fail_text();
+                    error = true;
                     fprintf(
                         stderr,
                         "\n  >> (%lu) Expected msgstr \"%s%s%s\", got \"%s%s%s\"",
@@ -69,7 +144,6 @@ static void _test_invalid(
                         g_bold_color,
                         test_ctx.msgs[i].msg,
                         g_reset_color);
-                    error = true;
                 }
 
                 if (test_ctx.msgs[i].span.exists == msgs[i].srcloc.exists) {
@@ -77,70 +151,62 @@ static void _test_invalid(
                         SrcLoc actual_srcloc =
                             compute_srcloc_from_span(test_ctx.msgs[i].span.span);
                         if (actual_srcloc.line != msgs[i].srcloc.srcloc.line) {
+                            if (!error) print_fail_text();
+                            error = true;
                             fprintf(
                                 stderr,
                                 "\n  >> (%lu) Expected msg on line %lu, got line %lu",
                                 i,
                                 msgs[i].srcloc.srcloc.line,
                                 actual_srcloc.line);
-                            error = true;
                         }
                         if (actual_srcloc.col != msgs[i].srcloc.srcloc.col) {
+                            if (!error) print_fail_text();
+                            error = true;
                             fprintf(
                                 stderr,
                                 "\n  >> (%lu) Expected msg on col %lu, got col %lu",
                                 i,
                                 msgs[i].srcloc.srcloc.col,
                                 actual_srcloc.col);
-                            error = true;
                         }
                     }
                 } else {
+                    if (!error) print_fail_text();
+                    error = true;
                     fprintf(
                         stderr,
                         "\n  >> (%lu) Expected msg %s span, got msg %s span",
                         i,
                         msgs[i].srcloc.exists ? "with" : "without",
                         test_ctx.msgs[i].span.exists ? "with" : "without");
-                    error = true;
                 }
             } else {
+                if (!error) print_fail_text();
+                error = true;
                 fprintf(
                     stderr,
                     "\n  >> (%lu) Expected msgkind %u, got %u",
                     i,
                     msgs[i].kind,
                     test_ctx.msgs[i].kind);
-                error = true;
             }
         }
     } else {
+        if (!error) print_fail_text();
+        error = true;
         fprintf(
             stderr,
             "\n  >> Expected msgs %lu, got %lu",
             num_msgs,
             buflen(test_ctx.msgs));
-        error = true;
     }
 
-    if (error) {
-        g_error = true;
-        fprintf(stderr, "\n  >> At file %s:%lu", test_call_filename, test_call_line);
-#ifndef TEST_PRINT_COMPILER_MSGS
-        fprintf(stderr, "\n");
-        bufloop(test_ctx.msgs, i) {
-            test_ctx.print_msg_to_stderr = true;
-            _msg_emit_no_register(&test_ctx.msgs[i], &test_ctx);
-            test_ctx.print_msg_to_stderr = false;
-        }
-#endif
-    } else {
-        passed_tests++;
-#ifndef TEST_PRINT_COMPILER_MSGS
-        fprintf(stderr, "%sok%s", g_green_color, g_reset_color);
-#endif
-    }
-    fprintf(stderr, "\n");
+    print_test_result(
+        &test_ctx,
+        error,
+        test_call_filename,
+        test_call_line);
 }
 
 #define test_invalid(testname, srccode, num_msgs, msgs) \
@@ -534,6 +600,22 @@ int main() {
         "expected type",
         1,
         19);
+
+    test_valid(
+        "function definition",
+        "fn main() void {}\n");
+
+    test_valid(
+        "local declaration",
+        "fn main() void {\n"
+        "    imm x: u32 = undefined;\n"
+        "}\n");
+
+    test_valid(
+        "empty impl struct",
+        "struct Main {}\n"
+        "impl Main {}\n"
+        "fn main() void {}\n");
 
     // REMINDER: At scoped block
 
