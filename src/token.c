@@ -15,6 +15,19 @@ bool is_token_lexeme(Token* token, const char* string) {
         string);
 }
 
+bool are_token_lexemes_equal(Token* a, Token* b) {
+    if ((a->span.end-a->span.start) != (b->span.end-b->span.start)) return false;
+    for (usize ia = a->span.start, ib = b->span.start;
+         ia < a->span.end && ib < b->span.end;
+         ia++, ib++)
+    {
+        if (a->span.srcfile->handle.contents[ia] != b->span.srcfile->handle.contents[ib]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool can_token_start_typespec(Token* token) {
     if (token->kind == TOKEN_IDENTIFIER
         || token->kind == TOKEN_AT

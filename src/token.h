@@ -69,6 +69,7 @@ typedef struct {
 
 Token* token_new(TokenKind kind, Span span);
 bool is_token_lexeme(Token* token, const char* string);
+bool are_token_lexemes_equal(Token* a, Token* b);
 bool can_token_start_typespec(Token* token);
 bool can_token_start_expr(Token* token);
 char* tokenkind_to_string(TokenKind kind);

@@ -222,11 +222,11 @@ static void print_node(AstNode* astnode) {
 
         case ASTNODE_FUNCTION_DEF: {
             printf("(");
-            print_node(astnode->funcd.header);
+            print_node(astnode->funcdef.header);
             printf(" ");
             indent += 4;
             indent_block = false;
-            print_node(astnode->funcd.body);
+            print_node(astnode->funcdef.body);
             indent -= 4;
             printf(")");
         } break;
@@ -263,7 +263,8 @@ static void print_node(AstNode* astnode) {
 
         case ASTNODE_STRUCT: {
             indent += 4;
-            printf("(struct");
+            printf("(struct ");
+            print_token(astnode->strct.identifier);
             bufloop(astnode->strct.fields, i) {
                 print_node(astnode->strct.fields[i]);
             }

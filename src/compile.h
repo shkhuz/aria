@@ -37,6 +37,7 @@ struct CompileCtx {
     usize num_srcfiles;
     Msg* msgs;
     bool parsing_error;
+    bool sema_error;
     bool print_msg_to_stderr;
     bool print_ast;
     bool did_msg;

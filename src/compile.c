@@ -6,6 +6,7 @@
 #include "ast.h"
 #include "parse.h"
 #include "ast_print.h"
+#include "sema.h"
 
 StringTokenKindTup* keywords = NULL;
 StringDirectiveKindTup* directives = NULL;
@@ -35,6 +36,7 @@ CompileCtx compile_new_context() {
     c.num_srcfiles = 0;
     c.msgs = NULL;
     c.parsing_error = false;
+    c.sema_error = false;
     c.print_msg_to_stderr = true;
     c.print_ast = false;
     c.did_msg = false;
@@ -69,4 +71,12 @@ void compile(CompileCtx* c) {
             continue;
         }
     }
+
+    if (c->parsing_error) return;
+    SemaCtx* sema_ctxs = NULL;
+    for (usize i = 0; i < c->num_srcfiles; i++) {
+        bufpush(sema_ctxs, sema_new_context(c->srcfiles[i], c));
+    }
+
+    c->sema_error = sema(sema_ctxs);
 }

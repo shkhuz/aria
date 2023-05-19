@@ -3,6 +3,7 @@
 
 #include "bigint.h"
 #include "token.h"
+#include "type.h"
 
 typedef struct AstNode AstNode;
 
@@ -200,6 +201,7 @@ typedef enum {
 struct AstNode {
     AstNodeKind kind;
     Span span;
+    Typespec* typespec;
     union {
         AstNodeTypespecPtr typeptr;
         AstNodeTypespecSlice typeslice;
@@ -222,7 +224,7 @@ struct AstNode {
         AstNodeUnOp unop;
         AstNodeBinOp binop;
         AstNodeFunctionHeader funch;
-        AstNodeFunctionDef funcd;
+        AstNodeFunctionDef funcdef;
         AstNodeVariableDecl vard;
         AstNodeParamDecl paramd;
         AstNode* exprstmt;

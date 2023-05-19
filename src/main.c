@@ -151,5 +151,8 @@ int main(int argc, char* argv[]) {
     else compile_ctx.num_srcfiles = buflen(compile_ctx.srcfiles);
 
     compile(&compile_ctx);
-    if (compile_ctx.parsing_error) terminate_compilation();
+    if (compile_ctx.parsing_error
+        || compile_ctx.sema_error) {
+        terminate_compilation();
+    }
 }

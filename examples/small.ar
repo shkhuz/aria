@@ -3,18 +3,26 @@
 // mutable with rumtime known
 // mutable with compile time known
 
-imm x = {yield 1;};
+//imm x = {yield 1;};
 
 impl ToString.cool for *Main<T> {
     fn cool() void {}
 }
 
+fn main2() void {}
+
 impl usize {}
 
+struct ff {
+    Vec: gg,
+}
+
+struct gg { pos: *usize }
+
 struct Main {
-    buf: ff.Vec<u32>,
-    buf: ((), []u16, std.Vec<u8>),
-    buf: [2](u8, u16, u32),
+    buf: ff.Ve<u8>,
+    buf2: ((), []u16, std.Vec<u8>),
+    buf3: [2](u8, u16, u32),
 }
 
 imm primes = {
@@ -29,6 +37,8 @@ imm primes = {
     };
     yield (sum,);
 };
+
+//imm primes = [1, 2, 3];
 
 fn main() void {
     fn cool(a: int, b: int) std.Vec<usize, u8, *std.Vec<u8>> {
@@ -49,6 +59,6 @@ fn main() void {
 }
 
 struct Cool {
-    a: usize,
+    a: *usize,
     b: *u8,
 }

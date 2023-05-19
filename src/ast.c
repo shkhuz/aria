@@ -5,6 +5,7 @@ AstNode* astnode_alloc(AstNodeKind kind, Span span) {
     AstNode* astnode = alloc_obj(AstNode);
     astnode->kind = kind;
     astnode->span = span;
+    astnode->typespec = NULL;
     return astnode;
 }
 
@@ -217,8 +218,8 @@ AstNode* astnode_function_def_new(AstNode* header, AstNode* body) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_FUNCTION_DEF,
         span_from_two(header->span, body->span));
-    astnode->funcd.header = header;
-    astnode->funcd.body = body;
+    astnode->funcdef.header = header;
+    astnode->funcdef.body = body;
     return astnode;
 }
 
