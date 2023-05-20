@@ -17,15 +17,17 @@ struct ff {
     Vec: gg,
 }
 
-struct gg { pos: *usize }
+struct gg { po: *usize }
 
 struct Main {
-    buf: ff.Ve<u8>,
-    buf2: ((), []u16, std.Vec<u8>),
+    buf: cool,
+    buf2: *usize,
     buf3: [2](u8, u16, u32),
 }
 
-imm primes = {
+imm cool: ff = undefined;
+
+imm primes: gg = {
     imm sum = {
         yield [0, 1, 2, 3, 4];
     };

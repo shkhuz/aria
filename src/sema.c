@@ -66,6 +66,13 @@ Typespec* typespec_struct_new(AstNode* astnode) {
     return ty;
 }
 
+Typespec* typespec_type_new(Typespec* typespec) {
+    Typespec* ty = alloc_obj(Typespec);
+    ty->kind = TS_TYPE;
+    ty->ty = typespec;
+    return ty;
+}
+
 static Typespec* sema_scope_retrieve(SemaCtx* s, Token* identifier) {
     bufrevloop(s->scopebuf, si) {
         bufloop(s->scopebuf[si].decls, i) {
@@ -83,16 +90,34 @@ static Typespec* sema_scope_retrieve(SemaCtx* s, Token* identifier) {
     return NULL;
 }
 
+static bool sema_assert_is_type(SemaCtx* s, Typespec* ty, AstNode* astnode) {
+    assert(ty != NULL);
+    if (ty->kind == TS_TYPE) {
+        return true;
+    }
+
+    Msg msg = msg_with_span(
+        MSG_ERROR,
+        "expected type, got value",
+        astnode->span);
+    msg_emit(s, &msg);
+    return false;
+}
+
 static void sema_top_level_decls(SemaCtx* s, AstNode* astnode) {
     switch (astnode->kind) {
         case ASTNODE_STRUCT: {
-            Typespec* ty = typespec_struct_new(astnode);
+            Typespec* ty = typespec_type_new(typespec_struct_new(astnode));
             astnode->typespec = ty;
-            sema_scope_declare(s, astnode->strct.identifier, typespec_struct_new(astnode));
+            sema_scope_declare(s, astnode->strct.identifier, ty);
         } break;
 
         case ASTNODE_VARIABLE_DECL: {
-            sema_scope_declare(s, astnode->vard.identifier, NULL);
+            Typespec* ty = sema_astnode(s, astnode->vard.typespec);
+            if (ty) {
+                if (sema_assert_is_type(s, ty, astnode->vard.typespec)) astnode->typespec = ty->ty;
+                sema_scope_declare(s, astnode->vard.identifier, astnode->typespec);
+            } else return;
         } break;
 
         case ASTNODE_FUNCTION_DEF: {
@@ -101,25 +126,19 @@ static void sema_top_level_decls(SemaCtx* s, AstNode* astnode) {
     }
 }
 
-static void sema_aggregate_defs(SemaCtx* s, AstNode* astnode) {
-    switch (astnode->kind) {
-        case ASTNODE_STRUCT: {
-            bufloop(astnode->strct.fields, i) {
-                Typespec* field_ty = sema_astnode(s, astnode->strct.fields[i]->field.value);
-                sema_scope_declare(s, astnode->strct.fields[i]->field.key, field_ty);
-                astnode->strct.fields[i]->typespec = field_ty;
-            }
-        } break;
-    }
-}
-
 static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
     switch (astnode->kind) {
         case ASTNODE_STRUCT: {
+            bool error = false;
             bufloop(astnode->strct.fields, i) {
-                sema_astnode(s, astnode->strct.fields[i]->field.value);
+                AstNode* fieldnode = astnode->strct.fields[i];
+                Typespec* field_ty = sema_astnode(s, fieldnode->field.value);
+                if (field_ty) {
+                    if (sema_assert_is_type(s, field_ty, fieldnode->field.value))
+                        fieldnode->typespec = field_ty->ty;
+                } else error = true;
             }
-            return astnode->typespec;
+            return error ? NULL : astnode->typespec;
         } break;
 
         case ASTNODE_SYMBOL: {
@@ -131,21 +150,30 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
         case ASTNODE_ACCESS: {
             Typespec* left = sema_astnode(s, astnode->acc.left);
             if (left) {
-                assert(left->kind == TS_STRUCT);
                 assert(astnode->acc.right->kind == ASTNODE_SYMBOL);
-                AstNode** fields = left->agg->strct.fields;
-                bufloop(fields, i) {
-                    if (are_token_lexemes_equal(
-                            fields[i]->field.key,
-                            astnode->acc.right->sym.identifier)) {
-                        return fields[i]->field.value->typespec;
+                if (left->kind == TS_STRUCT) {
+                    AstNode** fields = left->agg->strct.fields;
+                    bufloop(fields, i) {
+                        if (are_token_lexemes_equal(
+                                fields[i]->field.key,
+                                astnode->acc.right->sym.identifier)) {
+                            return fields[i]->field.value->typespec;
+                        }
                     }
+                    Msg msg = msg_with_span(
+                        MSG_ERROR,
+                        "`.`: symbol not found",
+                        astnode->acc.right->span);
+                    msg_emit(s, &msg);
+                    return NULL;
+                } else if (left->kind == TS_TYPE) {
+                    Msg msg = msg_with_span(
+                        MSG_ERROR,
+                        "`.`: symbol not found in type",
+                        astnode->acc.right->span);
+                    msg_emit(s, &msg);
+                    return NULL;
                 }
-                Msg msg = msg_with_span(
-                    MSG_ERROR,
-                    "`.` operator: symbol not found",
-                    astnode->acc.right->span);
-                msg_emit(s, &msg);
             } else return NULL;
         } break;
 
@@ -168,14 +196,14 @@ bool sema(SemaCtx* sema_ctxs) {
     }
     if (error) return true;
 
-    bufloop(sema_ctxs, i) {
-        SemaCtx* s = &sema_ctxs[i];
-        bufloop(s->srcfile->astnodes, j) {
-            sema_aggregate_defs(s, s->srcfile->astnodes[j]);
-        }
-        if (s->error) error = true;
-    }
-    if (error) return true;
+    /* bufloop(sema_ctxs, i) { */
+    /*     SemaCtx* s = &sema_ctxs[i]; */
+    /*     bufloop(s->srcfile->astnodes, j) { */
+    /*         sema_aggregate_defs(s, s->srcfile->astnodes[j]); */
+    /*     } */
+    /*     if (s->error) error = true; */
+    /* } */
+    /* if (error) return true; */
 
     bufloop(sema_ctxs, i) {
         SemaCtx* s = &sema_ctxs[i];

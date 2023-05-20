@@ -538,7 +538,20 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
                 if (p->current->kind != TOKEN_RBRACE) {
                     expect_comma(p);
                 }
-                bufpush(fields, astnode_field_new(field_identifier, field_typespec));
+
+                bool dup = false;
+                bufloop(fields, i) {
+                    if (are_token_lexemes_equal(fields[i]->field.key, field_identifier)) {
+                        Msg msg = msg_with_span(
+                            MSG_ERROR,
+                            "duplicate field",
+                            field_identifier->span);
+                        msg_addl_fat(&msg, "previous declaration here", fields[i]->field.key->span);
+                        msg_emit_non_fatal(p, &msg);
+                        dup = true;
+                    }
+                }
+                if (!dup) bufpush(fields, astnode_field_new(field_identifier, field_typespec));
             } else {
                 Msg msg = msg_with_span(
                     MSG_ERROR,

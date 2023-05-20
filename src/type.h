@@ -8,12 +8,15 @@ typedef enum {
     TS_STRUCT,
     TS_UNION,
     TS_ENUM,
+
+    TS_TYPE,
 } TypespecKind;
 
-typedef struct {
+typedef struct Typespec {
     TypespecKind kind;
     union {
         struct AstNode* agg;
+        struct Typespec* ty;
     };
 } Typespec;
 
