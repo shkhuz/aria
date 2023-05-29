@@ -251,21 +251,16 @@ static AstNode* parse_atom_typespec(ParseCtx* p) {
         }
     } else if (match(p, TOKEN_LPAREN)) {
         Token* lparen = p->prev;
-        if (match(p, TOKEN_RPAREN)) {
-            return astnode_typespec_tuple_new(lparen, NULL, p->prev);
-        }
-
-        AstNode* first = parse_typespec(p);
-        if (match(p, TOKEN_COMMA)) {
-            AstNode** elems = parse_args(p, lparen, TOKEN_RPAREN, false, false);
-            bufinsert(elems, 0, first);
-            return astnode_typespec_tuple_new(lparen, elems, p->prev);
-        } else {
-            expect_rparen(p);
-            return first;
-        }
+        AstNode** elems = parse_args(p, lparen, TOKEN_RPAREN, false, false);
+        return astnode_typespec_tuple_new(lparen, elems, p->prev);
+    } else if (match(p, TOKEN_KEYWORD_FN)) {
+        Token* start = p->prev;
+        Token* lparen = expect_lparen(p);
+        AstNode** params = parse_args(p, lparen, TOKEN_RPAREN, true, false);
+        AstNode* ret_typespec = parse_typespec(p);
+        return astnode_typespec_func_new(start, params, ret_typespec);
     }
-    // NOTE: Add the case to `can_token_begin_typespec()`
+    // NOTE: Add the case to `can_token_start_typespec()`
 
     Msg msg = msg_with_span(
         MSG_ERROR,
@@ -397,9 +392,16 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         return astnode_integer_literal_new(token, val);
     } else if (match(p, TOKEN_DOT)) {
         Token* start = p->prev;
-        // enum literal
-        expect_identifier(p, "expected enum variant name");
-        assert(false && "Not implemented");
+        if (match(p, TOKEN_LPAREN)) {
+            // tuple literal
+            Token* lparen = p->prev;
+            AstNode** elems = parse_args(p, lparen, TOKEN_RPAREN, true, false);
+            return astnode_tuple_literal_new(start, elems, p->prev);
+        } else {
+            // enum literal
+            expect_identifier(p, "expected enum variant name");
+            assert(false && "Not implemented");
+        }
     } else if (match(p, TOKEN_LBRACK)) {
         Token* lbrack = p->prev;
         AstNode** elems = parse_args(p, lbrack, TOKEN_RBRACK, true, false);
@@ -409,19 +411,9 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         return astnode_array_literal_new(lbrack, elems, p->prev);
     } else if (match(p, TOKEN_LPAREN)) {
         Token* lparen = p->prev;
-        if (match(p, TOKEN_RPAREN)) {
-            return astnode_tuple_literal_new(lparen, NULL, p->prev);
-        }
-
-        AstNode* first = parse_expr(p);
-        if (match(p, TOKEN_COMMA)) {
-            AstNode** elems = parse_args(p, lparen, TOKEN_RPAREN, true, false);
-            bufinsert(elems, 0, first);
-            return astnode_tuple_literal_new(lparen, elems, p->prev);
-        } else {
-            expect_rparen(p);
-            return first;
-        }
+        AstNode* expr = parse_expr(p);
+        expect_rparen(p);
+        return expr;
     }
     // NOTE: Add the case to `can_token_begin_expr()`
 

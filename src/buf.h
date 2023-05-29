@@ -19,6 +19,11 @@ typedef struct {
 #define bufpush(b, ...) (buffit((b), 1 + buflen((b))), \
                          ((b)[_bufhdr((b))->len++] = __VA_ARGS__))
 
+#define bufstrexpandpush(b, e) {usize COMBINE(__tmpsize, __LINE__) = strlen((e)); \
+                                (buffit((b), (COMBINE(__tmpsize, __LINE__)) + buflen((b))), \
+                                (memcpy(&((b)[_bufhdr((b))->len]), (e), (COMBINE(__tmpsize, __LINE__))*(sizeof(*b)))), \
+                                (_bufhdr((b))->len += (COMBINE(__tmpsize, __LINE__))));}
+
 #define bufpop(b) (buflen(b) > 0 ? (_bufhdr((b))->len--, *bufend((b))) : 0)
 
 #define buffree(b) ((b) ? (free(_bufhdr(b)), b=NULL) : 0)

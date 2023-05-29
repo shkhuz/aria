@@ -7,9 +7,11 @@
 #include "parse.h"
 #include "ast_print.h"
 #include "sema.h"
+#include "type.h"
 
 StringTokenKindTup* keywords = NULL;
 StringDirectiveKindTup* directives = NULL;
+PredefTypespecs predef_typespecs;
 
 void init_global_compiler_state() {
     init_cmd();
@@ -28,6 +30,18 @@ void init_global_compiler_state() {
     bufpush(keywords, (StringTokenKindTup){ "yield", TOKEN_KEYWORD_YIELD });
 
     bufpush(directives, (StringDirectiveKindTup){ "import", DIRECTIVE_IMPORT });
+
+    predef_typespecs = (PredefTypespecs){
+        .u8_type = typespec_type_new(typespec_prim_new(PRIM_u8)),
+        .u16_type = typespec_type_new(typespec_prim_new(PRIM_u16)),
+        .u32_type = typespec_type_new(typespec_prim_new(PRIM_u32)),
+        .u64_type = typespec_type_new(typespec_prim_new(PRIM_u64)),
+        .i8_type = typespec_type_new(typespec_prim_new(PRIM_i8)),
+        .i16_type = typespec_type_new(typespec_prim_new(PRIM_i16)),
+        .i32_type = typespec_type_new(typespec_prim_new(PRIM_i32)),
+        .i64_type = typespec_type_new(typespec_prim_new(PRIM_i64)),
+        .void_type = typespec_type_new(typespec_prim_new(PRIM_void)),
+    };
 }
 
 CompileCtx compile_new_context() {

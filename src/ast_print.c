@@ -42,6 +42,17 @@ static void print_node(AstNode* astnode) {
     }
 
     switch (astnode->kind) {
+        case ASTNODE_TYPESPEC_FUNC: {
+            printf("(fn (");
+            bufloop(astnode->typefunc.params, i) {
+                print_node(astnode->typefunc.params[i]);
+                if (i != buflen(astnode->typefunc.params)-1) printf(", ");
+            }
+            printf(") ");
+            print_node(astnode->typefunc.ret_typespec);
+            printf(")");
+        } break;
+
         case ASTNODE_TYPESPEC_PTR: {
             printf("*");
             if (astnode->typeptr.immutable) printf("imm ");

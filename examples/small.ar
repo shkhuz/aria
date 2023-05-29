@@ -9,7 +9,7 @@ impl ToString.cool for *Main<T> {
     fn cool() void {}
 }
 
-fn main2() void {}
+//fn main2() void {}
 
 impl usize {}
 
@@ -17,12 +17,10 @@ struct ff {
     Vec: gg,
 }
 
-struct gg { po: *usize }
-
 struct Main {
-    buf: cool,
-    buf2: *usize,
-    buf3: [2](u8, u16, u32),
+    //buf: cool,
+    buf2: *u32,
+    buf3: [2](u8),
 }
 
 imm cool: ff = undefined;
@@ -31,16 +29,22 @@ imm primes: gg = {
     imm sum = {
         yield [0, 1, 2, 3, 4];
     };
-    imm sum = ();
-    imm sum = (1, 2, 3);
+    imm sum = .();
+    imm sum = .(1, 2, 3);
     imm newliteral = Player {
         .pos = 1,
         .vel = oldvel(),
     };
-    yield (sum,);
+    yield .(sum);
 };
 
+imm voidd: void = undefined;
+
+struct gg { po: fn (i32) i32 }
+
 //imm primes = [1, 2, 3];
+
+fn add(a: *imm void, b: *imm void, c: *imm void) void {}
 
 fn main() void {
     fn cool(a: int, b: int) std.Vec<usize, u8, *std.Vec<u8>> {
@@ -54,13 +58,17 @@ fn main() void {
         if (main) {
             if (cool.a.b) 1 else {}
         }
-        func(1, My.Player::<u32>.newtype {.name = 1}, 2, New {.f = 1});
+        voidd(1, My.Player::<u32>.newtype {.name = 1}, 2, New {.f = 1});
+        add(1, 1, 1, 1, 1, 1);
         return @import(1).a;
         yield 1;
     }
 }
 
+// imm ptr: *fn (i32) i32 = 0x3423432;
+// ptr();
+
 struct Cool {
-    a: *usize,
+    a: *i64,
     b: *u8,
 }

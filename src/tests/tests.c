@@ -581,13 +581,6 @@ int main() {
         28);
 
     test_invalid_one_errspan(
-        "invalid tuple literal syntax",
-        "fn main() void { imm x = .(1, 2); }\n",
-        "expected enum variant name",
-        1,
-        27);
-
-    test_invalid_one_errspan(
         "missing type after `impl` keyword",
         "impl {}\n",
         "expected type",
@@ -631,19 +624,19 @@ int main() {
 
     test_valid(
         "tuple literal",
-        "fn main() void { imm x = (1, 2); }\n");
+        "fn main() void { imm x = .(1, 2); }\n");
 
     test_valid(
         "tuple literal",
-        "fn main() void { imm x: (i32) = (1,); }\n");
+        "fn main() void { imm x: (i32) = .(1); }\n");
 
     test_valid(
         "tuple literal",
-        "fn main() void { imm x: () = (); }\n");
+        "fn main() void { imm x: () = .(); }\n");
 
     test_valid(
         "tuple literal",
-        "fn main() void { imm x = (); }\n");
+        "fn main() void { imm x = .(); }\n");
 
     // REMINDER: At scoped block
 

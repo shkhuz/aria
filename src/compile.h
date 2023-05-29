@@ -18,6 +18,19 @@ typedef struct {
 } StringDirectiveKindTup;
 
 struct AstNode;
+struct Typespec;
+
+typedef struct {
+    struct Typespec* u8_type;
+    struct Typespec* u16_type;
+    struct Typespec* u32_type;
+    struct Typespec* u64_type;
+    struct Typespec* i8_type;
+    struct Typespec* i16_type;
+    struct Typespec* i32_type;
+    struct Typespec* i64_type;
+    struct Typespec* void_type;
+} PredefTypespecs;
 
 typedef struct Srcfile Srcfile;
 
@@ -29,6 +42,7 @@ struct Srcfile {
 
 extern StringTokenKindTup* keywords;
 extern StringDirectiveKindTup* directives;
+extern PredefTypespecs predef_typespecs;
 
 typedef struct CompileCtx CompileCtx;
 

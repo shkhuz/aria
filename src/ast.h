@@ -8,6 +8,11 @@
 typedef struct AstNode AstNode;
 
 typedef struct {
+    AstNode** params;
+    AstNode* ret_typespec;
+} AstNodeTypespecFunc;
+
+typedef struct {
     bool immutable;
     AstNode* child;
 } AstNodeTypespecPtr;
@@ -99,6 +104,7 @@ typedef struct {
 typedef struct {
     AstNode* callee;
     AstNode** args;
+    Token* rparen;
 } AstNodeFunctionCall;
 
 typedef struct {
@@ -169,6 +175,7 @@ typedef struct {
 } AstNodeImpl;
 
 typedef enum {
+    ASTNODE_TYPESPEC_FUNC,
     ASTNODE_TYPESPEC_PTR,
     ASTNODE_TYPESPEC_SLICE,
     ASTNODE_TYPESPEC_ARRAY,
@@ -203,6 +210,7 @@ struct AstNode {
     Span span;
     Typespec* typespec;
     union {
+        AstNodeTypespecFunc typefunc;
         AstNodeTypespecPtr typeptr;
         AstNodeTypespecSlice typeslice;
         AstNodeTypespecArray typearray;
@@ -233,6 +241,7 @@ struct AstNode {
     };
 };
 
+AstNode* astnode_typespec_func_new(Token* start, AstNode** params, AstNode* ret_typespec);
 AstNode* astnode_typespec_ptr_new(Token* star, bool immutable, AstNode* child);
 AstNode* astnode_typespec_slice_new(Token* lbrack, bool immutable, AstNode* child);
 AstNode* astnode_typespec_array_new(Token* lbrack, AstNode* size, AstNode* child);

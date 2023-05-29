@@ -9,6 +9,15 @@ AstNode* astnode_alloc(AstNodeKind kind, Span span) {
     return astnode;
 }
 
+AstNode* astnode_typespec_func_new(Token* start, AstNode** params, AstNode* ret_typespec) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_TYPESPEC_FUNC,
+        span_from_two(start->span, ret_typespec->span));
+    astnode->typefunc.params = params;
+    astnode->typefunc.ret_typespec = ret_typespec;
+    return astnode;
+}
+
 AstNode* astnode_typespec_ptr_new(Token* star, bool immutable, AstNode* child) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_TYPESPEC_PTR,
@@ -187,6 +196,7 @@ AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end) 
         span_from_two(callee->span, end->span));
     astnode->funcc.callee = callee;
     astnode->funcc.args = args;
+    astnode->funcc.rparen = end;
     return astnode;
 }
 
