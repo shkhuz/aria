@@ -2,10 +2,18 @@
 #include "buf.h"
 #include "ast.h"
 
-Typespec* typespec_prim_new(PrimKind prim) {
+Typespec* typespec_prim_new(PrimKind kind) {
     Typespec* ty = alloc_obj(Typespec);
     ty->kind = TS_PRIM;
-    ty->prim = prim;
+    ty->prim.kind = kind;
+    return ty;
+}
+
+Typespec* typespec_comptime_integer_new(bigint val) {
+    Typespec* ty = alloc_obj(Typespec);
+    ty->kind = TS_PRIM;
+    ty->prim.kind = PRIM_comptime_integer;
+    ty->prim.comptime_integer = val;
     return ty;
 }
 
@@ -50,13 +58,14 @@ static char* primkind_tostring(PrimKind kind) {
         case PRIM_i32: return "i32";
         case PRIM_i64: return "i64";
         case PRIM_void: return "void";
+        case PRIM_comptime_integer: return "{integer}";
     }
 }
 
 static char* tostring(Typespec* ty) {
     switch (ty->kind) {
         case TS_PRIM: {
-            return primkind_tostring(ty->prim);
+            return primkind_tostring(ty->prim.kind);
         } break;
 
         case TS_PTR: {
@@ -91,8 +100,105 @@ static char* tostring(Typespec* ty) {
     return NULL;
 }
 
+bool typespec_is_integer(Typespec* ty) {
+    assert(ty->kind == TS_PRIM);
+    switch (ty->prim.kind) {
+        case PRIM_u8:
+        case PRIM_i8:
+        case PRIM_u16:
+        case PRIM_i16:
+        case PRIM_u32:
+        case PRIM_i32:
+        case PRIM_u64:
+        case PRIM_i64:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool typespec_is_comptime_integer(Typespec* ty) {
+    return ty->kind == TS_PRIM && ty->prim.kind == PRIM_comptime_integer;
+}
+
+bool typespec_is_signed(Typespec* ty) {
+    assert(ty->kind == TS_PRIM);
+    switch (ty->prim.kind) {
+        case PRIM_i8:
+        case PRIM_i16:
+        case PRIM_i32:
+        case PRIM_i64:
+            return true;
+        case PRIM_u8:
+        case PRIM_u16:
+        case PRIM_u32:
+        case PRIM_u64:
+            return false;
+    }
+    assert(0);
+    return false;
+}
+
+u32 typespec_get_bytes(Typespec* ty) {
+    switch (ty->kind) {
+        case TS_PRIM: {
+            switch (ty->prim.kind) {
+            case PRIM_u8:
+            case PRIM_i8:
+                return 1;
+            case PRIM_u16:
+            case PRIM_i16:
+                return 2;
+            case PRIM_u32:
+            case PRIM_i32:
+                return 4;
+            case PRIM_u64:
+            case PRIM_i64:
+                return 8;
+            case PRIM_void:
+                return 0;
+            }
+        } break;
+    }
+    assert(0);
+    return 0;
+}
+
 char* typespec_tostring(Typespec* ty) {
     char* buf = NULL;
     bufstrexpandpush(buf, tostring(ty));
+    bufpush(buf, '\0');
     return buf;
+}
+
+char* typespec_integer_get_min_value(Typespec* ty) {
+    assert(ty->kind == TS_PRIM);
+    switch (ty->prim.kind) {
+        case PRIM_u8:  return "0";
+        case PRIM_u16: return "0";
+        case PRIM_u32: return "0";
+        case PRIM_u64: return "0";
+        case PRIM_i8:  return "-128";
+        case PRIM_i16: return "-32768";
+        case PRIM_i32: return "-2147483648";
+        case PRIM_i64: return "-9223372036854775808";
+        default: assert(0);
+    }
+    return NULL;
+}
+
+char* typespec_integer_get_max_value(Typespec* ty) {
+    assert(ty->kind == TS_PRIM);
+    switch (ty->prim.kind) {
+        case PRIM_u8:  return "255";
+        case PRIM_u16: return "65535";
+        case PRIM_u32: return "4294967295";
+        case PRIM_u64: return "18446744073709551615";
+        case PRIM_i8:  return "127";
+        case PRIM_i16: return "32767";
+        case PRIM_i32: return "2147483647";
+        case PRIM_i64: return "9223372036854775807";
+        default: assert(0);
+    }
+    return NULL;
 }

@@ -209,6 +209,15 @@ AstNode* astnode_access_new(AstNode* left, AstNode* right) {
     return astnode;
 }
 
+AstNode* astnode_unop_new(UnOpKind kind, Token* minus, AstNode* child) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_UNOP,
+        span_from_two(minus->span, child->span));
+    astnode->unop.kind = kind;
+    astnode->unop.child = child;
+    return astnode;
+}
+
 AstNode* astnode_function_header_new(
     Token* start,
     Token* identifier,

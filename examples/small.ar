@@ -44,7 +44,7 @@ struct gg { po: fn (i32) i32 }
 
 //imm primes = [1, 2, 3];
 
-fn add(a: *imm void, b: *imm void, c: *imm void) void {}
+fn add(a: i8, b: *imm void, c: *imm void) void {}
 
 fn main() void {
     fn cool(a: int, b: int) std.Vec<usize, u8, *std.Vec<u8>> {
@@ -58,8 +58,8 @@ fn main() void {
         if (main) {
             if (cool.a.b) 1 else {}
         }
-        voidd(1, My.Player::<u32>.newtype {.name = 1}, 2, New {.f = 1});
-        add(1, 1, 1, 1, 1, 1);
+        //voidd(1, My.Player::<u32>.newtype {.name = 1}, 2, New {.f = 1});
+        add(--128, 1, 1);
         return @import(1).a;
         yield 1;
     }

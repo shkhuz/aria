@@ -2,6 +2,7 @@
 #define TYPE_H
 
 #include "core.h"
+#include "bigint.h"
 
 struct AstNode;
 
@@ -27,12 +28,16 @@ typedef enum {
     PRIM_i32,
     PRIM_i64,
     PRIM_void,
+    PRIM_comptime_integer,
 } PrimKind;
 
 typedef struct Typespec {
     TypespecKind kind;
     union {
-        PrimKind prim;
+        struct {
+            PrimKind kind;
+            bigint comptime_integer;
+        } prim;
 
         struct {
             bool immutable;
@@ -50,12 +55,20 @@ typedef struct Typespec {
     };
 } Typespec;
 
-Typespec* typespec_prim_new(PrimKind prim);
+Typespec* typespec_prim_new(PrimKind kind);
+Typespec* typespec_comptime_integer_new(bigint val);
 Typespec* typespec_ptr_new(bool immutable, Typespec* child);
 Typespec* typespec_func_new(Typespec** params, Typespec* ret_typespec);
 Typespec* typespec_struct_new(struct AstNode* astnode);
 Typespec* typespec_type_new(Typespec* typespec);
 
+bool typespec_is_integer(Typespec* ty);
+bool typespec_is_comptime_integer(Typespec* ty);
+bool typespec_is_signed(Typespec* ty);
+u32 typespec_get_bytes(Typespec* ty);
 char* typespec_tostring(Typespec* ty);
+
+char* typespec_integer_get_min_value(Typespec* ty);
+char* typespec_integer_get_max_value(Typespec* ty);
 
 #endif

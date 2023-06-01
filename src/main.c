@@ -77,8 +77,11 @@ int main(int argc, char* argv[]) {
         char* name = NULL;
         bufpush(name, 'h');
         bufstrexpandpush(name, "ello");
+        bufstrexpandpush(name, ", world");
+        bufpush(name, '!');
         bufpush(name, '\0');
-        assert(strcmp(name, "hello") == 0);
+        assert(strcmp(name, "hello, world!") == 0);
+        printf("%s", STRINGIFY(hello));
     }
 
     /* for (usize i = 0; i < buflen(buf); i++) { */

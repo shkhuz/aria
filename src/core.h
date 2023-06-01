@@ -49,6 +49,8 @@ typedef ssize_t ssize;
 #define SWAP_VARS(t, a, b) do { t _c = a; a = b; b = _c; } while (0)
 #define COMBINE1(X, Y) X##Y
 #define COMBINE(X,Y) COMBINE1(X,Y)
+#define STRINGIFY1(X) #X
+#define STRINGIFY(X) STRINGIFY1(X)
 
 #define alloc_obj(type) (type*)malloc(sizeof(type))
 

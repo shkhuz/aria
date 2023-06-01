@@ -282,6 +282,8 @@ AstNode* astnode_if_new(
     AstNode* lastbr);
 AstNode* astnode_return_new(Token* keyword, AstNode* operand);
 
+AstNode* astnode_unop_new(UnOpKind kind, Token* minus, AstNode* child);
+
 AstNode* astnode_function_header_new(
     Token* start,
     Token* identifier,

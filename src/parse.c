@@ -441,8 +441,17 @@ static AstNode* parse_suffix_expr(ParseCtx* p) {
     return left;
 }
 
-static AstNode* parse_expr(ParseCtx* p) {
+static AstNode* parse_unop_expr(ParseCtx* p) {
+    if (match(p, TOKEN_MINUS)) {
+        Token* start = p->prev;
+        AstNode* child = parse_unop_expr(p);
+        return astnode_unop_new(UNOP_NEG, start, child);
+    }
     return parse_suffix_expr(p);
+}
+
+static AstNode* parse_expr(ParseCtx* p) {
+    return parse_unop_expr(p);
 }
 
 static AstNode* parse_function_header(ParseCtx* p) {

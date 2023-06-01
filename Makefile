@@ -7,7 +7,7 @@ ALL_TEST_C_FILES := $(shell find src -type f -name "*.c" -not -path "src/main.c"
 TEST_C_FILES := $(ALL_TEST_C_FILES)
 TEST_OBJ_FILES := $(addprefix build/obj/, $(addsuffix .o, $(TEST_C_FILES)))
 
-CFLAGS := -std=c99 -Ivendor -I. `llvm-config --cflags` -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings -Wno-switch-bool
+CFLAGS := -std=c99 -Ivendor -I. `llvm-config --cflags` -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings -Wno-switch-bool -Wno-varargs
 LDFLAGS := `llvm-config --ldflags --libs`
 AR_FILE := examples/small.ar
 
@@ -19,8 +19,8 @@ endif
 
 ifeq ($(v), y)
 	TEST_CFLAGS := -DTEST_PRINT_COMPILER_MSGS
-else 
-	TEST_CFLAGS := 
+else
+	TEST_CFLAGS :=
 endif
 
 CC := clang
@@ -31,7 +31,7 @@ run: $(EXE_FILE)
 
 $(EXE_FILE): $(COMPILER_OBJ_FILES)
 	@mkdir -p $(dir $@)
-	$(LD) -o $@ $(LDFLAGS) $^ 
+	$(LD) -o $@ $(LDFLAGS) $^
 
 test: build/test
 	./$^

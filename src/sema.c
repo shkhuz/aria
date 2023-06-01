@@ -100,6 +100,118 @@ static bool sema_assert_is_type(SemaCtx* s, Typespec* ty, AstNode* error_astnode
     return false;
 }
 
+typedef enum {
+    TC_OK,
+    TC_ERROR,
+    TC_ERROR_HANDLED,
+} TypeComparisonResult;
+
+static char* format_string_with_one_type(char* fmt, Typespec* ty, ...) {
+    usize len = strlen(fmt);
+    char* newfmt = NULL;
+    for (usize i = 0; i < len; i++) {
+        if (fmt[i] == '%' && i < len-1 && fmt[i+1] == 'T') {
+            bufstrexpandpush(newfmt, typespec_tostring(ty));
+            i++;
+        } else if (fmt[i] == '%' && i == len-1) {
+            assert(0 && "Unexpected EOS after '%'");
+        } else {
+            bufpush(newfmt, fmt[i]);
+        }
+    }
+    bufpush(newfmt, '\0');
+
+    char* newfmt2;
+    va_list args;
+    va_start(args, newfmt);
+    vasprintf(&newfmt2, newfmt, args);
+    va_end(args);
+    buffree(newfmt);
+    return newfmt2;
+}
+
+static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typespec* to, AstNode* error_astnode) {
+    if (from->kind == to->kind) {
+        switch (from->kind) {
+            case TS_PRIM: {
+                if (from->prim.kind == to->prim.kind) return TC_OK;
+                else if (from->prim.kind == PRIM_void || to->prim.kind == PRIM_void) return TC_ERROR;
+
+                if (from->prim.kind == PRIM_comptime_integer) {
+                    if (typespec_is_integer(to)) {
+                        if (bigint_fits(
+                            &from->prim.comptime_integer,
+                            typespec_get_bytes(to),
+                            typespec_is_signed(to))) {
+                            return TC_OK;
+                        } else {
+                            Msg msg = msg_with_span(
+                                MSG_ERROR,
+                                format_string_with_one_type("literal value out of range for type `%T`", to),
+                                error_astnode->span);
+                            msg_addl_thin(
+                                &msg,
+                                format_string_with_one_type(
+                                    "range of type `%T` is [%s, %s]",
+                                    to,
+                                    typespec_integer_get_min_value(to),
+                                    typespec_integer_get_max_value(to)));
+                            msg_emit(s, &msg);
+                            return TC_ERROR_HANDLED;
+                        }
+                    } else return TC_ERROR;
+                } else if (to->prim.kind == PRIM_comptime_integer) {
+                    assert(0);
+                } else if (typespec_is_signed(from) == typespec_is_signed(to)) {
+                    if (typespec_get_bytes(from) <= typespec_get_bytes(to)) return TC_OK;
+                    else return TC_ERROR;
+                } else return TC_ERROR;
+            } break;
+
+            case TS_PTR: {
+                if (!from->ptr.immutable || to->ptr.immutable) {
+                    return sema_are_types_equal(s, from->ptr.child, to->ptr.child, NULL);
+                }
+            } break;
+
+            case TS_STRUCT: {
+                if (from->agg == to->agg) return TC_OK;
+                else return TC_ERROR;
+            } break;
+
+            case TS_TYPE: {
+                return sema_are_types_equal(s, from->ty, to->ty, error_astnode);
+            } break;
+        }
+    } else {
+        if (from->kind == TS_TYPE) return sema_are_types_equal(s, from->ty, to, error_astnode);
+        else if (to->kind == TS_TYPE) return sema_are_types_equal(s, from, to->ty, error_astnode);
+        else return TC_ERROR;
+    }
+
+    assert(0);
+    return TC_ERROR;
+}
+
+static bool sema_check_types_equal(SemaCtx* s, Typespec* from, Typespec* to, AstNode* error_astnode) {
+    TypeComparisonResult cmpresult = sema_are_types_equal(s, from, to, error_astnode);
+    if (cmpresult == TC_ERROR) {
+        char* fmt = NULL;
+        bufstrexpandpush(fmt, "expected type `");
+        bufstrexpandpush(fmt, typespec_tostring(to));
+        bufstrexpandpush(fmt, "`, got `");
+        bufstrexpandpush(fmt, typespec_tostring(from));
+        bufpush(fmt, '`');
+
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            fmt,
+            error_astnode->span);
+        msg_emit(s, &msg);
+    }
+    return cmpresult == TC_OK ? true : false;
+}
+
 static void sema_top_level_decls_prec1(SemaCtx* s, AstNode* astnode) {
     switch (astnode->kind) {
         case ASTNODE_STRUCT: {
@@ -161,6 +273,50 @@ static Typespec* sema_typespec(SemaCtx* s, AstNode* astnode) {
 
 static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
     switch (astnode->kind) {
+        case ASTNODE_INTEGER_LITERAL: {
+            Typespec* ty = typespec_comptime_integer_new(astnode->intl.val);
+            astnode->typespec = ty;
+            return ty;
+        } break;
+
+        case ASTNODE_UNOP: {
+            switch (astnode->unop.kind) {
+                case UNOP_NEG: {
+                    Typespec* ty = sema_astnode(s, astnode->unop.child);
+                    if (ty) {
+                        if (typespec_is_integer(ty)) {
+                            if (typespec_is_signed(ty)) {
+                                astnode->typespec = ty;
+                                return ty;
+                            } else {
+                                Msg msg = msg_with_span(
+                                    MSG_ERROR,
+                                    format_string_with_one_type("`-`: expected signed integer, got `%T`", ty),
+                                    astnode->span);
+                                msg_emit(s, &msg);
+                                return NULL;
+                            }
+                        } else if (typespec_is_comptime_integer(ty)) {
+                            bigint new;
+                            bigint_init(&new);
+                            bigint_neg(&ty->prim.comptime_integer, &new);
+
+                            Typespec* tynew = typespec_comptime_integer_new(new);
+                            astnode->typespec = tynew;
+                            return tynew;
+                        } else {
+                            Msg msg = msg_with_span(
+                                MSG_ERROR,
+                                "`-`: expected integer operand",
+                                astnode->span);
+                            msg_emit(s, &msg);
+                            return NULL;
+                        }
+                    } else return NULL;
+                } break;
+            }
+        } break;
+
         case ASTNODE_STRUCT: {
             bool error = false;
             bufloop(astnode->strct.fields, i) {
@@ -198,33 +354,36 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
                 if (callee_ty->kind == TS_FUNC) {
                     usize params_len = buflen(callee_ty->func.params);
                     usize args_len = buflen(astnode->funcc.args);
-                    char* error_fmt = format_string("expected %d argument(s), found %d", params_len, args_len);
-                    if (args_len < params_len) {
+                    if (args_len == params_len) {
+                        bool error = false;
+                        Typespec** args_ty = NULL;
+                        bufloop(astnode->funcc.args, i) {
+                            Typespec* arg_ty = sema_astnode(s, astnode->funcc.args[i]);
+                            if (arg_ty) {
+                                if (!sema_check_types_equal(s, arg_ty, callee_ty->func.params[i], astnode->funcc.args[i])) error = true;
+                            } else error = true;
+                        }
+
+                    } else if (args_len < params_len) {
                         Msg msg = msg_with_span(
                             MSG_ERROR,
-                            error_fmt,
+                            format_string("expected %d argument(s), found %d", params_len, args_len),
                             astnode->funcc.rparen->span);
-                        char* fmt = NULL;
-                        bufstrexpandpush(fmt, "expected argument of type `");
-                        bufstrexpandpush(fmt, typespec_tostring(callee_ty->func.params[args_len]));
-                        bufpush(fmt, '`');
-                        msg_addl_thin(&msg, fmt);
+                        msg_addl_thin(&msg, format_string_with_one_type("expected argument of type `%T`", callee_ty->func.params[args_len]));
                         msg_emit(s, &msg);
+                        return NULL;
                     } else if (args_len > params_len) {
                         Msg msg = msg_with_span(
                             MSG_ERROR,
-                            error_fmt,
+                            format_string("expected %d argument(s), found %d", params_len, args_len),
                             span_from_two(astnode->funcc.args[params_len]->span, astnode->funcc.args[args_len-1]->span));
                         msg_emit(s, &msg);
+                        return NULL;
                     }
                 } else {
-                    char* fmt = NULL;
-                    bufstrexpandpush(fmt, "attempting to call type `");
-                    bufstrexpandpush(fmt, typespec_tostring(callee_ty));
-                    bufpush(fmt, '`');
                     Msg msg = msg_with_span(
                         MSG_ERROR,
-                        fmt,
+                        format_string_with_one_type("attempting to call type `%T`", callee_ty),
                         astnode->funcc.callee->span);
                     msg_emit(s, &msg);
                     return NULL;
