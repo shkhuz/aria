@@ -184,9 +184,9 @@ static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typ
             } break;
         }
     } else {
-        if (from->kind == TS_TYPE) return sema_are_types_equal(s, from->ty, to, error_astnode);
-        else if (to->kind == TS_TYPE) return sema_are_types_equal(s, from, to->ty, error_astnode);
-        else return TC_ERROR;
+        /* if (from->kind == TS_TYPE) return sema_are_types_equal(s, from->ty, to, error_astnode); */
+        /* else if (to->kind == TS_TYPE) return sema_are_types_equal(s, from, to->ty, error_astnode); */
+        /* else  */return TC_ERROR;
     }
 
     assert(0);
@@ -262,7 +262,7 @@ static Typespec* sema_typespec(SemaCtx* s, AstNode* astnode) {
             Typespec* child = sema_astnode(s, astnode->typeptr.child);
             if (child) {
                 if (sema_assert_is_type(s, child, astnode->typeptr.child)) {
-                    astnode->typespec = typespec_ptr_new(astnode->typeptr.immutable, child);
+                    astnode->typespec = typespec_ptr_new(astnode->typeptr.immutable, child->ty);
                     return astnode->typespec;
                 } else return NULL;
             } else return NULL;
@@ -321,8 +321,8 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
                         } else {
                             Msg msg = msg_with_span(
                                 MSG_ERROR,
-                                "`-`: expected integer operand",
-                                astnode->span);
+                                format_string_with_one_type("`-`: expected integer operand, got type `%T`", ty),
+                                astnode->unop.child->span);
                             msg_emit(s, &msg);
                             return NULL;
                         }
@@ -374,7 +374,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
                         bufloop(astnode->funcc.args, i) {
                             Typespec* arg_ty = sema_astnode(s, astnode->funcc.args[i]);
                             if (arg_ty) {
-                                if (!sema_check_types_equal(s, arg_ty, callee_ty->func.params[i], astnode->funcc.args[i])) error = true;
+                                if (!sema_check_types_equal(s, arg_ty, callee_ty->func.params[i]->ty, astnode->funcc.args[i])) error = true;
                             } else error = true;
                         }
 

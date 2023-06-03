@@ -93,7 +93,7 @@ static char* tostring(Typespec* ty) {
         } break;
 
         case TS_TYPE: {
-            return tostring(ty->ty);
+            return "{type}";
         } break;
     }
     assert(0);
@@ -101,20 +101,24 @@ static char* tostring(Typespec* ty) {
 }
 
 bool typespec_is_integer(Typespec* ty) {
-    if (ty->kind == TS_TYPE) return typespec_is_integer(ty->ty);
-    assert(ty->kind == TS_PRIM);
-    switch (ty->prim.kind) {
-        case PRIM_u8:
-        case PRIM_i8:
-        case PRIM_u16:
-        case PRIM_i16:
-        case PRIM_u32:
-        case PRIM_i32:
-        case PRIM_u64:
-        case PRIM_i64:
-            return true;
-        default:
-            return false;
+    switch (ty->kind) {
+        case TS_TYPE: return typespec_is_integer(ty->ty);
+        case TS_PRIM: {
+            switch (ty->prim.kind) {
+                case PRIM_u8:
+                case PRIM_i8:
+                case PRIM_u16:
+                case PRIM_i16:
+                case PRIM_u32:
+                case PRIM_i32:
+                case PRIM_u64:
+                case PRIM_i64:
+                    return true;
+                default:
+                    return false;
+            }
+        } break;
+        default: return false;
     }
 }
 
@@ -123,7 +127,6 @@ bool typespec_is_comptime_integer(Typespec* ty) {
 }
 
 bool typespec_is_signed(Typespec* ty) {
-    if (ty->kind == TS_TYPE) return typespec_is_signed(ty->ty);
     assert(ty->kind == TS_PRIM);
     switch (ty->prim.kind) {
         case PRIM_i8:
