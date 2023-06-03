@@ -189,28 +189,10 @@ static AstNode* parse_access_expr(ParseCtx* p, AstNode* left, bool expr) {
 static AstNode* parse_directive(ParseCtx* p) {
     Token* start = p->prev;
     Token* identifier = expect_identifier(p, "expected directive name");
-    DirectiveKind kind = DIRECTIVE_NONE;
-    bufloop(directives, i) {
-        if (slice_eql_to_str(
-                &identifier->span.srcfile->handle.contents[identifier->span.start],
-                identifier->span.end - identifier->span.start,
-                directives[i].k)) {
-            kind = directives[i].v;
-            break;
-        }
-    }
-
-    if (kind == DIRECTIVE_NONE) {
-        Msg msg = msg_with_span(
-            MSG_ERROR,
-            "unknown directive",
-            identifier->span);
-        msg_emit_non_fatal(p, &msg);
-    }
 
     Token* lparen = expect_lparen(p);
     AstNode** args = parse_args(p, lparen, TOKEN_RPAREN, true, false);
-    return astnode_directive_new(start, identifier, args, kind, p->prev);
+    return astnode_directive_new(start, identifier, args, p->prev);
 }
 
 static AstNode* parse_atom_typespec(ParseCtx* p) {
@@ -410,7 +392,6 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         // array literal type.
         return astnode_array_literal_new(lbrack, elems, p->prev);
     } else if (match(p, TOKEN_LPAREN)) {
-        Token* lparen = p->prev;
         AstNode* expr = parse_expr(p);
         expect_rparen(p);
         return expr;
@@ -562,33 +543,6 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
             }
         }
         return astnode_struct_new(keyword, identifier, fields, p->prev);
-    } else if (match(p, TOKEN_KEYWORD_IMPL)) {
-        Token* keyword = p->prev;
-        ImplKind implkind;
-        AstNode* first = parse_typespec(p);
-        AstNode* second = NULL;
-        if (match(p, TOKEN_KEYWORD_FOR)) {
-            implkind = IMPL_TRAIT;
-            second = parse_typespec(p);
-        }
-        else implkind = IMPL_AGGREGATE;
-
-        Token* lbrace = expect_lbrace(p);
-        AstNode** children = NULL;
-        while (!match(p, TOKEN_RBRACE)) {
-            check_eof(p, lbrace);
-            // For now, I just call `parse_root`, but this should
-            // only accept function definitions and type aliases.
-            AstNode* child = parse_root(p, true);
-            bufpush(children, child);
-        }
-        return astnode_impl_new(
-            keyword,
-            implkind,
-            implkind == IMPL_TRAIT ? first : NULL,
-            implkind == IMPL_TRAIT ? second : first,
-            children,
-            p->prev);
     } else if (match(p, TOKEN_KEYWORD_IMM) || match(p, TOKEN_KEYWORD_MUT)) {
         Token* keyword = p->prev;
         bool immutable = true;
@@ -608,6 +562,85 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
             type,
             initializer,
             p->prev);
+    } else if (match(p, TOKEN_KEYWORD_IMPORT)) {
+        Token* keyword = p->prev;
+        Token* arg = expect(p, TOKEN_STRING, "expected path string");
+        Token* as = NULL;
+        if (match(p, TOKEN_KEYWORD_AS)) {
+            as = expect_identifier(p, "expected new module name");
+        }
+        expect_semicolon(p);
+
+        if (is_token_lexeme(arg, "")) {
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                "empty import",
+                arg->span);
+            msg_emit_non_fatal(p, &msg);
+            return NULL;
+        }
+
+        char* path = token_tostring(arg);
+        usize path_len = strlen(path);
+        path = path + 1;
+        path_len -= 1;
+        path[path_len-1] = '\0';
+        path_len -= 1;
+
+        const char* cur_path = p->srcfile->handle.abs_path;
+        char* abs_path = NULL;
+        {
+            isize last_fslash_idx = -1;
+            for (const char* c = cur_path; *c != '\0'; c++) {
+                if (*c == '/') last_fslash_idx = c - cur_path;
+            }
+            for (isize i = 0; i <= last_fslash_idx; i++) {
+                bufpush(abs_path, cur_path[i]);
+            }
+            for (usize i = 0; i < path_len; i++) {
+                bufpush(abs_path, path[i]);
+            }
+            bufpush(abs_path, '\0');
+        }
+
+        char* name = NULL;
+        {
+            usize last_dot_idx = path_len;
+            usize last_fslash_idx = 0;
+            for (usize i = 0; i < path_len; i++) {
+                if (path[i] == '.') last_dot_idx = i;
+                else if (path[i] == '/') {
+                    last_fslash_idx = i+1;
+                }
+            }
+            for (usize i = last_fslash_idx; i < last_dot_idx; i++) {
+                bufpush(name, path[i]);
+            }
+            bufpush(name, '\0');
+        }
+
+        /* printf(">> abs_path: %s\n", abs_path); */
+        /* printf(">> name: %s\n", name); */
+
+        Token* final_arg_token = as ? as : arg;
+        char* final_name = as ? token_tostring(as) : name;
+
+        printf(">> final_name: %s\n", final_name);
+
+        Srcfile* srcfile = read_srcfile(
+            abs_path,
+            span_some(arg->span),
+            p->compile_ctx);
+
+        if (srcfile) {
+            return astnode_import_new(
+                keyword,
+                final_arg_token,
+                srcfile,
+                final_name);
+        }
+        p->error = true;
+        return NULL;
     }
 
     if (error_on_no_match) {

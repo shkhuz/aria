@@ -1,5 +1,6 @@
 #include "ast.h"
 #include "core.h"
+#include "compile.h"
 
 AstNode* astnode_alloc(AstNodeKind kind, Span span) {
     AstNode* astnode = alloc_obj(AstNode);
@@ -66,15 +67,12 @@ AstNode* astnode_directive_new(
     Token* start,
     Token* callee,
     AstNode** args,
-    DirectiveKind kind,
-    Token* rparen)
-{
+    Token* rparen) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_DIRECTIVE,
         span_from_two(start->span, rparen->span));
     astnode->directive.callee = callee;
     astnode->directive.args = args;
-    astnode->directive.kind = DIRECTIVE_NONE;
     return astnode;
 }
 
@@ -218,6 +216,16 @@ AstNode* astnode_unop_new(UnOpKind kind, Token* minus, AstNode* child) {
     return astnode;
 }
 
+AstNode* astnode_import_new(Token* keyword, Token* arg, Srcfile* srcfile, char* name) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_IMPORT,
+        span_from_two(keyword->span, arg->span));
+    astnode->import.arg = arg;
+    astnode->import.srcfile = srcfile;
+    astnode->import.name = name;
+    return astnode;
+}
+
 AstNode* astnode_function_header_new(
     Token* start,
     Token* identifier,
@@ -287,22 +295,5 @@ AstNode* astnode_struct_new(
         span_from_two(keyword->span, rbrace->span));
     astnode->strct.identifier = identifier;
     astnode->strct.fields = fields;
-    return astnode;
-}
-
-AstNode* astnode_impl_new(
-    Token* keyword,
-    ImplKind implkind,
-    AstNode* trait,
-    AstNode* typespec,
-    AstNode** children,
-    Token* rbrace) {
-    AstNode* astnode = astnode_alloc(
-        ASTNODE_IMPL,
-        span_from_two(keyword->span, rbrace->span));
-    astnode->impl.implkind = implkind;
-    astnode->impl.trait = trait;
-    astnode->impl.typespec = typespec;
-    astnode->impl.children = children;
     return astnode;
 }

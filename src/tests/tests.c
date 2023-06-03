@@ -580,20 +580,6 @@ int main() {
         1,
         28);
 
-    test_invalid_one_errspan(
-        "missing type after `impl` keyword",
-        "impl {}\n",
-        "expected type",
-        1,
-        6);
-
-    test_invalid_one_errspan(
-        "missing type after `impl` `for` keyword",
-        "impl ToString for {}\n",
-        "expected type",
-        1,
-        19);
-
     test_valid(
         "function definition",
         "fn main() void {}\n");
@@ -603,12 +589,6 @@ int main() {
         "fn main() void {\n"
         "    imm x: u32 = undefined;\n"
         "}\n");
-
-    test_valid(
-        "empty impl struct",
-        "struct Main {}\n"
-        "impl Main {}\n"
-        "fn main() void {}\n");
 
     test_valid(
         "array literal",
@@ -637,6 +617,10 @@ int main() {
     test_valid(
         "tuple literal",
         "fn main() void { imm x = .(); }\n");
+
+    test_valid(
+        "integer literal",
+        "fn main() void { imm x = 8943589859348594389; }\n");
 
     // REMINDER: At scoped block
 

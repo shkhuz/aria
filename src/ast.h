@@ -36,15 +36,9 @@ typedef struct {
     AstNode** args;
 } AstNodeGenericTypespec;
 
-typedef enum {
-    DIRECTIVE_IMPORT,
-    DIRECTIVE_NONE,
-} DirectiveKind;
-
 typedef struct {
     Token* callee;
     AstNode** args;
-    DirectiveKind kind;
 } AstNodeDirective;
 
 typedef struct {
@@ -133,6 +127,12 @@ typedef struct {
 } AstNodeBinOp;
 
 typedef struct {
+    Token* arg;
+    struct Srcfile* srcfile;
+    char* name;
+} AstNodeImport;
+
+typedef struct {
     Span span;
     Token* identifier;
     AstNode** params;
@@ -162,19 +162,6 @@ typedef struct {
 } AstNodeStruct;
 
 typedef enum {
-    IMPL_AGGREGATE,
-    IMPL_TRAIT,
-} ImplKind;
-
-typedef struct {
-    ImplKind implkind;
-    // NULL in case of IMPL_AGGREGATE
-    AstNode* trait;
-    AstNode* typespec;
-    AstNode** children;
-} AstNodeImpl;
-
-typedef enum {
     ASTNODE_TYPESPEC_FUNC,
     ASTNODE_TYPESPEC_PTR,
     ASTNODE_TYPESPEC_SLICE,
@@ -196,13 +183,13 @@ typedef enum {
     ASTNODE_ACCESS,
     ASTNODE_UNOP,
     ASTNODE_BINOP,
+    ASTNODE_IMPORT,
     ASTNODE_FUNCTION_HEADER,
     ASTNODE_FUNCTION_DEF,
     ASTNODE_VARIABLE_DECL,
     ASTNODE_PARAM_DECL,
     ASTNODE_EXPRSTMT,
     ASTNODE_STRUCT,
-    ASTNODE_IMPL,
 } AstNodeKind;
 
 struct AstNode {
@@ -231,13 +218,13 @@ struct AstNode {
         AstNodeAccess acc;
         AstNodeUnOp unop;
         AstNodeBinOp binop;
+        AstNodeImport import;
         AstNodeFunctionHeader funch;
         AstNodeFunctionDef funcdef;
         AstNodeVariableDecl vard;
         AstNodeParamDecl paramd;
         AstNode* exprstmt;
         AstNodeStruct strct;
-        AstNodeImpl impl;
     };
 };
 
@@ -252,7 +239,6 @@ AstNode* astnode_directive_new(
     Token* start,
     Token* callee,
     AstNode** args,
-    DirectiveKind kind,
     Token* rparen);
 AstNode* astnode_field_new(Token* key, AstNode* value);
 AstNode* astnode_field_in_literal_new(Token* start, Token* key, AstNode* value);
@@ -284,6 +270,7 @@ AstNode* astnode_return_new(Token* keyword, AstNode* operand);
 
 AstNode* astnode_unop_new(UnOpKind kind, Token* minus, AstNode* child);
 
+AstNode* astnode_import_new(Token* keyword, Token* arg, struct Srcfile* srcfile, char* name);
 AstNode* astnode_function_header_new(
     Token* start,
     Token* identifier,
@@ -303,13 +290,6 @@ AstNode* astnode_struct_new(
     Token* keyword,
     Token* identifier,
     AstNode** fields,
-    Token* rbrace);
-AstNode* astnode_impl_new(
-    Token* keyword,
-    ImplKind implkind,
-    AstNode* trait,
-    AstNode* typespec,
-    AstNode** children,
     Token* rbrace);
 
 #endif

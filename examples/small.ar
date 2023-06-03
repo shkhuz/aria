@@ -5,13 +5,9 @@
 
 //imm x = {yield 1;};
 
-impl ToString.cool for *Main<T> {
-    fn cool() void {}
-}
+import "prioritie.ar" as dfjdsk;
 
 //fn main2() void {}
-
-impl usize {}
 
 struct ff {
     Vec: gg,
@@ -59,8 +55,7 @@ fn main() void {
             if (cool.a.b) 1 else {}
         }
         //voidd(1, My.Player::<u32>.newtype {.name = 1}, 2, New {.f = 1});
-        add(--128, 1, 1);
-        return @import(1).a;
+        add(--1289999999999888888, 1, 1);
         yield 1;
     }
 }

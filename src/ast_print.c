@@ -27,10 +27,10 @@ static void print_node(AstNode* astnode) {
     }
 
     if (astnode->kind == ASTNODE_STRUCT
-        || astnode->kind == ASTNODE_IMPL
         || astnode->kind == ASTNODE_FIELD
         || astnode->kind == ASTNODE_IF
         || astnode->kind == ASTNODE_IF_BRANCH
+        || astnode->kind == ASTNODE_IMPORT
         || astnode->kind == ASTNODE_FUNCTION_DEF
         || astnode->kind == ASTNODE_VARIABLE_DECL
         || astnode->kind == ASTNODE_EXPRSTMT) {
@@ -229,6 +229,12 @@ static void print_node(AstNode* astnode) {
             printf(")");
         } break;
 
+        case ASTNODE_IMPORT: {
+            printf("(import ");
+            print_token(astnode->import.arg);
+            printf(")");
+        } break;
+
         case ASTNODE_FUNCTION_HEADER: {
             printf("fn ");
             print_token(astnode->funch.identifier);
@@ -291,21 +297,6 @@ static void print_node(AstNode* astnode) {
             }
             printf(")");
             indent -= 4;
-        } break;
-
-        case ASTNODE_IMPL: {
-            printf("(impl ");
-            if (astnode->impl.implkind == IMPL_TRAIT) {
-                print_node(astnode->impl.trait);
-                printf(" for ");
-            }
-            print_node(astnode->impl.typespec);
-            indent += 4;
-            bufloop(astnode->impl.children, i) {
-                print_node(astnode->impl.children[i]);
-            }
-            indent -= 4;
-            printf(")");
         } break;
     }
 }

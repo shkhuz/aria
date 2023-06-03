@@ -37,7 +37,7 @@ typedef int64_t i64;
 typedef i64 i128 __attribute__((mode(TI)));
 
 typedef size_t usize;
-typedef ssize_t ssize;
+typedef ssize_t isize;
 
 #define MIN(a, b) (a < b ? a : b)
 #define MAX(a, b) (a > b ? a : b)

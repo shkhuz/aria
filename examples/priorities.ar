@@ -1,0 +1,52 @@
+import "std";
+use std.io.{print, println, read_file};
+
+struct GameObject {
+    pos: Vec3,
+    vel: Vec3,
+    id: u64,
+
+    fn new(pos: Vec3, vel: Vec3, id: u64) Self {
+        return .{
+            .pos = pos,
+            .vel = vel,
+            .id = id,
+        };
+    }
+
+    fn clear(self: *Self) void {
+        self.pos = Vec3.zero;
+        self.vel = Vec3.zero;
+        self.id = 0;
+    }
+}
+
+fn main() !void {
+    imm cmd_opts = std.cmd.opts();
+    if (cmd_opts.len < 2) {
+        println("No arguments supplied", .());
+        return error.no_args;
+    }
+
+    imm main_idx: ?usize = null;
+    for (cmd_opts) |arg, i| {
+        if (i != 0) {
+            if (std.str.equal(arg, "main.ar")) {
+                main_idx = i;
+            }
+        }
+    }
+
+    if (main_idx) |idx| {
+        println("Index of main.ar: {}", .(idx));
+    }
+
+    imm x1: *GameObject = undefined;
+    imm x2: [*]GameObject = undefined;
+    imm x3: []GameObject = undefined;
+    imm x4: [_]GameObject = undefined;
+
+    for (mut i: usize = 0; i < 10; i++) {
+        println("Number is: {}", .(i));
+    }
+}

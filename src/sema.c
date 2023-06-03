@@ -147,7 +147,7 @@ static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typ
                         } else {
                             Msg msg = msg_with_span(
                                 MSG_ERROR,
-                                format_string_with_one_type("literal value out of range for type `%T`", to),
+                                format_string_with_one_type("integer value out of range for type `%T`", to),
                                 error_astnode->span);
                             msg_addl_thin(
                                 &msg,
@@ -274,9 +274,23 @@ static Typespec* sema_typespec(SemaCtx* s, AstNode* astnode) {
 static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
     switch (astnode->kind) {
         case ASTNODE_INTEGER_LITERAL: {
-            Typespec* ty = typespec_comptime_integer_new(astnode->intl.val);
-            astnode->typespec = ty;
-            return ty;
+            if (bigint_fits_u64(&astnode->intl.val)) {
+                Typespec* ty = typespec_comptime_integer_new(astnode->intl.val);
+                astnode->typespec = ty;
+                return ty;
+            } else {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    "literal value overflow",
+                    astnode->span);
+                msg_addl_thin(
+                    &msg,
+                    format_string(
+                        "integer literals cannot be greater than %s",
+                        typespec_integer_get_max_value(predef_typespecs.u64_type)));
+                msg_emit(s, &msg);
+                return NULL;
+            }
         } break;
 
         case ASTNODE_UNOP: {

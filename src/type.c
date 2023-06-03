@@ -101,6 +101,7 @@ static char* tostring(Typespec* ty) {
 }
 
 bool typespec_is_integer(Typespec* ty) {
+    if (ty->kind == TS_TYPE) return typespec_is_integer(ty->ty);
     assert(ty->kind == TS_PRIM);
     switch (ty->prim.kind) {
         case PRIM_u8:
@@ -122,6 +123,7 @@ bool typespec_is_comptime_integer(Typespec* ty) {
 }
 
 bool typespec_is_signed(Typespec* ty) {
+    if (ty->kind == TS_TYPE) return typespec_is_signed(ty->ty);
     assert(ty->kind == TS_PRIM);
     switch (ty->prim.kind) {
         case PRIM_i8:
@@ -140,6 +142,7 @@ bool typespec_is_signed(Typespec* ty) {
 }
 
 u32 typespec_get_bytes(Typespec* ty) {
+    if (ty->kind == TS_TYPE) return typespec_get_bytes(ty->ty);
     switch (ty->kind) {
         case TS_PRIM: {
             switch (ty->prim.kind) {
@@ -172,6 +175,7 @@ char* typespec_tostring(Typespec* ty) {
 }
 
 char* typespec_integer_get_min_value(Typespec* ty) {
+    if (ty->kind == TS_TYPE) return typespec_integer_get_min_value(ty->ty);
     assert(ty->kind == TS_PRIM);
     switch (ty->prim.kind) {
         case PRIM_u8:  return "0";
@@ -188,6 +192,7 @@ char* typespec_integer_get_min_value(Typespec* ty) {
 }
 
 char* typespec_integer_get_max_value(Typespec* ty) {
+    if (ty->kind == TS_TYPE) return typespec_integer_get_max_value(ty->ty);
     assert(ty->kind == TS_PRIM);
     switch (ty->prim.kind) {
         case PRIM_u8:  return "255";

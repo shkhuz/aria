@@ -10,47 +10,6 @@
 
 char* g_exec_path;
 
-Srcfile* read_srcfile(const char* path, OptionalSpan span, CompileCtx* compile_ctx) {
-    FileOrError efile = read_file(path);
-    switch (efile.status) {
-        case FOO_SUCCESS: {
-            for (usize i = 0; i < buflen(compile_ctx->srcfiles); i++) {
-                if (strcmp(efile.handle.abs_path, compile_ctx->srcfiles[i]->handle.abs_path) == 0)
-                    return compile_ctx->srcfiles[i];
-            }
-            Srcfile* srcfile = malloc(sizeof(Srcfile));
-            srcfile->handle = efile.handle;
-            bufpush(compile_ctx->srcfiles, srcfile);
-            return srcfile;
-        } break;
-
-        case FOO_FAILURE: {
-            const char* error_msg = format_string("cannot read source file `%s`", path);
-            if (span.exists) {
-                Msg msg = msg_with_span(MSG_ERROR, error_msg, span.span);
-                _msg_emit(&msg, compile_ctx);
-            } else {
-                Msg msg = msg_with_no_span(MSG_ERROR, error_msg);
-                _msg_emit(&msg, compile_ctx);
-            }
-        } break;
-
-        case FOO_DIRECTORY: {
-            const char* error_msg = format_string("`%s` is a directory", path);
-            if (span.exists) {
-                Msg msg = msg_with_span(MSG_ERROR, error_msg, span.span);
-                _msg_emit(&msg, compile_ctx);
-            } else {
-                Msg msg = msg_with_no_span(MSG_ERROR, error_msg);
-                _msg_emit(&msg, compile_ctx);
-            }
-        } break;
-    }
-    return NULL;
-}
-
-#define tmp(x) (printf("length: %lu\n", x), x)
-
 int main(int argc, char* argv[]) {
     {
         int* buf = NULL;
@@ -81,7 +40,6 @@ int main(int argc, char* argv[]) {
         bufpush(name, '!');
         bufpush(name, '\0');
         assert(strcmp(name, "hello, world!") == 0);
-        printf("%s", STRINGIFY(hello));
     }
 
     /* for (usize i = 0; i < buflen(buf); i++) { */
@@ -144,7 +102,7 @@ int main(int argc, char* argv[]) {
     }
 
     CompileCtx compile_ctx = compile_new_context();
-    compile_ctx.print_ast = true;
+    //compile_ctx.print_ast = true;
 
     if (optind == argc) {
         Msg msg = msg_with_no_span(MSG_ERROR, "no input files");

@@ -10,7 +10,6 @@
 #include "type.h"
 
 StringTokenKindTup* keywords = NULL;
-StringDirectiveKindTup* directives = NULL;
 PredefTypespecs predef_typespecs;
 
 void init_global_compiler_state() {
@@ -28,8 +27,8 @@ void init_global_compiler_state() {
     bufpush(keywords, (StringTokenKindTup){ "for", TOKEN_KEYWORD_FOR });
     bufpush(keywords, (StringTokenKindTup){ "return", TOKEN_KEYWORD_RETURN });
     bufpush(keywords, (StringTokenKindTup){ "yield", TOKEN_KEYWORD_YIELD });
-
-    bufpush(directives, (StringDirectiveKindTup){ "import", DIRECTIVE_IMPORT });
+    bufpush(keywords, (StringTokenKindTup){ "import", TOKEN_KEYWORD_IMPORT });
+    bufpush(keywords, (StringTokenKindTup){ "as", TOKEN_KEYWORD_AS });
 
     predef_typespecs = (PredefTypespecs){
         .u8_type = typespec_type_new(typespec_prim_new(PRIM_u8)),
@@ -93,4 +92,43 @@ void compile(CompileCtx* c) {
     }
 
     c->sema_error = sema(sema_ctxs);
+}
+
+Srcfile* read_srcfile(const char* path, OptionalSpan span, CompileCtx* compile_ctx) {
+    FileOrError efile = read_file(path);
+    switch (efile.status) {
+        case FOO_SUCCESS: {
+            for (usize i = 0; i < buflen(compile_ctx->srcfiles); i++) {
+                if (strcmp(efile.handle.abs_path, compile_ctx->srcfiles[i]->handle.abs_path) == 0)
+                    return compile_ctx->srcfiles[i];
+            }
+            Srcfile* srcfile = malloc(sizeof(Srcfile));
+            srcfile->handle = efile.handle;
+            bufpush(compile_ctx->srcfiles, srcfile);
+            return srcfile;
+        } break;
+
+        case FOO_FAILURE: {
+            const char* error_msg = format_string("cannot read source file `%s`", path);
+            if (span.exists) {
+                Msg msg = msg_with_span(MSG_ERROR, error_msg, span.span);
+                _msg_emit(&msg, compile_ctx);
+            } else {
+                Msg msg = msg_with_no_span(MSG_ERROR, error_msg);
+                _msg_emit(&msg, compile_ctx);
+            }
+        } break;
+
+        case FOO_DIRECTORY: {
+            const char* error_msg = format_string("`%s` is a directory", path);
+            if (span.exists) {
+                Msg msg = msg_with_span(MSG_ERROR, error_msg, span.span);
+                _msg_emit(&msg, compile_ctx);
+            } else {
+                Msg msg = msg_with_no_span(MSG_ERROR, error_msg);
+                _msg_emit(&msg, compile_ctx);
+            }
+        } break;
+    }
+    return NULL;
 }

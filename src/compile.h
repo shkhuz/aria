@@ -12,11 +12,6 @@ typedef struct {
     TokenKind v;
 } StringTokenKindTup;
 
-typedef struct {
-    char* k;
-    DirectiveKind v;
-} StringDirectiveKindTup;
-
 struct AstNode;
 struct Typespec;
 
@@ -41,7 +36,6 @@ struct Srcfile {
 };
 
 extern StringTokenKindTup* keywords;
-extern StringDirectiveKindTup* directives;
 extern PredefTypespecs predef_typespecs;
 
 typedef struct CompileCtx CompileCtx;
@@ -62,5 +56,7 @@ void init_global_compiler_state();
 CompileCtx compile_new_context();
 void register_msg(CompileCtx* c, Msg msg);
 void compile(CompileCtx* c);
+
+Srcfile* read_srcfile(const char* path, OptionalSpan span, CompileCtx* compile_ctx);
 
 #endif
