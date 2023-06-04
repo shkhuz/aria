@@ -15,6 +15,10 @@ typedef struct {
     struct CompileCtx* compile_ctx;
     bool error;
     jmp_buf* error_handler_pos;
+
+    // 0 if not inside function.
+    // Denotes the current function nesting.
+    usize in_func;
 } ParseCtx;
 
 ParseCtx parse_new_context(

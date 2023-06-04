@@ -5,6 +5,7 @@
 #include "bigint.h"
 
 struct AstNode;
+struct Srcfile;
 
 typedef enum {
     TS_PRIM,
@@ -16,6 +17,7 @@ typedef enum {
     TS_ENUM,
 
     TS_TYPE,
+    TS_MODULE,
 } TypespecKind;
 
 typedef enum {
@@ -52,6 +54,10 @@ typedef struct Typespec {
         struct AstNode* agg;
 
         struct Typespec* ty;
+
+        struct {
+            struct Srcfile* srcfile;
+        } mod;
     };
 } Typespec;
 
@@ -61,6 +67,7 @@ Typespec* typespec_ptr_new(bool immutable, Typespec* child);
 Typespec* typespec_func_new(Typespec** params, Typespec* ret_typespec);
 Typespec* typespec_struct_new(struct AstNode* astnode);
 Typespec* typespec_type_new(Typespec* typespec);
+Typespec* typespec_module_new(struct Srcfile* srcfile);
 
 bool typespec_is_integer(Typespec* ty);
 bool typespec_is_comptime_integer(Typespec* ty);

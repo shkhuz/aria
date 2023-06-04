@@ -6,6 +6,7 @@
 #include "type.h"
 
 typedef struct AstNode AstNode;
+struct Typespec;
 
 typedef struct {
     AstNode** params;
@@ -128,36 +129,42 @@ typedef struct {
 
 typedef struct {
     Token* arg;
-    struct Srcfile* srcfile;
+    Typespec* mod_ty;
     char* name;
 } AstNodeImport;
 
 typedef struct {
     Span span;
     Token* identifier;
+    char* name;
     AstNode** params;
     AstNode* ret_typespec;
 } AstNodeFunctionHeader;
 
 typedef struct {
+    bool global;
     AstNode* header;
     AstNode* body;
 } AstNodeFunctionDef;
 
 typedef struct {
+    bool stack;
     bool immutable;
     Token* identifier;
+    char* name;
     AstNode* typespec;
     AstNode* initializer;
 } AstNodeVariableDecl;
 
 typedef struct {
     Token* identifier;
+    char* name;
     AstNode* typespec;
 } AstNodeParamDecl;
 
 typedef struct {
     Token* identifier;
+    char* name;
     AstNode** fields;
 } AstNodeStruct;
 
@@ -270,15 +277,16 @@ AstNode* astnode_return_new(Token* keyword, AstNode* operand);
 
 AstNode* astnode_unop_new(UnOpKind kind, Token* minus, AstNode* child);
 
-AstNode* astnode_import_new(Token* keyword, Token* arg, struct Srcfile* srcfile, char* name);
+AstNode* astnode_import_new(Token* keyword, Token* arg, struct Typespec* mod_ty, char* name);
 AstNode* astnode_function_header_new(
     Token* start,
     Token* identifier,
     AstNode** params,
     AstNode* ret_typespec);
-AstNode* astnode_function_def_new(AstNode* header, AstNode* body);
+AstNode* astnode_function_def_new(bool global, AstNode* header, AstNode* body);
 AstNode* astnode_variable_decl_new(
     Token* start,
+    bool stack,
     bool immutable,
     Token* identifier,
     AstNode* typespec,
@@ -291,5 +299,7 @@ AstNode* astnode_struct_new(
     Token* identifier,
     AstNode** fields,
     Token* rbrace);
+
+char* astnode_get_name(AstNode* astnode);
 
 #endif

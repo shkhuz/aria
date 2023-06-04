@@ -9,7 +9,8 @@ struct CompileCtx;
 struct Srcfile;
 
 typedef struct {
-    Token* key;
+    char* key;
+    Span span;
     Typespec* value;
 } TokenTypespecTup;
 

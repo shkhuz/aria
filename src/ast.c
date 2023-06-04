@@ -216,12 +216,12 @@ AstNode* astnode_unop_new(UnOpKind kind, Token* minus, AstNode* child) {
     return astnode;
 }
 
-AstNode* astnode_import_new(Token* keyword, Token* arg, Srcfile* srcfile, char* name) {
+AstNode* astnode_import_new(Token* keyword, Token* arg, struct Typespec* mod_ty, char* name) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_IMPORT,
         span_from_two(keyword->span, arg->span));
     astnode->import.arg = arg;
-    astnode->import.srcfile = srcfile;
+    astnode->import.mod_ty = mod_ty;
     astnode->import.name = name;
     return astnode;
 }
@@ -236,15 +236,17 @@ AstNode* astnode_function_header_new(
         ASTNODE_FUNCTION_HEADER,
         span_from_two(start->span, ret_typespec->span));
     astnode->funch.identifier = identifier;
+    astnode->funch.name = token_tostring(identifier);
     astnode->funch.params = params;
     astnode->funch.ret_typespec = ret_typespec;
     return astnode;
 }
 
-AstNode* astnode_function_def_new(AstNode* header, AstNode* body) {
+AstNode* astnode_function_def_new(bool global, AstNode* header, AstNode* body) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_FUNCTION_DEF,
         span_from_two(header->span, body->span));
+    astnode->funcdef.global = global;
     astnode->funcdef.header = header;
     astnode->funcdef.body = body;
     return astnode;
@@ -252,6 +254,7 @@ AstNode* astnode_function_def_new(AstNode* header, AstNode* body) {
 
 AstNode* astnode_variable_decl_new(
     Token* start,
+    bool stack,
     bool immutable,
     Token* identifier,
     AstNode* typespec,
@@ -262,7 +265,9 @@ AstNode* astnode_variable_decl_new(
         ASTNODE_VARIABLE_DECL,
         span_from_two(start->span, end->span));
     astnode->vard.immutable = immutable;
+    astnode->vard.stack = stack;
     astnode->vard.identifier = identifier;
+    astnode->vard.name = token_tostring(identifier);
     astnode->vard.typespec = typespec;
     astnode->vard.initializer = initializer;
     return astnode;
@@ -273,6 +278,7 @@ AstNode* astnode_param_new(Token* identifier, AstNode* typespec) {
         ASTNODE_PARAM_DECL,
         span_from_two(identifier->span, typespec->span));
     astnode->paramd.identifier = identifier;
+    astnode->paramd.name = token_tostring(identifier);
     astnode->paramd.typespec = typespec;
     return astnode;
 }
@@ -294,6 +300,35 @@ AstNode* astnode_struct_new(
         ASTNODE_STRUCT,
         span_from_two(keyword->span, rbrace->span));
     astnode->strct.identifier = identifier;
+    astnode->strct.name = token_tostring(identifier);
     astnode->strct.fields = fields;
     return astnode;
+}
+
+char* astnode_get_name(AstNode* astnode) {
+    switch (astnode->kind) {
+        case ASTNODE_FUNCTION_DEF: {
+            return astnode_get_name(astnode->funcdef.header);
+        } break;
+
+        case ASTNODE_FUNCTION_HEADER: {
+            return astnode->funch.name;
+        } break;
+
+        case ASTNODE_STRUCT: {
+            return astnode->strct.name;
+        } break;
+
+        case ASTNODE_VARIABLE_DECL: {
+            return astnode->vard.name;
+        } break;
+
+        case ASTNODE_IMPORT: {
+            return astnode->import.name;
+        } break;
+
+        default: {
+            assert(0);
+        } break;
+    }
 }

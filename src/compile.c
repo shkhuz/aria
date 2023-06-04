@@ -45,8 +45,7 @@ void init_global_compiler_state() {
 
 CompileCtx compile_new_context() {
     CompileCtx c;
-    c.srcfiles = NULL;
-    c.num_srcfiles = 0;
+    c.mod_tys = NULL;
     c.msgs = NULL;
     c.parsing_error = false;
     c.sema_error = false;
@@ -63,8 +62,8 @@ void register_msg(CompileCtx* c, Msg msg) {
 void compile(CompileCtx* c) {
     jmp_buf parse_error_handler_pos;
 
-    for (usize i = 0; i < c->num_srcfiles; i++) {
-        LexCtx l = lex_new_context(c->srcfiles[i], c);
+    for (usize i = 0; i < buflen(c->mod_tys); i++) {
+        LexCtx l = lex_new_context(c->mod_tys[i]->mod.srcfile, c);
         lex(&l);
         if (l.error) {
             c->parsing_error = true;
@@ -72,7 +71,7 @@ void compile(CompileCtx* c) {
         }
 
         ParseCtx p = parse_new_context(
-            c->srcfiles[i],
+            c->mod_tys[i]->mod.srcfile,
             c,
             &parse_error_handler_pos);
         if (!setjmp(parse_error_handler_pos)) {
@@ -87,25 +86,26 @@ void compile(CompileCtx* c) {
 
     if (c->parsing_error) return;
     SemaCtx* sema_ctxs = NULL;
-    for (usize i = 0; i < c->num_srcfiles; i++) {
-        bufpush(sema_ctxs, sema_new_context(c->srcfiles[i], c));
+    for (usize i = 0; i < buflen(c->mod_tys); i++) {
+        bufpush(sema_ctxs, sema_new_context(c->mod_tys[i]->mod.srcfile, c));
     }
 
     c->sema_error = sema(sema_ctxs);
 }
 
-Srcfile* read_srcfile(const char* path, OptionalSpan span, CompileCtx* compile_ctx) {
+struct Typespec* read_srcfile(const char* path, OptionalSpan span, CompileCtx* compile_ctx) {
     FileOrError efile = read_file(path);
     switch (efile.status) {
         case FOO_SUCCESS: {
-            for (usize i = 0; i < buflen(compile_ctx->srcfiles); i++) {
-                if (strcmp(efile.handle.abs_path, compile_ctx->srcfiles[i]->handle.abs_path) == 0)
-                    return compile_ctx->srcfiles[i];
+            for (usize i = 0; i < buflen(compile_ctx->mod_tys); i++) {
+                if (strcmp(efile.handle.abs_path, compile_ctx->mod_tys[i]->mod.srcfile->handle.abs_path) == 0)
+                    return compile_ctx->mod_tys[i];
             }
             Srcfile* srcfile = malloc(sizeof(Srcfile));
             srcfile->handle = efile.handle;
-            bufpush(compile_ctx->srcfiles, srcfile);
-            return srcfile;
+            Typespec* mod = typespec_module_new(srcfile);
+            bufpush(compile_ctx->mod_tys, mod);
+            return mod;
         } break;
 
         case FOO_FAILURE: {

@@ -112,14 +112,13 @@ int main(int argc, char* argv[]) {
 
     bool read_error = false;
     for (int i = optind; i < argc; i++) {
-        Srcfile* srcfile = read_srcfile(argv[i], span_none(), &compile_ctx);
-        if (!srcfile) {
+        Typespec* mod = read_srcfile(argv[i], span_none(), &compile_ctx);
+        if (!mod) {
             read_error = true;
             continue;
         }
     }
     if (read_error) terminate_compilation();
-    else compile_ctx.num_srcfiles = buflen(compile_ctx.srcfiles);
 
     compile(&compile_ctx);
     if (compile_ctx.parsing_error

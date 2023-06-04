@@ -47,8 +47,9 @@ static void initialize_test(
 #else
     test_ctx.print_msg_to_stderr = false;
 #endif
-    test_ctx.srcfiles = &srcfiles_ptr;
-    test_ctx.num_srcfiles = 1;
+    Typespec* mod_ty = typespec_module_new(srcfiles_ptr);
+    test_ctx.mod_tys = NULL;
+    bufpush(test_ctx.mod_tys, mod_ty);
     compile(&test_ctx);
     *out_test_ctx = test_ctx;
 }

@@ -27,8 +27,6 @@ typedef struct {
     struct Typespec* void_type;
 } PredefTypespecs;
 
-typedef struct Srcfile Srcfile;
-
 struct Srcfile {
     File handle;
     Token** tokens;
@@ -39,10 +37,10 @@ extern StringTokenKindTup* keywords;
 extern PredefTypespecs predef_typespecs;
 
 typedef struct CompileCtx CompileCtx;
+typedef struct Srcfile Srcfile;
 
 struct CompileCtx {
-    struct Srcfile** srcfiles;
-    usize num_srcfiles;
+    struct Typespec** mod_tys;
     Msg* msgs;
     bool parsing_error;
     bool sema_error;
@@ -57,6 +55,6 @@ CompileCtx compile_new_context();
 void register_msg(CompileCtx* c, Msg msg);
 void compile(CompileCtx* c);
 
-Srcfile* read_srcfile(const char* path, OptionalSpan span, CompileCtx* compile_ctx);
+struct Typespec* read_srcfile(const char* path, OptionalSpan span, CompileCtx* compile_ctx);
 
 #endif

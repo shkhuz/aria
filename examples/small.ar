@@ -5,7 +5,7 @@
 
 //imm x = {yield 1;};
 
-// import "prioritie.ar" as dfjdsk;
+import "import_this.ar" as it;
 
 //fn main2() void {}
 
@@ -19,7 +19,7 @@ struct Main {
     buf3: [2](u8),
 }
 
-imm cool: ff = undefined;
+//imm cool: ff = undefined;
 
 imm primes: gg = {
     imm sum = {
@@ -34,7 +34,7 @@ imm primes: gg = {
     yield .(sum);
 };
 
-imm voidd: void = undefined;
+//imm voidd: void = undefined;
 
 struct gg { po: fn (i32) i32 }
 
@@ -43,22 +43,15 @@ struct gg { po: fn (i32) i32 }
 fn add(a: i8, b: ***********imm void, c: *imm void) void {}
 
 fn main() void {
-    fn cool(a: int, b: int) std.Vec<usize, u8, *std.Vec<u8>> {
-        fn cool() df {cool;}
-        mut name = cool(a,cool(),mutable({}, {fn cool() void {}}));
-        mut place = Vec::<u32>.new();
-        imm war = if (cool) {call();} else cool;
-        {mut name = {cool;};}
-        if (main) {} else if (main) {} else if (main) {}
-
-        if (main) {
-            if (cool.a.b) 1 else {}
-        }
-        //voidd(1, My.Player::<u32>.newtype {.name = 1}, 2, New {.f = 1});
-        add(--1289999999999888888, 1, 1);
+    fn cool(_: void, i: i64) void {
+        add(--12899999999998889849583498539048593085908349058888, 1, 1);
         add(-gg, 8, 9);
+        add(it.import_this, 1, 2);
         yield 1;
     }
+
+    // FIXME: add `TYPESPEC_FUNC`
+    //imm ptr: fn(i32) i32 = 123;
 }
 
 // imm ptr: *fn (i32) i32 = 0x3423432;

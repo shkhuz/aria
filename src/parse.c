@@ -22,6 +22,7 @@ ParseCtx parse_new_context(
     p.compile_ctx = compile_ctx;
     p.error = false;
     p.error_handler_pos = error_handler_pos;
+    p.in_func = 0;
     return p;
 }
 
@@ -503,8 +504,10 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
     if (match(p, TOKEN_KEYWORD_FN)) {
         AstNode* header = parse_function_header(p);
         expect_lbrace(p);
+        p->in_func++;
         AstNode* body = parse_scoped_block(p);
-        return astnode_function_def_new(header, body);
+        p->in_func--;
+        return astnode_function_def_new(p->in_func == 0 ? true : false, header, body);
     } else if (match(p, TOKEN_KEYWORD_STRUCT)) {
         Token* keyword = p->prev;
         Token* identifier = expect_identifier(p, "expected identifier");
@@ -557,6 +560,7 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
         expect_semicolon(p);
         return astnode_variable_decl_new(
             keyword,
+            p->in_func == 0 ? false : true,
             immutable,
             identifier,
             type,
@@ -580,63 +584,64 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
             return NULL;
         }
 
-        char* path = token_tostring(arg);
-        usize path_len = strlen(path);
-        path = path + 1;
-        path_len -= 1;
-        path[path_len-1] = '\0';
-        path_len -= 1;
+        // Denotes path wrt. file.
+        char* path_wfile = token_tostring(arg);
+        usize path_wfile_len = strlen(path_wfile);
+        path_wfile += 1;
+        path_wfile_len -= 1;
+        path_wfile[--path_wfile_len] = '\0';
 
-        const char* cur_path = p->srcfile->handle.abs_path;
-        char* abs_path = NULL;
+        const char* cur_path = p->srcfile->handle.path;
+        // Denotes path wrt. compiler.
+        char* path_wcomp = NULL;
         {
             isize last_fslash_idx = -1;
             for (const char* c = cur_path; *c != '\0'; c++) {
                 if (*c == '/') last_fslash_idx = c - cur_path;
             }
             for (isize i = 0; i <= last_fslash_idx; i++) {
-                bufpush(abs_path, cur_path[i]);
+                bufpush(path_wcomp, cur_path[i]);
             }
-            for (usize i = 0; i < path_len; i++) {
-                bufpush(abs_path, path[i]);
+            for (usize i = 0; i < path_wfile_len; i++) {
+                bufpush(path_wcomp, path_wfile[i]);
             }
-            bufpush(abs_path, '\0');
+            bufpush(path_wcomp, '\0');
         }
 
         char* name = NULL;
         {
-            usize last_dot_idx = path_len;
+            usize last_dot_idx = path_wfile_len;
             usize last_fslash_idx = 0;
-            for (usize i = 0; i < path_len; i++) {
-                if (path[i] == '.') last_dot_idx = i;
-                else if (path[i] == '/') {
+            for (usize i = 0; i < path_wfile_len; i++) {
+                if (path_wfile[i] == '.') last_dot_idx = i;
+                else if (path_wfile[i] == '/') {
                     last_fslash_idx = i+1;
                 }
             }
             for (usize i = last_fslash_idx; i < last_dot_idx; i++) {
-                bufpush(name, path[i]);
+                bufpush(name, path_wfile[i]);
             }
             bufpush(name, '\0');
         }
 
-        /* printf(">> abs_path: %s\n", abs_path); */
-        /* printf(">> name: %s\n", name); */
-
         Token* final_arg_token = as ? as : arg;
         char* final_name = as ? token_tostring(as) : name;
 
-        printf(">> final_name: %s\n", final_name);
+        /* printf(">> path_wfile: %s\n", path_wfile); */
+        /* printf(">> path_wcomp: %s\n", path_wcomp); */
+        /* printf(">> name: %s\n", name); */
+        /* printf(">> final_name: %s\n", final_name); */
 
-        Srcfile* srcfile = read_srcfile(
-            abs_path,
+        Typespec* mod = read_srcfile(
+            path_wcomp,
             span_some(arg->span),
             p->compile_ctx);
 
-        if (srcfile) {
+        if (mod) {
             return astnode_import_new(
                 keyword,
                 final_arg_token,
-                srcfile,
+                mod,
                 final_name);
         }
         p->error = true;

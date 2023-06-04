@@ -34,17 +34,17 @@ static inline void msg_emit(SemaCtx* s, Msg* msg) {
     }
 }
 
-static void sema_scope_declare(SemaCtx* s, Token* identifier, Typespec* value) {
+static void sema_scope_declare(SemaCtx* s, char* identifier, Typespec* value, Span span) {
     bool found = false;
     bufrevloop(s->scopebuf, si) {
         bufloop(s->scopebuf[si].decls, i) {
-            Token* tok = s->scopebuf[si].decls[i].key;
-            if (are_token_lexemes_equal(tok, identifier)) {
+            char* defined = s->scopebuf[si].decls[i].key;
+            if (strcmp(defined, identifier) == 0) {
                 Msg msg = msg_with_span(
                     MSG_ERROR,
                     "symbol is redeclared",
-                    identifier->span);
-                msg_addl_fat(&msg, "previous declaration here", tok->span);
+                    span);
+                msg_addl_fat(&msg, "previous declaration here", s->scopebuf[si].decls[i].span);
                 msg_emit(s, &msg);
                 found = true;
                 break;
@@ -55,6 +55,7 @@ static void sema_scope_declare(SemaCtx* s, Token* identifier, Typespec* value) {
 
     if (!found) bufpush(sema_curscope(s)->decls, (TokenTypespecTup){
         .key = identifier,
+        .span = span,
         .value = value,
     });
 }
@@ -72,8 +73,8 @@ static Typespec* sema_scope_retrieve(SemaCtx* s, Token* identifier) {
 
     bufrevloop(s->scopebuf, si) {
         bufloop(s->scopebuf[si].decls, i) {
-            Token* tok = s->scopebuf[si].decls[i].key;
-            if (are_token_lexemes_equal(tok, identifier)) {
+            char* defined = s->scopebuf[si].decls[i].key;
+            if (is_token_lexeme(identifier, defined)) {
                 return s->scopebuf[si].decls[i].value;
             }
         }
@@ -130,7 +131,7 @@ static char* format_string_with_one_type(char* fmt, Typespec* ty, ...) {
     return newfmt2;
 }
 
-static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typespec* to, AstNode* error_astnode) {
+static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typespec* to, Span error) {
     if (from->kind == to->kind) {
         switch (from->kind) {
             case TS_PRIM: {
@@ -148,7 +149,7 @@ static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typ
                             Msg msg = msg_with_span(
                                 MSG_ERROR,
                                 format_string_with_one_type("integer value out of range for type `%T`", to),
-                                error_astnode->span);
+                                error);
                             msg_addl_thin(
                                 &msg,
                                 format_string_with_one_type(
@@ -170,7 +171,7 @@ static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typ
 
             case TS_PTR: {
                 if (!from->ptr.immutable || to->ptr.immutable) {
-                    return sema_are_types_equal(s, from->ptr.child, to->ptr.child, NULL);
+                    return sema_are_types_equal(s, from->ptr.child, to->ptr.child, error);
                 }
             } break;
 
@@ -180,7 +181,7 @@ static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typ
             } break;
 
             case TS_TYPE: {
-                return sema_are_types_equal(s, from->ty, to->ty, error_astnode);
+                return sema_are_types_equal(s, from->ty, to->ty, error);
             } break;
         }
     } else {
@@ -193,8 +194,8 @@ static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typ
     return TC_ERROR;
 }
 
-static bool sema_check_types_equal(SemaCtx* s, Typespec* from, Typespec* to, AstNode* error_astnode) {
-    TypeComparisonResult cmpresult = sema_are_types_equal(s, from, to, error_astnode);
+static bool sema_check_types_equal(SemaCtx* s, Typespec* from, Typespec* to, Span error) {
+    TypeComparisonResult cmpresult = sema_are_types_equal(s, from, to, error);
     if (cmpresult == TC_ERROR) {
         char* fmt = NULL;
         bufstrexpandpush(fmt, "expected type `");
@@ -202,11 +203,12 @@ static bool sema_check_types_equal(SemaCtx* s, Typespec* from, Typespec* to, Ast
         bufstrexpandpush(fmt, "`, got `");
         bufstrexpandpush(fmt, typespec_tostring(from));
         bufpush(fmt, '`');
+        bufpush(fmt, '\0');
 
         Msg msg = msg_with_span(
             MSG_ERROR,
             fmt,
-            error_astnode->span);
+            error);
         msg_emit(s, &msg);
     }
     return cmpresult == TC_OK ? true : false;
@@ -217,7 +219,7 @@ static void sema_top_level_decls_prec1(SemaCtx* s, AstNode* astnode) {
         case ASTNODE_STRUCT: {
             Typespec* ty = typespec_type_new(typespec_struct_new(astnode));
             astnode->typespec = ty;
-            sema_scope_declare(s, astnode->strct.identifier, ty);
+            sema_scope_declare(s, astnode->strct.name, ty, astnode->strct.identifier->span);
         } break;
     }
 }
@@ -225,12 +227,13 @@ static void sema_top_level_decls_prec1(SemaCtx* s, AstNode* astnode) {
 static void sema_top_level_decls_prec2(SemaCtx* s, AstNode* astnode) {
     switch (astnode->kind) {
         case ASTNODE_VARIABLE_DECL: {
-            Typespec* ty = sema_astnode(s, astnode->vard.typespec);
+            Typespec* ty = NULL;
+            if (astnode->vard.typespec) ty = sema_astnode(s, astnode->vard.typespec);
             if (ty) {
                 if (sema_assert_is_type(s, ty, astnode->vard.typespec))
                     astnode->typespec = ty->ty;
-            } else return;
-            sema_scope_declare(s, astnode->vard.identifier, astnode->typespec);
+            }
+            sema_scope_declare(s, astnode->vard.name, astnode->typespec, astnode->vard.identifier->span);
         } break;
 
         case ASTNODE_FUNCTION_DEF: {
@@ -238,11 +241,11 @@ static void sema_top_level_decls_prec2(SemaCtx* s, AstNode* astnode) {
             Typespec** params_ty = NULL;
             AstNodeFunctionHeader* header = &astnode->funcdef.header->funch;
             bufloop(header->params, i) {
-                Typespec* param_ty = sema_astnode(s, header->params[i]->field.value);
+                Typespec* param_ty = sema_astnode(s, header->params[i]->paramd.typespec);
                 if (param_ty) {
-                    if (!sema_assert_is_type(s, param_ty, header->params[i]->field.value)) error = true;
+                    if (!sema_assert_is_type(s, param_ty, header->params[i]->paramd.typespec)) error = true;
+                    bufpush(params_ty, param_ty->ty);
                 } else error = true;
-                bufpush(params_ty, param_ty);
             }
 
             Typespec* ret_ty = sema_astnode(s, header->ret_typespec);
@@ -250,8 +253,8 @@ static void sema_top_level_decls_prec2(SemaCtx* s, AstNode* astnode) {
                 if (!sema_assert_is_type(s, ret_ty, header->ret_typespec)) error = true;
             } else error = true;
 
-            if (!error) astnode->typespec = typespec_func_new(params_ty, ret_ty);
-            sema_scope_declare(s, header->identifier, astnode->typespec);
+            if (!error) astnode->typespec = typespec_func_new(params_ty, ret_ty->ty);
+            sema_scope_declare(s, header->name, astnode->typespec, header->identifier->span);
         } break;
     }
 }
@@ -351,6 +354,9 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
         } break;
 
         case ASTNODE_FUNCTION_DEF: {
+            if (!astnode->funcdef.global) {
+                sema_top_level_decls_prec2(s, astnode);
+            }
             sema_astnode(s, astnode->funcdef.body);
         } break;
 
@@ -374,7 +380,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
                         bufloop(astnode->funcc.args, i) {
                             Typespec* arg_ty = sema_astnode(s, astnode->funcc.args[i]);
                             if (arg_ty) {
-                                if (!sema_check_types_equal(s, arg_ty, callee_ty->func.params[i]->ty, astnode->funcc.args[i])) error = true;
+                                if (!sema_check_types_equal(s, arg_ty, callee_ty->func.params[i], astnode->funcc.args[i]->span)) error = true;
                             } else error = true;
                         }
 
@@ -419,12 +425,13 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
             Typespec* left = sema_astnode(s, astnode->acc.left);
             if (left) {
                 assert(astnode->acc.right->kind == ASTNODE_SYMBOL);
+                Token* right = astnode->acc.right->sym.identifier;
                 if (left->kind == TS_STRUCT) {
                     AstNode** fields = left->agg->strct.fields;
                     bufloop(fields, i) {
                         if (are_token_lexemes_equal(
                                 fields[i]->field.key,
-                                astnode->acc.right->sym.identifier)) {
+                                right)) {
                             return fields[i]->field.value->typespec;
                         }
                     }
@@ -442,12 +449,52 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
                         astnode->acc.right->span);
                     msg_emit(s, &msg);
                     return NULL;
+                } else if (left->kind == TS_MODULE) {
+                    AstNode** astnodes = left->mod.srcfile->astnodes;
+                    bufloop(astnodes, i) {
+                        if (is_token_lexeme(right, astnode_get_name(astnodes[i]))) {
+                            return astnodes[i]->typespec;
+                        }
+                    }
+                    Msg msg = msg_with_span(
+                        MSG_ERROR,
+                        "`.`: symbol not found",
+                        astnode->acc.right->span);
+                    msg_emit(s, &msg);
+                    return NULL;
                 }
             } else return NULL;
         } break;
 
         case ASTNODE_GENERIC_TYPESPEC: {
             Typespec* left = sema_astnode(s, astnode->genty.left);
+        } break;
+
+        case ASTNODE_IMPORT: {
+            sema_scope_declare(s, astnode->import.name, astnode->import.mod_ty, astnode->import.arg->span);
+        } break;
+
+        case ASTNODE_VARIABLE_DECL: {
+            if (astnode->vard.stack) {
+                sema_top_level_decls_prec2(s, astnode);
+            } else {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    "[internal] global variables not implemented",
+                    astnode->span);
+                msg_emit(s, &msg);
+                return NULL;
+            }
+
+            Typespec* annotated = astnode->typespec;
+            Typespec* initializer = sema_astnode(s, astnode->vard.initializer);
+            if (annotated && initializer) {
+                if (sema_check_types_equal(s, initializer, annotated->ty, astnode->vard.identifier->span))
+                    return annotated->ty;
+                else return NULL;
+            } else if (initializer) {
+                return initializer;
+            } else return NULL;
         } break;
     }
 

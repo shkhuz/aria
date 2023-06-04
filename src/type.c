@@ -47,6 +47,13 @@ Typespec* typespec_type_new(Typespec* typespec) {
     return ty;
 }
 
+Typespec* typespec_module_new(struct Srcfile* srcfile) {
+    Typespec* ty = alloc_obj(Typespec);
+    ty->kind = TS_MODULE;
+    ty->mod.srcfile = srcfile;
+    return ty;
+}
+
 static char* primkind_tostring(PrimKind kind) {
     switch (kind) {
         case PRIM_u8: return "u8";
@@ -89,11 +96,15 @@ static char* tostring(Typespec* ty) {
         } break;
 
         case TS_STRUCT: {
-            return token_tostring(ty->agg->strct.identifier);
+            return ty->agg->strct.name;
         } break;
 
         case TS_TYPE: {
             return "{type}";
+        } break;
+
+        case TS_MODULE: {
+            return "{module}";
         } break;
     }
     assert(0);
