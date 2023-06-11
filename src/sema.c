@@ -34,7 +34,7 @@ static inline void msg_emit(SemaCtx* s, Msg* msg) {
     }
 }
 
-static void sema_scope_declare(SemaCtx* s, char* identifier, Typespec* value, Span span) {
+static void sema_scope_declare(SemaCtx* s, char* identifier, AstNode* value, Span span) {
     bool found = false;
     bufrevloop(s->scopebuf, si) {
         bufloop(s->scopebuf[si].decls, i) {
@@ -53,7 +53,7 @@ static void sema_scope_declare(SemaCtx* s, char* identifier, Typespec* value, Sp
         if (found) break;
     }
 
-    if (!found) bufpush(sema_curscope(s)->decls, (TokenTypespecTup){
+    if (!found) bufpush(sema_curscope(s)->decls, (TokenAstNodeTup){
         .key = identifier,
         .span = span,
         .value = value,
@@ -75,7 +75,7 @@ static Typespec* sema_scope_retrieve(SemaCtx* s, Token* identifier) {
         bufloop(s->scopebuf[si].decls, i) {
             char* defined = s->scopebuf[si].decls[i].key;
             if (is_token_lexeme(identifier, defined)) {
-                return s->scopebuf[si].decls[i].value;
+                return s->scopebuf[si].decls[i].value->typespec;
             }
         }
     }
@@ -131,6 +131,32 @@ static char* format_string_with_one_type(char* fmt, Typespec* ty, ...) {
     return newfmt2;
 }
 
+static char* format_string_with_two_types(char* fmt, Typespec* ty1, Typespec* ty2, ...) {
+    usize len = strlen(fmt);
+    char* newfmt = NULL;
+    usize cur = 0;
+    for (usize i = 0; i < len; i++) {
+        if (fmt[i] == '%' && i < len-1 && fmt[i+1] == 'T') {
+            bufstrexpandpush(newfmt, typespec_tostring(cur == 0 ? ty1 : ty2));
+            i++;
+            cur++;
+        } else if (fmt[i] == '%' && i == len-1) {
+            assert(0 && "Unexpected EOS after '%'");
+        } else {
+            bufpush(newfmt, fmt[i]);
+        }
+    }
+    bufpush(newfmt, '\0');
+
+    char* newfmt2;
+    va_list args;
+    va_start(args, newfmt);
+    vasprintf(&newfmt2, newfmt, args);
+    va_end(args);
+    buffree(newfmt);
+    return newfmt2;
+}
+
 static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typespec* to, Span error) {
     if (from->kind == to->kind) {
         switch (from->kind) {
@@ -153,10 +179,11 @@ static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typ
                             msg_addl_thin(
                                 &msg,
                                 format_string_with_one_type(
-                                    "range of type `%T` is [%s, %s]",
+                                    "range of type `%T` is [%s, %s], which cannot fit integer `%s`",
                                     to,
                                     typespec_integer_get_min_value(to),
-                                    typespec_integer_get_max_value(to)));
+                                    typespec_integer_get_max_value(to),
+                                    bigint_tostring(&from->prim.comptime_integer)));
                             msg_emit(s, &msg);
                             return TC_ERROR_HANDLED;
                         }
@@ -185,9 +212,7 @@ static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typ
             } break;
         }
     } else {
-        /* if (from->kind == TS_TYPE) return sema_are_types_equal(s, from->ty, to, error_astnode); */
-        /* else if (to->kind == TS_TYPE) return sema_are_types_equal(s, from, to->ty, error_astnode); */
-        /* else  */return TC_ERROR;
+        return TC_ERROR;
     }
 
     assert(0);
@@ -197,17 +222,9 @@ static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typ
 static bool sema_check_types_equal(SemaCtx* s, Typespec* from, Typespec* to, Span error) {
     TypeComparisonResult cmpresult = sema_are_types_equal(s, from, to, error);
     if (cmpresult == TC_ERROR) {
-        char* fmt = NULL;
-        bufstrexpandpush(fmt, "expected type `");
-        bufstrexpandpush(fmt, typespec_tostring(to));
-        bufstrexpandpush(fmt, "`, got `");
-        bufstrexpandpush(fmt, typespec_tostring(from));
-        bufpush(fmt, '`');
-        bufpush(fmt, '\0');
-
         Msg msg = msg_with_span(
             MSG_ERROR,
-            fmt,
+            format_string_with_two_types("expected type `%T`, got `%T`", to, from),
             error);
         msg_emit(s, &msg);
     }
@@ -219,7 +236,7 @@ static void sema_top_level_decls_prec1(SemaCtx* s, AstNode* astnode) {
         case ASTNODE_STRUCT: {
             Typespec* ty = typespec_type_new(typespec_struct_new(astnode));
             astnode->typespec = ty;
-            sema_scope_declare(s, astnode->strct.name, ty, astnode->strct.identifier->span);
+            sema_scope_declare(s, astnode->strct.name, astnode, astnode->strct.identifier->span);
         } break;
     }
 }
@@ -233,7 +250,7 @@ static void sema_top_level_decls_prec2(SemaCtx* s, AstNode* astnode) {
                 if (sema_assert_is_type(s, ty, astnode->vard.typespec))
                     astnode->typespec = ty->ty;
             }
-            sema_scope_declare(s, astnode->vard.name, astnode->typespec, astnode->vard.identifier->span);
+            sema_scope_declare(s, astnode->vard.name, astnode, astnode->vard.identifier->span);
         } break;
 
         case ASTNODE_FUNCTION_DEF: {
@@ -254,7 +271,7 @@ static void sema_top_level_decls_prec2(SemaCtx* s, AstNode* astnode) {
             } else error = true;
 
             if (!error) astnode->typespec = typespec_func_new(params_ty, ret_ty->ty);
-            sema_scope_declare(s, header->name, astnode->typespec, header->identifier->span);
+            sema_scope_declare(s, header->name, astnode, header->identifier->span);
         } break;
     }
 }
@@ -274,25 +291,35 @@ static Typespec* sema_typespec(SemaCtx* s, AstNode* astnode) {
     return NULL;
 }
 
+static bool sema_check_bigint_overflow(SemaCtx* s, bigint* b, Span span) {
+    if (b->neg && bigint_fits(b, 8, true)) {
+        return false;
+    } else if (!b->neg && bigint_fits(b, 8, false)) {
+        return false;
+    } else {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            b->neg ? "integer underflow" : "integer overflow",
+            span);
+        msg_addl_thin(
+            &msg,
+            format_string(
+                "integer value `%s` exceeds largest cpu register (64-bits)",
+                bigint_tostring(b)));
+        msg_emit(s, &msg);
+        return true;
+    }
+}
+
 static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
     switch (astnode->kind) {
         case ASTNODE_INTEGER_LITERAL: {
-            if (bigint_fits_u64(&astnode->intl.val)) {
+            if (sema_check_bigint_overflow(s, &astnode->intl.val, astnode->span)) {
+                return NULL;
+            } else {
                 Typespec* ty = typespec_comptime_integer_new(astnode->intl.val);
                 astnode->typespec = ty;
                 return ty;
-            } else {
-                Msg msg = msg_with_span(
-                    MSG_ERROR,
-                    "literal value overflow",
-                    astnode->span);
-                msg_addl_thin(
-                    &msg,
-                    format_string(
-                        "integer literals cannot be greater than %s",
-                        typespec_integer_get_max_value(predef_typespecs.u64_type)));
-                msg_emit(s, &msg);
-                return NULL;
             }
         } break;
 
@@ -308,15 +335,16 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
                             } else {
                                 Msg msg = msg_with_span(
                                     MSG_ERROR,
-                                    format_string_with_one_type("`-`: expected signed integer, got `%T`", ty),
-                                    astnode->span);
+                                    format_string_with_one_type("expected signed integer, got `%T`", ty),
+                                    astnode->unop.op->span);
                                 msg_emit(s, &msg);
                                 return NULL;
                             }
                         } else if (typespec_is_comptime_integer(ty)) {
-                            bigint new;
-                            bigint_init(&new);
-                            bigint_neg(&ty->prim.comptime_integer, &new);
+                            bigint new = bigint_new();
+                            bigint_copy(&new, &ty->prim.comptime_integer);
+                            bigint_neg(&new);
+                            if (sema_check_bigint_overflow(s, &new, astnode->span)) return NULL;
 
                             Typespec* tynew = typespec_comptime_integer_new(new);
                             astnode->typespec = tynew;
@@ -324,14 +352,73 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
                         } else {
                             Msg msg = msg_with_span(
                                 MSG_ERROR,
-                                format_string_with_one_type("`-`: expected integer operand, got type `%T`", ty),
-                                astnode->unop.child->span);
+                                format_string_with_one_type("expected integer operand, got type `%T`", ty),
+                                astnode->unop.op->span);
                             msg_emit(s, &msg);
                             return NULL;
                         }
                     } else return NULL;
                 } break;
             }
+        } break;
+
+        case ASTNODE_BINOP: {
+            Typespec* left_ty = sema_astnode(s, astnode->binop.left);
+            Typespec* right_ty = sema_astnode(s, astnode->binop.right);
+            if (left_ty && right_ty) {
+                bool left_is_integer = typespec_is_integer(left_ty);
+                bool right_is_integer = typespec_is_integer(right_ty);
+                bool left_is_comptime_integer = typespec_is_comptime_integer(left_ty);
+                bool right_is_comptime_integer = typespec_is_comptime_integer(right_ty);
+                bool left_is_anyint = left_is_integer || left_is_comptime_integer;
+                bool right_is_anyint = right_is_integer || right_is_comptime_integer;
+
+                #define sema_astnode_binop_nonint_operand(name, ty) \
+                    Msg msg = msg_with_span( \
+                        MSG_ERROR, \
+                        format_string_with_one_type("expected integer " name " operand, got `%T`", ty), \
+                        astnode->binop.op->span); \
+                    msg_emit(s, &msg); \
+
+                if (left_is_anyint && right_is_anyint) {
+                    if (left_is_integer && right_is_integer) {
+                        if (typespec_is_signed(left_ty) == typespec_is_signed(right_ty)) {
+                            if (typespec_get_bytes(left_ty) >= typespec_get_bytes(right_ty)) {
+                                astnode->typespec = left_ty;
+                            } else {
+                                astnode->typespec = right_ty;
+                            }
+                            return astnode->typespec;
+                        } else {
+                            Msg msg = msg_with_span(
+                                MSG_ERROR,
+                                format_string_with_two_types("mismatched operand signedness: `%T` and `%T`", left_ty, right_ty),
+                                astnode->binop.op->span);
+                            msg_emit(s, &msg);
+                            return NULL;
+                        }
+                    } else if (left_is_comptime_integer && right_is_comptime_integer) {
+                        bigint new = bigint_new();
+                        bigint_copy(&new, &left_ty->prim.comptime_integer);
+                        bigint_add(&new, &right_ty->prim.comptime_integer);
+                        if (sema_check_bigint_overflow(s, &new, astnode->span)) return NULL;
+
+                        Typespec* tynew = typespec_comptime_integer_new(new);
+                        astnode->typespec = tynew;
+                        return tynew;
+                    } else {
+                        // TODO
+                    }
+                } else {
+                    if (!left_is_anyint) {
+                        sema_astnode_binop_nonint_operand("left", left_ty);
+                    }
+                    if (!right_is_anyint) {
+                        sema_astnode_binop_nonint_operand("right", right_ty);
+                    }
+                    return NULL;
+                }
+            } else return NULL;
         } break;
 
         case ASTNODE_STRUCT: {
@@ -471,7 +558,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
         } break;
 
         case ASTNODE_IMPORT: {
-            sema_scope_declare(s, astnode->import.name, astnode->import.mod_ty, astnode->import.arg->span);
+            sema_scope_declare(s, astnode->import.name, astnode, astnode->import.arg->span);
         } break;
 
         case ASTNODE_VARIABLE_DECL: {
@@ -489,10 +576,11 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
             Typespec* annotated = astnode->typespec;
             Typespec* initializer = sema_astnode(s, astnode->vard.initializer);
             if (annotated && initializer) {
-                if (sema_check_types_equal(s, initializer, annotated->ty, astnode->vard.identifier->span))
-                    return annotated->ty;
+                if (sema_check_types_equal(s, initializer, annotated, astnode->vard.equal->span))
+                    return annotated;
                 else return NULL;
             } else if (initializer) {
+                astnode->typespec = initializer;
                 return initializer;
             } else return NULL;
         } break;

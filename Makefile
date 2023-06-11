@@ -57,7 +57,7 @@ build/obj/%.cc.o: %.cc
 	$(CC) -c $(CFLAGS) $(CFLAGS_OPTIMIZE) -o $@ $^
 
 debug: $(EXE_FILE)
-	gdb --args $^ $(AR_FILE)
+	gdb -ex '$(DBG_ARGS)' -args $^ $(AR_FILE)
 
 install: $(EXE_FILE)
 	install -Dm557 $^ "$(DESTDIR)/usr/bin/aria"

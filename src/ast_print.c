@@ -229,6 +229,18 @@ static void print_node(AstNode* astnode) {
             printf(")");
         } break;
 
+        case ASTNODE_BINOP: {
+            printf("(");
+            switch (astnode->binop.kind) {
+                case BINOP_ADD: printf("add "); break;
+                case BINOP_SUB: printf("sub "); break;
+            }
+            print_node(astnode->binop.left);
+            printf(" ");
+            print_node(astnode->binop.right);
+            printf(")");
+        } break;
+
         case ASTNODE_IMPORT: {
             printf("(import ");
             print_token(astnode->import.arg);

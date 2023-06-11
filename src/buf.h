@@ -35,6 +35,7 @@ typedef struct {
                               memmove((b+i+1), (b+i), (_bufhdr((b))->len-i) * sizeof(*b)), \
                               ((b)[i] = __VA_ARGS__), \
                               _bufhdr((b))->len++)
+#define bufclear(b) ((b) ? _bufhdr((b))->len = 0 : 0)
 
 usize buflen(const void* buf);
 usize bufcap(const void* buf);

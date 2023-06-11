@@ -16,6 +16,7 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <setjmp.h>
+#include <signal.h>
 
 #ifdef __linux__
 #include <linux/limits.h>
@@ -39,6 +40,11 @@ typedef i64 i128 __attribute__((mode(TI)));
 typedef size_t usize;
 typedef ssize_t isize;
 
+#define U8_BITS  8
+#define U16_BITS 16
+#define U32_BITS 32
+#define U64_BITS 64
+
 #define MIN(a, b) (a < b ? a : b)
 #define MAX(a, b) (a > b ? a : b)
 #define CLAMP_MIN(x, min) (MAX(x, min))
@@ -54,8 +60,11 @@ typedef ssize_t isize;
 
 #define alloc_obj(type) (type*)malloc(sizeof(type))
 
-size_t align_to_pow2(size_t n, size_t pow2);
-size_t get_bits_for_value(u128 n);
+usize align_to_pow2(size_t n, size_t pow2);
+usize u64_bitlength(u64 n);
+usize get_bits_for_value(u128 n);
+u64 maxinteger_unsigned(int bytes);
+u64 maxinteger_signed(int bytes);
 // Checks if a slice is equal in contents to a string, NOT VICE VERSA.
 // (ie. compare string and slice but till the length of the string)
 // For example:

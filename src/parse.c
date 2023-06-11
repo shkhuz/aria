@@ -354,23 +354,23 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         return astnode_return_new(keyword, operand);
     } else if (match(p, TOKEN_INTEGER_LITERAL)) {
         Token* token = p->prev;
-        bigint val;
-        bigint_init(&val);
+        bigint val = bigint_new();
         // TODO: move so that these are only initialized once
-        bigint base;
-        bigint_init_u64(&base, 10);
-        bigint digit;
-        bigint_init(&digit);
+        bigint base = bigint_new_u64(10);
+        bigint digit = bigint_new();
 
         for (usize i = token->span.start; i < token->span.end; i++) {
             char c = token->span.srcfile->handle.contents[i];
             if (c != '_') {
                 int d = c - '0';
                 bigint_set_u64(&digit, (u64)d);
-                bigint_mul(&val, &base, &val);
-                bigint_add(&val, &digit, &val);
+                bigint_mul(&val, &base);
+                bigint_add(&val, &digit);
             }
         }
+
+        bigint_free(&digit);
+        bigint_free(&base);
 
         return astnode_integer_literal_new(token, val);
     } else if (match(p, TOKEN_DOT)) {
@@ -432,8 +432,24 @@ static AstNode* parse_unop_expr(ParseCtx* p) {
     return parse_suffix_expr(p);
 }
 
+static AstNode* parse_binop_expr(ParseCtx* p) {
+    AstNode* left = parse_unop_expr(p);
+    while (match(p, TOKEN_PLUS) || match(p, TOKEN_MINUS)) {
+        Token* op = p->prev;
+        BinopKind kind;
+        switch (op->kind) {
+            case TOKEN_PLUS: kind = BINOP_ADD; break;
+            case TOKEN_MINUS: kind = BINOP_SUB; break;
+            default: assert(0); break;
+        }
+        AstNode* right = parse_unop_expr(p);
+        left = astnode_binop_new(kind, op, left, right);
+    }
+    return left;
+}
+
 static AstNode* parse_expr(ParseCtx* p) {
-    return parse_unop_expr(p);
+    return parse_binop_expr(p);
 }
 
 static AstNode* parse_function_header(ParseCtx* p) {
@@ -507,7 +523,7 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
         p->in_func++;
         AstNode* body = parse_scoped_block(p);
         p->in_func--;
-        return astnode_function_def_new(p->in_func == 0 ? true : false, header, body);
+        return astnode_function_def_new(header, body, p->in_func == 0 ? true : false);
     } else if (match(p, TOKEN_KEYWORD_STRUCT)) {
         Token* keyword = p->prev;
         Token* identifier = expect_identifier(p, "expected identifier");
@@ -551,21 +567,21 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
         bool immutable = true;
         if (keyword->kind == TOKEN_KEYWORD_MUT) immutable = false;
         Token* identifier = expect_identifier(p, "expected variable name");
-        AstNode* type = NULL;
+        AstNode* typespec = NULL;
         if (match(p, TOKEN_COLON)) {
-            type = parse_typespec(p);
+            typespec = parse_typespec(p);
         }
-        expect_equal(p);
+        Token* equal = expect_equal(p);
         AstNode* initializer = parse_expr(p);
         expect_semicolon(p);
         return astnode_variable_decl_new(
             keyword,
-            p->in_func == 0 ? false : true,
-            immutable,
             identifier,
-            type,
+            typespec,
+            equal,
             initializer,
-            p->prev);
+            p->in_func == 0 ? false : true,
+            immutable);
     } else if (match(p, TOKEN_KEYWORD_IMPORT)) {
         Token* keyword = p->prev;
         Token* arg = expect(p, TOKEN_STRING, "expected path string");

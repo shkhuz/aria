@@ -11,11 +11,11 @@ struct Srcfile;
 typedef struct {
     char* key;
     Span span;
-    Typespec* value;
-} TokenTypespecTup;
+    AstNode* value;
+} TokenAstNodeTup;
 
 typedef struct {
-    TokenTypespecTup* decls;
+    TokenAstNodeTup* decls;
 } ScopeInfo;
 
 typedef struct {

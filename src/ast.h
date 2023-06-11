@@ -110,22 +110,24 @@ typedef struct {
 typedef enum {
     UNOP_NEG,
     UNOP_ADDR,
-} UnOpKind;
+} UnopKind;
 
 typedef struct {
+    Token* op;
     AstNode* child;
-    UnOpKind kind;
-} AstNodeUnOp;
+    UnopKind kind;
+} AstNodeUnop;
 
 typedef enum {
     BINOP_ADD,
     BINOP_SUB,
-} BinOpKind;
+} BinopKind;
 
 typedef struct {
+    Token* op;
     AstNode* left, *right;
-    BinOpKind kind;
-} AstNodeBinOp;
+    BinopKind kind;
+} AstNodeBinop;
 
 typedef struct {
     Token* arg;
@@ -142,18 +144,21 @@ typedef struct {
 } AstNodeFunctionHeader;
 
 typedef struct {
-    bool global;
     AstNode* header;
     AstNode* body;
+
+    bool global;
 } AstNodeFunctionDef;
 
 typedef struct {
-    bool stack;
-    bool immutable;
     Token* identifier;
     char* name;
     AstNode* typespec;
+    Token* equal;
     AstNode* initializer;
+
+    bool stack;
+    bool immutable;
 } AstNodeVariableDecl;
 
 typedef struct {
@@ -223,8 +228,8 @@ struct AstNode {
         AstNodeReturn ret;
         AstNodeFunctionCall funcc;
         AstNodeAccess acc;
-        AstNodeUnOp unop;
-        AstNodeBinOp binop;
+        AstNodeUnop unop;
+        AstNodeBinop binop;
         AstNodeImport import;
         AstNodeFunctionHeader funch;
         AstNodeFunctionDef funcdef;
@@ -275,7 +280,8 @@ AstNode* astnode_if_new(
     AstNode* lastbr);
 AstNode* astnode_return_new(Token* keyword, AstNode* operand);
 
-AstNode* astnode_unop_new(UnOpKind kind, Token* minus, AstNode* child);
+AstNode* astnode_unop_new(UnopKind kind, Token* op, AstNode* child);
+AstNode* astnode_binop_new(BinopKind kind, Token* op, AstNode* left, AstNode* right);
 
 AstNode* astnode_import_new(Token* keyword, Token* arg, struct Typespec* mod_ty, char* name);
 AstNode* astnode_function_header_new(
@@ -283,15 +289,15 @@ AstNode* astnode_function_header_new(
     Token* identifier,
     AstNode** params,
     AstNode* ret_typespec);
-AstNode* astnode_function_def_new(bool global, AstNode* header, AstNode* body);
+AstNode* astnode_function_def_new(AstNode* header, AstNode* body, bool global);
 AstNode* astnode_variable_decl_new(
     Token* start,
-    bool stack,
-    bool immutable,
     Token* identifier,
     AstNode* typespec,
+    Token* equal,
     AstNode* initializer,
-    Token* end);
+    bool stack,
+    bool immutable);
 AstNode* astnode_param_new(Token* identifier, AstNode* typespec);
 AstNode* astnode_exprstmt_new(AstNode* expr);
 AstNode* astnode_struct_new(

@@ -207,12 +207,24 @@ AstNode* astnode_access_new(AstNode* left, AstNode* right) {
     return astnode;
 }
 
-AstNode* astnode_unop_new(UnOpKind kind, Token* minus, AstNode* child) {
+AstNode* astnode_unop_new(UnopKind kind, Token* op, AstNode* child) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_UNOP,
-        span_from_two(minus->span, child->span));
+        span_from_two(op->span, child->span));
+    astnode->unop.op = op;
     astnode->unop.kind = kind;
     astnode->unop.child = child;
+    return astnode;
+}
+
+AstNode* astnode_binop_new(BinopKind kind, Token* op, AstNode* left, AstNode* right) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_BINOP,
+        span_from_two(left->span, right->span));
+    astnode->binop.op = op;
+    astnode->binop.kind = kind;
+    astnode->binop.left = left;
+    astnode->binop.right = right;
     return astnode;
 }
 
@@ -220,6 +232,7 @@ AstNode* astnode_import_new(Token* keyword, Token* arg, struct Typespec* mod_ty,
     AstNode* astnode = astnode_alloc(
         ASTNODE_IMPORT,
         span_from_two(keyword->span, arg->span));
+    astnode->typespec = mod_ty;
     astnode->import.arg = arg;
     astnode->import.mod_ty = mod_ty;
     astnode->import.name = name;
@@ -242,34 +255,35 @@ AstNode* astnode_function_header_new(
     return astnode;
 }
 
-AstNode* astnode_function_def_new(bool global, AstNode* header, AstNode* body) {
+AstNode* astnode_function_def_new(AstNode* header, AstNode* body, bool global) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_FUNCTION_DEF,
         span_from_two(header->span, body->span));
-    astnode->funcdef.global = global;
     astnode->funcdef.header = header;
     astnode->funcdef.body = body;
+    astnode->funcdef.global = global;
     return astnode;
 }
 
 AstNode* astnode_variable_decl_new(
     Token* start,
-    bool stack,
-    bool immutable,
     Token* identifier,
     AstNode* typespec,
+    Token* equal,
     AstNode* initializer,
-    Token* end)
+    bool stack,
+    bool immutable)
 {
     AstNode* astnode = astnode_alloc(
         ASTNODE_VARIABLE_DECL,
-        span_from_two(start->span, end->span));
-    astnode->vard.immutable = immutable;
-    astnode->vard.stack = stack;
+        span_from_two(start->span, initializer->span));
     astnode->vard.identifier = identifier;
     astnode->vard.name = token_tostring(identifier);
     astnode->vard.typespec = typespec;
+    astnode->vard.equal = equal;
     astnode->vard.initializer = initializer;
+    astnode->vard.immutable = immutable;
+    astnode->vard.stack = stack;
     return astnode;
 }
 

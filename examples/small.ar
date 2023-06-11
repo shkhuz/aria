@@ -44,9 +44,12 @@ fn add(a: i8, b: ***********imm void, c: *imm void) void {}
 
 fn main() void {
     fn cool(_: void, i: i64) void {
-        add(--12899999999998889849583498539048593085908349058888, 1, 1);
+        add(--12899999999998, 1, 1);
         add(-gg, 8, 9);
         add(it.import_this, 1, 2);
+        imm x = -2;
+        imm i = 2;
+        imm j: u16 = i+x;
         yield 1;
     }
 

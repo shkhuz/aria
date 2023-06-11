@@ -42,6 +42,8 @@ int main(int argc, char* argv[]) {
         assert(strcmp(name, "hello, world!") == 0);
     }
 
+    test_bigint();
+
     /* for (usize i = 0; i < buflen(buf); i++) { */
     /*     aria_printf("%d\n", buf[i]); */
     /* } */

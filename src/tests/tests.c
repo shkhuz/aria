@@ -581,6 +581,14 @@ int main() {
         1,
         28);
 
+    // TODO: add integer error tests
+    //test_invalid_one_errspan(
+    //    "integer overflow",
+    //    "fn main() void { imm x = 18446744073709551616 }\n",
+    //    "",
+    //    1,
+    //    28);
+
     test_valid(
         "function definition",
         "fn main() void {}\n");
@@ -588,7 +596,7 @@ int main() {
     test_valid(
         "local declaration",
         "fn main() void {\n"
-        "    imm x: u32 = undefined;\n"
+        "    imm x: u32 = 0;\n"
         "}\n");
 
     test_valid(
@@ -621,7 +629,7 @@ int main() {
 
     test_valid(
         "integer literal",
-        "fn main() void { imm x = 8943589859348594389; }\n");
+        "fn main() void { imm x = 1010101010100; }\n");
 
     // REMINDER: At scoped block
 

@@ -80,6 +80,7 @@ static char* tostring(Typespec* ty) {
             bufpush(buf, '*');
             if (ty->ptr.immutable) bufstrexpandpush(buf, "imm ");
             bufstrexpandpush(buf, tostring(ty->ptr.child));
+            bufpush(buf, '\0');
             return buf;
         } break;
 
@@ -92,6 +93,7 @@ static char* tostring(Typespec* ty) {
             }
             bufstrexpandpush(buf, ") ");
             bufstrexpandpush(buf, tostring(ty->func.ret_typespec));
+            bufpush(buf, '\0');
             return buf;
         } break;
 
