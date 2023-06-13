@@ -9,38 +9,40 @@ import "import_this.ar" as it;
 
 //fn main2() void {}
 
-struct ff {
-    Vec: gg,
-}
-
-struct Main {
-    //buf: cool,
-    buf2: *u32,
-    buf3: [2](u8),
-}
+//struct ff {
+//    Vec: gg,
+//}
+//
+//struct Main {
+//    //buf: cool,
+//    buf2: *u32,
+//    buf3: [2](u8),
+//}
 
 //imm cool: ff = undefined;
 
-imm primes: gg = {
-    imm sum = {
-        yield [0, 1, 2, 3, 4];
-    };
-    imm sum = .();
-    imm sum = .(1, 2, 3);
-    imm newliteral = Player {
-        .pos = 1,
-        .vel = oldvel(),
-    };
-    yield .(sum);
-};
+//imm primes: gg = {
+//    imm sum = {
+//        yield [0, 1, 2, 3, 4];
+//    };
+//    imm sum = .();
+//    imm sum = .(1, 2, 3);
+//    imm newliteral = Player {
+//        .pos = 1,
+//        .vel = oldvel(),
+//    };
+//    yield .(sum);
+//};
 
 //imm voidd: void = undefined;
 
-struct gg { po: fn (i32) i32 }
+struct gg { po: *imm u32 }
 
 //imm primes = [1, 2, 3];
 
 fn add(a: i8, b: ***********imm void, c: *imm void) void {}
+
+fn call() gg {}
 
 fn main() void {
     fn cool(_: void, i: i64) void {
@@ -50,6 +52,11 @@ fn main() void {
         imm x = -2;
         imm i = 2;
         imm j: u16 = i+x;
+        imm k = j + -(-(-1));
+        imm l: gg = call();
+        l.po.*.* = -1;
+        imm ptr = &l.po;
+        8 + ptr;
         yield 1;
     }
 
@@ -60,7 +67,7 @@ fn main() void {
 // imm ptr: *fn (i32) i32 = 0x3423432;
 // ptr();
 
-struct Cool {
-    a: *i64,
-    b: *u8,
-}
+//struct Cool {
+//    a: *i64,
+//    b: *u8,
+//}

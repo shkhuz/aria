@@ -229,6 +229,12 @@ static void print_node(AstNode* astnode) {
             printf(")");
         } break;
 
+        case ASTNODE_DEREF: {
+            printf("(deref ");
+            print_node(astnode->unop.child);
+            printf(")");
+        } break;
+
         case ASTNODE_BINOP: {
             printf("(");
             switch (astnode->binop.kind) {
@@ -238,6 +244,14 @@ static void print_node(AstNode* astnode) {
             print_node(astnode->binop.left);
             printf(" ");
             print_node(astnode->binop.right);
+            printf(")");
+        } break;
+
+        case ASTNODE_ASSIGN: {
+            printf("(assign ");
+            print_node(astnode->assign.left);
+            printf(" ");
+            print_node(astnode->assign.right);
             printf(")");
         } break;
 

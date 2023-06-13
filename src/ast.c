@@ -6,6 +6,7 @@ AstNode* astnode_alloc(AstNodeKind kind, Span span) {
     AstNode* astnode = alloc_obj(AstNode);
     astnode->kind = kind;
     astnode->span = span;
+    astnode->short_span = span;
     astnode->typespec = NULL;
     return astnode;
 }
@@ -132,7 +133,9 @@ AstNode* astnode_symbol_new(Token* identifier) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_SYMBOL,
         identifier->span);
+    astnode->short_span = identifier->span;
     astnode->sym.identifier = identifier;
+    astnode->sym.ref = NULL;
     return astnode;
 }
 
@@ -198,10 +201,11 @@ AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end) 
     return astnode;
 }
 
-AstNode* astnode_access_new(AstNode* left, AstNode* right) {
+AstNode* astnode_access_new(Token* op, AstNode* left, AstNode* right) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_ACCESS,
         span_from_two(left->span, right->span));
+    astnode->short_span = op->span;
     astnode->acc.left = left;
     astnode->acc.right = right;
     return astnode;
@@ -211,9 +215,18 @@ AstNode* astnode_unop_new(UnopKind kind, Token* op, AstNode* child) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_UNOP,
         span_from_two(op->span, child->span));
-    astnode->unop.op = op;
+    astnode->short_span = op->span;
     astnode->unop.kind = kind;
     astnode->unop.child = child;
+    return astnode;
+}
+
+AstNode* astnode_deref_new(AstNode* child, Token* dot, Token* star) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_DEREF,
+        span_from_two(child->span, star->span));
+    astnode->short_span = span_from_two(dot->span, star->span);
+    astnode->deref.child = child;
     return astnode;
 }
 
@@ -221,10 +234,20 @@ AstNode* astnode_binop_new(BinopKind kind, Token* op, AstNode* left, AstNode* ri
     AstNode* astnode = astnode_alloc(
         ASTNODE_BINOP,
         span_from_two(left->span, right->span));
-    astnode->binop.op = op;
+    astnode->short_span = op->span;
     astnode->binop.kind = kind;
     astnode->binop.left = left;
     astnode->binop.right = right;
+    return astnode;
+}
+
+AstNode* astnode_assign_new(Token* equal, AstNode* left, AstNode* right) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_ASSIGN,
+        span_from_two(left->span, right->span));
+    astnode->short_span = equal->span;
+    astnode->assign.left = left;
+    astnode->assign.right = right;
     return astnode;
 }
 
@@ -345,4 +368,14 @@ char* astnode_get_name(AstNode* astnode) {
             assert(0);
         } break;
     }
+}
+
+// TODO: add indexing and deref expr check
+bool astnode_is_lvalue(AstNode* astnode) {
+    if (astnode->kind == ASTNODE_ACCESS ||
+        astnode->kind == ASTNODE_DEREF ||
+        astnode->kind == ASTNODE_SYMBOL) {
+        return true;
+    }
+    return false;
 }

@@ -67,6 +67,7 @@ typedef struct {
 
 typedef struct {
     Token* identifier;
+    AstNode* ref;
 } AstNodeSymbol;
 
 typedef struct {
@@ -113,10 +114,13 @@ typedef enum {
 } UnopKind;
 
 typedef struct {
-    Token* op;
     AstNode* child;
     UnopKind kind;
 } AstNodeUnop;
+
+typedef struct {
+    AstNode* child;
+} AstNodeDeref;
 
 typedef enum {
     BINOP_ADD,
@@ -124,10 +128,13 @@ typedef enum {
 } BinopKind;
 
 typedef struct {
-    Token* op;
     AstNode* left, *right;
     BinopKind kind;
 } AstNodeBinop;
+
+typedef struct {
+    AstNode* left, *right;
+} AstNodeAssign;
 
 typedef struct {
     Token* arg;
@@ -194,7 +201,9 @@ typedef enum {
     ASTNODE_FUNCTION_CALL,
     ASTNODE_ACCESS,
     ASTNODE_UNOP,
+    ASTNODE_DEREF,
     ASTNODE_BINOP,
+    ASTNODE_ASSIGN,
     ASTNODE_IMPORT,
     ASTNODE_FUNCTION_HEADER,
     ASTNODE_FUNCTION_DEF,
@@ -207,6 +216,7 @@ typedef enum {
 struct AstNode {
     AstNodeKind kind;
     Span span;
+    Span short_span;
     Typespec* typespec;
     union {
         AstNodeTypespecFunc typefunc;
@@ -229,7 +239,9 @@ struct AstNode {
         AstNodeFunctionCall funcc;
         AstNodeAccess acc;
         AstNodeUnop unop;
+        AstNodeDeref deref;
         AstNodeBinop binop;
+        AstNodeAssign assign;
         AstNodeImport import;
         AstNodeFunctionHeader funch;
         AstNodeFunctionDef funcdef;
@@ -262,7 +274,7 @@ AstNode* astnode_aggregate_literal_new(AstNode* typespec, AstNode** fields, Toke
 
 AstNode* astnode_symbol_new(Token* identifier);
 AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end);
-AstNode* astnode_access_new(AstNode* left, AstNode* right);
+AstNode* astnode_access_new(Token* op, AstNode* left, AstNode* right);
 AstNode* astnode_scoped_block_new(
     Token* lbrace,
     AstNode** stmts,
@@ -281,7 +293,9 @@ AstNode* astnode_if_new(
 AstNode* astnode_return_new(Token* keyword, AstNode* operand);
 
 AstNode* astnode_unop_new(UnopKind kind, Token* op, AstNode* child);
+AstNode* astnode_deref_new(AstNode* child, Token* dot, Token* star);
 AstNode* astnode_binop_new(BinopKind kind, Token* op, AstNode* left, AstNode* right);
+AstNode* astnode_assign_new(Token* equal, AstNode* left, AstNode* right);
 
 AstNode* astnode_import_new(Token* keyword, Token* arg, struct Typespec* mod_ty, char* name);
 AstNode* astnode_function_header_new(
@@ -307,5 +321,6 @@ AstNode* astnode_struct_new(
     Token* rbrace);
 
 char* astnode_get_name(AstNode* astnode);
+bool astnode_is_lvalue(AstNode* astnode);
 
 #endif

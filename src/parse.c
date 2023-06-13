@@ -179,8 +179,9 @@ static AstNode* parse_generic_typespec(ParseCtx* p, AstNode* left, bool expr) {
 }
 
 static AstNode* parse_access_expr(ParseCtx* p, AstNode* left, bool expr) {
+    Token* op = p->prev;
     AstNode* right = astnode_symbol_new(expect_identifier(p, "expected symbol name"));
-    AstNode* access = astnode_access_new(left, right);
+    AstNode* access = astnode_access_new(op, left, right);
     if ((p->current->kind == TOKEN_LANGBR && !expr) || p->current->kind == TOKEN_DOUBLE_COLON) {
         access = parse_generic_typespec(p, access, expr);
     }
@@ -295,32 +296,10 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         if (p->current->kind == TOKEN_DOUBLE_COLON) {
             left = parse_generic_typespec(p, left, true);
         }
-
-        while (match(p, TOKEN_DOT)) {
-            left = parse_access_expr(p, left, true);
-        }
-
-        if (match(p, TOKEN_LBRACE)) {
-            Token* lbrace = p->prev;
-            AstNode** fields = NULL;
-            while (!match(p, TOKEN_RBRACE)) {
-                check_eof(p, lbrace);
-                Token* dot = expect_dot(p);
-                Token* field_name = expect_identifier(p, "expected field name");
-                expect_equal(p);
-                AstNode* field_value = parse_expr(p);
-                if (p->current->kind != TOKEN_RBRACE) {
-                    expect_comma(p);
-                }
-                bufpush(fields, astnode_field_in_literal_new(dot, field_name, field_value));
-            }
-            return astnode_aggregate_literal_new(left, fields, p->prev);
-        } else {
-            return left;
-        }
-    } else if (match(p, TOKEN_AT)) {
+        return left;
+    }/* else if (match(p, TOKEN_AT)) {
         return parse_directive(p);
-    } else if (match(p, TOKEN_LBRACE)) {
+    }*/ else if (match(p, TOKEN_LBRACE)) {
         return parse_scoped_block(p);
     } else if (match(p, TOKEN_KEYWORD_IF)) {
         AstNode* ifbr = parse_if_branch(p, p->prev, IFBR_IF);
@@ -416,20 +395,60 @@ static AstNode* parse_suffix_expr(ParseCtx* p) {
             AstNode** args = parse_args(p, lparen, TOKEN_RPAREN, true, false);
             left = astnode_function_call_new(left, args, p->prev);
         } else if (match(p, TOKEN_DOT)) {
-            left = parse_access_expr(p, left, true);
+            Token* dot = p->prev;
+            if (match(p, TOKEN_STAR)) {
+                left = astnode_deref_new(left, dot, p->prev);
+            } else {
+                left = parse_access_expr(p, left, true);
+            }
         }
         // NOTE: also add above in the while cond in `parse_suffix_expr` above
     }
     return left;
 }
 
-static AstNode* parse_unop_expr(ParseCtx* p) {
-    if (match(p, TOKEN_MINUS)) {
-        Token* start = p->prev;
-        AstNode* child = parse_unop_expr(p);
-        return astnode_unop_new(UNOP_NEG, start, child);
+static AstNode* parse_aggregate_literal(ParseCtx* p) {
+    AstNode* left = parse_suffix_expr(p);
+    if (match(p, TOKEN_LBRACE)) {
+        Token* lbrace = p->prev;
+        AstNode** fields = NULL;
+        while (!match(p, TOKEN_RBRACE)) {
+            check_eof(p, lbrace);
+            Token* dot = expect_dot(p);
+            Token* field_name = expect_identifier(p, "expected field name");
+            expect_equal(p);
+            AstNode* field_value = parse_expr(p);
+            if (p->current->kind != TOKEN_RBRACE) {
+                expect_comma(p);
+            }
+            bufpush(fields, astnode_field_in_literal_new(dot, field_name, field_value));
+        }
+        return astnode_aggregate_literal_new(left, fields, p->prev);
     }
-    return parse_suffix_expr(p);
+    return left;
+}
+
+static AstNode* parse_unop_expr(ParseCtx* p) {
+    if (match(p, TOKEN_MINUS) || match(p, TOKEN_AMP)) {
+        Token* op = p->prev;
+        UnopKind kind;
+        switch (op->kind) {
+            case TOKEN_MINUS: kind = UNOP_NEG; break;
+            case TOKEN_AMP:   kind = UNOP_ADDR; break;
+        }
+        AstNode* child = parse_unop_expr(p);
+        if (kind == UNOP_ADDR) {
+            if (!astnode_is_lvalue(child)) {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    "no memory location associated with r-value",
+                    op->span);
+                msg_emit(p, &msg);
+            }
+        }
+        return astnode_unop_new(kind, op, child);
+    }
+    return parse_aggregate_literal(p);
 }
 
 static AstNode* parse_binop_expr(ParseCtx* p) {
@@ -448,8 +467,26 @@ static AstNode* parse_binop_expr(ParseCtx* p) {
     return left;
 }
 
+static AstNode* parse_assign_expr(ParseCtx* p) {
+    AstNode* left = parse_binop_expr(p);
+    if (match(p, TOKEN_EQUAL)) {
+        Token* equal = p->prev;
+        if (!astnode_is_lvalue(left)) {
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                "cannot assign to r-value",
+                equal->span);
+            msg_emit(p, &msg);
+        }
+
+        AstNode* right = parse_binop_expr(p);
+        left = astnode_assign_new(equal, left, right);
+    }
+    return left;
+}
+
 static AstNode* parse_expr(ParseCtx* p) {
-    return parse_binop_expr(p);
+    return parse_assign_expr(p);
 }
 
 static AstNode* parse_function_header(ParseCtx* p) {
