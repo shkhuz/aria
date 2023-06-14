@@ -337,6 +337,5 @@ AstNode* astnode_struct_new(
     Token* rbrace);
 
 char* astnode_get_name(AstNode* astnode);
-bool astnode_is_lvalue(AstNode* astnode);
 
 #endif

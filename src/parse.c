@@ -451,15 +451,6 @@ static AstNode* parse_unop_expr(ParseCtx* p) {
             case TOKEN_AMP:   kind = UNOP_ADDR; break;
         }
         AstNode* child = parse_unop_expr(p);
-        if (kind == UNOP_ADDR) {
-            if (!astnode_is_lvalue(child)) {
-                Msg msg = msg_with_span(
-                    MSG_ERROR,
-                    "no memory location associated with r-value",
-                    op->span);
-                msg_emit(p, &msg);
-            }
-        }
         return astnode_unop_new(kind, op, child);
     }
     return parse_aggregate_literal(p);
@@ -485,14 +476,6 @@ static AstNode* parse_assign_expr(ParseCtx* p) {
     AstNode* left = parse_binop_expr(p);
     if (match(p, TOKEN_EQUAL)) {
         Token* equal = p->prev;
-        if (!astnode_is_lvalue(left)) {
-            Msg msg = msg_with_span(
-                MSG_ERROR,
-                "cannot assign to r-value",
-                equal->span);
-            msg_emit(p, &msg);
-        }
-
         AstNode* right = parse_binop_expr(p);
         left = astnode_assign_new(equal, left, right);
     }

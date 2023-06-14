@@ -387,14 +387,3 @@ char* astnode_get_name(AstNode* astnode) {
         } break;
     }
 }
-
-// TODO: add indexing and deref expr check
-bool astnode_is_lvalue(AstNode* astnode) {
-    if (astnode->kind == ASTNODE_ACCESS ||
-        astnode->kind == ASTNODE_DEREF ||
-        astnode->kind == ASTNODE_INDEX ||
-        astnode->kind == ASTNODE_SYMBOL) {
-        return true;
-    }
-    return false;
-}

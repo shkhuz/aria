@@ -206,13 +206,13 @@ static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typ
             case TS_PTR: {
                 if (!from->ptr.immutable || to->ptr.immutable) {
                     return sema_are_types_equal(s, from->ptr.child, to->ptr.child, error);
-                }
+                } else return TC_ERROR;
             } break;
 
             case TS_MULTIPTR: {
                 if (!from->mulptr.immutable || to->mulptr.immutable) {
                     return sema_are_types_equal(s, from->mulptr.child, to->mulptr.child, error);
-                }
+                } else return TC_ERROR;
             } break;
 
             case TS_STRUCT: {
@@ -323,14 +323,72 @@ static bool sema_check_bigint_overflow(SemaCtx* s, bigint* b, Span span) {
     }
 }
 
+static bool sema_is_type_valuetype(Typespec* ty) {
+    switch (ty->kind) {
+        case TS_TYPE:
+        case TS_MODULE:
+            return false;
+        default:
+            return true;
+    }
+}
+
+static bool sema_check_is_type_valuetype(SemaCtx* s, Typespec* ty, Span error) {
+    if (ty->kind == TS_TYPE) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            "expected value, got type",
+            error);
+        msg_emit(s, &msg);
+        return false;
+    } else if (ty->kind == TS_MODULE) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            "expected value, got module",
+            error);
+        msg_emit(s, &msg);
+        return false;
+    } else return true;
+}
+
+static bool sema_check_is_lvalue(SemaCtx* s, AstNode* astnode) {
+    if (astnode->kind == ASTNODE_ACCESS ||
+        astnode->kind == ASTNODE_DEREF ||
+        astnode->kind == ASTNODE_INDEX ||
+        astnode->kind == ASTNODE_SYMBOL) {
+        if (astnode->kind == ASTNODE_SYMBOL && sema_is_type_valuetype(astnode->typespec)) {
+            assert(0 && "Symbol is not lvalue: not a valuetype");
+        }
+        return true;
+    } else {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            "expression not an l-value",
+            astnode->span);
+        msg_emit(s, &msg);
+        return false;
+    }
+}
+
 static bool sema_is_lvalue_imm(AstNode* astnode) {
-    assert(astnode_is_lvalue(astnode));
     assert(astnode->typespec);
 
-    // TODO: add `ASTNODE_ACCESS` to this condition but only if we access a field THROUGH a ptr.
-    if (astnode->kind == ASTNODE_DEREF || astnode->kind == ASTNODE_INDEX) {
-        if (astnode->typespec->kind == TS_PTR) return astnode->typespec->ptr.immutable;
-        else if (astnode->typespec->kind == TS_MULTIPTR) return astnode->typespec->mulptr.immutable;
+    if ((astnode->kind == ASTNODE_ACCESS && (astnode->acc.left->typespec->kind == TS_PTR))
+        || astnode->kind == ASTNODE_DEREF
+        || (astnode->kind == ASTNODE_INDEX && astnode->idx.left->typespec->kind == TS_MULTIPTR)) {
+        AstNode* child;
+        switch (astnode->kind) {
+            case ASTNODE_ACCESS: child = astnode->acc.left; break;
+            case ASTNODE_DEREF: child = astnode->deref.child; break;
+            case ASTNODE_INDEX: child = astnode->idx.left; break;
+            default: assert(0);
+        }
+
+        switch (child->typespec->kind) {
+            case TS_PTR: return child->typespec->ptr.immutable;
+            case TS_MULTIPTR: return child->typespec->mulptr.immutable;
+            default: assert(0);
+        }
     }
 
     switch (astnode->kind) {
@@ -359,25 +417,54 @@ static bool sema_is_lvalue_imm(AstNode* astnode) {
     }
 }
 
-static bool sema_check_assignable(SemaCtx* s, AstNode* astnode, Typespec* ty) {
-    if (ty->kind == TS_TYPE) {
+static Typespec* sema_access_field_from_type(SemaCtx* s, Typespec* ty, Token* key, Span error, bool derefed) {
+    if (ty->kind == TS_STRUCT) {
+        AstNode** fields = ty->agg->strct.fields;
+        bufloop(fields, i) {
+            if (are_token_lexemes_equal(
+                    fields[i]->field.key,
+                    key)) {
+                return fields[i]->field.value->typespec->ty;
+            }
+        }
         Msg msg = msg_with_span(
             MSG_ERROR,
-            "cannot assign to `{type}`",
-            astnode->span);
+            format_string_with_one_type("symbol not found in type `%T`%s", ty, derefed ? " (dereferenced)" : ""),
+            error);
         msg_emit(s, &msg);
-        return false;
+        return NULL;
+    } else if (ty->kind == TS_TYPE) {
+        assert(0 && "TODO: implement");
+    } else if (ty->kind == TS_MODULE) {
+        AstNode** astnodes = ty->mod.srcfile->astnodes;
+        bufloop(astnodes, i) {
+            if (is_token_lexeme(key, astnode_get_name(astnodes[i]))) {
+                return astnodes[i]->typespec;
+            }
+        }
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            "symbol not found",
+            error);
+        msg_emit(s, &msg);
+        return NULL;
+    } else if (ty->kind == TS_PRIM) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            format_string_with_one_type("symbol not found in type `%T`%s", ty, derefed ? " (dereferenced)" : ""),
+            error);
+        msg_emit(s, &msg);
+        return NULL;
+    } else if (ty->kind == TS_PTR) {
+        return sema_access_field_from_type(s, ty->ptr.child, key, error, true);
+    } else {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            format_string_with_one_type("field access is not supported by type `%T`%s", ty, derefed ? " (dereferenced)" : ""),
+            error);
+        msg_emit(s, &msg);
+        return NULL;
     }
-
-    bool imm = sema_is_lvalue_imm(astnode);
-    if (imm) {
-        Msg msg = msg_with_span(
-            MSG_ERROR,
-            "cannot assign to constant",
-            astnode->span);
-        msg_emit(s, &msg);
-        return false;
-    } else return true;
 }
 
 static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
@@ -430,10 +517,12 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
                 } break;
 
                 case UNOP_ADDR: {
-                    if (child) {
-                        bool imm = sema_is_lvalue_imm(astnode->unop.child);
-                        astnode->typespec = typespec_ptr_new(imm, child);
-                        return astnode->typespec;
+                    if (child && sema_check_is_type_valuetype(s, child, astnode->unop.child->span)) {
+                        if (sema_check_is_lvalue(s, astnode->unop.child)) {
+                            bool imm = sema_is_lvalue_imm(astnode->unop.child);
+                            astnode->typespec = typespec_ptr_new(imm, child);
+                            return astnode->typespec;
+                        } else return NULL;
                     } else return NULL;
                 } break;
             }
@@ -476,6 +565,14 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
                         MSG_ERROR,
                         format_string_with_one_type("cannot index type `%T`", left),
                         astnode->idx.left->span);
+                    if (left->kind == TS_PTR) {
+                        msg_addl_thin(
+                            &msg,
+                            format_string_with_one_type(
+                                "consider using a multi-ptr: `[*]%s%T`",
+                                left->ptr.child,
+                                left->ptr.immutable ? "imm " : ""));
+                    }
                     msg_emit(s, &msg);
                     error = true;
                 }
@@ -606,14 +703,27 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
             Typespec* left = sema_astnode(s, astnode->assign.left);
             Typespec* right = sema_astnode(s, astnode->assign.right);
             bool error = false;
-            if (left && right) {
-                if (sema_check_types_equal(s, right, left, astnode->short_span)) {
-                    astnode->typespec = predef_typespecs.void_type;
+
+            if (left && sema_check_is_type_valuetype(s, left, astnode->assign.left->span)) {
+                if (sema_check_is_lvalue(s, astnode->assign.left)) {
+                    bool imm = sema_is_lvalue_imm(astnode);
+                    if (imm) {
+                        Msg msg = msg_with_span(
+                            MSG_ERROR,
+                            "cannot assign to constant",
+                            astnode->assign.left->span);
+                        msg_emit(s, &msg);
+                        error = true;
+                    }
                 } else error = true;
-            }
-            if (left) {
-                if (!sema_check_assignable(s, astnode->assign.left, left)) error = true;
-            }
+
+                if (right && sema_check_is_type_valuetype(s, right, astnode->assign.right->span)) {
+                    if (sema_check_types_equal(s, right, left, astnode->short_span)) {
+                        astnode->typespec = predef_typespecs.void_type;
+                    } else error = true;
+                }
+            } else error = true;
+
             return error ? NULL : astnode->typespec;
         } break;
 
@@ -711,51 +821,8 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
             if (left) {
                 assert(astnode->acc.right->kind == ASTNODE_SYMBOL);
                 Token* right = astnode->acc.right->sym.identifier;
-                if (left->kind == TS_STRUCT) {
-                    AstNode** fields = left->agg->strct.fields;
-                    bufloop(fields, i) {
-                        if (are_token_lexemes_equal(
-                                fields[i]->field.key,
-                                right)) {
-                            astnode->typespec = fields[i]->field.value->typespec->ty;
-                            return astnode->typespec;
-                        }
-                    }
-                    Msg msg = msg_with_span(
-                        MSG_ERROR,
-                        format_string_with_one_type("symbol not found in type `%T`", left),
-                        astnode->short_span);
-                    msg_emit(s, &msg);
-                    return NULL;
-                } else if (left->kind == TS_TYPE) {
-                    Msg msg = msg_with_span(
-                        MSG_ERROR,
-                        "symbol not found in type",
-                        astnode->short_span);
-                    msg_emit(s, &msg);
-                    return NULL;
-                } else if (left->kind == TS_MODULE) {
-                    AstNode** astnodes = left->mod.srcfile->astnodes;
-                    bufloop(astnodes, i) {
-                        if (is_token_lexeme(right, astnode_get_name(astnodes[i]))) {
-                            astnode->typespec = astnodes[i]->typespec;
-                            return astnode->typespec;
-                        }
-                    }
-                    Msg msg = msg_with_span(
-                        MSG_ERROR,
-                        "symbol not found",
-                        astnode->short_span);
-                    msg_emit(s, &msg);
-                    return NULL;
-                } else if (left->kind == TS_PRIM) {
-                    Msg msg = msg_with_span(
-                        MSG_ERROR,
-                        format_string_with_one_type("symbol not found in type `%T`", left),
-                        astnode->short_span);
-                    msg_emit(s, &msg);
-                    return NULL;
-                } else assert(0);
+                astnode->typespec = sema_access_field_from_type(s, left, right, astnode->short_span, false);
+                return astnode->typespec;
             } else return NULL;
         } break;
 
