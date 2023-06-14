@@ -127,6 +127,11 @@ typedef struct {
     AstNode* child;
 } AstNodeDeref;
 
+typedef struct {
+    AstNode* left;
+    AstNode* idx;
+} AstNodeIndex;
+
 typedef enum {
     BINOP_ADD,
     BINOP_SUB,
@@ -208,6 +213,7 @@ typedef enum {
     ASTNODE_ACCESS,
     ASTNODE_UNOP,
     ASTNODE_DEREF,
+    ASTNODE_INDEX,
     ASTNODE_BINOP,
     ASTNODE_ASSIGN,
     ASTNODE_IMPORT,
@@ -247,6 +253,7 @@ struct AstNode {
         AstNodeAccess acc;
         AstNodeUnop unop;
         AstNodeDeref deref;
+        AstNodeIndex idx;
         AstNodeBinop binop;
         AstNodeAssign assign;
         AstNodeImport import;
@@ -302,6 +309,7 @@ AstNode* astnode_return_new(Token* keyword, AstNode* operand);
 
 AstNode* astnode_unop_new(UnopKind kind, Token* op, AstNode* child);
 AstNode* astnode_deref_new(AstNode* child, Token* dot, Token* star);
+AstNode* astnode_index_new(AstNode* left, AstNode* idx, Token* end);
 AstNode* astnode_binop_new(BinopKind kind, Token* op, AstNode* left, AstNode* right);
 AstNode* astnode_assign_new(Token* equal, AstNode* left, AstNode* right);
 

@@ -325,6 +325,14 @@ static bool sema_check_bigint_overflow(SemaCtx* s, bigint* b, Span span) {
 
 static bool sema_is_lvalue_imm(AstNode* astnode) {
     assert(astnode_is_lvalue(astnode));
+    assert(astnode->typespec);
+
+    // TODO: add `ASTNODE_ACCESS` to this condition but only if we access a field THROUGH a ptr.
+    if (astnode->kind == ASTNODE_DEREF || astnode->kind == ASTNODE_INDEX) {
+        if (astnode->typespec->kind == TS_PTR) return astnode->typespec->ptr.immutable;
+        else if (astnode->typespec->kind == TS_MULTIPTR) return astnode->typespec->mulptr.immutable;
+    }
+
     switch (astnode->kind) {
         case ASTNODE_SYMBOL: {
             AstNode* ref = astnode->sym.ref;
@@ -340,14 +348,11 @@ static bool sema_is_lvalue_imm(AstNode* astnode) {
         } break;
 
         case ASTNODE_DEREF: {
-            AstNode* child = astnode->deref.child;
-            switch (child->typespec->kind) {
-                case TS_PTR: {
-                    return child->typespec->ptr.immutable;
-                } break;
+            return sema_is_lvalue_imm(astnode->deref.child);
+        } break;
 
-                default: assert(0);
-            }
+        case ASTNODE_INDEX: {
+            return sema_is_lvalue_imm(astnode->idx.left);
         } break;
 
         default: assert(0);
@@ -459,6 +464,55 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
             } else return NULL;
         } break;
 
+        case ASTNODE_INDEX: {
+            Typespec* left = sema_astnode(s, astnode->idx.left);
+            Typespec* idx = sema_astnode(s, astnode->idx.idx);
+            bool error = false;
+            if (left) {
+                if (left->kind == TS_MULTIPTR) {
+                    astnode->typespec = left->mulptr.child;
+                } else {
+                    Msg msg = msg_with_span(
+                        MSG_ERROR,
+                        format_string_with_one_type("cannot index type `%T`", left),
+                        astnode->idx.left->span);
+                    msg_emit(s, &msg);
+                    error = true;
+                }
+            } else error = true;
+
+            if (idx) {
+                if (typespec_is_integer(idx)) {
+                    if (typespec_is_signed(idx)) {
+                        Msg msg = msg_with_span(
+                            MSG_ERROR,
+                            format_string_with_one_type("index requires an unsigned integer, got `%T`", idx),
+                            astnode->idx.idx->span);
+                        msg_emit(s, &msg);
+                        error = true;
+                    }
+                } else if (typespec_is_comptime_integer(idx)) {
+                    if (idx->prim.comptime_integer.neg) {
+                        Msg msg = msg_with_span(
+                            MSG_ERROR,
+                            format_string("index requires a non-negative integer, got `%s`", bigint_tostring(&idx->prim.comptime_integer)),
+                            astnode->idx.idx->span);
+                        msg_emit(s, &msg);
+                        error = true;
+                    }
+                } else {
+                    Msg msg = msg_with_span(
+                        MSG_ERROR,
+                        format_string_with_one_type("index requires an unsigned integer, got `%T`", idx),
+                        astnode->idx.idx->span);
+                    msg_emit(s, &msg);
+                    error = true;
+                }
+            } else error = true;
+
+            return error ? NULL : astnode->typespec;
+        } break;
+
         case ASTNODE_BINOP: {
             Typespec* left_ty = sema_astnode(s, astnode->binop.left);
             Typespec* right_ty = sema_astnode(s, astnode->binop.right);
@@ -560,8 +614,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
             if (left) {
                 if (!sema_check_assignable(s, astnode->assign.left, left)) error = true;
             }
-            if (error) return NULL;
-            else return astnode->typespec;
+            return error ? NULL : astnode->typespec;
         } break;
 
         case ASTNODE_TYPESPEC_PTR: {

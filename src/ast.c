@@ -239,6 +239,15 @@ AstNode* astnode_deref_new(AstNode* child, Token* dot, Token* star) {
     return astnode;
 }
 
+AstNode* astnode_index_new(AstNode* left, AstNode* idx, Token* end) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_INDEX,
+        span_from_two(left->span, end->span));
+    astnode->idx.left = left;
+    astnode->idx.idx = idx;
+    return astnode;
+}
+
 AstNode* astnode_binop_new(BinopKind kind, Token* op, AstNode* left, AstNode* right) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_BINOP,
@@ -383,6 +392,7 @@ char* astnode_get_name(AstNode* astnode) {
 bool astnode_is_lvalue(AstNode* astnode) {
     if (astnode->kind == ASTNODE_ACCESS ||
         astnode->kind == ASTNODE_DEREF ||
+        astnode->kind == ASTNODE_INDEX ||
         astnode->kind == ASTNODE_SYMBOL) {
         return true;
     }

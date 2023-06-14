@@ -398,11 +398,16 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
 static AstNode* parse_suffix_expr(ParseCtx* p) {
     AstNode* left = parse_atom_expr(p);
     while (p->current->kind == TOKEN_LPAREN
+           || p->current->kind == TOKEN_LBRACK
            || p->current->kind == TOKEN_DOT) {
         if (match(p, TOKEN_LPAREN)) {
             Token* lparen = p->prev;
             AstNode** args = parse_args(p, lparen, TOKEN_RPAREN, true, false);
             left = astnode_function_call_new(left, args, p->prev);
+        } else if (match(p, TOKEN_LBRACK)) {
+            AstNode* idx = parse_expr(p);
+            Token* rbrack = expect_rbrack(p);
+            left = astnode_index_new(left, idx, rbrack);
         } else if (match(p, TOKEN_DOT)) {
             Token* dot = p->prev;
             if (match(p, TOKEN_STAR)) {

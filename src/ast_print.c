@@ -241,6 +241,14 @@ static void print_node(AstNode* astnode) {
             printf(")");
         } break;
 
+        case ASTNODE_INDEX: {
+            printf("(index ");
+            print_node(astnode->idx.left);
+            printf(" ");
+            print_node(astnode->idx.idx);
+            printf(")");
+        } break;
+
         case ASTNODE_BINOP: {
             printf("(");
             switch (astnode->binop.kind) {

@@ -36,7 +36,7 @@ import "import_this.ar" as it;
 
 //imm voidd: void = undefined;
 
-struct gg { po: [*]imm u32 }
+struct gg { po: [*]u32 }
 
 //imm primes = [1, 2, 3];
 
@@ -55,7 +55,10 @@ fn main() void {
         imm k = j + -(-(-1));
         imm l: gg = call();
         l.po.*.* = -1;
+        imm signed: i8 = 1;
+        l.po[--1] = signed;
         imm ptr = &l.po;
+        ptr.* = ptr;
         8 + ptr;
         yield 1;
     }
