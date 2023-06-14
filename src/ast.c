@@ -29,6 +29,15 @@ AstNode* astnode_typespec_ptr_new(Token* star, bool immutable, AstNode* child) {
     return astnode;
 }
 
+AstNode* astnode_typespec_multiptr_new(Token* start, bool immutable, AstNode* child) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_TYPESPEC_MULTIPTR,
+        span_from_two(start->span, child->span));
+    astnode->typemulptr.immutable = immutable;
+    astnode->typemulptr.child = child;
+    return astnode;
+}
+
 AstNode* astnode_typespec_slice_new(Token* lbrack, bool immutable, AstNode* child) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_TYPESPEC_SLICE,

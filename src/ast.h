@@ -21,6 +21,11 @@ typedef struct {
 typedef struct {
     bool immutable;
     AstNode* child;
+} AstNodeTypespecMultiptr;
+
+typedef struct {
+    bool immutable;
+    AstNode* child;
 } AstNodeTypespecSlice;
 
 typedef struct {
@@ -183,6 +188,7 @@ typedef struct {
 typedef enum {
     ASTNODE_TYPESPEC_FUNC,
     ASTNODE_TYPESPEC_PTR,
+    ASTNODE_TYPESPEC_MULTIPTR,
     ASTNODE_TYPESPEC_SLICE,
     ASTNODE_TYPESPEC_ARRAY,
     ASTNODE_TYPESPEC_TUPLE,
@@ -221,6 +227,7 @@ struct AstNode {
     union {
         AstNodeTypespecFunc typefunc;
         AstNodeTypespecPtr typeptr;
+        AstNodeTypespecMultiptr typemulptr;
         AstNodeTypespecSlice typeslice;
         AstNodeTypespecArray typearray;
         AstNodeTypespecTuple typetup;
@@ -254,6 +261,7 @@ struct AstNode {
 
 AstNode* astnode_typespec_func_new(Token* start, AstNode** params, AstNode* ret_typespec);
 AstNode* astnode_typespec_ptr_new(Token* star, bool immutable, AstNode* child);
+AstNode* astnode_typespec_multiptr_new(Token* start, bool immutable, AstNode* child);
 AstNode* astnode_typespec_slice_new(Token* lbrack, bool immutable, AstNode* child);
 AstNode* astnode_typespec_array_new(Token* lbrack, AstNode* size, AstNode* child);
 AstNode* astnode_typespec_tuple_new(Token* start, AstNode** elems, Token* end);

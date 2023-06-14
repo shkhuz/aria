@@ -206,6 +206,7 @@ static AstNode* parse_atom_typespec(ParseCtx* p) {
             left = parse_generic_typespec(p, left, false);
         }
 
+        // TODO: lower access precedence (pull into func)
         while (match(p, TOKEN_DOT)) {
             left = parse_access_expr(p, left, false);
         }
@@ -227,6 +228,14 @@ static AstNode* parse_atom_typespec(ParseCtx* p) {
             }
             AstNode* child = parse_typespec(p);
             return astnode_typespec_slice_new(lbrack, immutable, child);
+        } else if (match(p, TOKEN_STAR)) {
+            bool immutable = false;
+            expect_rbrack(p);
+            if (match(p, TOKEN_KEYWORD_IMM)) {
+                immutable = true;
+            }
+            AstNode* child = parse_typespec(p);
+            return astnode_typespec_multiptr_new(lbrack, immutable, child);
         } else {
             AstNode* size = parse_expr(p);
             expect_rbrack(p);

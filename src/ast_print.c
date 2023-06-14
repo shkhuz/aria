@@ -59,6 +59,12 @@ static void print_node(AstNode* astnode) {
             print_node(astnode->typeptr.child);
         } break;
 
+        case ASTNODE_TYPESPEC_MULTIPTR: {
+            printf("[*]");
+            if (astnode->typeptr.immutable) printf("imm ");
+            print_node(astnode->typeptr.child);
+        } break;
+
         case ASTNODE_TYPESPEC_SLICE: {
             printf("[]");
             if (astnode->typeslice.immutable) printf("imm ");

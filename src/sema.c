@@ -209,6 +209,12 @@ static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typ
                 }
             } break;
 
+            case TS_MULTIPTR: {
+                if (!from->mulptr.immutable || to->mulptr.immutable) {
+                    return sema_are_types_equal(s, from->mulptr.child, to->mulptr.child, error);
+                }
+            } break;
+
             case TS_STRUCT: {
                 if (from->agg == to->agg) return TC_OK;
                 else return TC_ERROR;
@@ -439,6 +445,14 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
                         MSG_ERROR,
                         format_string_with_one_type("cannot dereference type `%T`", child),
                         astnode->short_span);
+                    if (child->kind == TS_MULTIPTR) {
+                        msg_addl_thin(
+                            &msg,
+                            format_string_with_one_type(
+                                "consider using a single-ptr: `*%s%T`",
+                                child->mulptr.child,
+                                child->mulptr.immutable ? "imm " : ""));
+                    }
                     msg_emit(s, &msg);
                     return NULL;
                 }
@@ -555,6 +569,16 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
             if (child) {
                 if (sema_assert_is_type(s, child, astnode->typeptr.child)) {
                     astnode->typespec = typespec_type_new(typespec_ptr_new(astnode->typeptr.immutable, child->ty));
+                    return astnode->typespec;
+                } else return NULL;
+            } else return NULL;
+        } break;
+
+        case ASTNODE_TYPESPEC_MULTIPTR: {
+            Typespec* child = sema_astnode(s, astnode->typemulptr.child);
+            if (child) {
+                if (sema_assert_is_type(s, child, astnode->typemulptr.child)) {
+                    astnode->typespec = typespec_type_new(typespec_multiptr_new(astnode->typemulptr.immutable, child->ty));
                     return astnode->typespec;
                 } else return NULL;
             } else return NULL;

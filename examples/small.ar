@@ -36,7 +36,7 @@ import "import_this.ar" as it;
 
 //imm voidd: void = undefined;
 
-struct gg { po: *imm u32 }
+struct gg { po: [*]imm u32 }
 
 //imm primes = [1, 2, 3];
 
