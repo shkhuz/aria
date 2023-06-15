@@ -249,6 +249,7 @@ static void _test_invalid_one_errspan(
 
 int main() {
     init_global_compiler_state();
+    init_bigint();
 
     test_invalid_one_errspan(
         "unterminated string literal error",
@@ -632,6 +633,7 @@ int main() {
         "fn main() void { imm x = 1010101010100; }\n");
 
     // REMINDER: At scoped block
+    // TODO: add tests for using variable/function in itself
 
     fprintf(
         stderr,

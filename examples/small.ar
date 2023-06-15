@@ -54,15 +54,27 @@ fn main() void {
         imm j: u16 = i+x;
         imm k = j + -(-(-1));
         imm l: gg = call();
-        l.po.*.* = -1;
+        //l.po.*.* = -1;
         imm signed: i8 = 1;
-        l.po[--1] = signed;
+        //l.po[--1] = signed;
         imm ptr = &gg;
-        it = 1;
+        //it = 1;
         1 + -it;
-        ptr.* = ptr;
+        //ptr.* = ptr;
         8 + ptr;
-        l.po.name = 1;
+        //l.po.name = 1;
+
+        mut u8v: u8 = 1;
+        imm u16v: u16 = 1;
+        mut u8p = &u8v;
+        imm u16p = &u16v;
+
+        imm arr = 1;
+        imm arrptr = &arr;
+        imm elem = arrptr[0];
+
+        u8v = arr;
+
         yield 1;
     }
 

@@ -379,7 +379,12 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         // TODO: if we want to specify a type for the literal, we could check
         // for it after the `]`. But it would signify the child type, not the
         // array literal type.
-        return astnode_array_literal_new(lbrack, elems, p->prev);
+        Token* rbrack = p->prev;
+        AstNode* elem_type = NULL;
+        if (can_token_start_typespec(p->current)) {
+            elem_type = parse_typespec(p);
+        }
+        return astnode_array_literal_new(lbrack, elems, elem_type, elem_type ? elem_type->span : rbrack->span);
     } else if (match(p, TOKEN_LPAREN)) {
         AstNode* expr = parse_expr(p);
         expect_rparen(p);

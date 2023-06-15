@@ -30,7 +30,6 @@ bool are_token_lexemes_equal(Token* a, Token* b) {
 
 bool can_token_start_typespec(Token* token) {
     if (token->kind == TOKEN_IDENTIFIER
-        || token->kind == TOKEN_AT
         || token->kind == TOKEN_LBRACK
         || token->kind == TOKEN_STAR
         || token->kind == TOKEN_KEYWORD_FN) {
@@ -41,13 +40,15 @@ bool can_token_start_typespec(Token* token) {
 
 bool can_token_start_expr(Token* token) {
     if (token->kind == TOKEN_IDENTIFIER
-        || token->kind == TOKEN_AT
         || token->kind == TOKEN_LBRACE
+        || token->kind == TOKEN_LBRACK
+        || token->kind == TOKEN_LPAREN
         || token->kind == TOKEN_KEYWORD_IF
         || token->kind == TOKEN_KEYWORD_RETURN
         || token->kind == TOKEN_INTEGER_LITERAL
-        || token->kind == TOKEN_LBRACK
-        || token->kind == TOKEN_DOT) {
+        || token->kind == TOKEN_DOT
+        || token->kind == TOKEN_AMP
+        || token->kind == TOKEN_MINUS) {
         return true;
     }
     return false;

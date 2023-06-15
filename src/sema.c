@@ -162,7 +162,7 @@ typedef enum {
     TC_ERROR_HANDLED,
 } TypeComparisonResult;
 
-static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typespec* to, Span error) {
+static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typespec* to, Span error, bool exact) {
     if (from->kind == to->kind) {
         switch (from->kind) {
             case TS_PRIM: {
@@ -198,20 +198,31 @@ static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typ
                 } else if (to->prim.kind == PRIM_comptime_integer) {
                     assert(0);
                 } else if (typespec_is_signed(from) == typespec_is_signed(to)) {
-                    if (typespec_get_bytes(from) <= typespec_get_bytes(to)) return TC_OK;
-                    else return TC_ERROR;
+                    if (exact) {
+                        if (typespec_get_bytes(from) == typespec_get_bytes(to)) return TC_OK;
+                        else return TC_ERROR;
+                    } else {
+                        if (typespec_get_bytes(from) <= typespec_get_bytes(to)) return TC_OK;
+                        else return TC_ERROR;
+                    }
                 } else return TC_ERROR;
             } break;
 
             case TS_PTR: {
                 if (!from->ptr.immutable || to->ptr.immutable) {
-                    return sema_are_types_equal(s, from->ptr.child, to->ptr.child, error);
+                    return sema_are_types_equal(s, from->ptr.child, to->ptr.child, error, true);
                 } else return TC_ERROR;
             } break;
 
             case TS_MULTIPTR: {
                 if (!from->mulptr.immutable || to->mulptr.immutable) {
-                    return sema_are_types_equal(s, from->mulptr.child, to->mulptr.child, error);
+                    return sema_are_types_equal(s, from->mulptr.child, to->mulptr.child, error, true);
+                } else return TC_ERROR;
+            } break;
+
+            case TS_ARRAY: {
+                if (bigint_cmp(&from->array.size->prim.comptime_integer, &to->array.size->prim.comptime_integer) == 0) {
+                    return sema_are_types_equal(s, from->array.child, to->array.child, error, true);
                 } else return TC_ERROR;
             } break;
 
@@ -221,7 +232,7 @@ static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typ
             } break;
 
             case TS_TYPE: {
-                return sema_are_types_equal(s, from->ty, to->ty, error);
+                return sema_are_types_equal(s, from->ty, to->ty, error, false);
             } break;
         }
     } else {
@@ -233,7 +244,7 @@ static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typ
 }
 
 static bool sema_check_types_equal(SemaCtx* s, Typespec* from, Typespec* to, Span error) {
-    TypeComparisonResult cmpresult = sema_are_types_equal(s, from, to, error);
+    TypeComparisonResult cmpresult = sema_are_types_equal(s, from, to, error, false);
     if (cmpresult == TC_ERROR) {
         Msg msg = msg_with_span(
             MSG_ERROR,
@@ -356,7 +367,7 @@ static bool sema_check_is_lvalue(SemaCtx* s, AstNode* astnode) {
         astnode->kind == ASTNODE_DEREF ||
         astnode->kind == ASTNODE_INDEX ||
         astnode->kind == ASTNODE_SYMBOL) {
-        if (astnode->kind == ASTNODE_SYMBOL && sema_is_type_valuetype(astnode->typespec)) {
+        if (astnode->kind == ASTNODE_SYMBOL && !sema_is_type_valuetype(astnode->typespec)) {
             assert(0 && "Symbol is not lvalue: not a valuetype");
         }
         return true;
@@ -371,8 +382,6 @@ static bool sema_check_is_lvalue(SemaCtx* s, AstNode* astnode) {
 }
 
 static bool sema_is_lvalue_imm(AstNode* astnode) {
-    assert(astnode->typespec);
-
     if ((astnode->kind == ASTNODE_ACCESS && (astnode->acc.left->typespec->kind == TS_PTR))
         || astnode->kind == ASTNODE_DEREF
         || (astnode->kind == ASTNODE_INDEX && astnode->idx.left->typespec->kind == TS_MULTIPTR)) {
@@ -467,6 +476,40 @@ static Typespec* sema_access_field_from_type(SemaCtx* s, Typespec* ty, Token* ke
     }
 }
 
+static Typespec* sema_index_type(SemaCtx* s, Typespec* ty, Span error, bool derefed) {
+    if (ty->kind == TS_MULTIPTR) {
+        return ty->mulptr.child;
+    } else if (ty->kind == TS_ARRAY) {
+        if (bigint_cmp(&ty->array.size->prim.comptime_integer, &BIGINT_ZERO) != 0) {
+            return ty->array.child;
+        } else {
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                format_string_with_one_type("indexing zero-length array with type `%T`%s", ty, derefed ? " (dereferenced)" : ""),
+                error);
+            msg_emit(s, &msg);
+            return NULL;
+        }
+    } else if (ty->kind == TS_PTR && ty->ptr.child->kind == TS_ARRAY) {
+        return sema_index_type(s, ty->ptr.child, error, true);
+    } else {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            format_string_with_one_type("cannot index type `%T`%s", ty, derefed ? " (dereferenced)" : ""),
+            error);
+        if (ty->kind == TS_PTR) {
+            msg_addl_thin(
+                &msg,
+                format_string_with_one_type(
+                    "consider using a multi-ptr: `[*]%s%T`",
+                    ty->ptr.child,
+                    ty->ptr.immutable ? "imm " : ""));
+        }
+        msg_emit(s, &msg);
+        return NULL;
+    }
+}
+
 static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
     switch (astnode->kind) {
         case ASTNODE_INTEGER_LITERAL: {
@@ -476,6 +519,49 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
                 Typespec* ty = typespec_comptime_integer_new(astnode->intl.val);
                 astnode->typespec = ty;
                 return ty;
+            }
+        } break;
+
+        case ASTNODE_ARRAY_LITERAL: {
+            Typespec* elem_annotated = NULL;
+            if (astnode->arrayl.elem_type) {
+                Typespec* typeof_annotated = sema_astnode(s, astnode->arrayl.elem_type);
+                elem_annotated = typeof_annotated->ty;
+            }
+
+            if (buflen(astnode->arrayl.elems) == 0 && !astnode->arrayl.elem_type) {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    "cannot infer type of empty array literal",
+                    astnode->span);
+                msg_emit(s, &msg);
+                return NULL;
+            }
+
+            if (buflen(astnode->arrayl.elems) != 0) {
+                bool error = false;
+                AstNode** elems = astnode->arrayl.elems;
+                Typespec* final_elem_type = NULL;
+                if (elem_annotated) final_elem_type = elem_annotated;
+                else final_elem_type = sema_astnode(s, elems[0]);
+
+                for (usize i = elem_annotated ? 0 : 1; i < buflen(elems); i++) {
+                    Typespec* cur_elem_type = sema_astnode(s, elems[i]);
+                    if (cur_elem_type && sema_check_is_type_valuetype(s, cur_elem_type, elems[i]->span)) {
+                        if (sema_check_types_equal(s, cur_elem_type, final_elem_type, elems[i]->span)) {
+                            elems[i]->typespec = final_elem_type;
+                        } else error = true;
+                    } else error = true;
+                }
+
+                if (error) return NULL;
+                bigint size = bigint_new_u64(buflen(elems));
+                astnode->typespec = typespec_array_new(typespec_comptime_integer_new(size), final_elem_type);
+                return astnode->typespec;
+            } else {
+                bigint zero = bigint_new_u64(0);
+                astnode->typespec = typespec_array_new(typespec_comptime_integer_new(zero), elem_annotated);
+                return astnode->typespec;
             }
         } break;
 
@@ -558,24 +644,9 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
             Typespec* idx = sema_astnode(s, astnode->idx.idx);
             bool error = false;
             if (left) {
-                if (left->kind == TS_MULTIPTR) {
-                    astnode->typespec = left->mulptr.child;
-                } else {
-                    Msg msg = msg_with_span(
-                        MSG_ERROR,
-                        format_string_with_one_type("cannot index type `%T`", left),
-                        astnode->idx.left->span);
-                    if (left->kind == TS_PTR) {
-                        msg_addl_thin(
-                            &msg,
-                            format_string_with_one_type(
-                                "consider using a multi-ptr: `[*]%s%T`",
-                                left->ptr.child,
-                                left->ptr.immutable ? "imm " : ""));
-                    }
-                    msg_emit(s, &msg);
-                    error = true;
-                }
+                Typespec* after_idx = sema_index_type(s, left, astnode->idx.left->span, false);
+                if (after_idx) astnode->typespec = after_idx;
+                else error = true;
             } else error = true;
 
             if (idx) {
@@ -706,7 +777,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
 
             if (left && sema_check_is_type_valuetype(s, left, astnode->assign.left->span)) {
                 if (sema_check_is_lvalue(s, astnode->assign.left)) {
-                    bool imm = sema_is_lvalue_imm(astnode);
+                    bool imm = sema_is_lvalue_imm(astnode->assign.left);
                     if (imm) {
                         Msg msg = msg_with_span(
                             MSG_ERROR,
@@ -835,6 +906,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
         } break;
 
         case ASTNODE_VARIABLE_DECL: {
+            Typespec* initializer = sema_astnode(s, astnode->vard.initializer);
             if (astnode->vard.stack) {
                 sema_top_level_decls_prec2(s, astnode);
             } else {
@@ -847,7 +919,6 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode) {
             }
 
             Typespec* annotated = astnode->typespec;
-            Typespec* initializer = sema_astnode(s, astnode->vard.initializer);
             if (annotated && initializer) {
                 if (sema_check_types_equal(s, initializer, annotated, astnode->vard.equal->span))
                     return annotated;

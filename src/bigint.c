@@ -3,6 +3,12 @@
 
 #define WORD_HALF_MASK 0x00000000ffffffff
 
+bigint BIGINT_ZERO;
+
+void init_bigint() {
+    BIGINT_ZERO = bigint_new_u64(0);
+}
+
 bigint bigint_new() {
     bigint b;
     b.d = NULL;

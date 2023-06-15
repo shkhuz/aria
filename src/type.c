@@ -33,6 +33,15 @@ Typespec* typespec_multiptr_new(bool immutable, Typespec* child) {
     return ty;
 }
 
+Typespec* typespec_array_new(Typespec* size, Typespec* child) {
+    assert(size->kind == TS_PRIM && size->prim.kind == PRIM_comptime_integer);
+    Typespec* ty = alloc_obj(Typespec);
+    ty->kind = TS_ARRAY;
+    ty->array.size = size;
+    ty->array.child = child;
+    return ty;
+}
+
 Typespec* typespec_func_new(Typespec** params, Typespec* ret_typespec) {
     Typespec* ty = alloc_obj(Typespec);
     ty->kind = TS_FUNC;
@@ -97,6 +106,16 @@ static char* tostring(Typespec* ty) {
             bufstrexpandpush(buf, "[*]");
             if (ty->mulptr.immutable) bufstrexpandpush(buf, "imm ");
             bufstrexpandpush(buf, tostring(ty->mulptr.child));
+            bufpush(buf, '\0');
+            return buf;
+        } break;
+
+        case TS_ARRAY: {
+            char* buf = NULL;
+            bufpush(buf, '[');
+            bufstrexpandpush(buf, bigint_tostring(&ty->array.size->prim.comptime_integer));
+            bufpush(buf, ']');
+            bufstrexpandpush(buf, tostring(ty->array.child));
             bufpush(buf, '\0');
             return buf;
         } break;

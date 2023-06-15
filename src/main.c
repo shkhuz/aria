@@ -55,6 +55,7 @@ int main(int argc, char* argv[]) {
     /* bigint_set_u64(&a, 1); */
 
     init_global_compiler_state();
+    init_bigint();
 
     const char* outpath = "a.out";
     const char* target_triple = NULL;

@@ -8,6 +8,9 @@ typedef struct {
     bool neg;
 } bigint;
 
+extern bigint BIGINT_ZERO;
+
+void init_bigint();
 bigint bigint_new();
 bigint bigint_new_u64(u64 num);
 void bigint_clear(bigint* a);

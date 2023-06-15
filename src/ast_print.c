@@ -123,7 +123,9 @@ static void print_node(AstNode* astnode) {
         } break;
 
         case ASTNODE_ARRAY_LITERAL: {
-            printf("(array");
+            printf("(array ");
+            if (astnode->arrayl.elem_type) print_node(astnode->arrayl.elem_type);
+            else printf("_");
             bufloop(astnode->arrayl.elems, i) {
                 printf(" ");
                 print_node(astnode->arrayl.elems[i]);
