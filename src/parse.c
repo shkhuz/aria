@@ -361,6 +361,8 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         bigint_free(&base);
 
         return astnode_integer_literal_new(token, val);
+    } else if (match(p, TOKEN_STRING_LITERAL)) {
+        return astnode_string_literal_new(p->prev);
     } else if (match(p, TOKEN_DOT)) {
         Token* start = p->prev;
         if (match(p, TOKEN_LPAREN)) {
@@ -623,7 +625,7 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
             immutable);
     } else if (match(p, TOKEN_KEYWORD_IMPORT)) {
         Token* keyword = p->prev;
-        Token* arg = expect(p, TOKEN_STRING, "expected path string");
+        Token* arg = expect(p, TOKEN_STRING_LITERAL, "expected path string");
         Token* as = NULL;
         if (match(p, TOKEN_KEYWORD_AS)) {
             as = expect_identifier(p, "expected new module name");

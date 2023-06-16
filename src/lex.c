@@ -127,7 +127,7 @@ void lex(LexCtx* l) {
 
                 if (!error) {
                     l->current++;
-                    Token* t = token_new(TOKEN_STRING, span_from_start_to_current(l));
+                    Token* t = token_new(TOKEN_STRING_LITERAL, span_from_start_to_current(l));
                     bufpush(l->srcfile->tokens, t);
                 }
             } break;

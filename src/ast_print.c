@@ -122,6 +122,10 @@ static void print_node(AstNode* astnode) {
             print_token(astnode->intl.token);
         } break;
 
+        case ASTNODE_STRING_LITERAL: {
+            print_token(astnode->strl.token);
+        } break;
+
         case ASTNODE_ARRAY_LITERAL: {
             printf("(array ");
             if (astnode->arrayl.elem_type) print_node(astnode->arrayl.elem_type);

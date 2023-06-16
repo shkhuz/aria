@@ -151,24 +151,17 @@ static void _test_invalid(
                     if (msgs[i].srcloc.exists) {
                         SrcLoc actual_srcloc =
                             compute_srcloc_from_span(test_ctx.msgs[i].span.span);
-                        if (actual_srcloc.line != msgs[i].srcloc.srcloc.line) {
+                        if (actual_srcloc.line != msgs[i].srcloc.srcloc.line
+                            || actual_srcloc.col != msgs[i].srcloc.srcloc.col) {
                             if (!error) print_fail_text();
                             error = true;
                             fprintf(
                                 stderr,
-                                "\n  >> (%lu) Expected msg on line %lu, got line %lu",
+                                "\n  >> (%lu) Expected msg at %lu:%lu, got %lu:%lu",
                                 i,
                                 msgs[i].srcloc.srcloc.line,
-                                actual_srcloc.line);
-                        }
-                        if (actual_srcloc.col != msgs[i].srcloc.srcloc.col) {
-                            if (!error) print_fail_text();
-                            error = true;
-                            fprintf(
-                                stderr,
-                                "\n  >> (%lu) Expected msg on col %lu, got col %lu",
-                                i,
                                 msgs[i].srcloc.srcloc.col,
+                                actual_srcloc.line,
                                 actual_srcloc.col);
                         }
                     }
@@ -582,6 +575,13 @@ int main() {
         1,
         28);
 
+    test_invalid_one_errspan(
+        "index",
+        "fn main() void { mut a = 1; imm ptr = &a; ptr[0] = 2; }\n",
+        "cannot index type `*{integer}`",
+        1,
+        33);
+
     // TODO: add integer error tests
     //test_invalid_one_errspan(
     //    "integer overflow",
@@ -634,6 +634,7 @@ int main() {
 
     // REMINDER: At scoped block
     // TODO: add tests for using variable/function in itself
+    // TODO: add tests for using values as types in variables/functions
 
     fprintf(
         stderr,

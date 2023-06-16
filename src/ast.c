@@ -113,6 +113,14 @@ AstNode* astnode_integer_literal_new(Token* token, bigint val) {
     return astnode;
 }
 
+AstNode* astnode_string_literal_new(Token* token) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_STRING_LITERAL,
+        token->span);
+    astnode->strl.token = token;
+    return astnode;
+}
+
 AstNode* astnode_array_literal_new(Token* lbrack, AstNode** elems, AstNode* elem_type, Span end) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_ARRAY_LITERAL,

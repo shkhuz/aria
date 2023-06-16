@@ -33,6 +33,14 @@ Typespec* typespec_multiptr_new(bool immutable, Typespec* child) {
     return ty;
 }
 
+Typespec* typespec_slice_new(bool immutable, Typespec* child) {
+    Typespec* ty = alloc_obj(Typespec);
+    ty->kind = TS_SLICE;
+    ty->slice.immutable = immutable;
+    ty->slice.child = child;
+    return ty;
+}
+
 Typespec* typespec_array_new(Typespec* size, Typespec* child) {
     assert(size->kind == TS_PRIM && size->prim.kind == PRIM_comptime_integer);
     Typespec* ty = alloc_obj(Typespec);
@@ -106,6 +114,15 @@ static char* tostring(Typespec* ty) {
             bufstrexpandpush(buf, "[*]");
             if (ty->mulptr.immutable) bufstrexpandpush(buf, "imm ");
             bufstrexpandpush(buf, tostring(ty->mulptr.child));
+            bufpush(buf, '\0');
+            return buf;
+        } break;
+
+        case TS_SLICE: {
+            char* buf = NULL;
+            bufstrexpandpush(buf, "[]");
+            if (ty->slice.immutable) bufstrexpandpush(buf, "imm ");
+            bufstrexpandpush(buf, tostring(ty->slice.child));
             bufpush(buf, '\0');
             return buf;
         } break;
@@ -191,6 +208,23 @@ bool typespec_is_signed(Typespec* ty) {
     }
     assert(0);
     return false;
+}
+
+bool typespec_is_arrptr(Typespec* ty) {
+    return ty->kind == TS_PTR && ty->ptr.child->kind == TS_ARRAY;
+}
+
+bool typespec_is_sized(Typespec* ty) {
+    switch (ty->kind) {
+        case TS_PRIM: {
+            switch (ty->prim.kind) {
+                case PRIM_comptime_integer:
+                case PRIM_void: return false;
+                default: return true;
+            }
+        } break;
+        default: return true;
+    }
 }
 
 u32 typespec_get_bytes(Typespec* ty) {

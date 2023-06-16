@@ -11,6 +11,7 @@ typedef enum {
     TS_PRIM,
     TS_PTR,
     TS_MULTIPTR,
+    TS_SLICE,
     TS_ARRAY,
     TS_FUNC,
 
@@ -54,6 +55,11 @@ typedef struct Typespec {
         } mulptr;
 
         struct {
+            bool immutable;
+            struct Typespec* child;
+        } slice;
+
+        struct {
             struct Typespec* size;
             struct Typespec* child;
         } array;
@@ -77,6 +83,7 @@ Typespec* typespec_prim_new(PrimKind kind);
 Typespec* typespec_comptime_integer_new(bigint val);
 Typespec* typespec_ptr_new(bool immutable, Typespec* child);
 Typespec* typespec_multiptr_new(bool immutable, Typespec* child);
+Typespec* typespec_slice_new(bool immutable, Typespec* child);
 Typespec* typespec_array_new(Typespec* size, Typespec* child);
 Typespec* typespec_func_new(Typespec** params, Typespec* ret_typespec);
 Typespec* typespec_struct_new(struct AstNode* astnode);
@@ -86,6 +93,8 @@ Typespec* typespec_module_new(struct Srcfile* srcfile);
 bool typespec_is_integer(Typespec* ty);
 bool typespec_is_comptime_integer(Typespec* ty);
 bool typespec_is_signed(Typespec* ty);
+bool typespec_is_arrptr(Typespec* ty);
+bool typespec_is_sized(Typespec* ty);
 u32 typespec_get_bytes(Typespec* ty);
 char* typespec_tostring(Typespec* ty);
 

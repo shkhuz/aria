@@ -58,6 +58,10 @@ typedef struct {
 } AstNodeIntegerLiteral;
 
 typedef struct {
+    Token* token;
+} AstNodeStringLiteral;
+
+typedef struct {
     AstNode** elems;
     AstNode* elem_type;
 } AstNodeArrayLiteral;
@@ -202,6 +206,7 @@ typedef enum {
     ASTNODE_DIRECTIVE,
     ASTNODE_FIELD,
     ASTNODE_INTEGER_LITERAL,
+    ASTNODE_STRING_LITERAL,
     ASTNODE_ARRAY_LITERAL,
     ASTNODE_TUPLE_LITERAL,
     ASTNODE_AGGREGATE_LITERAL,
@@ -242,6 +247,7 @@ struct AstNode {
         AstNodeDirective directive;
         AstNodeField field;
         AstNodeIntegerLiteral intl;
+        AstNodeStringLiteral strl;
         AstNodeArrayLiteral arrayl;
         AstNodeTupleLiteral tupl;
         AstNodeAggregateLiteral aggl;
@@ -284,6 +290,7 @@ AstNode* astnode_field_new(Token* key, AstNode* value);
 AstNode* astnode_field_in_literal_new(Token* start, Token* key, AstNode* value);
 
 AstNode* astnode_integer_literal_new(Token* token, bigint val);
+AstNode* astnode_string_literal_new(Token* token);
 AstNode* astnode_array_literal_new(Token* lbrack, AstNode** elems, AstNode* elem_type, Span end);
 AstNode* astnode_tuple_literal_new(Token* start, AstNode** elems, Token* end);
 AstNode* astnode_aggregate_literal_new(AstNode* typespec, AstNode** fields, Token* end);
