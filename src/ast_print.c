@@ -159,6 +159,10 @@ static void print_node(AstNode* astnode) {
             print_token(astnode->sym.identifier);
         } break;
 
+        case ASTNODE_BUILTIN_SYMBOL: {
+            print_token(astnode->bsym.identifier);
+        } break;
+
         case ASTNODE_SCOPED_BLOCK: {
             bool indented = indent_block;
             if (indent_block) indent += 4;
@@ -255,15 +259,30 @@ static void print_node(AstNode* astnode) {
             printf(")");
         } break;
 
-        case ASTNODE_BINOP: {
+        case ASTNODE_ARITH_BINOP: {
             printf("(");
-            switch (astnode->binop.kind) {
-                case BINOP_ADD: printf("add "); break;
-                case BINOP_SUB: printf("sub "); break;
+            switch (astnode->arthbin.kind) {
+                case ARITH_BINOP_ADD: printf("add "); break;
+                case ARITH_BINOP_SUB: printf("sub "); break;
+                case ARITH_BINOP_MUL: printf("mul "); break;
+                case ARITH_BINOP_DIV: printf("div "); break;
+                case ARITH_BINOP_REM: printf("rem "); break;
             }
-            print_node(astnode->binop.left);
+            print_node(astnode->arthbin.left);
             printf(" ");
-            print_node(astnode->binop.right);
+            print_node(astnode->arthbin.right);
+            printf(")");
+        } break;
+
+        case ASTNODE_BOOL_BINOP: {
+            printf("(");
+            switch (astnode->arthbin.kind) {
+                case BOOL_BINOP_AND: printf("and "); break;
+                case BOOL_BINOP_OR:  printf("or "); break;
+            }
+            print_node(astnode->arthbin.left);
+            printf(" ");
+            print_node(astnode->arthbin.right);
             printf(")");
         } break;
 

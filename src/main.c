@@ -20,16 +20,6 @@ int main(int argc, char* argv[]) {
         bufpush(buf, 4);
         bufpush(buf, 2948);
         bufinsert(buf, 1, 999);
-        assert(bufpop(buf) == 2948);
-        assert(bufpop(buf) == 4);
-        assert(bufpop(buf) == 4);
-        assert(bufpop(buf) == 4);
-        assert(bufpop(buf) == -3);
-        assert(bufpop(buf) == 999);
-        assert(bufpop(buf) == -2);
-        assert(bufpop(buf) == 0);
-        assert(bufpop(buf) == 0);
-        assert(bufpop(buf) == 0);
     }
 
     {

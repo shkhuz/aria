@@ -157,6 +157,16 @@ AstNode* astnode_symbol_new(Token* identifier) {
     return astnode;
 }
 
+AstNode* astnode_builtin_symbol_new(BuiltinSymbolKind kind, Token* identifier) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_BUILTIN_SYMBOL,
+        identifier->span);
+    astnode->short_span = identifier->span;
+    astnode->bsym.kind = kind;
+    astnode->bsym.identifier = identifier;
+    return astnode;
+}
+
 AstNode* astnode_scoped_block_new(
     Token* lbrace,
     AstNode** stmts,
@@ -257,14 +267,25 @@ AstNode* astnode_index_new(AstNode* left, AstNode* idx, Token* end) {
     return astnode;
 }
 
-AstNode* astnode_binop_new(BinopKind kind, Token* op, AstNode* left, AstNode* right) {
+AstNode* astnode_arith_binop_new(ArithBinopKind kind, Token* op, AstNode* left, AstNode* right) {
     AstNode* astnode = astnode_alloc(
-        ASTNODE_BINOP,
+        ASTNODE_ARITH_BINOP,
         span_from_two(left->span, right->span));
     astnode->short_span = op->span;
-    astnode->binop.kind = kind;
-    astnode->binop.left = left;
-    astnode->binop.right = right;
+    astnode->arthbin.kind = kind;
+    astnode->arthbin.left = left;
+    astnode->arthbin.right = right;
+    return astnode;
+}
+
+AstNode* astnode_bool_binop_new(BoolBinopKind kind, Token* op, AstNode* left, AstNode* right) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_BOOL_BINOP,
+        span_from_two(left->span, right->span));
+    astnode->short_span = op->span;
+    astnode->boolbin.kind = kind;
+    astnode->boolbin.left = left;
+    astnode->boolbin.right = right;
     return astnode;
 }
 

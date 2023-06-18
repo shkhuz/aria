@@ -24,7 +24,7 @@ typedef struct {
                                 (memcpy(&((b)[_bufhdr((b))->len]), (e), (COMBINE(__tmpsize, __LINE__)))), \
                                 (_bufhdr((b))->len += (COMBINE(__tmpsize, __LINE__))));}
 
-#define bufpop(b) (buflen(b) > 0 ? (_bufhdr((b))->len--, *bufend((b))) : 0)
+#define bufpop(b) (buflen(b) > 0 ? (_bufhdr((b))->len--) : 0)
 
 #define buffree(b) ((b) ? (free(_bufhdr(b)), b=NULL) : 0)
 

@@ -147,6 +147,7 @@ void lex(LexCtx* l) {
             case '<': push_tok_adv_cond(l, '=', TOKEN_LANGBR_EQUAL, TOKEN_LANGBR); break;
             case '>': push_tok_adv_cond(l, '=', TOKEN_RANGBR_EQUAL, TOKEN_RANGBR); break;
             case '&': push_tok_adv_cond(l, '&', TOKEN_DOUBLE_AMP, TOKEN_AMP); break;
+            case '%': push_tok_adv(l, TOKEN_PERC); break;
             case '+': push_tok_adv(l, TOKEN_PLUS); break;
             case '-': push_tok_adv(l, TOKEN_MINUS); break;
             case '*': push_tok_adv(l, TOKEN_STAR); break;

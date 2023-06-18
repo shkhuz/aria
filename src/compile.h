@@ -12,6 +12,11 @@ typedef struct {
     TokenKind v;
 } StringTokenKindTup;
 
+typedef struct {
+    char* k;
+    BuiltinSymbolKind v;
+} StringBuiltinSymbolKindTup;
+
 struct AstNode;
 struct Typespec;
 
@@ -24,6 +29,7 @@ typedef struct {
     struct Typespec* i16_type;
     struct Typespec* i32_type;
     struct Typespec* i64_type;
+    struct Typespec* bool_type;
     struct Typespec* void_type;
 } PredefTypespecs;
 
@@ -34,6 +40,7 @@ struct Srcfile {
 };
 
 extern StringTokenKindTup* keywords;
+extern StringBuiltinSymbolKindTup* builtin_symbols;
 extern PredefTypespecs predef_typespecs;
 
 typedef struct CompileCtx CompileCtx;

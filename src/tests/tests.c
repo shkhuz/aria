@@ -253,7 +253,7 @@ int main() {
 
     test_invalid(
         "invalid char error",
-        "%",
+        "`",
         2,
         ((TestMsgSpec[2]){
             {

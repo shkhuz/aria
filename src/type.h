@@ -32,8 +32,9 @@ typedef enum {
     PRIM_i16,
     PRIM_i32,
     PRIM_i64,
+    PRIM_integer,
+    PRIM_bool,
     PRIM_void,
-    PRIM_comptime_integer,
 } PrimKind;
 
 typedef struct Typespec {
@@ -41,7 +42,7 @@ typedef struct Typespec {
     union {
         struct {
             PrimKind kind;
-            bigint comptime_integer;
+            bigint integer;
         } prim;
 
         struct {
@@ -80,7 +81,7 @@ typedef struct Typespec {
 } Typespec;
 
 Typespec* typespec_prim_new(PrimKind kind);
-Typespec* typespec_comptime_integer_new(bigint val);
+Typespec* typespec_unsized_integer_new(bigint val);
 Typespec* typespec_ptr_new(bool immutable, Typespec* child);
 Typespec* typespec_multiptr_new(bool immutable, Typespec* child);
 Typespec* typespec_slice_new(bool immutable, Typespec* child);
@@ -90,11 +91,12 @@ Typespec* typespec_struct_new(struct AstNode* astnode);
 Typespec* typespec_type_new(Typespec* typespec);
 Typespec* typespec_module_new(struct Srcfile* srcfile);
 
+bool typespec_is_sized_integer(Typespec* ty);
+bool typespec_is_unsized_integer(Typespec* ty);
 bool typespec_is_integer(Typespec* ty);
-bool typespec_is_comptime_integer(Typespec* ty);
+bool typespec_is_sized(Typespec* ty);
 bool typespec_is_signed(Typespec* ty);
 bool typespec_is_arrptr(Typespec* ty);
-bool typespec_is_sized(Typespec* ty);
 u32 typespec_get_bytes(Typespec* ty);
 char* typespec_tostring(Typespec* ty);
 

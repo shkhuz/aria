@@ -19,6 +19,7 @@ bigint bigint_new() {
 bigint bigint_new_u64(u64 num) {
     bigint b = bigint_new();
     bufpush(b.d, num);
+    bigint_normalize(&b);
     return b;
 }
 
@@ -37,6 +38,7 @@ void bigint_normalize(bigint* a) {
 void bigint_set_u64(bigint* a, u64 num) {
     bigint_clear(a);
     bufpush(a->d, num);
+    bigint_normalize(a);
 }
 
 usize bigint_bitlength(const bigint* a) {
@@ -51,6 +53,7 @@ void bigint_copy(bigint* dest, const bigint* src) {
         bufpush(dest->d, src->d[i]);
     }
     dest->neg = src->neg;
+    bigint_normalize(dest);
 }
 
 void bigint_free(bigint* a) {
@@ -187,9 +190,6 @@ void bigint_shrn(bigint* a, usize n) {
 }
 
 void bigint_set_bit(bigint* a, usize bit, bool set) {
-    if (bit > bigint_bitlength(a)-1) return;
-    if (buflen(a->d) == 0) return;
-
     usize word_idx = bit / U64_BITS;
     usize bit_idx_in_word = bit % U64_BITS;
 
@@ -198,6 +198,7 @@ void bigint_set_bit(bigint* a, usize bit, bool set) {
     u64 val = set ? 1 : 0;
     word |= val<<bit_idx_in_word;
     a->d[word_idx] = word;
+    bigint_normalize(a);
 }
 
 static u64 word_mul_hi(u64 a, u64 b) {
@@ -252,7 +253,6 @@ void bigint_div_mod(const bigint* num, const bigint* den, bigint* quo, bigint* r
     if (bigint_cmp_abs(rem, den) >= 0) {
         bigint ourden = bigint_new();
         bigint_copy(&ourden, den);
-        den = NULL;
 
         int n = (int)(bigint_bitlength(rem) - bigint_bitlength(&ourden));
         bigint_shln(&ourden, (usize)n);
@@ -267,6 +267,8 @@ void bigint_div_mod(const bigint* num, const bigint* den, bigint* quo, bigint* r
 
         bigint_free(&ourden);
     }
+    quo->neg = (int)num->neg ^ (int)den->neg;
+    rem->neg = rem->neg;
 
     bigint_normalize(quo);
     bigint_normalize(rem);
@@ -301,7 +303,6 @@ char* bigint_tostring(const bigint* a) {
         bigint quo = bigint_new();
         bigint rem = bigint_new();
         bigint base = bigint_new_u64(10);
-        bigint zero = bigint_new_u64(0);
         char* alpha = "0123456789abcdef";
 
         while (buflen(tmp.d) > 0) {

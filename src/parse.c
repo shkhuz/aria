@@ -197,20 +197,27 @@ static AstNode* parse_directive(ParseCtx* p) {
     return astnode_directive_new(start, identifier, args, p->prev);
 }
 
+static AstNode* parse_identifier(ParseCtx* p, Token* identifier, bool expr) {
+    AstNode* left = NULL;
+    bufloop(builtin_symbols, i) {
+        if (is_token_lexeme(identifier, builtin_symbols[i].k)) {
+            left = astnode_builtin_symbol_new(builtin_symbols[i].v, identifier);
+            break;
+        }
+    }
+    if (!left) left = astnode_symbol_new(identifier);
+
+    if (p->current->kind == TOKEN_DOUBLE_COLON || (!expr && p->current->kind == TOKEN_LANGBR)) {
+        left = parse_generic_typespec(p, left, expr);
+    }
+    return left;
+}
+
 static AstNode* parse_atom_typespec(ParseCtx* p) {
     if (match(p, TOKEN_AT)) {
         return parse_directive(p);
     } else if (match(p, TOKEN_IDENTIFIER)) {
-        AstNode* left = astnode_symbol_new(p->prev);
-        if (p->current->kind == TOKEN_DOUBLE_COLON || p->current->kind == TOKEN_LANGBR) {
-            left = parse_generic_typespec(p, left, false);
-        }
-
-        // TODO: lower access precedence (pull into func)
-        while (match(p, TOKEN_DOT)) {
-            left = parse_access_expr(p, left, false);
-        }
-        return left;
+        return parse_identifier(p, p->prev, false);
     } else if (match(p, TOKEN_STAR)) {
         Token* star = p->prev;
         bool immutable = false;
@@ -263,8 +270,16 @@ static AstNode* parse_atom_typespec(ParseCtx* p) {
     return NULL;
 }
 
+static AstNode* parse_suffix_typespec(ParseCtx* p) {
+    AstNode* left = parse_atom_typespec(p);
+    while (match(p, TOKEN_DOT)) {
+        left = parse_access_expr(p, left, false);
+    }
+    return left;
+}
+
 static AstNode* parse_typespec(ParseCtx* p) {
-    return parse_atom_typespec(p);
+    return parse_suffix_typespec(p);
 }
 
 static AstNode* parse_if_branch(ParseCtx* p, Token* keyword, IfBranchKind kind) {
@@ -301,11 +316,7 @@ static inline AstNode* get_last_if_branch(
 static AstNode* parse_atom_expr(ParseCtx* p) {
     // NOTE: Add the case to `can_token_begin_expr()`
     if (match(p, TOKEN_IDENTIFIER)) {
-        AstNode* left = astnode_symbol_new(p->prev);
-        if (p->current->kind == TOKEN_DOUBLE_COLON) {
-            left = parse_generic_typespec(p, left, true);
-        }
-        return left;
+        return parse_identifier(p, p->prev, true);
     }/* else if (match(p, TOKEN_AT)) {
         return parse_directive(p);
     }*/ else if (match(p, TOKEN_LBRACE)) {
@@ -463,27 +474,64 @@ static AstNode* parse_unop_expr(ParseCtx* p) {
     return parse_aggregate_literal(p);
 }
 
-static AstNode* parse_binop_expr(ParseCtx* p) {
+static AstNode* parse_arithmul_binop_expr(ParseCtx* p) {
     AstNode* left = parse_unop_expr(p);
-    while (match(p, TOKEN_PLUS) || match(p, TOKEN_MINUS)) {
+    while (match(p, TOKEN_STAR) || match(p, TOKEN_FSLASH) || match(p, TOKEN_PERC)) {
         Token* op = p->prev;
-        BinopKind kind;
+        ArithBinopKind kind;
         switch (op->kind) {
-            case TOKEN_PLUS: kind = BINOP_ADD; break;
-            case TOKEN_MINUS: kind = BINOP_SUB; break;
+            case TOKEN_STAR:   kind = ARITH_BINOP_MUL; break;
+            case TOKEN_FSLASH: kind = ARITH_BINOP_DIV; break;
+            case TOKEN_PERC:   kind = ARITH_BINOP_REM; break;
             default: assert(0); break;
         }
         AstNode* right = parse_unop_expr(p);
-        left = astnode_binop_new(kind, op, left, right);
+        left = astnode_arith_binop_new(kind, op, left, right);
+    }
+    return left;
+}
+
+static AstNode* parse_arithadd_binop_expr(ParseCtx* p) {
+    AstNode* left = parse_arithmul_binop_expr(p);
+    while (match(p, TOKEN_PLUS) || match(p, TOKEN_MINUS)) {
+        Token* op = p->prev;
+        ArithBinopKind kind;
+        switch (op->kind) {
+            case TOKEN_PLUS:  kind = ARITH_BINOP_ADD; break;
+            case TOKEN_MINUS: kind = ARITH_BINOP_SUB; break;
+            default: assert(0); break;
+        }
+        AstNode* right = parse_arithmul_binop_expr(p);
+        left = astnode_arith_binop_new(kind, op, left, right);
+    }
+    return left;
+}
+
+static AstNode* parse_booland_binop_expr(ParseCtx* p) {
+    AstNode* left = parse_arithadd_binop_expr(p);
+    while (match(p, TOKEN_KEYWORD_AND)) {
+        Token* op = p->prev;
+        AstNode* right = parse_arithadd_binop_expr(p);
+        left = astnode_bool_binop_new(BOOL_BINOP_AND, op, left, right);
+    }
+    return left;
+}
+
+static AstNode* parse_boolor_binop_expr(ParseCtx* p) {
+    AstNode* left = parse_booland_binop_expr(p);
+    while (match(p, TOKEN_KEYWORD_OR)) {
+        Token* op = p->prev;
+        AstNode* right = parse_booland_binop_expr(p);
+        left = astnode_bool_binop_new(BOOL_BINOP_OR, op, left, right);
     }
     return left;
 }
 
 static AstNode* parse_assign_expr(ParseCtx* p) {
-    AstNode* left = parse_binop_expr(p);
+    AstNode* left = parse_boolor_binop_expr(p);
     if (match(p, TOKEN_EQUAL)) {
         Token* equal = p->prev;
-        AstNode* right = parse_binop_expr(p);
+        AstNode* right = parse_boolor_binop_expr(p);
         left = astnode_assign_new(equal, left, right);
     }
     return left;

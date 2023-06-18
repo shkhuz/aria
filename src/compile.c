@@ -10,6 +10,7 @@
 #include "type.h"
 
 StringTokenKindTup* keywords = NULL;
+StringBuiltinSymbolKindTup* builtin_symbols = NULL;
 PredefTypespecs predef_typespecs;
 
 void init_global_compiler_state() {
@@ -29,6 +30,21 @@ void init_global_compiler_state() {
     bufpush(keywords, (StringTokenKindTup){ "yield", TOKEN_KEYWORD_YIELD });
     bufpush(keywords, (StringTokenKindTup){ "import", TOKEN_KEYWORD_IMPORT });
     bufpush(keywords, (StringTokenKindTup){ "as", TOKEN_KEYWORD_AS });
+    bufpush(keywords, (StringTokenKindTup){ "and", TOKEN_KEYWORD_AND });
+    bufpush(keywords, (StringTokenKindTup){ "or", TOKEN_KEYWORD_OR });
+
+    bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "u8", BS_u8 });
+    bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "u16", BS_u16 });
+    bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "u32", BS_u32 });
+    bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "u64", BS_u64 });
+    bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "i8", BS_i8 });
+    bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "i16", BS_i16 });
+    bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "i32", BS_i32 });
+    bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "i64", BS_i64 });
+    bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "bool", BS_bool });
+    bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "void", BS_void });
+    bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "true", BS_true });
+    bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "false", BS_false });
 
     predef_typespecs = (PredefTypespecs){
         .u8_type = typespec_type_new(typespec_prim_new(PRIM_u8)),
@@ -39,6 +55,7 @@ void init_global_compiler_state() {
         .i16_type = typespec_type_new(typespec_prim_new(PRIM_i16)),
         .i32_type = typespec_type_new(typespec_prim_new(PRIM_i32)),
         .i64_type = typespec_type_new(typespec_prim_new(PRIM_i64)),
+        .bool_type = typespec_type_new(typespec_prim_new(PRIM_bool)),
         .void_type = typespec_type_new(typespec_prim_new(PRIM_void)),
     };
 }

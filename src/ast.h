@@ -80,6 +80,26 @@ typedef struct {
     AstNode* ref;
 } AstNodeSymbol;
 
+typedef enum {
+    BS_u8,
+    BS_u16,
+    BS_u32,
+    BS_u64,
+    BS_i8,
+    BS_i16,
+    BS_i32,
+    BS_i64,
+    BS_bool,
+    BS_void,
+    BS_true,
+    BS_false,
+} BuiltinSymbolKind;
+
+typedef struct {
+    Token* identifier;
+    BuiltinSymbolKind kind;
+} AstNodeBuiltinSymbol;
+
 typedef struct {
     AstNode** stmts;
     AstNode* val;
@@ -138,14 +158,27 @@ typedef struct {
 } AstNodeIndex;
 
 typedef enum {
-    BINOP_ADD,
-    BINOP_SUB,
-} BinopKind;
+    ARITH_BINOP_ADD,
+    ARITH_BINOP_SUB,
+    ARITH_BINOP_MUL,
+    ARITH_BINOP_DIV,
+    ARITH_BINOP_REM,
+} ArithBinopKind;
 
 typedef struct {
     AstNode* left, *right;
-    BinopKind kind;
-} AstNodeBinop;
+    ArithBinopKind kind;
+} AstNodeArithBinop;
+
+typedef enum {
+    BOOL_BINOP_AND,
+    BOOL_BINOP_OR,
+} BoolBinopKind;
+
+typedef struct {
+    AstNode* left, *right;
+    BoolBinopKind kind;
+} AstNodeBoolBinop;
 
 typedef struct {
     AstNode* left, *right;
@@ -211,6 +244,7 @@ typedef enum {
     ASTNODE_TUPLE_LITERAL,
     ASTNODE_AGGREGATE_LITERAL,
     ASTNODE_SYMBOL,
+    ASTNODE_BUILTIN_SYMBOL,
     ASTNODE_SCOPED_BLOCK,
     ASTNODE_IF_BRANCH,
     ASTNODE_IF,
@@ -220,7 +254,8 @@ typedef enum {
     ASTNODE_UNOP,
     ASTNODE_DEREF,
     ASTNODE_INDEX,
-    ASTNODE_BINOP,
+    ASTNODE_ARITH_BINOP,
+    ASTNODE_BOOL_BINOP,
     ASTNODE_ASSIGN,
     ASTNODE_IMPORT,
     ASTNODE_FUNCTION_HEADER,
@@ -252,6 +287,7 @@ struct AstNode {
         AstNodeTupleLiteral tupl;
         AstNodeAggregateLiteral aggl;
         AstNodeSymbol sym;
+        AstNodeBuiltinSymbol bsym;
         AstNodeScopedBlock blk;
         AstNodeIfBranch ifbr;
         AstNodeIf iff;
@@ -261,7 +297,8 @@ struct AstNode {
         AstNodeUnop unop;
         AstNodeDeref deref;
         AstNodeIndex idx;
-        AstNodeBinop binop;
+        AstNodeArithBinop arthbin;
+        AstNodeBoolBinop boolbin;
         AstNodeAssign assign;
         AstNodeImport import;
         AstNodeFunctionHeader funch;
@@ -296,6 +333,7 @@ AstNode* astnode_tuple_literal_new(Token* start, AstNode** elems, Token* end);
 AstNode* astnode_aggregate_literal_new(AstNode* typespec, AstNode** fields, Token* end);
 
 AstNode* astnode_symbol_new(Token* identifier);
+AstNode* astnode_builtin_symbol_new(BuiltinSymbolKind kind, Token* identifier);
 AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end);
 AstNode* astnode_access_new(Token* op, AstNode* left, AstNode* right);
 AstNode* astnode_scoped_block_new(
@@ -318,7 +356,8 @@ AstNode* astnode_return_new(Token* keyword, AstNode* operand);
 AstNode* astnode_unop_new(UnopKind kind, Token* op, AstNode* child);
 AstNode* astnode_deref_new(AstNode* child, Token* dot, Token* star);
 AstNode* astnode_index_new(AstNode* left, AstNode* idx, Token* end);
-AstNode* astnode_binop_new(BinopKind kind, Token* op, AstNode* left, AstNode* right);
+AstNode* astnode_arith_binop_new(ArithBinopKind kind, Token* op, AstNode* left, AstNode* right);
+AstNode* astnode_bool_binop_new(BoolBinopKind kind, Token* op, AstNode* left, AstNode* right);
 AstNode* astnode_assign_new(Token* equal, AstNode* left, AstNode* right);
 
 AstNode* astnode_import_new(Token* keyword, Token* arg, struct Typespec* mod_ty, char* name);

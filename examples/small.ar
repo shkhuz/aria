@@ -78,14 +78,21 @@
 //
 //    yield 1;
 //}
-
+//
 fn call(a: [2]u8) void {}
 fn main() void {
-    mut a: u8 = 1;
+    imm main = 1;
+    imm a = 1;
     imm ptra = &a;
-    imm arr: [3]u8 = [0, a, 3];
-    call([3, 3,]);
+    imm arr: [1]u8 = [9, a, 3]void;
+    void([3, 3,]);
+    imm b: u8 = true or "ds";
+
+    imm c: [-1 / 0]u8 = [2]u8;
+    imm c: [(-1 * 4 / 4)]u8 = [2]u8;
 }
+
+fn cool() void { imm a: u8 = 1; imm x = [0]u8; }
 
 // imm ptr: *fn (i32) i32 = 0x3423432;
 // ptr();

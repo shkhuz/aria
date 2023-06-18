@@ -2,96 +2,95 @@
 #include "buf.h"
 #include "ast.h"
 
-Typespec* typespec_prim_new(PrimKind kind) {
+static Typespec* typespec_new(TypespecKind kind) {
     Typespec* ty = alloc_obj(Typespec);
-    ty->kind = TS_PRIM;
+    ty->kind = kind;
+    return ty;
+}
+
+Typespec* typespec_prim_new(PrimKind kind) {
+    Typespec* ty = typespec_new(TS_PRIM);
     ty->prim.kind = kind;
     return ty;
 }
 
-Typespec* typespec_comptime_integer_new(bigint val) {
-    Typespec* ty = alloc_obj(Typespec);
-    ty->kind = TS_PRIM;
-    ty->prim.kind = PRIM_comptime_integer;
-    ty->prim.comptime_integer = val;
+Typespec* typespec_unsized_integer_new(bigint val) {
+    Typespec* ty = typespec_new(TS_PRIM);
+    ty->prim.kind = PRIM_integer;
+    ty->prim.integer = val;
     return ty;
 }
 
 Typespec* typespec_ptr_new(bool immutable, Typespec* child) {
-    Typespec* ty = alloc_obj(Typespec);
-    ty->kind = TS_PTR;
+    Typespec* ty = typespec_new(TS_PTR);
     ty->ptr.immutable = immutable;
     ty->ptr.child = child;
     return ty;
 }
 
 Typespec* typespec_multiptr_new(bool immutable, Typespec* child) {
-    Typespec* ty = alloc_obj(Typespec);
-    ty->kind = TS_MULTIPTR;
+    Typespec* ty = typespec_new(TS_MULTIPTR);
     ty->mulptr.immutable = immutable;
     ty->mulptr.child = child;
     return ty;
 }
 
 Typespec* typespec_slice_new(bool immutable, Typespec* child) {
-    Typespec* ty = alloc_obj(Typespec);
-    ty->kind = TS_SLICE;
+    Typespec* ty = typespec_new(TS_SLICE);
     ty->slice.immutable = immutable;
     ty->slice.child = child;
     return ty;
 }
 
 Typespec* typespec_array_new(Typespec* size, Typespec* child) {
-    assert(size->kind == TS_PRIM && size->prim.kind == PRIM_comptime_integer);
-    Typespec* ty = alloc_obj(Typespec);
-    ty->kind = TS_ARRAY;
+    Typespec* ty = typespec_new(TS_ARRAY);
     ty->array.size = size;
     ty->array.child = child;
     return ty;
 }
 
 Typespec* typespec_func_new(Typespec** params, Typespec* ret_typespec) {
-    Typespec* ty = alloc_obj(Typespec);
-    ty->kind = TS_FUNC;
+    Typespec* ty = typespec_new(TS_FUNC);
     ty->func.params = params;
     ty->func.ret_typespec = ret_typespec;
     return ty;
 }
 
 Typespec* typespec_struct_new(struct AstNode* astnode) {
-    Typespec* ty = alloc_obj(Typespec);
-    ty->kind = TS_STRUCT;
+    Typespec* ty = typespec_new(TS_STRUCT);
     ty->agg = astnode;
     return ty;
 }
 
 Typespec* typespec_type_new(Typespec* typespec) {
-    Typespec* ty = alloc_obj(Typespec);
-    ty->kind = TS_TYPE;
+    Typespec* ty = typespec_new(TS_TYPE);
     ty->ty = typespec;
     return ty;
 }
 
 Typespec* typespec_module_new(struct Srcfile* srcfile) {
-    Typespec* ty = alloc_obj(Typespec);
-    ty->kind = TS_MODULE;
+    Typespec* ty = typespec_new(TS_MODULE);
     ty->mod.srcfile = srcfile;
     return ty;
 }
 
 static char* primkind_tostring(PrimKind kind) {
+    char* type;
     switch (kind) {
-        case PRIM_u8: return "u8";
-        case PRIM_u16: return "u16";
-        case PRIM_u32: return "u32";
-        case PRIM_u64: return "u64";
-        case PRIM_i8: return "i8";
-        case PRIM_i16: return "i16";
-        case PRIM_i32: return "i32";
-        case PRIM_i64: return "i64";
-        case PRIM_void: return "void";
-        case PRIM_comptime_integer: return "{integer}";
+        case PRIM_u8:   type = "u8"; break;
+        case PRIM_u16:  type = "u16"; break;
+        case PRIM_u32:  type = "u32"; break;
+        case PRIM_u64:  type = "u64"; break;
+        case PRIM_i8:   type = "i8"; break;
+        case PRIM_i16:  type = "i16"; break;
+        case PRIM_i32:  type = "i32"; break;
+        case PRIM_i64:  type = "i64"; break;
+        case PRIM_integer: type = "{integer}"; break;
+        case PRIM_bool: type = "bool"; break;
+        case PRIM_void: type = "void"; break;
+        default: assert(0); break;
     }
+    return type;
 }
 
 static char* tostring(Typespec* ty) {
@@ -130,7 +129,7 @@ static char* tostring(Typespec* ty) {
         case TS_ARRAY: {
             char* buf = NULL;
             bufpush(buf, '[');
-            bufstrexpandpush(buf, bigint_tostring(&ty->array.size->prim.comptime_integer));
+            bufstrexpandpush(buf, bigint_tostring(&ty->array.size->prim.integer));
             bufpush(buf, ']');
             bufstrexpandpush(buf, tostring(ty->array.child));
             bufpush(buf, '\0');
@@ -166,9 +165,8 @@ static char* tostring(Typespec* ty) {
     return NULL;
 }
 
-bool typespec_is_integer(Typespec* ty) {
+bool typespec_is_sized_integer(Typespec* ty) {
     switch (ty->kind) {
-        case TS_TYPE: return typespec_is_integer(ty->ty);
         case TS_PRIM: {
             switch (ty->prim.kind) {
                 case PRIM_u8:
@@ -188,8 +186,25 @@ bool typespec_is_integer(Typespec* ty) {
     }
 }
 
-bool typespec_is_comptime_integer(Typespec* ty) {
-    return ty->kind == TS_PRIM && ty->prim.kind == PRIM_comptime_integer;
+bool typespec_is_unsized_integer(Typespec* ty) {
+    return ty->kind == TS_PRIM && ty->prim.kind == PRIM_integer;
+}
+
+bool typespec_is_integer(Typespec* ty) {
+    return typespec_is_sized_integer(ty) || typespec_is_unsized_integer(ty);
+}
+
+bool typespec_is_sized(Typespec* ty) {
+    switch (ty->kind) {
+        case TS_PRIM: {
+            switch (ty->prim.kind) {
+                case PRIM_integer: return false;
+                default: return true;
+            }
+        } break;
+        case TS_FUNC: return false;
+        default: return true;
+    }
 }
 
 bool typespec_is_signed(Typespec* ty) {
@@ -212,19 +227,6 @@ bool typespec_is_signed(Typespec* ty) {
 
 bool typespec_is_arrptr(Typespec* ty) {
     return ty->kind == TS_PTR && ty->ptr.child->kind == TS_ARRAY;
-}
-
-bool typespec_is_sized(Typespec* ty) {
-    switch (ty->kind) {
-        case TS_PRIM: {
-            switch (ty->prim.kind) {
-                case PRIM_comptime_integer:
-                case PRIM_void: return false;
-                default: return true;
-            }
-        } break;
-        default: return true;
-    }
 }
 
 u32 typespec_get_bytes(Typespec* ty) {
