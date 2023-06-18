@@ -180,6 +180,7 @@ AstNode* astnode_scoped_block_new(
     astnode->blk.stmts = stmts;
     astnode->blk.yield_keyword = yield_keyword;
     astnode->blk.val = val;
+    astnode->blk.rbrace = rbrace;
     return astnode;
 }
 

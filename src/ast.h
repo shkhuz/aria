@@ -104,6 +104,7 @@ typedef struct {
     AstNode** stmts;
     Token* yield_keyword;
     AstNode* val;
+    Token* rbrace;
 } AstNodeScopedBlock;
 
 typedef enum {

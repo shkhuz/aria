@@ -578,6 +578,57 @@ static Typespec* sema_index_type(SemaCtx* s, Typespec* ty, Span error, bool dere
     }
 }
 
+static bool sema_if_branch(
+    SemaCtx* s,
+    AstNode* br,
+    bool* first_br_val_valid,
+    Typespec** first_br_val_type,
+    Span* first_br_val_span)
+{
+    bool error = false;
+    if (br->ifbr.kind != IFBR_ELSE) {
+        Typespec* cond = sema_astnode(s, br->ifbr.cond, NULL);
+        if (cond && sema_verify_typespec(s, cond, AT_VALUE, br->ifbr.cond->span)) {
+            if (sema_check_types_equal(s, cond, predef_typespecs.bool_type->ty, false, br->ifbr.cond->span)) {
+                br->ifbr.cond->typespec = predef_typespecs.bool_type->ty;
+            } else error = true;
+        } else error = true;
+    }
+
+    Typespec* body = sema_astnode(s, br->ifbr.body, NULL);
+    if (body && sema_verify_typespec(s, body, AT_VALUE, br->ifbr.body->span)) {
+        Span cur_br_val_span =
+            br->ifbr.body->kind != ASTNODE_SCOPED_BLOCK
+            ? br->ifbr.body->span
+            : (br->ifbr.body->blk.val
+               ? br->ifbr.body->blk.val->span
+               : br->ifbr.body->blk.rbrace->span);
+        if (*first_br_val_valid) {
+            if (type_comparison_ok(sema_are_types_equal(
+                s,
+                body,
+                *first_br_val_type,
+                cur_br_val_span,
+                false))) {
+                br->typespec = body;
+            } else {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    format_string_with_two_types("`if` branch type mismatch: `%T` and `%T`", *first_br_val_type, body), // TODO: print types in note ig
+                    cur_br_val_span);
+                msg_addl_fat(&msg, "previous branch value here", *first_br_val_span);
+                msg_emit(s, &msg);
+                error = true;
+            }
+        } else if (br->ifbr.kind == IFBR_IF) {
+            *first_br_val_valid = true;
+            *first_br_val_type = body;
+            *first_br_val_span = cur_br_val_span;
+        }
+    } else error = true;
+    return error;
+}
+
 static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
     switch (astnode->kind) {
         case ASTNODE_INTEGER_LITERAL: {
@@ -1048,8 +1099,16 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             bufloop(astnode->blk.stmts, i) {
                 if (!sema_astnode(s, astnode->blk.stmts[i], target)) error = true;
             }
+            if (astnode->blk.val) {
+                Typespec* val = sema_astnode(s, astnode->blk.val, NULL);
+                if (val && sema_verify_typespec(s, val, AT_VALUE, astnode->blk.val->span)) {
+                    astnode->typespec = val;
+                } else error = true;
+            } else {
+                astnode->typespec = predef_typespecs.void_type->ty;
+            }
             sema_scope_pop(s);
-            return error ? NULL : NULL;
+            return error ? NULL : astnode->typespec;
         } break;
 
         case ASTNODE_FUNCTION_CALL: {
@@ -1149,6 +1208,37 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
         case ASTNODE_IMPORT: {
             sema_scope_declare(s, astnode->import.name, astnode, astnode->import.arg->span);
+        } break;
+
+        case ASTNODE_IF: {
+            bool error = false;
+
+            bool first_br_val_valid = false;
+            Typespec* first_br_val_type = NULL;
+            Span first_br_val_span;
+
+            if (!sema_if_branch(
+                s,
+                astnode->iff.ifbr,
+                &first_br_val_valid,
+                &first_br_val_type,
+                &first_br_val_span)) error = true;
+            bufloop(astnode->iff.elseifbr, i) {
+                if (!sema_if_branch(
+                    s,
+                    astnode->iff.elseifbr[i],
+                    &first_br_val_valid,
+                    &first_br_val_type,
+                    &first_br_val_span)) error = true;
+            }
+            if (astnode->iff.elsebr) {
+                if (!sema_if_branch(
+                    s,
+                    astnode->iff.elsebr,
+                    &first_br_val_valid,
+                    &first_br_val_type,
+                    &first_br_val_span)) error = true;
+            }
         } break;
 
         case ASTNODE_VARIABLE_DECL: {

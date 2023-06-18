@@ -92,6 +92,11 @@ fn main() void {
     imm c: [(-1 * 4 / 4)]u8 = [2]u8;
 
     imm x = !!true;
+    imm x = if (true) { imm xx = 1; yield a; } else {};
+
+    // if errors
+    // 1. else required if value used
+    // 2. if cannot contain an if without {}
 }
 
 fn cool() void { imm a: u8 = 1; imm x = [0]u8; }
