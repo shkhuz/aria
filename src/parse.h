@@ -18,7 +18,7 @@ typedef struct {
 
     // 0 if not inside function.
     // Denotes the current function nesting.
-    usize in_func;
+    //usize in_func;
 } ParseCtx;
 
 ParseCtx parse_new_context(

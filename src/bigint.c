@@ -247,6 +247,7 @@ void bigint_mul(bigint* a, const bigint* b) {
 }
 
 void bigint_div_mod(const bigint* num, const bigint* den, bigint* quo, bigint* rem) {
+    // TODO: error on division by zero
     bigint_copy(rem, num);
     bigint_set_u64(quo, 0);
 

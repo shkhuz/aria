@@ -170,6 +170,7 @@ AstNode* astnode_builtin_symbol_new(BuiltinSymbolKind kind, Token* identifier) {
 AstNode* astnode_scoped_block_new(
     Token* lbrace,
     AstNode** stmts,
+    Token* yield_keyword,
     AstNode* val,
     Token* rbrace)
 {
@@ -177,6 +178,7 @@ AstNode* astnode_scoped_block_new(
         ASTNODE_SCOPED_BLOCK,
         span_from_two(lbrace->span, rbrace->span));
     astnode->blk.stmts = stmts;
+    astnode->blk.yield_keyword = yield_keyword;
     astnode->blk.val = val;
     return astnode;
 }
@@ -326,13 +328,12 @@ AstNode* astnode_function_header_new(
     return astnode;
 }
 
-AstNode* astnode_function_def_new(AstNode* header, AstNode* body, bool global) {
+AstNode* astnode_function_def_new(AstNode* header, AstNode* body) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_FUNCTION_DEF,
         span_from_two(header->span, body->span));
     astnode->funcdef.header = header;
     astnode->funcdef.body = body;
-    astnode->funcdef.global = global;
     return astnode;
 }
 

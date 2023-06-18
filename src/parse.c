@@ -22,7 +22,6 @@ ParseCtx parse_new_context(
     p.compile_ctx = compile_ctx;
     p.error = false;
     p.error_handler_pos = error_handler_pos;
-    p.in_func = 0;
     return p;
 }
 
@@ -563,56 +562,191 @@ static AstNode* parse_function_header(ParseCtx* p) {
     return astnode_function_header_new(keyword, identifier, params, ret_type);
 }
 
+static AstNode* parse_variable_decl(ParseCtx* p, bool global) {
+    Token* keyword = p->prev;
+    bool immutable = true;
+    if (keyword->kind == TOKEN_KEYWORD_MUT) immutable = false;
+    Token* identifier = expect_identifier(p, "expected variable name");
+    AstNode* typespec = NULL;
+    if (match(p, TOKEN_COLON)) {
+        typespec = parse_typespec(p);
+    }
+    Token* equal = NULL;
+    AstNode* initializer = NULL;
+    if (global) {
+        equal = expect_equal(p);
+        initializer = parse_expr(p);
+    } else if (match(p, TOKEN_EQUAL)) {
+        equal = p->prev;
+        initializer = parse_expr(p);
+    }
+    expect_semicolon(p);
+    return astnode_variable_decl_new(
+        keyword,
+        identifier,
+        typespec,
+        equal,
+        initializer,
+        !global,
+        immutable);
+}
+
+static AstNode* parse_import(ParseCtx* p) {
+    Token* keyword = p->prev;
+    Token* arg = expect(p, TOKEN_STRING_LITERAL, "expected path string");
+    Token* as = NULL;
+    if (match(p, TOKEN_KEYWORD_AS)) {
+        as = expect_identifier(p, "expected new module name");
+    }
+    expect_semicolon(p);
+
+    if (is_token_lexeme(arg, "")) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            "empty import",
+            arg->span);
+        msg_emit_non_fatal(p, &msg);
+        return NULL;
+    }
+
+    // Denotes path wrt. file.
+    char* path_wfile = token_tostring(arg);
+    usize path_wfile_len = strlen(path_wfile);
+    path_wfile += 1;
+    path_wfile_len -= 1;
+    path_wfile[--path_wfile_len] = '\0';
+
+    const char* cur_path = p->srcfile->handle.path;
+    // Denotes path wrt. compiler.
+    char* path_wcomp = NULL;
+    {
+        isize last_fslash_idx = -1;
+        for (const char* c = cur_path; *c != '\0'; c++) {
+            if (*c == '/') last_fslash_idx = c - cur_path;
+        }
+        for (isize i = 0; i <= last_fslash_idx; i++) {
+            bufpush(path_wcomp, cur_path[i]);
+        }
+        for (usize i = 0; i < path_wfile_len; i++) {
+            bufpush(path_wcomp, path_wfile[i]);
+        }
+        bufpush(path_wcomp, '\0');
+    }
+
+    char* name = NULL;
+    {
+        usize last_dot_idx = path_wfile_len;
+        usize last_fslash_idx = 0;
+        for (usize i = 0; i < path_wfile_len; i++) {
+            if (path_wfile[i] == '.') last_dot_idx = i;
+            else if (path_wfile[i] == '/') {
+                last_fslash_idx = i+1;
+            }
+        }
+        for (usize i = last_fslash_idx; i < last_dot_idx; i++) {
+            bufpush(name, path_wfile[i]);
+        }
+        bufpush(name, '\0');
+    }
+
+    Token* final_arg_token = as ? as : arg;
+    char* final_name = as ? token_tostring(as) : name;
+
+    /* printf(">> path_wfile: %s\n", path_wfile); */
+    /* printf(">> path_wcomp: %s\n", path_wcomp); */
+    /* printf(">> name: %s\n", name); */
+    /* printf(">> final_name: %s\n", final_name); */
+
+    Typespec* mod = read_srcfile(
+        path_wcomp,
+        span_some(arg->span),
+        p->compile_ctx);
+
+    if (mod) {
+        return astnode_import_new(
+            keyword,
+            final_arg_token,
+            mod,
+            final_name);
+    }
+    p->error = true;
+    return NULL;
+}
+
+static AstNode* parse_astnode_func_scope(ParseCtx* p, bool error_on_no_match) {
+    if (match(p, TOKEN_KEYWORD_IMM) || match(p, TOKEN_KEYWORD_MUT)) {
+        return parse_variable_decl(p, false);
+    } else if (match(p, TOKEN_KEYWORD_IMPORT)) {
+        return parse_import(p);
+    }
+
+    if (error_on_no_match) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            "expected a declaration or a definition",
+            p->current->span);
+        msg_emit(p, &msg);
+    }
+    return NULL;
+}
+
 static AstNode* parse_scoped_block(ParseCtx* p) {
     Token* lbrace = p->prev;
     AstNode** stmts = NULL;
+    Token* yield_keyword = NULL;
     AstNode* val = NULL;
 
     while (!match(p, TOKEN_RBRACE)) {
         check_eof(p, lbrace);
-        AstNode* stmt = parse_root(p, false);
+        AstNode* stmt = parse_astnode_func_scope(p, false);
         if (stmt) bufpush(stmts, stmt);
-        else {
-            if (match(p, TOKEN_KEYWORD_YIELD)) {
-                val = parse_expr(p);
-                expect_semicolon(p);
-                if (!match(p, TOKEN_RBRACE)) {
-                    Msg msg = msg_with_span(
-                        MSG_ERROR,
-                        "expected `}`",
-                        p->current->span);
-                    msg_addl_thin(&msg, "`yield` must be last in a block");
-                    msg_emit(p, &msg);
-                }
-                break;
-            } else {
-                AstNode* expr = parse_expr(p);
-                if ((expr->kind == ASTNODE_IF
-                     && get_last_if_branch(
-                            expr->iff.ifbr,
-                            expr->iff.elseifbr,
-                            expr->iff.elsebr)->ifbr.body->kind == ASTNODE_SCOPED_BLOCK)
-                    || expr->kind == ASTNODE_SCOPED_BLOCK) {
-                } else {
-                    expect_semicolon(p);
-                }
-
-                AstNode* exprstmt = astnode_exprstmt_new(expr);
-                bufpush(stmts, exprstmt);
+        else if (match(p, TOKEN_KEYWORD_YIELD)) {
+            yield_keyword = p->prev;
+            val = parse_expr(p);
+            expect_semicolon(p);
+            if (!match(p, TOKEN_RBRACE)) {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    "expected `}`",
+                    p->current->span);
+                msg_addl_thin(&msg, "`yield` must be last in a block");
+                msg_emit(p, &msg);
             }
+            break;
+        } else {
+            AstNode* expr = parse_expr(p);
+            if ((expr->kind == ASTNODE_IF
+                 && get_last_if_branch(
+                        expr->iff.ifbr,
+                        expr->iff.elseifbr,
+                        expr->iff.elsebr)->ifbr.body->kind == ASTNODE_SCOPED_BLOCK)
+                || expr->kind == ASTNODE_SCOPED_BLOCK) {
+            } else {
+                expect_semicolon(p);
+            }
+
+            AstNode* exprstmt = astnode_exprstmt_new(expr);
+            bufpush(stmts, exprstmt);
         }
     }
-    return astnode_scoped_block_new(lbrace, stmts, val, p->prev);
+    return astnode_scoped_block_new(lbrace, stmts, yield_keyword, val, p->prev);
 }
 
-static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
+static AstNode* parse_astnode_root(ParseCtx* p) {
     if (match(p, TOKEN_KEYWORD_FN)) {
         AstNode* header = parse_function_header(p);
         expect_lbrace(p);
-        p->in_func++;
         AstNode* body = parse_scoped_block(p);
-        p->in_func--;
-        return astnode_function_def_new(header, body, p->in_func == 0 ? true : false);
+        if (body->blk.val) {
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                "`yield` cannot be used in a function block",
+                body->blk.yield_keyword->span);
+            msg_addl_thin(&msg, "`yield` can only be used in a scoped block");
+            msg_addl_thin(&msg, "use `return` instead");
+            msg_emit(p, &msg);
+        }
+        return astnode_function_def_new(header, body);
     } else if (match(p, TOKEN_KEYWORD_STRUCT)) {
         Token* keyword = p->prev;
         Token* identifier = expect_identifier(p, "expected identifier");
@@ -652,120 +786,22 @@ static AstNode* parse_root(ParseCtx* p, bool error_on_no_match) {
         }
         return astnode_struct_new(keyword, identifier, fields, p->prev);
     } else if (match(p, TOKEN_KEYWORD_IMM) || match(p, TOKEN_KEYWORD_MUT)) {
-        Token* keyword = p->prev;
-        bool immutable = true;
-        if (keyword->kind == TOKEN_KEYWORD_MUT) immutable = false;
-        Token* identifier = expect_identifier(p, "expected variable name");
-        AstNode* typespec = NULL;
-        if (match(p, TOKEN_COLON)) {
-            typespec = parse_typespec(p);
-        }
-        Token* equal = expect_equal(p);
-        AstNode* initializer = parse_expr(p);
-        expect_semicolon(p);
-        return astnode_variable_decl_new(
-            keyword,
-            identifier,
-            typespec,
-            equal,
-            initializer,
-            p->in_func == 0 ? false : true,
-            immutable);
+        return parse_variable_decl(p, true);
     } else if (match(p, TOKEN_KEYWORD_IMPORT)) {
-        Token* keyword = p->prev;
-        Token* arg = expect(p, TOKEN_STRING_LITERAL, "expected path string");
-        Token* as = NULL;
-        if (match(p, TOKEN_KEYWORD_AS)) {
-            as = expect_identifier(p, "expected new module name");
-        }
-        expect_semicolon(p);
-
-        if (is_token_lexeme(arg, "")) {
-            Msg msg = msg_with_span(
-                MSG_ERROR,
-                "empty import",
-                arg->span);
-            msg_emit_non_fatal(p, &msg);
-            return NULL;
-        }
-
-        // Denotes path wrt. file.
-        char* path_wfile = token_tostring(arg);
-        usize path_wfile_len = strlen(path_wfile);
-        path_wfile += 1;
-        path_wfile_len -= 1;
-        path_wfile[--path_wfile_len] = '\0';
-
-        const char* cur_path = p->srcfile->handle.path;
-        // Denotes path wrt. compiler.
-        char* path_wcomp = NULL;
-        {
-            isize last_fslash_idx = -1;
-            for (const char* c = cur_path; *c != '\0'; c++) {
-                if (*c == '/') last_fslash_idx = c - cur_path;
-            }
-            for (isize i = 0; i <= last_fslash_idx; i++) {
-                bufpush(path_wcomp, cur_path[i]);
-            }
-            for (usize i = 0; i < path_wfile_len; i++) {
-                bufpush(path_wcomp, path_wfile[i]);
-            }
-            bufpush(path_wcomp, '\0');
-        }
-
-        char* name = NULL;
-        {
-            usize last_dot_idx = path_wfile_len;
-            usize last_fslash_idx = 0;
-            for (usize i = 0; i < path_wfile_len; i++) {
-                if (path_wfile[i] == '.') last_dot_idx = i;
-                else if (path_wfile[i] == '/') {
-                    last_fslash_idx = i+1;
-                }
-            }
-            for (usize i = last_fslash_idx; i < last_dot_idx; i++) {
-                bufpush(name, path_wfile[i]);
-            }
-            bufpush(name, '\0');
-        }
-
-        Token* final_arg_token = as ? as : arg;
-        char* final_name = as ? token_tostring(as) : name;
-
-        /* printf(">> path_wfile: %s\n", path_wfile); */
-        /* printf(">> path_wcomp: %s\n", path_wcomp); */
-        /* printf(">> name: %s\n", name); */
-        /* printf(">> final_name: %s\n", final_name); */
-
-        Typespec* mod = read_srcfile(
-            path_wcomp,
-            span_some(arg->span),
-            p->compile_ctx);
-
-        if (mod) {
-            return astnode_import_new(
-                keyword,
-                final_arg_token,
-                mod,
-                final_name);
-        }
-        p->error = true;
-        return NULL;
+        return parse_import(p);
     }
 
-    if (error_on_no_match) {
-        Msg msg = msg_with_span(
-            MSG_ERROR,
-            "expected a declaration or a definition",
-            p->current->span);
-        msg_emit(p, &msg);
-    }
+    Msg msg = msg_with_span(
+        MSG_ERROR,
+        "expected a declaration or a definition",
+        p->current->span);
+    msg_emit(p, &msg);
     return NULL;
 }
 
 void parse(ParseCtx* p) {
     while (p->current->kind != TOKEN_EOF) {
-        AstNode* astnode = parse_root(p, true);
+        AstNode* astnode = parse_astnode_root(p);
         if (astnode) bufpush(p->srcfile->astnodes, astnode);
     }
 }

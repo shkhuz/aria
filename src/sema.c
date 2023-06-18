@@ -1003,9 +1003,6 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
         } break;
 
         case ASTNODE_FUNCTION_DEF: {
-            if (!astnode->funcdef.global) {
-                sema_top_level_decls_prec2(s, astnode);
-            }
             sema_astnode(s, astnode->funcdef.body, astnode->funcdef.header->funch.ret_typespec->typespec->ty);
         } break;
 
@@ -1096,7 +1093,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
         case ASTNODE_ACCESS: {
             Typespec* left = sema_astnode(s, astnode->acc.left, NULL);
-            if (left/*NOTE: No checking of `left` because types/mmodules are allowed as operands.*/) {
+            if (left/*NOTE: No checking of `left` because types/modules are allowed as operands.*/) {
                 assert(astnode->acc.right->kind == ASTNODE_SYMBOL);
                 Token* right = astnode->acc.right->sym.identifier;
                 astnode->typespec = sema_access_field_from_type(s, left, right, astnode->short_span, false);
@@ -1106,6 +1103,11 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
         case ASTNODE_GENERIC_TYPESPEC: {
             Typespec* left = sema_astnode(s, astnode->genty.left, NULL);
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                "[internal] generics not implemented yet",
+                astnode->span);
+            msg_emit(s, &msg);
             // TODO: implement
         } break;
 

@@ -102,6 +102,7 @@ typedef struct {
 
 typedef struct {
     AstNode** stmts;
+    Token* yield_keyword;
     AstNode* val;
 } AstNodeScopedBlock;
 
@@ -201,8 +202,6 @@ typedef struct {
 typedef struct {
     AstNode* header;
     AstNode* body;
-
-    bool global;
 } AstNodeFunctionDef;
 
 typedef struct {
@@ -339,6 +338,7 @@ AstNode* astnode_access_new(Token* op, AstNode* left, AstNode* right);
 AstNode* astnode_scoped_block_new(
     Token* lbrace,
     AstNode** stmts,
+    Token* yield_keyword,
     AstNode* val,
     Token* rbrace);
 AstNode* astnode_if_branch_new(
@@ -366,7 +366,7 @@ AstNode* astnode_function_header_new(
     Token* identifier,
     AstNode** params,
     AstNode* ret_typespec);
-AstNode* astnode_function_def_new(AstNode* header, AstNode* body, bool global);
+AstNode* astnode_function_def_new(AstNode* header, AstNode* body);
 AstNode* astnode_variable_decl_new(
     Token* start,
     Token* identifier,

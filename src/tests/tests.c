@@ -275,6 +275,133 @@ int main() {
         })
     );
 
+    test_valid(
+        "Empty struct definition",
+        "struct Main {}\n"
+        "pub fn main() void {}\n");
+
+    test_valid(
+        "Struct definition with one field",
+        "struct Main { a: u8 }\n"
+        "pub fn main() void {}\n");
+
+    test_valid(
+        "Struct definition with one field",
+        "struct Main { a: u8, }\n"
+        "pub fn main() void {}\n");
+
+    test_valid(
+        "Struct instantiation",
+        "struct Main { a: u8, b: u16, }\n"
+        "pub fn main() void {\n"
+        "    imm x = Main {\n"
+        "        .a = 1,\n"
+        "        .b = 1,\n"
+        "    };\n"
+        "}\n");
+
+    test_valid(
+        "Struct instantiation",
+        "struct Main { a: u8, b: u16, }\n"
+        "pub fn main() void {\n"
+        "    imm x: Main = .{\n"
+        "        .a = 1,\n"
+        "        .b = 1,\n"
+        "    };\n"
+        "}\n");
+
+    test_valid(
+        "Struct type usage",
+        "pub fn main() void {}\n"
+        "pub fn call(m: Main) void {}\n"
+        "struct Main { a: u8, b: u16, }\n");
+
+    test_valid(
+        "Empty function definition",
+        "pub fn main() void {}\n");
+
+    test_valid(
+        "Private empty function definition",
+        "pub fn main() void {}\n"
+        "fn empty() void {}\n");
+
+    test_valid(
+        "Function definition with return type",
+        "pub fn main() void {}\n"
+        "fn empty() *imm u8 {}\n");
+
+    test_valid(
+        "Function definition with arguments",
+        "pub fn main() void {}\n"
+        "fn empty(a: u8, b: []i32) void;\n");
+
+    test_valid(
+        "Function definition with arguments",
+        "pub fn main() void {}\n"
+        "fn empty(a: u8, b: []imm i32,) void;\n");
+
+    test_valid(
+        "Function definition with body",
+        "pub fn main() void { return; }\n");
+
+    test_valid(
+        "Function call",
+        "pub fn main() void { call(); }\n"
+        "fn call() void {}\n");
+
+    test_valid(
+        "Function call",
+        "pub fn main() void { _ = call(); }\n"
+        "fn call() u8 {}\n");
+
+    test_valid(
+        "Function call",
+        "pub fn main() void { _ = call(1); }\n"
+        "fn call(a: i32) u8 {}\n");
+
+    test_valid(
+        "Function call",
+        "pub fn main() void { _ = call(1, 2); }\n"
+        "fn call(a: i32, b: i64) u8 {}\n");
+
+    test_valid(
+        "Function call",
+        "pub fn main() void { _ = call(1, 2,); }\n"
+        "fn call(a: i32, b: i64,) u8 {}\n");
+
+    test_valid(
+        "Builtin types",
+        "pub fn main() void {\n"
+        "    mut x: (\n"
+        "        u8,\n"
+        "        u16,\n"
+        "        u32,\n"
+        "        u64,\n"
+        "        i8,\n"
+        "        i16,\n"
+        "        i32,\n"
+        "        i64,\n"
+        "        f32,\n"
+        "        f64,\n"
+        "        bool,\n"
+        "        void,\n"
+        "        *u8,\n"
+        "        *imm u8,\n"
+        "        [*]u8,\n"
+        "        [*]imm u8,\n"
+        "        []u8,\n"
+        "        []imm u8,\n"
+        "        [0]u8,\n"
+        "        [1]u8,\n"
+        "        [2]u8,\n"
+        "        (u8),\n"
+        "        (u8, u16),\n"
+        "        (u8, u16,),\n"
+        "    );\n"
+        "}\n");
+
+    // Main tests end
+
     test_invalid_one_errspan(
         "eof error in function call",
         "fn main() void{\n"
@@ -577,10 +704,10 @@ int main() {
 
     test_invalid_one_errspan(
         "index",
-        "fn main() void { mut a = 1; imm ptr = &a; ptr[0] = 2; }\n",
-        "cannot index type `*{integer}`",
+        "fn main() void { imm a: u8 = 1; imm ptr = &a; ptr[0] = 2; }\n",
+        "cannot index type `*imm u8`",
         1,
-        33);
+        47);
 
     // TODO: add integer error tests
     //test_invalid_one_errspan(
@@ -602,7 +729,7 @@ int main() {
 
     test_valid(
         "array literal",
-        "fn main() void { imm x: [_]i32 = [0, 1, 2, 3]; }\n");
+        "fn main() void { imm x: [4]i32 = [0, 1, 2, 3]; }\n");
 
     test_valid(
         "array literal",
@@ -610,7 +737,7 @@ int main() {
 
     test_valid(
         "array literal",
-        "fn main() void { imm x = [0, 1, 2, 3]; }\n");
+        "fn main() void { imm x = [0, 1, 2, 3]i32; }\n");
 
     test_valid(
         "tuple literal",
