@@ -181,6 +181,20 @@ typedef struct {
     BoolBinopKind kind;
 } AstNodeBoolBinop;
 
+typedef enum {
+    CMP_BINOP_EQ,
+    CMP_BINOP_NE,
+    CMP_BINOP_LT,
+    CMP_BINOP_GT,
+    CMP_BINOP_LE,
+    CMP_BINOP_GE,
+} CmpBinopKind;
+
+typedef struct {
+    AstNode* left, *right;
+    CmpBinopKind kind;
+} AstNodeCmpBinop;
+
 typedef struct {
     AstNode* left, *right;
 } AstNodeAssign;
@@ -255,6 +269,7 @@ typedef enum {
     ASTNODE_INDEX,
     ASTNODE_ARITH_BINOP,
     ASTNODE_BOOL_BINOP,
+    ASTNODE_CMP_BINOP,
     ASTNODE_ASSIGN,
     ASTNODE_IMPORT,
     ASTNODE_FUNCTION_HEADER,
@@ -298,6 +313,7 @@ struct AstNode {
         AstNodeIndex idx;
         AstNodeArithBinop arthbin;
         AstNodeBoolBinop boolbin;
+        AstNodeCmpBinop cmpbin;
         AstNodeAssign assign;
         AstNodeImport import;
         AstNodeFunctionHeader funch;
@@ -358,6 +374,7 @@ AstNode* astnode_deref_new(AstNode* child, Token* dot, Token* star);
 AstNode* astnode_index_new(AstNode* left, AstNode* idx, Token* end);
 AstNode* astnode_arith_binop_new(ArithBinopKind kind, Token* op, AstNode* left, AstNode* right);
 AstNode* astnode_bool_binop_new(BoolBinopKind kind, Token* op, AstNode* left, AstNode* right);
+AstNode* astnode_cmp_binop_new(CmpBinopKind kind, Token* op, AstNode* left, AstNode* right);
 AstNode* astnode_assign_new(Token* equal, AstNode* left, AstNode* right);
 
 AstNode* astnode_import_new(Token* keyword, Token* arg, struct Typespec* mod_ty, char* name);

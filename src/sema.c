@@ -242,17 +242,28 @@ static TypeComparisonResult sema_are_types_equal(SemaCtx* s, Typespec* from, Typ
     return TC_MISMATCH;
 }
 
-static bool sema_check_types_equal(SemaCtx* s, Typespec* from, Typespec* to, Span error) {
+static bool sema_check_types_equal(SemaCtx* s, Typespec* from, Typespec* to, bool peer, Span error) {
     TypeComparisonResult cmpresult = sema_are_types_equal(s, from, to, error, false);
     if (!type_comparison_ok(cmpresult)) {
-        Msg msg = msg_with_span(
-            MSG_ERROR,
-            format_string_with_two_types("expected type `%T`, got `%T`", to, from),
-            error);
-        if (cmpresult == TC_CONST) {
-            msg_addl_thin(&msg, "type mismatch due to change in immutability");
+        if (peer) {
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                format_string_with_two_types("type mismatch: `%T` and `%T`", from, to),
+                error);
+            if (cmpresult == TC_CONST) {
+                msg_addl_thin(&msg, "type mismatch due to change in immutability");
+            }
+            msg_emit(s, &msg);
+        } else {
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                format_string_with_two_types("expected type `%T`, got `%T`", to, from),
+                error);
+            if (cmpresult == TC_CONST) {
+                msg_addl_thin(&msg, "type mismatch due to change in immutability");
+            }
+            msg_emit(s, &msg);
         }
-        msg_emit(s, &msg);
     }
     return cmpresult == TC_OK ? true : false;
 }
@@ -629,7 +640,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                     Typespec* cur_elem_type = sema_astnode(s, elems[i], final_elem_type);
                     if (cur_elem_type && sema_verify_typespec(s, cur_elem_type, AT_VALUE, elems[i]->span)) {
                         if (!typespec_is_sized(cur_elem_type)) unsized_elems = true;
-                        if (sema_check_types_equal(s, cur_elem_type, final_elem_type, elems[i]->span)) {
+                        if (sema_check_types_equal(s, cur_elem_type, final_elem_type, false, elems[i]->span)) {
                             elems[i]->typespec = final_elem_type;
                         } else error = true;
                     } else error = true;
@@ -906,14 +917,30 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                 bool left_valid = sema_verify_typespec(s, left, AT_VALUE, astnode->boolbin.left->span);
                 bool right_valid = sema_verify_typespec(s, right, AT_VALUE, astnode->boolbin.right->span);
                 if (left_valid && right_valid) {
-                    bool left_bool = sema_check_types_equal(s, left, predef_typespecs.bool_type->ty, astnode->boolbin.left->span);
-                    bool right_bool = sema_check_types_equal(s, right, predef_typespecs.bool_type->ty, astnode->boolbin.right->span);
+                    bool left_bool = sema_check_types_equal(s, left, predef_typespecs.bool_type->ty, false, astnode->boolbin.left->span);
+                    bool right_bool = sema_check_types_equal(s, right, predef_typespecs.bool_type->ty, false, astnode->boolbin.right->span);
                     if (left_bool && right_bool) {
                         astnode->typespec = predef_typespecs.bool_type->ty;
                         return astnode->typespec;
                     } else return NULL;
                 } else return NULL;
             } else return NULL;
+        } break;
+
+        case ASTNODE_CMP_BINOP: {
+            Typespec* left = sema_astnode(s, astnode->cmpbin.left, NULL);
+            Typespec* right = sema_astnode(s, astnode->cmpbin.right, NULL);
+            if (left && right) {
+                bool left_valid = sema_verify_typespec(s, left, AT_VALUE, astnode->cmpbin.left->span);
+                bool right_valid = sema_verify_typespec(s, right, AT_VALUE, astnode->cmpbin.right->span);
+                if (left_valid && right_valid) {
+                    if (sema_check_types_equal(s, left, right, true, astnode->short_span)) {
+                        astnode->typespec = predef_typespecs.bool_type->ty;
+                        return astnode->typespec;
+                    } else return NULL;
+                } else return NULL;
+            } else return NULL;
+
         } break;
 
         case ASTNODE_ASSIGN: {
@@ -935,7 +962,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                 } else error = true;
 
                 if (right && sema_verify_typespec(s, right, AT_VALUE, astnode->assign.right->span)) {
-                    if (sema_check_types_equal(s, right, left, astnode->short_span)) {
+                    if (sema_check_types_equal(s, right, left, false, astnode->short_span)) {
                         astnode->typespec = predef_typespecs.void_type;
                     } else error = true;
                 }
@@ -1028,7 +1055,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                         bufloop(astnode->funcc.args, i) {
                             Typespec* arg_ty = sema_astnode(s, astnode->funcc.args[i], callee_ty->func.params[i]);
                             if (arg_ty && sema_verify_typespec(s, arg_ty, AT_VALUE, astnode->funcc.args[i]->span)) {
-                                if (!sema_check_types_equal(s, arg_ty, callee_ty->func.params[i], astnode->funcc.args[i]->span)) error = true;
+                                if (!sema_check_types_equal(s, arg_ty, callee_ty->func.params[i], false, astnode->funcc.args[i]->span)) error = true;
                             } else error = true;
                         }
 
@@ -1137,7 +1164,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
             Typespec* annotated = astnode->typespec;
             if (annotated && initializer) {
-                if (sema_check_types_equal(s, initializer, annotated, astnode->vard.equal->span)) {
+                if (sema_check_types_equal(s, initializer, annotated, false, astnode->vard.equal->span)) {
                 } else error = true;
             } else if (initializer) {
                 if (typespec_is_unsized_integer(initializer) && !astnode->vard.immutable) {

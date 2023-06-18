@@ -286,6 +286,22 @@ static void print_node(AstNode* astnode) {
             printf(")");
         } break;
 
+        case ASTNODE_CMP_BINOP: {
+            printf("(");
+            switch (astnode->cmpbin.kind) {
+                case CMP_BINOP_EQ: printf("eq "); break;
+                case CMP_BINOP_NE: printf("ne "); break;
+                case CMP_BINOP_LT: printf("lt "); break;
+                case CMP_BINOP_GT: printf("gt "); break;
+                case CMP_BINOP_LE: printf("le "); break;
+                case CMP_BINOP_GE: printf("ge "); break;
+            }
+            print_node(astnode->cmpbin.left);
+            printf(" ");
+            print_node(astnode->cmpbin.right);
+            printf(")");
+        } break;
+
         case ASTNODE_ASSIGN: {
             printf("(assign ");
             print_node(astnode->assign.left);

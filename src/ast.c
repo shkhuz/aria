@@ -291,6 +291,17 @@ AstNode* astnode_bool_binop_new(BoolBinopKind kind, Token* op, AstNode* left, As
     return astnode;
 }
 
+AstNode* astnode_cmp_binop_new(CmpBinopKind kind, Token* op, AstNode* left, AstNode* right) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_CMP_BINOP,
+        span_from_two(left->span, right->span));
+    astnode->short_span = op->span;
+    astnode->cmpbin.kind = kind;
+    astnode->cmpbin.left = left;
+    astnode->cmpbin.right = right;
+    return astnode;
+}
+
 AstNode* astnode_assign_new(Token* equal, AstNode* left, AstNode* right) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_ASSIGN,
