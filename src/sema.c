@@ -702,6 +702,15 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                     } else return NULL;
                 } break;
 
+                case UNOP_BOOLNOT: {
+                    if (child && sema_verify_typespec(s, child, AT_VALUE, astnode->unop.child->span)) {
+                        if (sema_check_types_equal(s, child, predef_typespecs.bool_type->ty, false, astnode->unop.child->span)) {
+                            astnode->typespec = predef_typespecs.bool_type->ty;
+                            return astnode->typespec;
+                        } else return NULL;
+                    } else return NULL;
+                } break;
+
                 case UNOP_ADDR: {
                     if (child && sema_verify_typespec(s, child, AT_VALUE_SIZED, astnode->unop.child->span)) {
                         if (sema_check_is_lvalue(s, astnode->unop.child)) {

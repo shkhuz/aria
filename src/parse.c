@@ -460,11 +460,12 @@ static AstNode* parse_aggregate_literal(ParseCtx* p) {
 }
 
 static AstNode* parse_unop_expr(ParseCtx* p) {
-    if (match(p, TOKEN_MINUS) || match(p, TOKEN_AMP)) {
+    if (match(p, TOKEN_MINUS) || match(p, TOKEN_BANG) || match(p, TOKEN_AMP)) {
         Token* op = p->prev;
         UnopKind kind;
         switch (op->kind) {
             case TOKEN_MINUS: kind = UNOP_NEG; break;
+            case TOKEN_BANG:  kind = UNOP_BOOLNOT; break;
             case TOKEN_AMP:   kind = UNOP_ADDR; break;
         }
         AstNode* child = parse_unop_expr(p);

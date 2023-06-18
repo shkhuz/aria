@@ -141,6 +141,7 @@ typedef struct {
 
 typedef enum {
     UNOP_NEG,
+    UNOP_BOOLNOT,
     UNOP_ADDR,
 } UnopKind;
 

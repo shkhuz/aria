@@ -91,7 +91,7 @@ fn main() void {
     imm c: [-1 / 0]u8 = [2]u8;
     imm c: [(-1 * 4 / 4)]u8 = [2]u8;
 
-    imm x = 1 = true;
+    imm x = !!true;
 }
 
 fn cool() void { imm a: u8 = 1; imm x = [0]u8; }
