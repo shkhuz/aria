@@ -291,7 +291,10 @@ static AstNode* parse_if_branch(ParseCtx* p, Token* keyword, IfBranchKind kind) 
     }
 
     AstNode* body = parse_expr(p);
-    if (body->kind == ASTNODE_IF) {
+    // TODO: make `()` work too for enclosure
+    if (body->kind == ASTNODE_IF
+        /*|| body->kind == ASTNODE_WHILE
+        || body->kind == ASTNODE_FOR*/) {
         Msg msg = msg_with_span(
             MSG_ERROR,
             "`if` branch may not contain another `if`",

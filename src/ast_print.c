@@ -239,7 +239,7 @@ static void print_node(AstNode* astnode) {
             printf("(");
             switch (astnode->unop.kind) {
                 case UNOP_NEG: printf("neg "); break;
-                case UNOP_BOOLNOT: printf("boolnot"); break;
+                case UNOP_BOOLNOT: printf("boolnot "); break;
                 case UNOP_ADDR: printf("addr "); break;
             }
             print_node(astnode->unop.child);

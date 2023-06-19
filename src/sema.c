@@ -299,7 +299,7 @@ static const char* accept_typespec_tostring(
 static bool sema_verify_typespec(SemaCtx* s, Typespec* ty, AcceptTypespecKind accept, Span error) {
     AcceptTypespecKind given_ty;
     if (ty->kind == TS_FUNC)        given_ty = AT_FUNC;
-    if (ty->kind == TS_TYPE)        given_ty = AT_TYPE;
+    else if (ty->kind == TS_TYPE)   given_ty = AT_TYPE;
     else if (ty->kind == TS_MODULE) given_ty = AT_MODULE;
     else if (typespec_is_sized(ty)) given_ty = AT_VALUE_SIZED;
     else                            given_ty = AT_VALUE_UNSIZED;
@@ -580,10 +580,12 @@ static Typespec* sema_index_type(SemaCtx* s, Typespec* ty, Span error, bool dere
 
 static bool sema_if_branch(
     SemaCtx* s,
+    AstNode* iff,
     AstNode* br,
     bool* first_br_val_valid,
     Typespec** first_br_val_type,
-    Span* first_br_val_span)
+    Span* first_br_val_span,
+    bool* else_req_if_value_br_error)
 {
     bool error = false;
     if (br->ifbr.kind != IFBR_ELSE) {
@@ -595,14 +597,14 @@ static bool sema_if_branch(
         } else error = true;
     }
 
+    Span cur_br_val_span =
+        br->ifbr.body->kind != ASTNODE_SCOPED_BLOCK
+        ? br->ifbr.body->span
+        : (br->ifbr.body->blk.val
+           ? br->ifbr.body->blk.val->span
+           : br->ifbr.body->blk.rbrace->span);
     Typespec* body = sema_astnode(s, br->ifbr.body, NULL);
     if (body && sema_verify_typespec(s, body, AT_VALUE, br->ifbr.body->span)) {
-        Span cur_br_val_span =
-            br->ifbr.body->kind != ASTNODE_SCOPED_BLOCK
-            ? br->ifbr.body->span
-            : (br->ifbr.body->blk.val
-               ? br->ifbr.body->blk.val->span
-               : br->ifbr.body->blk.rbrace->span);
         if (*first_br_val_valid) {
             if (type_comparison_ok(sema_are_types_equal(
                 s,
@@ -614,9 +616,12 @@ static bool sema_if_branch(
             } else {
                 Msg msg = msg_with_span(
                     MSG_ERROR,
-                    format_string_with_two_types("`if` branch type mismatch: `%T` and `%T`", *first_br_val_type, body), // TODO: print types in note ig
+                    format_string_with_one_type("`if` branch type mismatch: this branch yields `%T`", body),
                     cur_br_val_span);
-                msg_addl_fat(&msg, "previous branch value here", *first_br_val_span);
+                msg_addl_fat(
+                    &msg,
+                    format_string_with_one_type("first branch yields `%T` here", *first_br_val_type),
+                    *first_br_val_span);
                 msg_emit(s, &msg);
                 error = true;
             }
@@ -626,6 +631,20 @@ static bool sema_if_branch(
             *first_br_val_span = cur_br_val_span;
         }
     } else error = true;
+
+    if (((br->ifbr.body->kind == ASTNODE_SCOPED_BLOCK && br->ifbr.body->blk.val)
+         || br->ifbr.body->kind != ASTNODE_SCOPED_BLOCK)
+        && !iff->iff.elsebr
+        && !(*else_req_if_value_br_error)) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            "`else` clause required if any `if` branch yields a value",
+            iff->span);
+        msg_addl_fat(&msg, "value yielded here", cur_br_val_span);
+        msg_emit(s, &msg);
+        *else_req_if_value_br_error = true;
+        error = true;
+    }
     return error;
 }
 
@@ -1119,7 +1138,6 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                     usize args_len = buflen(astnode->funcc.args);
                     if (args_len == params_len) {
                         bool error = false;
-                        Typespec** args_ty = NULL;
                         bufloop(astnode->funcc.args, i) {
                             Typespec* arg_ty = sema_astnode(s, astnode->funcc.args[i], callee_ty->func.params[i]);
                             if (arg_ty && sema_verify_typespec(s, arg_ty, AT_VALUE, astnode->funcc.args[i]->span)) {
@@ -1127,6 +1145,10 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                             } else error = true;
                         }
 
+                        if (!error) {
+                            astnode->typespec = callee_ty->func.ret_typespec;
+                            return astnode->typespec;
+                        } else return NULL;
                     } else if (args_len < params_len) {
                         Msg msg = msg_with_span(
                             MSG_ERROR,
@@ -1217,27 +1239,35 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             Typespec* first_br_val_type = NULL;
             Span first_br_val_span;
 
+            bool else_req_if_value_br_error = false;
+
             if (!sema_if_branch(
                 s,
+                astnode,
                 astnode->iff.ifbr,
                 &first_br_val_valid,
                 &first_br_val_type,
-                &first_br_val_span)) error = true;
+                &first_br_val_span,
+                &else_req_if_value_br_error)) error = true;
             bufloop(astnode->iff.elseifbr, i) {
                 if (!sema_if_branch(
                     s,
+                    astnode,
                     astnode->iff.elseifbr[i],
                     &first_br_val_valid,
                     &first_br_val_type,
-                    &first_br_val_span)) error = true;
+                    &first_br_val_span,
+                    &else_req_if_value_br_error)) error = true;
             }
             if (astnode->iff.elsebr) {
                 if (!sema_if_branch(
                     s,
+                    astnode,
                     astnode->iff.elsebr,
                     &first_br_val_valid,
                     &first_br_val_type,
-                    &first_br_val_span)) error = true;
+                    &first_br_val_span,
+                    &else_req_if_value_br_error)) error = true;
             }
         } break;
 
