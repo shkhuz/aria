@@ -1295,6 +1295,8 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
         } break;
 
         case ASTNODE_IF: {
+            // TODO: make small errors like wrong-cond-type not halt further analysis
+            // of other astnodes (return a type). Maybe divide errors into further enumerations.
             bool error = false;
 
             bool first_br_val_valid = false;
@@ -1330,9 +1332,14 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                     &first_br_val_type,
                     &first_br_val_span,
                     &else_req_if_value_br_error)) error = true;
+            } else if (!error) {
+                // Here, the `if` branch is guaranteed to not yield to a non-void or non-noreturn type
+                // because it errors if the else clause if missing in that situation.
+                assert(typespec_is_void(astnode->typespec) || astnode->typespec->kind == TS_NORETURN);
+                astnode->typespec = predef_typespecs.void_type->ty;
             }
 
-            return astnode->typespec;
+            return error ? NULL : astnode->typespec;
         } break;
 
         case ASTNODE_RETURN: {

@@ -126,6 +126,12 @@ typedef struct {
 } AstNodeIf;
 
 typedef struct {
+    AstNode* cond;
+    AstNode* mainbody;
+    AstNode* elsebody;
+} AstNodeWhile;
+
+typedef struct {
     AstNode* child;
 } AstNodeReturn;
 
@@ -263,6 +269,7 @@ typedef enum {
     ASTNODE_SCOPED_BLOCK,
     ASTNODE_IF_BRANCH,
     ASTNODE_IF,
+    ASTNODE_WHILE,
     ASTNODE_RETURN,
     ASTNODE_FUNCTION_CALL,
     ASTNODE_ACCESS,
@@ -307,6 +314,7 @@ struct AstNode {
         AstNodeScopedBlock blk;
         AstNodeIfBranch ifbr;
         AstNodeIf iff;
+        AstNodeWhile whloop;
         AstNodeReturn ret;
         AstNodeFunctionCall funcc;
         AstNodeAccess acc;
@@ -369,6 +377,7 @@ AstNode* astnode_if_new(
     AstNode** elseifbr,
     AstNode* elsebr,
     AstNode* lastbr);
+AstNode* astnode_while_new(Token* keyword, AstNode* cond, AstNode* mainbody, AstNode* elsebody);
 AstNode* astnode_return_new(Token* keyword, AstNode* child);
 
 AstNode* astnode_unop_new(UnopKind kind, Token* op, AstNode* child);

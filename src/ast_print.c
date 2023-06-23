@@ -30,6 +30,7 @@ static void print_node(AstNode* astnode) {
         || astnode->kind == ASTNODE_FIELD
         || astnode->kind == ASTNODE_IF
         || astnode->kind == ASTNODE_IF_BRANCH
+        || astnode->kind == ASTNODE_WHILE
         || astnode->kind == ASTNODE_IMPORT
         || astnode->kind == ASTNODE_FUNCTION_DEF
         || astnode->kind == ASTNODE_VARIABLE_DECL
@@ -204,6 +205,20 @@ static void print_node(AstNode* astnode) {
                 print_node(astnode->iff.elseifbr[i]);
             }
             if (astnode->iff.elsebr) print_node(astnode->iff.elsebr);
+            indent -= 1;
+            printf(")");
+        } break;
+
+        case ASTNODE_WHILE: {
+            printf("(while ");
+            indent += 1;
+            print_node(astnode->whloop.cond);
+            format();
+            print_node(astnode->whloop.mainbody);
+            if (astnode->whloop.elsebody) {
+                format();
+                print_node(astnode->whloop.elsebody);
+            }
             indent -= 1;
             printf(")");
         } break;

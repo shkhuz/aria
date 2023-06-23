@@ -281,6 +281,25 @@ static AstNode* parse_typespec(ParseCtx* p) {
     return parse_suffix_typespec(p);
 }
 
+static void parse_check_body_for_elsetail_expr(ParseCtx* p, AstNode* check, AstNodeKind parent_kind) {
+    if (check->kind == ASTNODE_IF
+        || check->kind == ASTNODE_WHILE
+        /*|| check->kind == ASTNODE_FOR*/) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            format_string(
+                "%s cannot contain another `if`, `while`, `for`",
+                parent_kind == ASTNODE_IF_BRANCH
+                ? "`if` branch"
+                : (parent_kind == ASTNODE_WHILE
+                   ? "`while` body"
+                   : assert(0), "")),
+            check->span);
+        msg_addl_thin(&msg, "enclose body with `{}`");
+        msg_emit(p, &msg);
+    }
+}
+
 static AstNode* parse_if_branch(ParseCtx* p, Token* keyword, IfBranchKind kind) {
     AstNode* cond = NULL;
 
@@ -291,17 +310,8 @@ static AstNode* parse_if_branch(ParseCtx* p, Token* keyword, IfBranchKind kind) 
     }
 
     AstNode* body = parse_expr(p);
+    parse_check_body_for_elsetail_expr(p, body, ASTNODE_IF_BRANCH);
     // TODO: make `()` work too for enclosure
-    if (body->kind == ASTNODE_IF
-        /*|| body->kind == ASTNODE_WHILE
-        || body->kind == ASTNODE_FOR*/) {
-        Msg msg = msg_with_span(
-            MSG_ERROR,
-            "`if` branch may not contain another `if`",
-            body->span);
-        msg_addl_thin(&msg, "enclose body with `{}`");
-        msg_emit(p, &msg);
-    }
     return astnode_if_branch_new(keyword, kind, cond, body);
 }
 
@@ -368,6 +378,21 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
             elseifbr,
             elsebr,
             get_last_if_branch(ifbr, elseifbr, elsebr));
+    } else if (match(p, TOKEN_KEYWORD_WHILE)) {
+        Token* keyword = p->prev;
+        expect_lparen(p);
+        AstNode* cond = parse_expr(p);
+        expect_rparen(p);
+
+        AstNode* mainbody = parse_expr(p);
+        parse_check_body_for_elsetail_expr(p, mainbody, ASTNODE_WHILE);
+        AstNode* elsebody = NULL;
+        if (match(p, TOKEN_KEYWORD_ELSE)) {
+            elsebody = parse_expr(p);
+            parse_check_body_for_elsetail_expr(p, elsebody, ASTNODE_WHILE);
+        }
+
+        return astnode_while_new(keyword, cond, mainbody, elsebody);
     } else if (match(p, TOKEN_KEYWORD_RETURN)) {
         Token* keyword = p->prev;
         AstNode* operand = NULL;
@@ -431,7 +456,9 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
 
     Msg msg = msg_with_span(
         MSG_ERROR,
-        "expected expression",
+        p->current->kind == TOKEN_SEMICOLON
+        ? "unexpected `;`"
+        : "expected expression",
         p->current->span);
     msg_emit(p, &msg);
     return NULL;
@@ -750,6 +777,10 @@ static AstNode* parse_scoped_block(ParseCtx* p) {
                         expr->iff.ifbr,
                         expr->iff.elseifbr,
                         expr->iff.elsebr)->ifbr.body->kind == ASTNODE_SCOPED_BLOCK)
+                || (expr->kind == ASTNODE_WHILE
+                    && (expr->whloop.elsebody
+                        ? expr->whloop.elsebody->kind == ASTNODE_SCOPED_BLOCK
+                        : expr->whloop.mainbody->kind == ASTNODE_SCOPED_BLOCK))
                 || expr->kind == ASTNODE_SCOPED_BLOCK) {
             } else {
                 expect_semicolon(p);

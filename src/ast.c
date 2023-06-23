@@ -214,6 +214,16 @@ AstNode* astnode_if_new(
     return astnode;
 }
 
+AstNode* astnode_while_new(Token* keyword, AstNode* cond, AstNode* mainbody, AstNode* elsebody) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_WHILE,
+        span_from_two(keyword->span, elsebody ? elsebody->span : mainbody->span));
+    astnode->whloop.cond = cond;
+    astnode->whloop.mainbody = mainbody;
+    astnode->whloop.elsebody = elsebody;
+    return astnode;
+}
+
 AstNode* astnode_return_new(Token* keyword, AstNode* child) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_RETURN,
