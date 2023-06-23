@@ -74,6 +74,11 @@ Typespec* typespec_module_new(struct Srcfile* srcfile) {
     return ty;
 }
 
+Typespec* typespec_noreturn_new() {
+    Typespec* ty = typespec_new(TS_NORETURN);
+    return ty;
+}
+
 static char* primkind_tostring(PrimKind kind) {
     char* type;
     switch (kind) {
@@ -160,6 +165,10 @@ static char* tostring(Typespec* ty) {
         case TS_MODULE: {
             return "{module}";
         } break;
+
+        case TS_NORETURN: {
+            return "noreturn";
+        } break;
     }
     assert(0);
     return NULL;
@@ -192,6 +201,10 @@ bool typespec_is_unsized_integer(Typespec* ty) {
 
 bool typespec_is_integer(Typespec* ty) {
     return typespec_is_sized_integer(ty) || typespec_is_unsized_integer(ty);
+}
+
+bool typespec_is_void(Typespec* ty) {
+    return ty->kind == TS_PRIM && ty->prim.kind == PRIM_void;
 }
 
 bool typespec_is_sized(Typespec* ty) {

@@ -57,6 +57,7 @@ void init_global_compiler_state() {
         .i64_type = typespec_type_new(typespec_prim_new(PRIM_i64)),
         .bool_type = typespec_type_new(typespec_prim_new(PRIM_bool)),
         .void_type = typespec_type_new(typespec_prim_new(PRIM_void)),
+        .noreturn_type = typespec_type_new(typespec_noreturn_new()),
     };
 }
 

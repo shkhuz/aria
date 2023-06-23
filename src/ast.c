@@ -214,11 +214,11 @@ AstNode* astnode_if_new(
     return astnode;
 }
 
-AstNode* astnode_return_new(Token* keyword, AstNode* operand) {
+AstNode* astnode_return_new(Token* keyword, AstNode* child) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_RETURN,
-        span_from_two(keyword->span, operand ? operand->span : keyword->span));
-    astnode->ret.operand = operand;
+        span_from_two(keyword->span, child ? child->span : keyword->span));
+    astnode->ret.child = child;
     return astnode;
 }
 

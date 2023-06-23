@@ -210,9 +210,9 @@ static void print_node(AstNode* astnode) {
 
         case ASTNODE_RETURN: {
             printf("(return");
-            if (astnode->ret.operand) {
+            if (astnode->ret.child) {
                 printf(" ");
-                print_node(astnode->ret.operand);
+                print_node(astnode->ret.child);
             }
             printf(")");
         } break;

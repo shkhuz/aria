@@ -115,7 +115,7 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
     }
 
     disp_chcount += end_of_span - span.start;
-    for (usize i = span.end;
+    for (usize i = end_of_span;
          handle->contents[i] != '\n' && handle->contents[i] != '\0' && i < handle->len;
          i++) {
         fprintf(stderr, "%c", handle->contents[i]);

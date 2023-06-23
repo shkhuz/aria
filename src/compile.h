@@ -31,6 +31,7 @@ typedef struct {
     struct Typespec* i64_type;
     struct Typespec* bool_type;
     struct Typespec* void_type;
+    struct Typespec* noreturn_type;
 } PredefTypespecs;
 
 struct Srcfile {

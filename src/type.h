@@ -13,7 +13,6 @@ typedef enum {
     TS_MULTIPTR,
     TS_SLICE,
     TS_ARRAY,
-    TS_FUNC,
 
     TS_STRUCT,
     TS_UNION,
@@ -21,6 +20,9 @@ typedef enum {
 
     TS_TYPE,
     TS_MODULE,
+    TS_FUNC,
+
+    TS_NORETURN,
 } TypespecKind;
 
 typedef enum {
@@ -77,6 +79,9 @@ typedef struct Typespec {
         struct {
             struct Srcfile* srcfile;
         } mod;
+
+        struct {
+        } noret;
     };
 } Typespec;
 
@@ -90,10 +95,12 @@ Typespec* typespec_func_new(Typespec** params, Typespec* ret_typespec);
 Typespec* typespec_struct_new(struct AstNode* astnode);
 Typespec* typespec_type_new(Typespec* typespec);
 Typespec* typespec_module_new(struct Srcfile* srcfile);
+Typespec* typespec_noreturn_new();
 
 bool typespec_is_sized_integer(Typespec* ty);
 bool typespec_is_unsized_integer(Typespec* ty);
 bool typespec_is_integer(Typespec* ty);
+bool typespec_is_void(Typespec* ty);
 bool typespec_is_sized(Typespec* ty);
 bool typespec_is_signed(Typespec* ty);
 bool typespec_is_arrptr(Typespec* ty);

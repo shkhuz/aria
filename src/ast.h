@@ -126,7 +126,7 @@ typedef struct {
 } AstNodeIf;
 
 typedef struct {
-    AstNode* operand;
+    AstNode* child;
 } AstNodeReturn;
 
 typedef struct {
@@ -369,7 +369,7 @@ AstNode* astnode_if_new(
     AstNode** elseifbr,
     AstNode* elsebr,
     AstNode* lastbr);
-AstNode* astnode_return_new(Token* keyword, AstNode* operand);
+AstNode* astnode_return_new(Token* keyword, AstNode* child);
 
 AstNode* astnode_unop_new(UnopKind kind, Token* op, AstNode* child);
 AstNode* astnode_deref_new(AstNode* child, Token* dot, Token* star);
