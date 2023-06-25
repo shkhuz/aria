@@ -27,6 +27,8 @@ void init_global_compiler_state() {
     bufpush(keywords, (StringTokenKindTup){ "else", TOKEN_KEYWORD_ELSE });
     bufpush(keywords, (StringTokenKindTup){ "while", TOKEN_KEYWORD_WHILE });
     bufpush(keywords, (StringTokenKindTup){ "for", TOKEN_KEYWORD_FOR });
+    bufpush(keywords, (StringTokenKindTup){ "break", TOKEN_KEYWORD_BREAK });
+    bufpush(keywords, (StringTokenKindTup){ "continue", TOKEN_KEYWORD_CONTINUE });
     bufpush(keywords, (StringTokenKindTup){ "return", TOKEN_KEYWORD_RETURN });
     bufpush(keywords, (StringTokenKindTup){ "yield", TOKEN_KEYWORD_YIELD });
     bufpush(keywords, (StringTokenKindTup){ "import", TOKEN_KEYWORD_IMPORT });

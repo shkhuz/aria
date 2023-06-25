@@ -577,7 +577,7 @@ int main() {
         "fn main() void {\n"
         "   if (true) if (true) {}\n"
         "}\n",
-        "`if` branch may not contain another `if`",
+        "`if` branch cannot contain another `if`, `while`, `for`",
         2,
         14);
 

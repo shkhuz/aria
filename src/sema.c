@@ -48,7 +48,7 @@ static bool sema_scope_declare(SemaCtx* s, char* identifier, AstNode* value, Spa
                     MSG_ERROR,
                     "symbol is redeclared",
                     span);
-                msg_addl_fat(&msg, "previous declaration here", s->scopebuf[si].decls[i].span);
+                msg_addl_fat(&msg, "previous declaration here:", s->scopebuf[si].decls[i].span);
                 msg_emit(s, &msg);
                 found = true;
                 break;
@@ -166,7 +166,7 @@ static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Types
                             &unsized->prim.integer,
                             typespec_get_bytes(sized),
                             typespec_is_signed(sized))) {
-                            return (TypeComparisonInfo){ .result = TC_OK, .final = to };
+                            return (TypeComparisonInfo){ .result = TC_OK, .final = sized };
                         } else {
                             Msg msg = msg_with_span(
                                 MSG_ERROR,
@@ -220,7 +220,12 @@ static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Types
             } break;
 
             case TS_TYPE: {
+                assert(0 && "given TS_TYPE to sema_are_types_equal()");
                 return sema_are_types_equal(s, from->ty, to->ty, error, false);
+            } break;
+
+            case TS_NORETURN: {
+                return (TypeComparisonInfo){ .result = TC_OK, .final = to };
             } break;
         }
     } else if (typespec_is_arrptr(from) && (to->kind == TS_MULTIPTR || to->kind == TS_SLICE)) {
@@ -630,14 +635,15 @@ static bool sema_if_branch(
                 br->typespec = cmpinfo.final;
                 iff->typespec = cmpinfo.final;
             } else if (cmpinfo.result == TC_ERROR_HANDLED) {
+                error = true;
             } else {
                 Msg msg = msg_with_span(
                     MSG_ERROR,
-                    format_string_with_one_type("`if` branch type mismatch: this branch yields `%T`", body),
+                    format_string_with_one_type("`if` branch type mismatch: this branch yields `%T`...", body),
                     cur_br_val_span);
                 msg_addl_fat(
                     &msg,
-                    format_string_with_one_type("first branch yields `%T` here", *first_br_val_type),
+                    format_string_with_one_type("...while first branch yields `%T`:", *first_br_val_type),
                     *first_br_val_span);
                 msg_emit(s, &msg);
                 error = true;
@@ -659,7 +665,7 @@ static bool sema_if_branch(
             MSG_ERROR,
             "`else` clause required if any `if` branch yields a value",
             iff->span);
-        msg_addl_fat(&msg, "value yielded here", cur_br_val_span);
+        msg_addl_fat(&msg, "value yielded here:", cur_br_val_span);
         msg_emit(s, &msg);
         *else_req_if_value_br_error = true;
         error = true;
@@ -1342,6 +1348,112 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             return error ? NULL : astnode->typespec;
         } break;
 
+        case ASTNODE_WHILE: {
+            AstNode* mainbody = astnode->whloop.mainbody;
+            Typespec* mainbody_ty = sema_astnode(s, mainbody, NULL);
+            astnode->typespec = predef_typespecs.void_type->ty;
+            bool error = false;
+            if (mainbody_ty && sema_verify_typespec(s, mainbody_ty, AT_VALUE|AT_NORETURN, mainbody->span)) {
+                Span mainbody_val_span = mainbody->kind == ASTNODE_SCOPED_BLOCK
+                                    ? (mainbody->blk.val ? mainbody->blk.val->span : mainbody->blk.rbrace->span)
+                                    : (mainbody->span);
+                if ((mainbody->kind == ASTNODE_SCOPED_BLOCK && mainbody->blk.val)
+                    || (mainbody_ty->kind != TS_NORETURN && !typespec_is_void(mainbody_ty))) {
+                    Msg msg = msg_with_span(
+                        MSG_ERROR,
+                        "`while` cannot yield a value",
+                        mainbody_val_span);
+                    msg_addl_thin(&msg, "use a `break` expression instead");
+                    msg_emit(s, &msg);
+                    error = true;
+                }
+
+                bufloop(astnode->whloop.breaks, i) {
+                    AstNode* cur = astnode->whloop.breaks[i];
+                    Typespec* break_ty = cur->brk.child ? cur->brk.child->typespec : predef_typespecs.void_type->ty;
+                    if (break_ty) {
+                        if (i != 0) {
+                            Typespec* prev_break_ty = astnode->whloop.breaks[0]->brk.child ? astnode->whloop.breaks[0]->brk.child->typespec : predef_typespecs.void_type->ty;
+                            TypeComparisonInfo cmpinfo = sema_are_types_equal(s, break_ty, prev_break_ty, cur->span, false);
+                            if (cmpinfo.result == TC_OK) {
+                                astnode->typespec = cmpinfo.final;
+                            } else if (cmpinfo.result == TC_ERROR_HANDLED) {
+                                error = true;
+                            } else {
+                                Msg msg = msg_with_span(
+                                    MSG_ERROR,
+                                    format_string_with_one_type("`break` type mismatch: this returns `%T`...", break_ty),
+                                    cur->span);
+                                msg_addl_fat(
+                                    &msg,
+                                    format_string_with_one_type("...while first `break` returns `%T`:", prev_break_ty),
+                                    astnode->whloop.breaks[0]->span);
+                                msg_emit(s, &msg);
+                                error = true;
+                            }
+                        } else {
+                            astnode->typespec = break_ty;
+                        }
+                    } else {
+                        error = true;
+                        continue;
+                    }
+                }
+            } else error = true;
+            if (error) return NULL; // early return if error
+            error = false;
+
+            AstNode* elsebody = astnode->whloop.elsebody;
+            Typespec* elsebody_ty = NULL;
+            if (elsebody) {
+                elsebody_ty = sema_astnode(s, elsebody, NULL);
+                if (elsebody_ty && sema_verify_typespec(s, elsebody_ty, AT_VALUE|AT_NORETURN, elsebody->span)) {
+                    TypeComparisonInfo cmpinfo = sema_are_types_equal(s, elsebody_ty, astnode->typespec, elsebody->span, false);
+                    if (cmpinfo.result == TC_OK) {
+                        astnode->typespec = cmpinfo.final;
+                    } else if (cmpinfo.result == TC_ERROR_HANDLED) {
+                        error = true;
+                    } else {
+                        Msg msg = msg_with_span(
+                            MSG_ERROR,
+                            format_string_with_one_type("`while`/`else` type mismatch: `else` returns `%T`...", elsebody_ty),
+                            elsebody->kind == ASTNODE_SCOPED_BLOCK
+                            ? (elsebody->blk.val ? elsebody->blk.val->span : elsebody->blk.rbrace->span)
+                            : elsebody->span);
+                        msg_addl_thin(&msg, format_string_with_one_type("...while `break` in `while` returns `%T`", astnode->typespec));
+                        msg_emit(s, &msg);
+                        error = true;
+                    }
+                } else error = true;
+            } else if (!typespec_is_void(astnode->typespec)) {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    "`else` clause is required when `break` returns a value",
+                    astnode->span);
+                msg_addl_fat(&msg, "`break` returns a value here:", astnode->whloop.breaks[0]->span);
+                msg_emit(s, &msg);
+                error = true;
+            }
+            return error ? NULL : astnode->typespec;
+        } break;
+
+        case ASTNODE_BREAK: {
+            if (astnode->brk.child) {
+                Typespec* child = sema_astnode(s, astnode->brk.child, NULL);
+                if (child && sema_verify_typespec(s, child, AT_VALUE, astnode->brk.child->span)) {
+                    astnode->typespec = predef_typespecs.noreturn_type->ty;
+                } else return NULL;
+            } else {
+                astnode->typespec = predef_typespecs.noreturn_type->ty;
+            }
+            return astnode->typespec;
+        } break;
+
+        case ASTNODE_CONTINUE: {
+            astnode->typespec = predef_typespecs.noreturn_type->ty;
+            return astnode->typespec;
+        } break;
+
         case ASTNODE_RETURN: {
             if (astnode->ret.child) {
                 Typespec* child = sema_astnode(s, astnode->ret.child, NULL);
@@ -1364,9 +1476,12 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
             bool error = false;
             if (!sema_check_variable_type(s, astnode)) error = true;
-            Typespec* initializer = sema_astnode(s, astnode->vard.initializer, astnode->typespec);
-            if (initializer && sema_verify_typespec(s, initializer, AT_VALUE, astnode->vard.initializer->span)) {
-            } else error = true;
+            Typespec* initializer = NULL;
+            if (astnode->vard.initializer) {
+                initializer = sema_astnode(s, astnode->vard.initializer, astnode->typespec);
+                if (initializer && sema_verify_typespec(s, initializer, AT_VALUE, astnode->vard.initializer->span)) {
+                } else error = true;
+            }
             if (!sema_declare_variable(s, astnode)) error = true;
 
             if (error) return NULL;
@@ -1385,7 +1500,13 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                     msg_emit(s, &msg);
                     error = true;
                 } else astnode->typespec = initializer;
-            } else error = true;
+            } else if (!annotated && !initializer) {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    "no type annotation/initializer provided for declaration",
+                    astnode->span);
+                msg_emit(s, &msg);
+            }
 
             return error ? NULL : astnode->typespec;
         } break;

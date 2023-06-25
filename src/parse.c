@@ -22,6 +22,8 @@ ParseCtx parse_new_context(
     p.compile_ctx = compile_ctx;
     p.error = false;
     p.error_handler_pos = error_handler_pos;
+    p.loop_breaks = NULL;
+    p.loop_continues = NULL;
     return p;
 }
 
@@ -384,15 +386,48 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         AstNode* cond = parse_expr(p);
         expect_rparen(p);
 
+        bufpush(p->loop_breaks, NULL);
+        bufpush(p->loop_continues, NULL);
         AstNode* mainbody = parse_expr(p);
+        AstNode** breaks = p->loop_breaks[buflen(p->loop_breaks)-1];
+        bufpop(p->loop_breaks);
+        bufpop(p->loop_continues);
         parse_check_body_for_elsetail_expr(p, mainbody, ASTNODE_WHILE);
+
         AstNode* elsebody = NULL;
         if (match(p, TOKEN_KEYWORD_ELSE)) {
             elsebody = parse_expr(p);
             parse_check_body_for_elsetail_expr(p, elsebody, ASTNODE_WHILE);
         }
 
-        return astnode_while_new(keyword, cond, mainbody, elsebody);
+        return astnode_while_new(keyword, cond, mainbody, elsebody, breaks);
+    } else if (match(p, TOKEN_KEYWORD_BREAK)) {
+        Token* keyword = p->prev;
+        AstNode* child = NULL;
+        if (can_token_start_expr(p->current)) {
+            child = parse_expr(p);
+        }
+        AstNode* astnode = astnode_break_new(keyword, child);
+        if (buflen(p->loop_breaks) > 0) {
+            bufpush(p->loop_breaks[buflen(p->loop_breaks)-1], astnode);
+        } else {
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                "`break` used outside a loop",
+                keyword->span);
+            msg_emit(p, &msg);
+        }
+        return astnode;
+    } else if (match(p, TOKEN_KEYWORD_CONTINUE)) {
+        Token* keyword = p->prev;
+        if (buflen(p->loop_continues) == 0) {
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                "`continue` used outside a loop",
+                keyword->span);
+            msg_emit(p, &msg);
+        }
+        return astnode_continue_new(keyword);
     } else if (match(p, TOKEN_KEYWORD_RETURN)) {
         Token* keyword = p->prev;
         AstNode* operand = NULL;
@@ -438,9 +473,7 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
     } else if (match(p, TOKEN_LBRACK)) {
         Token* lbrack = p->prev;
         AstNode** elems = parse_args(p, lbrack, TOKEN_RBRACK, true, false);
-        // TODO: if we want to specify a type for the literal, we could check
-        // for it after the `]`. But it would signify the child type, not the
-        // array literal type.
+
         Token* rbrack = p->prev;
         AstNode* elem_type = NULL;
         if (can_token_start_typespec(p->current)) {

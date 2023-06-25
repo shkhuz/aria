@@ -214,13 +214,29 @@ AstNode* astnode_if_new(
     return astnode;
 }
 
-AstNode* astnode_while_new(Token* keyword, AstNode* cond, AstNode* mainbody, AstNode* elsebody) {
+AstNode* astnode_while_new(Token* keyword, AstNode* cond, AstNode* mainbody, AstNode* elsebody, AstNode** breaks) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_WHILE,
         span_from_two(keyword->span, elsebody ? elsebody->span : mainbody->span));
     astnode->whloop.cond = cond;
     astnode->whloop.mainbody = mainbody;
     astnode->whloop.elsebody = elsebody;
+    astnode->whloop.breaks = breaks;
+    return astnode;
+}
+
+AstNode* astnode_break_new(Token* keyword, AstNode* child) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_BREAK,
+        span_from_two(keyword->span, child ? child->span : keyword->span));
+    astnode->brk.child = child;
+    return astnode;
+}
+
+AstNode* astnode_continue_new(Token* keyword) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_CONTINUE,
+        keyword->span);
     return astnode;
 }
 
@@ -370,7 +386,7 @@ AstNode* astnode_variable_decl_new(
 {
     AstNode* astnode = astnode_alloc(
         ASTNODE_VARIABLE_DECL,
-        span_from_two(start->span, initializer->span));
+        span_from_two(start->span, initializer ? initializer->span : typespec ? typespec->span : identifier->span));
     astnode->vard.identifier = identifier;
     astnode->vard.name = token_tostring(identifier);
     astnode->vard.typespec = typespec;

@@ -16,9 +16,8 @@ typedef struct {
     bool error;
     jmp_buf* error_handler_pos;
 
-    // 0 if not inside function.
-    // Denotes the current function nesting.
-    //usize in_func;
+    AstNode*** loop_breaks;
+    AstNode*** loop_continues;
 } ParseCtx;
 
 ParseCtx parse_new_context(

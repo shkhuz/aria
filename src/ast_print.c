@@ -223,6 +223,19 @@ static void print_node(AstNode* astnode) {
             printf(")");
         } break;
 
+        case ASTNODE_BREAK: {
+            printf("(break");
+            if (astnode->brk.child) {
+                printf(" ");
+                print_node(astnode->brk.child);
+            }
+            printf(")");
+        } break;
+
+        case ASTNODE_CONTINUE: {
+            printf("(continue)");
+        } break;
+
         case ASTNODE_RETURN: {
             printf("(return");
             if (astnode->ret.child) {

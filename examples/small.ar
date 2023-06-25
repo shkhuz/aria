@@ -110,7 +110,10 @@ fn main() void {
         1 + 2;
     }
 
-    while (true) cool else {}
+    imm ff: u8;
+    while (true) {
+        if (true) break 1 else break;
+    } else true;
     return true;
 }
 

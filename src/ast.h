@@ -129,7 +129,18 @@ typedef struct {
     AstNode* cond;
     AstNode* mainbody;
     AstNode* elsebody;
+
+    // Stores references to
+    // `break` expressions.
+    AstNode** breaks;
 } AstNodeWhile;
+
+typedef struct {
+    AstNode* child;
+} AstNodeBreak;
+
+typedef struct {
+} AstNodeContinue;
 
 typedef struct {
     AstNode* child;
@@ -270,6 +281,8 @@ typedef enum {
     ASTNODE_IF_BRANCH,
     ASTNODE_IF,
     ASTNODE_WHILE,
+    ASTNODE_BREAK,
+    ASTNODE_CONTINUE,
     ASTNODE_RETURN,
     ASTNODE_FUNCTION_CALL,
     ASTNODE_ACCESS,
@@ -315,6 +328,8 @@ struct AstNode {
         AstNodeIfBranch ifbr;
         AstNodeIf iff;
         AstNodeWhile whloop;
+        AstNodeBreak brk;
+        AstNodeContinue cont;
         AstNodeReturn ret;
         AstNodeFunctionCall funcc;
         AstNodeAccess acc;
@@ -377,7 +392,9 @@ AstNode* astnode_if_new(
     AstNode** elseifbr,
     AstNode* elsebr,
     AstNode* lastbr);
-AstNode* astnode_while_new(Token* keyword, AstNode* cond, AstNode* mainbody, AstNode* elsebody);
+AstNode* astnode_while_new(Token* keyword, AstNode* cond, AstNode* mainbody, AstNode* elsebody, AstNode** breaks);
+AstNode* astnode_break_new(Token* keyword, AstNode* child);
+AstNode* astnode_continue_new(Token* keyword);
 AstNode* astnode_return_new(Token* keyword, AstNode* child);
 
 AstNode* astnode_unop_new(UnopKind kind, Token* op, AstNode* child);
