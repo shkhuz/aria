@@ -152,7 +152,58 @@ typedef struct {
     Typespec* final;
 } TypeComparisonInfo;
 
-static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Typespec* to, Span error, bool exact) {
+static bool sema_are_types_exactly_equal(SemaCtx* s, Typespec* from, Typespec* to) {
+    if (from->kind == to->kind) {
+        switch (from->kind) {
+            case TS_PRIM: {
+                if (from->prim.kind == to->prim.kind) return true;
+                else return false;
+            } break;
+
+            case TS_PTR: {
+                if (from->ptr.immutable == to->ptr.immutable) {
+                    return sema_are_types_exactly_equal(s, from->ptr.child, to->ptr.child);
+                } else return false;
+            } break;
+
+            case TS_MULTIPTR: {
+                if (from->mulptr.immutable == to->mulptr.immutable) {
+                    return sema_are_types_exactly_equal(s, from->mulptr.child, to->mulptr.child);
+                } else return false;
+            } break;
+
+            case TS_SLICE: {
+                if (from->slice.immutable == to->slice.immutable) {
+                    return sema_are_types_exactly_equal(s, from->slice.child, to->slice.child);
+                } else return false;
+            } break;
+
+            case TS_ARRAY: {
+                if (bigint_cmp(&from->array.size->prim.integer, &to->array.size->prim.integer) == 0) {
+                    return sema_are_types_exactly_equal(s, from->array.child, to->array.child);
+                } else return false;
+            } break;
+
+            case TS_STRUCT: {
+                if (from->agg == to->agg) return true;
+                return false;
+            } break;
+
+            case TS_TYPE: {
+                assert(0 && "given TS_TYPE to sema_are_types_exactly_equal()");
+            } break;
+
+            case TS_NORETURN: {
+                return true;
+            } break;
+
+            default: assert(0);
+        }
+    }
+    return false;
+}
+
+static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Typespec* to, Span error) {
     if (from->kind == to->kind) {
         switch (from->kind) {
             case TS_PRIM: {
@@ -179,38 +230,49 @@ static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Types
                             return (TypeComparisonInfo){ .result = TC_ERROR_HANDLED, .final = NULL };
                         }
                     } else if (typespec_is_signed(from) == typespec_is_signed(to)) {
-                        if (exact) {
-                            if (typespec_get_bytes(from) == typespec_get_bytes(to)) return (TypeComparisonInfo){ .result = TC_OK, .final = to };
-                            else return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
-                        } else {
-                            if (typespec_get_bytes(from) <= typespec_get_bytes(to)) return (TypeComparisonInfo){ .result = TC_OK, .final = to };
-                            else return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
-                        }
+                        if (typespec_get_bytes(from) <= typespec_get_bytes(to)) return (TypeComparisonInfo){ .result = TC_OK, .final = to };
+                        else return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
                     } else return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
                 } else return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
             } break;
 
             case TS_PTR: {
                 if (!from->ptr.immutable || to->ptr.immutable) {
-                    return sema_are_types_equal(s, from->ptr.child, to->ptr.child, error, true);
+                    if (sema_are_types_exactly_equal(s, from->ptr.child, to->ptr.child)) {
+                        return (TypeComparisonInfo){ .result = TC_OK, .final = to };
+                    } else {
+                        return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
+                    }
                 } else return (TypeComparisonInfo){ .result = TC_CONST, .final = NULL };
             } break;
 
             case TS_MULTIPTR: {
                 if (!from->mulptr.immutable || to->mulptr.immutable) {
-                    return sema_are_types_equal(s, from->mulptr.child, to->mulptr.child, error, true);
+                    if (sema_are_types_exactly_equal(s, from->mulptr.child, to->mulptr.child)) {
+                        return (TypeComparisonInfo){ .result = TC_OK, .final = to };
+                    } else {
+                        return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
+                    }
                 } else return (TypeComparisonInfo){ .result = TC_CONST, .final = NULL };
             } break;
 
             case TS_SLICE: {
                 if (!from->slice.immutable || to->slice.immutable) {
-                    return sema_are_types_equal(s, from->slice.child, to->slice.child, error, true);
+                    if (sema_are_types_exactly_equal(s, from->slice.child, to->slice.child)) {
+                        return (TypeComparisonInfo){ .result = TC_OK, .final = to };
+                    } else {
+                        return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
+                    }
                 } else return (TypeComparisonInfo){ .result = TC_CONST, .final = NULL };
             } break;
 
             case TS_ARRAY: {
                 if (bigint_cmp(&from->array.size->prim.integer, &to->array.size->prim.integer) == 0) {
-                    return sema_are_types_equal(s, from->array.child, to->array.child, error, true);
+                    if (sema_are_types_exactly_equal(s, from->array.child, to->array.child)) {
+                        return (TypeComparisonInfo){ .result = TC_OK, .final = to };
+                    } else {
+                        return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
+                    }
                 } else return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
             } break;
 
@@ -221,7 +283,6 @@ static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Types
 
             case TS_TYPE: {
                 assert(0 && "given TS_TYPE to sema_are_types_equal()");
-                return sema_are_types_equal(s, from->ty, to->ty, error, false);
             } break;
 
             case TS_NORETURN: {
@@ -236,8 +297,13 @@ static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Types
             case TS_SLICE:    to_imm = to->slice.immutable;  to_child = to->slice.child; break;
             default: assert(0);
         }
+
         if (!from->ptr.immutable || to_imm) {
-            return sema_are_types_equal(s, from->ptr.child->array.child, to_child, error, true);
+            if (sema_are_types_exactly_equal(s, from->ptr.child->array.child, to_child)) {
+                return (TypeComparisonInfo){ .result = TC_OK, .final = to };
+            } else {
+                return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
+            }
         } else return (TypeComparisonInfo){ .result = TC_CONST, .final = NULL };
     } else if (from->kind == TS_NORETURN || to->kind == TS_NORETURN) {
         if (from->kind == TS_NORETURN) return (TypeComparisonInfo){ .result = TC_OK, .final = to };
@@ -251,7 +317,7 @@ static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Types
 }
 
 static Typespec* sema_check_types_equal(SemaCtx* s, Typespec* from, Typespec* to, bool peer, Span error) {
-    TypeComparisonInfo cmpinfo = sema_are_types_equal(s, from, to, error, false);
+    TypeComparisonInfo cmpinfo = sema_are_types_equal(s, from, to, error);
     if (cmpinfo.result != TC_OK && cmpinfo.result != TC_ERROR_HANDLED) {
         if (peer) {
             Msg msg = msg_with_span(
@@ -629,8 +695,7 @@ static bool sema_if_branch(
                 s,
                 body,
                 *first_br_val_type,
-                cur_br_val_span,
-                false);
+                cur_br_val_span);
             if (cmpinfo.result == TC_OK) {
                 br->typespec = cmpinfo.final;
                 iff->typespec = cmpinfo.final;
@@ -1075,6 +1140,52 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             return error ? NULL : astnode->typespec;
         } break;
 
+        case ASTNODE_CAST: {
+            Typespec* left = sema_astnode(s, astnode->cast.left, NULL);
+            Typespec* right = sema_astnode(s, astnode->cast.right, NULL);
+            bool left_valid = left && sema_verify_typespec(s, left, AT_VALUE, astnode->cast.left->span);
+            bool right_valid = right && sema_verify_typespec(s, right, AT_TYPE, astnode->cast.right->span);
+
+            if (left_valid && right_valid) {
+                TypeComparisonResult result = TC_OK;
+                Typespec* inright = right->ty;
+
+                if (left->kind == TS_PRIM && inright->kind == TS_PRIM) {
+                    if (left->prim.kind == PRIM_void && inright->prim.kind == PRIM_void) {}
+                    else if (left->prim.kind == PRIM_void || inright->prim.kind == PRIM_void) result = TC_MISMATCH;
+                    else {}
+                } else if (typespec_is_arrptr(left) && (inright->kind == TS_MULTIPTR || inright->kind == TS_SLICE)) {
+                    // TODO: maybe check for immutability
+                } else if ((left->kind == TS_PTR || left->kind == TS_MULTIPTR || left->kind == TS_SLICE) &&
+                           (inright->kind == TS_PTR || inright->kind == TS_MULTIPTR || inright->kind == TS_SLICE)) {
+                    // TODO: maybe check for immutability
+                    // TODO: take care of alignment
+                } else if (left->kind == TS_ARRAY && inright->kind == TS_ARRAY) {
+                    if (bigint_cmp(&left->array.size->prim.integer, &inright->array.size->prim.integer) == 0) {
+                        if (sema_are_types_exactly_equal(s, left->array.child, inright->array.child)) {}
+                        else result = TC_MISMATCH;
+                    } else result = TC_MISMATCH;
+                } else if (left->kind == TS_STRUCT && inright->kind == TS_STRUCT) {
+                    if (left->agg == right->agg) {}
+                    else result = TC_MISMATCH;
+                } else if (left->kind == TS_TYPE && inright->kind == TS_TYPE) {
+                    assert(0);
+                } else result = TC_MISMATCH;
+
+                if (result != TC_OK) {
+                    Msg msg = msg_with_span(
+                        MSG_ERROR,
+                        format_string_with_two_types("cannot cast type `%T` to `%T`", left, inright),
+                        astnode->short_span);
+                    msg_emit(s, &msg);
+                    return NULL;
+                } else {
+                    astnode->typespec = inright;
+                    return astnode->typespec;
+                }
+            } else return NULL;
+        } break;
+
         case ASTNODE_TYPESPEC_PTR: {
             Typespec* child = sema_astnode(s, astnode->typeptr.child, NULL);
             if (child && sema_verify_typespec(s, child, AT_TYPE, astnode->typeptr.child->span)) {
@@ -1374,7 +1485,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                     if (break_ty) {
                         if (i != 0) {
                             Typespec* prev_break_ty = astnode->whloop.breaks[0]->brk.child ? astnode->whloop.breaks[0]->brk.child->typespec : predef_typespecs.void_type->ty;
-                            TypeComparisonInfo cmpinfo = sema_are_types_equal(s, break_ty, prev_break_ty, cur->span, false);
+                            TypeComparisonInfo cmpinfo = sema_are_types_equal(s, break_ty, prev_break_ty, cur->span);
                             if (cmpinfo.result == TC_OK) {
                                 astnode->typespec = cmpinfo.final;
                             } else if (cmpinfo.result == TC_ERROR_HANDLED) {
@@ -1408,7 +1519,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             if (elsebody) {
                 elsebody_ty = sema_astnode(s, elsebody, NULL);
                 if (elsebody_ty && sema_verify_typespec(s, elsebody_ty, AT_VALUE|AT_NORETURN, elsebody->span)) {
-                    TypeComparisonInfo cmpinfo = sema_are_types_equal(s, elsebody_ty, astnode->typespec, elsebody->span, false);
+                    TypeComparisonInfo cmpinfo = sema_are_types_equal(s, elsebody_ty, astnode->typespec, elsebody->span);
                     if (cmpinfo.result == TC_OK) {
                         astnode->typespec = cmpinfo.final;
                     } else if (cmpinfo.result == TC_ERROR_HANDLED) {

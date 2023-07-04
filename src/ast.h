@@ -219,6 +219,10 @@ typedef struct {
 } AstNodeAssign;
 
 typedef struct {
+    AstNode* left, *right;
+} AstNodeCast;
+
+typedef struct {
     Token* arg;
     Typespec* mod_ty;
     char* name;
@@ -293,6 +297,7 @@ typedef enum {
     ASTNODE_BOOL_BINOP,
     ASTNODE_CMP_BINOP,
     ASTNODE_ASSIGN,
+    ASTNODE_CAST,
     ASTNODE_IMPORT,
     ASTNODE_FUNCTION_HEADER,
     ASTNODE_FUNCTION_DEF,
@@ -340,6 +345,7 @@ struct AstNode {
         AstNodeBoolBinop boolbin;
         AstNodeCmpBinop cmpbin;
         AstNodeAssign assign;
+        AstNodeCast cast;
         AstNodeImport import;
         AstNodeFunctionHeader funch;
         AstNodeFunctionDef funcdef;
@@ -404,6 +410,7 @@ AstNode* astnode_arith_binop_new(ArithBinopKind kind, Token* op, AstNode* left, 
 AstNode* astnode_bool_binop_new(BoolBinopKind kind, Token* op, AstNode* left, AstNode* right);
 AstNode* astnode_cmp_binop_new(CmpBinopKind kind, Token* op, AstNode* left, AstNode* right);
 AstNode* astnode_assign_new(Token* equal, AstNode* left, AstNode* right);
+AstNode* astnode_cast_new(Token* op, AstNode* left, AstNode* right);
 
 AstNode* astnode_import_new(Token* keyword, Token* arg, struct Typespec* mod_ty, char* name);
 AstNode* astnode_function_header_new(

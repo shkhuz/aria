@@ -333,7 +333,9 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         AstNode* left = parse_identifier(p, p->prev, true);
 
         while (match(p, TOKEN_DOT)) {
-            left = parse_access_expr(p, left, true);
+            Token* dot = p->prev;
+            if (match(p, TOKEN_STAR)) left = astnode_deref_new(left, dot, p->prev);
+            else left = parse_access_expr(p, left, true);
         }
 
         if (match(p, TOKEN_LBRACE)) {
@@ -538,8 +540,18 @@ static AstNode* parse_unop_expr(ParseCtx* p) {
     return parse_suffix_expr(p);
 }
 
-static AstNode* parse_arithmul_binop_expr(ParseCtx* p) {
+static AstNode* parse_as_expr(ParseCtx* p) {
     AstNode* left = parse_unop_expr(p);
+    if (match(p, TOKEN_KEYWORD_AS)) {
+        Token* op = p->prev;
+        AstNode* right = parse_typespec(p);
+        left = astnode_cast_new(op, left, right);
+    }
+    return left;
+}
+
+static AstNode* parse_arithmul_binop_expr(ParseCtx* p) {
+    AstNode* left = parse_as_expr(p);
     while (match(p, TOKEN_STAR) || match(p, TOKEN_FSLASH) || match(p, TOKEN_PERC)) {
         Token* op = p->prev;
         ArithBinopKind kind;
@@ -549,7 +561,7 @@ static AstNode* parse_arithmul_binop_expr(ParseCtx* p) {
             case TOKEN_PERC:   kind = ARITH_BINOP_REM; break;
             default: assert(0); break;
         }
-        AstNode* right = parse_unop_expr(p);
+        AstNode* right = parse_as_expr(p);
         left = astnode_arith_binop_new(kind, op, left, right);
     }
     return left;

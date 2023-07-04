@@ -339,6 +339,16 @@ AstNode* astnode_assign_new(Token* equal, AstNode* left, AstNode* right) {
     return astnode;
 }
 
+AstNode* astnode_cast_new(Token* op, AstNode* left, AstNode* right) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_CAST,
+        span_from_two(left->span, right->span));
+    astnode->short_span = op->span;
+    astnode->cast.left = left;
+    astnode->cast.right = right;
+    return astnode;
+}
+
 AstNode* astnode_import_new(Token* keyword, Token* arg, struct Typespec* mod_ty, char* name) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_IMPORT,

@@ -339,6 +339,14 @@ static void print_node(AstNode* astnode) {
             printf(")");
         } break;
 
+        case ASTNODE_CAST: {
+            printf("(cast ");
+            print_node(astnode->cast.left);
+            printf(" ");
+            print_node(astnode->cast.right);
+            printf(")");
+        } break;
+
         case ASTNODE_IMPORT: {
             printf("(import ");
             print_token(astnode->import.arg);

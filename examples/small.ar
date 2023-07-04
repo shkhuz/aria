@@ -79,29 +79,36 @@
 //    yield 1;
 //}
 //
+
 fn call(a: [2]u8) i8 {}
 fn main() void {
-    imm main = 1;
-    imm a = 1;
-    imm ptra = &a;
-    imm arr: [1]u8 = [9, a, 3]void;
-    void([3, 3,]);
-    imm b: u8 = true or "ds";
+    {
+        imm main = 1;
+        imm a = 1;
+        imm ptra = &a;
+        imm arr: [1]u8 = [9, a, 3]void;
+        void([3, 3,]);
+        imm b: u8 = true or "ds";
 
-    imm c: [-1 / 0]u8 = [2]u8;
-    imm c: [(-1 * 4 / 4)]u8 = [2]u8;
+        imm c: [-1 / 0]u8 = [2]u8;
+        imm c: [(-1 * 4 / 4)]u8 = [2]u8;
 
-    imm x = !!true and cool;
-    //imm x = if (true) { imm xx = 1; yield a; } else {};
-    //imm y = if (true) 1 else if (false) 2;
-    imm xx: void = return;
-    //if (true) 1 else 0;
-    //1 + 2;
-    imm yy = [return, 0, true];
-    imm final: void = if (true) {
-        return false;
-    } else 1;
-    imm df: u32 = final;
+        imm x = !!true and cool;
+        //imm x = if (true) { imm xx = 1; yield a; } else {};
+        //imm y = if (true) 1 else if (false) 2;
+        imm xx: void = return;
+        //if (true) 1 else 0;
+        //1 + 2;
+        imm yy = [return, 0, true];
+        imm final: void = if (true) {
+            return false;
+        } else 1;
+        imm df: u32 = final;
+    }
+    {
+        imm a = [1]u8;
+        imm b = a as [1]u16;
+    }
 
     {
         1 + 2;
@@ -114,6 +121,7 @@ fn main() void {
     while (true) {
         if (true) break 1 else break;
     } else true;
+
     return true;
 }
 
