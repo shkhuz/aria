@@ -23,6 +23,8 @@ typedef struct {
     struct CompileCtx* compile_ctx;
     ScopeInfo* scopebuf;
     bool error;
+
+    AstNode* current_func;
 } SemaCtx;
 
 SemaCtx sema_new_context(

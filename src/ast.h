@@ -5,6 +5,8 @@
 #include "token.h"
 #include "type.h"
 
+#include <llvm-c/Core.h>
+
 typedef struct AstNode AstNode;
 struct Typespec;
 
@@ -239,6 +241,8 @@ typedef struct {
 typedef struct {
     AstNode* header;
     AstNode* body;
+
+    AstNode** locals;
 } AstNodeFunctionDef;
 
 typedef struct {
@@ -312,6 +316,10 @@ struct AstNode {
     Span span;
     Span short_span;
     Typespec* typespec;
+
+    LLVMTypeRef llvmtype;
+    LLVMValueRef llvmvalue;
+
     union {
         AstNodeTypespecFunc typefunc;
         AstNodeTypespecPtr typeptr;

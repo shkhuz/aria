@@ -7,6 +7,7 @@
 #include "parse.h"
 #include "ast_print.h"
 #include "sema.h"
+#include "cg.h"
 #include "type.h"
 
 StringTokenKindTup* keywords = NULL;
@@ -104,6 +105,7 @@ void compile(CompileCtx* c) {
             continue;
         }
     }
+    if (c->print_ast) printf("\n");
 
     if (c->parsing_error) return;
     SemaCtx* sema_ctxs = NULL;
@@ -112,6 +114,10 @@ void compile(CompileCtx* c) {
     }
 
     c->sema_error = sema(sema_ctxs);
+    if (c->sema_error) return;
+
+    CgCtx cg_ctx = cg_new_context(c->mod_tys, c);
+    cg(&cg_ctx);
 }
 
 struct Typespec* read_srcfile(const char* path, OptionalSpan span, CompileCtx* compile_ctx) {

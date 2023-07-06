@@ -382,6 +382,7 @@ AstNode* astnode_function_def_new(AstNode* header, AstNode* body) {
         span_from_two(header->span, body->span));
     astnode->funcdef.header = header;
     astnode->funcdef.body = body;
+    astnode->funcdef.locals = NULL;
     return astnode;
 }
 

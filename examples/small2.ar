@@ -1,0 +1,7 @@
+struct Ctx {
+    a: u8,
+    b: bool,
+}
+
+fn main(a: u8) void {
+}

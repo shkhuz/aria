@@ -9,7 +9,7 @@ TEST_OBJ_FILES := $(addprefix build/obj/, $(addsuffix .o, $(TEST_C_FILES)))
 
 CFLAGS := -std=c99 -Ivendor -I. `llvm-config --cflags` -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings -Wno-switch-bool -Wno-varargs
 LDFLAGS := `llvm-config --ldflags --libs`
-AR_FILE := examples/small.ar
+AR_FILE := examples/small2.ar
 
 ifeq ($(prod), y)
 	CFLAGS_OPTIMIZE := -O3

@@ -26,6 +26,7 @@ SemaCtx sema_new_context(
     sema_scope_push(&s);
     assert(sema_curscope(&s) != NULL);
     s.error = false;
+    s.current_func = NULL;
     return s;
 }
 
@@ -46,7 +47,7 @@ static bool sema_scope_declare(SemaCtx* s, char* identifier, AstNode* value, Spa
             if (strcmp(defined, identifier) == 0) {
                 Msg msg = msg_with_span(
                     MSG_ERROR,
-                    "symbol is redeclared",
+                    (si == buflen(s->scopebuf)-1) ? "symbol is redeclared" : "symbol shadows another symbol",
                     span);
                 msg_addl_fat(&msg, "previous declaration here:", s->scopebuf[si].decls[i].span);
                 msg_emit(s, &msg);
@@ -530,9 +531,11 @@ static void sema_top_level_decls_prec2(SemaCtx* s, AstNode* astnode) {
             Typespec** params_ty = NULL;
             AstNodeFunctionHeader* header = &astnode->funcdef.header->funch;
             bufloop(header->params, i) {
-                Typespec* param_ty = sema_astnode(s, header->params[i]->paramd.typespec, NULL);
-                if (param_ty && sema_verify_typespec(s, param_ty, AT_TYPE, header->params[i]->paramd.typespec->span)) {
-                    bufpush(params_ty, param_ty->ty);
+                AstNode* param = header->params[i];
+                Typespec* ty = sema_astnode(s, param->paramd.typespec, NULL);
+                if (ty && sema_verify_typespec(s, ty, AT_TYPE, param->paramd.typespec->span)) {
+                    param->typespec = ty->ty;
+                    bufpush(params_ty, ty->ty);
                 } else error = true;
             }
 
@@ -736,6 +739,55 @@ static bool sema_if_branch(
         error = true;
     }
     return error;
+}
+
+static Typespec* sema_scoped_block(SemaCtx* s, AstNode* astnode, Typespec* target, bool open_new_scope) {
+    if (open_new_scope) sema_scope_push(s);
+    bool error = false;
+    AstNode* noreturn_stmt = NULL;
+    usize noreturn_stmt_idx;
+    bufloop(astnode->blk.stmts, i) {
+        Typespec* stmt = sema_astnode(s, astnode->blk.stmts[i], NULL);
+        if (stmt) {
+            if (astnode->blk.stmts[i]->kind == ASTNODE_EXPRSTMT && stmt->kind == TS_NORETURN && !noreturn_stmt) {
+                noreturn_stmt = astnode->blk.stmts[i];
+                noreturn_stmt_idx = i;
+            }
+        } else error = true;
+    }
+    if (astnode->blk.val) {
+        Typespec* val = sema_astnode(s, astnode->blk.val, target);
+        if (val && sema_verify_typespec(s, val, AT_VALUE, astnode->blk.val->span)) {
+            astnode->typespec = val;
+        } else error = true;
+    } else {
+        astnode->typespec = predef_typespecs.void_type->ty;
+    }
+
+    if (noreturn_stmt) {
+        astnode->typespec = predef_typespecs.noreturn_type->ty;
+        if (noreturn_stmt_idx == buflen(astnode->blk.stmts)-1) {
+            if (astnode->blk.val) {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    "unreachable code",
+                    astnode->blk.val->span);
+                msg_addl_fat(&msg, "due to this:", noreturn_stmt->span);
+                msg_emit(s, &msg);
+                error = true;
+            }
+        } else {
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                "unreachable code",
+                astnode->blk.stmts[noreturn_stmt_idx+1]->span);
+            msg_addl_fat(&msg, "due to this:", noreturn_stmt->span);
+            msg_emit(s, &msg);
+            error = true;
+        }
+    }
+    if (open_new_scope) sema_scope_pop(s);
+    return error ? NULL : astnode->typespec;
 }
 
 static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
@@ -1245,56 +1297,23 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
         } break;
 
         case ASTNODE_FUNCTION_DEF: {
-            sema_astnode(s, astnode->funcdef.body, astnode->funcdef.header->funch.ret_typespec->typespec->ty);
+            s->current_func = astnode;
+            sema_scope_push(s);
+            bool error = false;
+            AstNodeFunctionHeader* header = &astnode->funcdef.header->funch;
+            bufloop(header->params, i) {
+                AstNode* param = header->params[i];
+                if (!sema_scope_declare(s, param->paramd.name, param, param->paramd.identifier->span)) error = true;
+            }
+            if (!sema_scoped_block(s, astnode->funcdef.body, astnode->funcdef.header->funch.ret_typespec->typespec->ty, false)) error = true;
+            sema_scope_pop(s);
+            s->current_func = NULL;
+
+            return error ? NULL : astnode->typespec;
         } break;
 
         case ASTNODE_SCOPED_BLOCK: {
-            sema_scope_push(s);
-            bool error = false;
-            AstNode* noreturn_stmt = NULL;
-            usize noreturn_stmt_idx;
-            bufloop(astnode->blk.stmts, i) {
-                Typespec* stmt = sema_astnode(s, astnode->blk.stmts[i], NULL);
-                if (stmt) {
-                    if (astnode->blk.stmts[i]->kind == ASTNODE_EXPRSTMT && stmt->kind == TS_NORETURN && !noreturn_stmt) {
-                        noreturn_stmt = astnode->blk.stmts[i];
-                        noreturn_stmt_idx = i;
-                    }
-                } else error = true;
-            }
-            if (astnode->blk.val) {
-                Typespec* val = sema_astnode(s, astnode->blk.val, target);
-                if (val && sema_verify_typespec(s, val, AT_VALUE, astnode->blk.val->span)) {
-                    astnode->typespec = val;
-                } else error = true;
-            } else {
-                astnode->typespec = predef_typespecs.void_type->ty;
-            }
-
-            if (noreturn_stmt) {
-                astnode->typespec = predef_typespecs.noreturn_type->ty;
-                if (noreturn_stmt_idx == buflen(astnode->blk.stmts)-1) {
-                    if (astnode->blk.val) {
-                        Msg msg = msg_with_span(
-                            MSG_ERROR,
-                            "unreachable code",
-                            astnode->blk.val->span);
-                        msg_addl_fat(&msg, "due to this:", noreturn_stmt->span);
-                        msg_emit(s, &msg);
-                        error = true;
-                    }
-                } else {
-                    Msg msg = msg_with_span(
-                        MSG_ERROR,
-                        "unreachable code",
-                        astnode->blk.stmts[noreturn_stmt_idx+1]->span);
-                    msg_addl_fat(&msg, "due to this:", noreturn_stmt->span);
-                    msg_emit(s, &msg);
-                    error = true;
-                }
-            }
-            sema_scope_pop(s);
-            return error ? NULL : astnode->typespec;
+            return sema_scoped_block(s, astnode, target, true);
         } break;
 
         case ASTNODE_FUNCTION_CALL: {
@@ -1585,6 +1604,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                 return NULL;
             }
 
+            bufpush(s->current_func->funcdef.locals, astnode);
             bool error = false;
             if (!sema_check_variable_type(s, astnode)) error = true;
             Typespec* initializer = NULL;
