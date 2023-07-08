@@ -3,5 +3,12 @@ struct Ctx {
     b: bool,
 }
 
-fn main(a: u8) void {
+fn cool(a: i8) void {
+
+}
+
+fn main(a: i8) void {
+    mut name: i8 = 1;
+    imm cmptime = -89;
+    cool(a);
 }
