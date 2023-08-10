@@ -245,6 +245,7 @@ AstNode* astnode_return_new(Token* keyword, AstNode* child) {
         ASTNODE_RETURN,
         span_from_two(keyword->span, child ? child->span : keyword->span));
     astnode->ret.child = child;
+    astnode->ret.ref = NULL;
     return astnode;
 }
 

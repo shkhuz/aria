@@ -194,6 +194,27 @@ static bool sema_are_types_exactly_equal(SemaCtx* s, Typespec* from, Typespec* t
                 assert(0 && "given TS_TYPE to sema_are_types_exactly_equal()");
             } break;
 
+            case TS_FUNC: {
+                if (buflen(from->func.params) == buflen(to->func.params)) {
+                    bool same = true;
+                    bufloop(from->func.params, i) {
+                        if (!sema_are_types_exactly_equal(
+                                s,
+                                from->func.params[i],
+                                to->func.params[i])) {
+                            same = false;
+                            break;
+                        }
+                    }
+
+                    if (!same) return false;
+                    return sema_are_types_exactly_equal(
+                        s,
+                        from->func.ret_typespec,
+                        to->func.ret_typespec);
+                } else return false;
+            } break;
+
             case TS_NORETURN: {
                 return true;
             } break;
@@ -286,6 +307,30 @@ static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Types
                 assert(0 && "given TS_TYPE to sema_are_types_equal()");
             } break;
 
+            case TS_FUNC: {
+                if (buflen(from->func.params) == buflen(to->func.params)) {
+                    bool same = true;
+                    bufloop(from->func.params, i) {
+                        TypeComparisonInfo cmpinfo = sema_are_types_equal(
+                                s,
+                                from->func.params[i],
+                                to->func.params[i],
+                                error);
+                        if (cmpinfo.result != TC_OK) {
+                            same = false;
+                            break;
+                        }
+                    }
+
+                    if (!same) return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
+                    return sema_are_types_equal(
+                        s,
+                        from->func.ret_typespec,
+                        to->func.ret_typespec,
+                        error);
+                } else return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
+            } break;
+
             case TS_NORETURN: {
                 return (TypeComparisonInfo){ .result = TC_OK, .final = to };
             } break;
@@ -344,61 +389,52 @@ static Typespec* sema_check_types_equal(SemaCtx* s, Typespec* from, Typespec* to
 }
 
 typedef enum {
-    AT_VALUE_SIZED = 1 << 0,
-    AT_VALUE_UNSIZED = 1 << 1,
-    AT_VALUE = AT_VALUE_SIZED | AT_VALUE_UNSIZED,
-    AT_FUNC = 1 << 2,
-    AT_TYPE = 1 << 3,
-    AT_MODULE = 1 << 4,
-    AT_NORETURN = 1 << 5,
+    AT_RUNTIME = 1 << 0,
+
+    // Compile-time types which are not emitted.
+    AT_COMPTIME = 1 << 1,
+    AT_VOID = 1 << 2,
+    AT_FUNC = 1 << 3,
+    AT_NORETURN = 1 << 4,
+
+    AT_DEFAULT_VALUE = AT_RUNTIME | AT_COMPTIME | AT_VOID,
+    AT_STORAGE_TYPE = AT_RUNTIME | AT_COMPTIME,
+    AT_RETURN_TYPE = AT_RUNTIME | AT_VOID | AT_NORETURN,
 } AcceptTypespecKind;
 
-static const char* accept_typespec_tostring(
-    bool accept_value,
-    bool accept_func,
-    bool accept_type,
-    bool accept_module)
-{
-    char* buf = NULL;
-    if (accept_value)  bufstrexpandpush(buf, "value, ");
-    if (accept_func)   bufstrexpandpush(buf, "function, ");
-    if (accept_type)   bufstrexpandpush(buf, "type, ");
-    if (accept_module) bufstrexpandpush(buf, "module, ");
-    if (accept_value || accept_func || accept_type || accept_module) {
-        bufpop(buf);
-        bufpop(buf);
-    }
-    bufpush(buf, '\0');
-    return buf;
-}
-
-static bool sema_verify_typespec(SemaCtx* s, Typespec* ty, AcceptTypespecKind accept, Span error) {
-    AcceptTypespecKind given_ty;
-    if (ty->kind == TS_FUNC)          given_ty = AT_FUNC;
-    else if (ty->kind == TS_TYPE)     given_ty = AT_TYPE;
-    else if (ty->kind == TS_MODULE)   given_ty = AT_MODULE;
-    else if (ty->kind == TS_NORETURN) given_ty = AT_NORETURN;
-    else if (typespec_is_sized(ty))   given_ty = AT_VALUE_SIZED;
-    else                              given_ty = AT_VALUE_UNSIZED;
-
-    bool accept_value_sized = (accept&AT_VALUE_SIZED) == AT_VALUE_SIZED;
-    bool accept_value_unsized = (accept&AT_VALUE_UNSIZED) == AT_VALUE_UNSIZED;
-    bool accept_func = (accept&AT_FUNC) == AT_FUNC;
-    bool accept_type = (accept&AT_TYPE) == AT_TYPE;
-    bool accept_module = (accept&AT_MODULE) == AT_MODULE;
-    bool accept_noreturn = (accept&AT_NORETURN) == AT_NORETURN;
-
-    if ((accept_value_sized && given_ty == AT_VALUE_SIZED)
-        || (accept_value_unsized && given_ty == AT_VALUE_UNSIZED)
-        || (accept_func && given_ty == AT_FUNC)
-        || (accept_type && given_ty == AT_TYPE)
-        || (accept_module && given_ty == AT_MODULE)
-        || (accept_noreturn && given_ty == AT_NORETURN)) {
-        return true;
-    } else if (accept_value_sized && given_ty == AT_VALUE_UNSIZED) {
+static bool sema_verify_isvalue(SemaCtx* s, Typespec* ty, AcceptTypespecKind accept, Span error) {
+    if (ty->kind == TS_TYPE || ty->kind == TS_MODULE) {
         Msg msg = msg_with_span(
             MSG_ERROR,
-            format_string_with_one_type("expected sized value, got `%T`", ty),
+            format_string("expected value, got %s", ty->kind == TS_TYPE ? "type" : "module"),
+            error);
+        msg_emit(s, &msg);
+        return false;
+    }
+
+    AcceptTypespecKind given_ty;
+    if (typespec_is_void(ty))         given_ty = AT_VOID;
+    else if (ty->kind == TS_FUNC)     given_ty = AT_FUNC;
+    else if (ty->kind == TS_NORETURN) given_ty = AT_NORETURN;
+    else if (typespec_is_sized(ty))   given_ty = AT_RUNTIME;
+    else                              given_ty = AT_COMPTIME;
+
+    bool accept_runtime = (accept&AT_RUNTIME) == AT_RUNTIME;
+    bool accept_comptime = (accept&AT_COMPTIME) == AT_COMPTIME;
+    bool accept_void = (accept&AT_VOID) == AT_VOID;
+    bool accept_func = (accept&AT_FUNC) == AT_FUNC;
+    bool accept_noreturn = (accept&AT_NORETURN) == AT_NORETURN;
+
+    if ((accept_runtime && given_ty == AT_RUNTIME)
+        || (accept_comptime && given_ty == AT_COMPTIME)
+        || (accept_void && given_ty == AT_VOID)
+        || (accept_func && given_ty == AT_FUNC)
+        || (accept_noreturn && given_ty == AT_NORETURN)) {
+        return true;
+    } else if (accept_runtime && given_ty == AT_COMPTIME) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            format_string_with_one_type("expected runtime value, got `%T`", ty),
             error);
         msg_emit(s, &msg);
         return false;
@@ -410,16 +446,62 @@ static bool sema_verify_typespec(SemaCtx* s, Typespec* ty, AcceptTypespecKind ac
         msg_emit(s, &msg);
         return false;
     } else {
-        const char* expected = accept_typespec_tostring(accept_value_sized || accept_value_unsized, accept_func, accept_type, accept_module);
-        const char* given =    accept_typespec_tostring(
-                given_ty == AT_VALUE_SIZED || given_ty == AT_VALUE_UNSIZED,
-                given_ty == AT_FUNC,
-                given_ty == AT_TYPE,
-                given_ty == AT_MODULE
-        );
         Msg msg = msg_with_span(
             MSG_ERROR,
-            format_string("expected %s, got %s", expected, given),
+            format_string_with_one_type("expected value, got `%T`", ty),
+            error);
+        msg_emit(s, &msg);
+        return false;
+    }
+}
+
+static bool sema_verify_istype(SemaCtx* s, Typespec* ty, AcceptTypespecKind accept, Span error) {
+    if (ty->kind != TS_TYPE) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            format_string("expected type, got %s", ty->kind == TS_MODULE ? "module" : "value"),
+            error);
+        msg_emit(s, &msg);
+        return false;
+    }
+
+    Typespec* internal_ty = ty->ty;
+    AcceptTypespecKind given_ty;
+    if (typespec_is_void(internal_ty))         given_ty = AT_VOID;
+    else if (internal_ty->kind == TS_FUNC)     given_ty = AT_FUNC;
+    else if (internal_ty->kind == TS_NORETURN) given_ty = AT_NORETURN;
+    else if (typespec_is_sized(internal_ty))   given_ty = AT_RUNTIME;
+    else                                       given_ty = AT_COMPTIME;
+
+    bool accept_runtime = (accept&AT_RUNTIME) == AT_RUNTIME;
+    bool accept_comptime = (accept&AT_COMPTIME) == AT_COMPTIME;
+    bool accept_void = (accept&AT_VOID) == AT_VOID;
+    bool accept_func = (accept&AT_FUNC) == AT_FUNC;
+    bool accept_noreturn = (accept&AT_NORETURN) == AT_NORETURN;
+
+    if ((accept_runtime && given_ty == AT_RUNTIME)
+        || (accept_comptime && given_ty == AT_COMPTIME)
+        || (accept_void && given_ty == AT_VOID)
+        || (accept_func && given_ty == AT_FUNC)
+        || (accept_noreturn && given_ty == AT_NORETURN)) {
+        return true;
+    } else {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            format_string_with_one_type("type `%T` is invalid here", internal_ty),
+            error);
+        msg_emit(s, &msg);
+        return false;
+    }
+}
+
+static bool sema_verify_ismod(SemaCtx* s, Typespec* ty, Span error) {
+    if (ty->kind == TS_MODULE) {
+        return true;
+    } else {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            format_string("expected module, got %s", ty->kind == TS_TYPE ? "type" : "value"),
             error);
         msg_emit(s, &msg);
         return false;
@@ -473,6 +555,7 @@ static bool sema_is_lvalue_imm(AstNode* astnode) {
         case ASTNODE_SYMBOL: {
             AstNode* ref = astnode->sym.ref;
             switch (ref->kind) {
+                case ASTNODE_FUNCTION_DEF: return true;
                 case ASTNODE_VARIABLE_DECL: return ref->vard.immutable;
                 case ASTNODE_PARAM_DECL: return false;
                 default: assert(0);
@@ -508,7 +591,7 @@ static void sema_top_level_decls_prec1(SemaCtx* s, AstNode* astnode) {
 static bool sema_check_variable_type(SemaCtx* s, AstNode* astnode) {
     if (astnode->vard.typespec) {
         Typespec* ty = sema_astnode(s, astnode->vard.typespec, NULL);
-        if (ty && sema_verify_typespec(s, ty, AT_TYPE, astnode->vard.typespec->span)) {
+        if (ty && sema_verify_istype(s, ty, AT_STORAGE_TYPE, astnode->vard.typespec->span)) {
             astnode->typespec = ty->ty;
             return true;
         } return false;
@@ -533,14 +616,14 @@ static void sema_top_level_decls_prec2(SemaCtx* s, AstNode* astnode) {
             bufloop(header->params, i) {
                 AstNode* param = header->params[i];
                 Typespec* ty = sema_astnode(s, param->paramd.typespec, NULL);
-                if (ty && sema_verify_typespec(s, ty, AT_TYPE, param->paramd.typespec->span)) {
+                if (ty && sema_verify_istype(s, ty, AT_STORAGE_TYPE, param->paramd.typespec->span)) {
                     param->typespec = ty->ty;
                     bufpush(params_ty, ty->ty);
                 } else error = true;
             }
 
             Typespec* ret_ty = sema_astnode(s, header->ret_typespec, NULL);
-            if (ret_ty && sema_verify_typespec(s, ret_ty, AT_TYPE, header->ret_typespec->span)) {
+            if (ret_ty && sema_verify_istype(s, ret_ty, AT_RETURN_TYPE, header->ret_typespec->span)) {
             } else error = true;
 
             if (!error) astnode->typespec = typespec_func_new(params_ty, ret_ty->ty);
@@ -552,7 +635,7 @@ static void sema_top_level_decls_prec2(SemaCtx* s, AstNode* astnode) {
             bufloop(astnode->strct.fields, i) {
                 AstNode* fieldnode = astnode->strct.fields[i];
                 Typespec* field_ty = sema_astnode(s, fieldnode->field.value, NULL);
-                if (field_ty && sema_verify_typespec(s, field_ty, AT_TYPE, fieldnode->field.value->span)) {
+                if (field_ty && sema_verify_istype(s, field_ty, AT_STORAGE_TYPE, fieldnode->field.value->span)) {
                     fieldnode->typespec = field_ty->ty;
                 } else error = true;
             }
@@ -678,7 +761,7 @@ static bool sema_if_branch(
     bool error = false;
     if (br->ifbr.kind != IFBR_ELSE) {
         Typespec* cond = sema_astnode(s, br->ifbr.cond, NULL);
-        if (cond && sema_verify_typespec(s, cond, AT_VALUE, br->ifbr.cond->span)) {
+        if (cond && sema_verify_isvalue(s, cond, AT_DEFAULT_VALUE, br->ifbr.cond->span)) {
             if (sema_check_types_equal(s, cond, predef_typespecs.bool_type->ty, false, br->ifbr.cond->span)) {
                 br->ifbr.cond->typespec = predef_typespecs.bool_type->ty;
             } else error = true;
@@ -692,7 +775,7 @@ static bool sema_if_branch(
            ? br->ifbr.body->blk.val->span
            : br->ifbr.body->blk.rbrace->span);
     Typespec* body = sema_astnode(s, br->ifbr.body, NULL);
-    if (body && sema_verify_typespec(s, body, AT_VALUE|AT_NORETURN, br->ifbr.body->span)) {
+    if (body && sema_verify_isvalue(s, body, AT_DEFAULT_VALUE|AT_NORETURN, br->ifbr.body->span)) {
         if (*first_br_val_valid) {
             TypeComparisonInfo cmpinfo = sema_are_types_equal(
                 s,
@@ -757,7 +840,7 @@ static Typespec* sema_scoped_block(SemaCtx* s, AstNode* astnode, Typespec* targe
     }
     if (astnode->blk.val) {
         Typespec* val = sema_astnode(s, astnode->blk.val, target);
-        if (val && sema_verify_typespec(s, val, AT_VALUE, astnode->blk.val->span)) {
+        if (val && sema_verify_isvalue(s, val, AT_DEFAULT_VALUE, astnode->blk.val->span)) {
             astnode->typespec = val;
         } else error = true;
     } else {
@@ -817,7 +900,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             Typespec* elem_annotated = NULL;
             if (astnode->arrayl.elem_type) {
                 Typespec* typeof_annotated = sema_astnode(s, astnode->arrayl.elem_type, NULL);
-                if (typeof_annotated && sema_verify_typespec(s, typeof_annotated, AT_TYPE, astnode->arrayl.elem_type->span)) {
+                if (typeof_annotated && sema_verify_istype(s, typeof_annotated, AT_STORAGE_TYPE, astnode->arrayl.elem_type->span)) {
                     elem_annotated = typeof_annotated->ty;
                 } else return NULL;
             } else if (target && target->kind == TS_ARRAY) {
@@ -843,14 +926,14 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                     final_elem_type = elem_annotated;
                 else {
                     final_elem_type = sema_astnode(s, elems[0], NULL);
-                    if (final_elem_type && sema_verify_typespec(s, final_elem_type, AT_VALUE, elems[0]->span)) {
+                    if (final_elem_type && sema_verify_isvalue(s, final_elem_type, AT_DEFAULT_VALUE, elems[0]->span)) {
                         if (!typespec_is_sized(final_elem_type)) unsized_elems = true;
                     } else error = true;
                 }
 
                 for (usize i = elem_annotated ? 0 : 1; i < buflen(elems); i++) {
                     Typespec* cur_elem_type = sema_astnode(s, elems[i], final_elem_type);
-                    if (cur_elem_type && sema_verify_typespec(s, cur_elem_type, AT_VALUE, elems[i]->span)) {
+                    if (cur_elem_type && sema_verify_isvalue(s, cur_elem_type, AT_DEFAULT_VALUE, elems[i]->span)) {
                         if (!typespec_is_sized(cur_elem_type)) unsized_elems = true;
                         if (sema_check_types_equal(s, cur_elem_type, final_elem_type, false, elems[i]->span)) {
                             elems[i]->typespec = final_elem_type;
@@ -881,7 +964,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             Typespec* child = sema_astnode(s, astnode->unop.child, NULL);
             switch (astnode->unop.kind) {
                 case UNOP_NEG: {
-                    if (child && sema_verify_typespec(s, child, AT_VALUE, astnode->unop.child->span)) {
+                    if (child && sema_verify_isvalue(s, child, AT_DEFAULT_VALUE, astnode->unop.child->span)) {
                         if (typespec_is_sized_integer(child)) {
                             if (typespec_is_signed(child)) {
                                 astnode->typespec = child;
@@ -915,7 +998,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                 } break;
 
                 case UNOP_BOOLNOT: {
-                    if (child && sema_verify_typespec(s, child, AT_VALUE, astnode->unop.child->span)) {
+                    if (child && sema_verify_isvalue(s, child, AT_DEFAULT_VALUE, astnode->unop.child->span)) {
                         if (sema_check_types_equal(s, child, predef_typespecs.bool_type->ty, false, astnode->unop.child->span)) {
                             astnode->typespec = predef_typespecs.bool_type->ty;
                             return astnode->typespec;
@@ -924,7 +1007,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                 } break;
 
                 case UNOP_ADDR: {
-                    if (child && sema_verify_typespec(s, child, AT_VALUE_SIZED, astnode->unop.child->span)) {
+                    if (child && sema_verify_isvalue(s, child, AT_RUNTIME/*TODO: check error handling*/, astnode->unop.child->span)) {
                         if (sema_check_is_lvalue(s, astnode->unop.child)) {
                             bool imm = sema_is_lvalue_imm(astnode->unop.child);
                             astnode->typespec = typespec_ptr_new(imm, child);
@@ -937,7 +1020,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
         case ASTNODE_DEREF: {
             Typespec* child = sema_astnode(s, astnode->deref.child, NULL);
-            if (child && sema_verify_typespec(s, child, AT_VALUE, astnode->deref.child->span)) {
+            if (child && sema_verify_isvalue(s, child, AT_DEFAULT_VALUE, astnode->deref.child->span)) {
                 if (child->kind == TS_PTR) {
                     astnode->typespec = child->ptr.child;
                     return astnode->typespec;
@@ -964,13 +1047,13 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             Typespec* left = sema_astnode(s, astnode->idx.left, NULL);
             Typespec* idx = sema_astnode(s, astnode->idx.idx, NULL);
             bool error = false;
-            if (left && sema_verify_typespec(s, left, AT_VALUE, astnode->idx.left->span)) {
+            if (left && sema_verify_isvalue(s, left, AT_DEFAULT_VALUE, astnode->idx.left->span)) {
                 Typespec* after_idx = sema_index_type(s, left, astnode->idx.left->span, false);
                 if (after_idx) astnode->typespec = after_idx;
                 else error = true;
             } else error = true;
 
-            if (idx && sema_verify_typespec(s, idx, AT_VALUE, astnode->idx.idx->span)) {
+            if (idx && sema_verify_isvalue(s, idx, AT_DEFAULT_VALUE, astnode->idx.idx->span)) {
                 if (typespec_is_sized_integer(idx)) {
                     if (typespec_is_signed(idx)) {
                         Msg msg = msg_with_span(
@@ -1006,8 +1089,8 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             Typespec* left = sema_astnode(s, astnode->arthbin.left, NULL);
             Typespec* right = sema_astnode(s, astnode->arthbin.right, NULL);
             if (left && right) {
-                bool left_valid = sema_verify_typespec(s, left, AT_VALUE, astnode->arthbin.left->span);
-                bool right_valid = sema_verify_typespec(s, right, AT_VALUE, astnode->arthbin.right->span);
+                bool left_valid = sema_verify_isvalue(s, left, AT_DEFAULT_VALUE, astnode->arthbin.left->span);
+                bool right_valid = sema_verify_isvalue(s, right, AT_DEFAULT_VALUE, astnode->arthbin.right->span);
                 if (left_valid && right_valid) {
                     bool left_is_sized_integer = typespec_is_sized_integer(left);
                     bool right_is_sized_integer = typespec_is_sized_integer(right);
@@ -1135,8 +1218,8 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             Typespec* left = sema_astnode(s, astnode->boolbin.left, NULL);
             Typespec* right = sema_astnode(s, astnode->boolbin.right, NULL);
             if (left && right) {
-                bool left_valid = sema_verify_typespec(s, left, AT_VALUE, astnode->boolbin.left->span);
-                bool right_valid = sema_verify_typespec(s, right, AT_VALUE, astnode->boolbin.right->span);
+                bool left_valid = sema_verify_isvalue(s, left, AT_DEFAULT_VALUE, astnode->boolbin.left->span);
+                bool right_valid = sema_verify_isvalue(s, right, AT_DEFAULT_VALUE, astnode->boolbin.right->span);
                 if (left_valid && right_valid) {
                     bool left_bool = sema_check_types_equal(s, left, predef_typespecs.bool_type->ty, false, astnode->boolbin.left->span);
                     bool right_bool = sema_check_types_equal(s, right, predef_typespecs.bool_type->ty, false, astnode->boolbin.right->span);
@@ -1152,8 +1235,8 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             Typespec* left = sema_astnode(s, astnode->cmpbin.left, NULL);
             Typespec* right = sema_astnode(s, astnode->cmpbin.right, NULL);
             if (left && right) {
-                bool left_valid = sema_verify_typespec(s, left, AT_VALUE, astnode->cmpbin.left->span);
-                bool right_valid = sema_verify_typespec(s, right, AT_VALUE, astnode->cmpbin.right->span);
+                bool left_valid = sema_verify_isvalue(s, left, AT_DEFAULT_VALUE, astnode->cmpbin.left->span);
+                bool right_valid = sema_verify_isvalue(s, right, AT_DEFAULT_VALUE, astnode->cmpbin.right->span);
                 if (left_valid && right_valid) {
                     if (sema_check_types_equal(s, left, right, true, astnode->short_span)) {
                         astnode->typespec = predef_typespecs.bool_type->ty;
@@ -1169,7 +1252,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             Typespec* right = sema_astnode(s, astnode->assign.right, left);
             bool error = false;
 
-            if (left && sema_verify_typespec(s, left, AT_VALUE, astnode->assign.left->span)) {
+            if (left && sema_verify_isvalue(s, left, AT_DEFAULT_VALUE, astnode->assign.left->span)) {
                 if (sema_check_is_lvalue(s, astnode->assign.left)) {
                     bool imm = sema_is_lvalue_imm(astnode->assign.left);
                     if (imm) {
@@ -1182,9 +1265,9 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                     }
                 } else error = true;
 
-                if (right && sema_verify_typespec(s, right, AT_VALUE, astnode->assign.right->span)) {
+                if (right && sema_verify_isvalue(s, right, AT_DEFAULT_VALUE, astnode->assign.right->span)) {
                     if (sema_check_types_equal(s, right, left, false, astnode->short_span)) {
-                        astnode->typespec = predef_typespecs.void_type;
+                        astnode->typespec = predef_typespecs.void_type->ty;
                     } else error = true;
                 }
             } else error = true;
@@ -1195,8 +1278,8 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
         case ASTNODE_CAST: {
             Typespec* left = sema_astnode(s, astnode->cast.left, NULL);
             Typespec* right = sema_astnode(s, astnode->cast.right, NULL);
-            bool left_valid = left && sema_verify_typespec(s, left, AT_VALUE, astnode->cast.left->span);
-            bool right_valid = right && sema_verify_typespec(s, right, AT_TYPE, astnode->cast.right->span);
+            bool left_valid = left && sema_verify_isvalue(s, left, AT_DEFAULT_VALUE, astnode->cast.left->span);
+            bool right_valid = right && sema_verify_istype(s, right, AT_RUNTIME|AT_VOID|AT_FUNC|AT_NORETURN /*Maybe this is not neccesary as it accepts all types */, astnode->cast.right->span);
 
             if (left_valid && right_valid) {
                 TypeComparisonResult result = TC_OK;
@@ -1238,9 +1321,28 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             } else return NULL;
         } break;
 
+        case ASTNODE_TYPESPEC_FUNC: {
+            bool error = false;
+            Typespec** params = NULL;
+            bufloop(astnode->typefunc.params, i) {
+                Typespec* param = sema_astnode(s, astnode->typefunc.params[i], NULL);
+                if (param && sema_verify_istype(s, param, AT_STORAGE_TYPE, astnode->typefunc.params[i]->span)) {
+                    bufpush(params, param->ty);
+                } else error = true;
+            }
+
+            Typespec* ret = sema_astnode(s, astnode->typefunc.ret_typespec, NULL);
+            if (ret && sema_verify_istype(s, ret, AT_RETURN_TYPE, astnode->typefunc.ret_typespec->span)) {
+            } else error = true;
+
+            if (error) return NULL;
+            astnode->typespec = typespec_type_new(typespec_func_new(params, ret->ty));
+            return astnode->typespec;
+        } break;
+
         case ASTNODE_TYPESPEC_PTR: {
             Typespec* child = sema_astnode(s, astnode->typeptr.child, NULL);
-            if (child && sema_verify_typespec(s, child, AT_TYPE, astnode->typeptr.child->span)) {
+            if (child && sema_verify_istype(s, child, AT_RUNTIME|AT_VOID|AT_FUNC, astnode->typeptr.child->span)) {
                 astnode->typespec = typespec_type_new(typespec_ptr_new(astnode->typeptr.immutable, child->ty));
                 return astnode->typespec;
             } else return NULL;
@@ -1248,7 +1350,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
         case ASTNODE_TYPESPEC_MULTIPTR: {
             Typespec* child = sema_astnode(s, astnode->typemulptr.child, NULL);
-            if (child && sema_verify_typespec(s, child, AT_TYPE, astnode->typemulptr.child->span)) {
+            if (child && sema_verify_istype(s, child, AT_RUNTIME|AT_VOID|AT_FUNC, astnode->typeptr.child->span)) {
                 astnode->typespec = typespec_type_new(typespec_multiptr_new(astnode->typemulptr.immutable, child->ty));
                 return astnode->typespec;
             } else return NULL;
@@ -1256,7 +1358,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
         case ASTNODE_TYPESPEC_SLICE: {
             Typespec* child = sema_astnode(s, astnode->typeslice.child, NULL);
-            if (child && sema_verify_typespec(s, child, AT_TYPE, astnode->typeslice.child->span)) {
+            if (child && sema_verify_istype(s, child, AT_STORAGE_TYPE, astnode->typeslice.child->span)) {
                 astnode->typespec = typespec_type_new(typespec_slice_new(astnode->typeslice.immutable, child->ty));
                 return astnode->typespec;
             } else return NULL;
@@ -1267,9 +1369,9 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             Typespec* size = sema_astnode(s, astnode->typearray.size, NULL);
             bool error = false;
 
-            if (child && sema_verify_typespec(s, child, AT_TYPE, astnode->typearray.child->span)) {
+            if (child && sema_verify_istype(s, child, AT_STORAGE_TYPE, astnode->typearray.child->span)) {
             } else error = true;
-            if (size && sema_verify_typespec(s, size, AT_VALUE, astnode->typearray.size->span)) {
+            if (size && sema_verify_isvalue(s, size, AT_DEFAULT_VALUE, astnode->typearray.size->span)) {
                 if (typespec_is_unsized_integer(size)) {
                     if (size->prim.integer.neg) {
                         Msg msg = msg_with_span(
@@ -1318,7 +1420,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
         case ASTNODE_FUNCTION_CALL: {
             Typespec* callee_ty = sema_astnode(s, astnode->funcc.callee, NULL);
-            if (callee_ty && sema_verify_typespec(s, callee_ty, AT_FUNC|AT_VALUE, astnode->funcc.callee->span)) {
+            if (callee_ty && sema_verify_isvalue(s, callee_ty, AT_DEFAULT_VALUE|AT_FUNC, astnode->funcc.callee->span)) {
                 if (callee_ty->kind == TS_FUNC) {
                     usize params_len = buflen(callee_ty->func.params);
                     usize args_len = buflen(astnode->funcc.args);
@@ -1326,7 +1428,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                         bool error = false;
                         bufloop(astnode->funcc.args, i) {
                             Typespec* arg_ty = sema_astnode(s, astnode->funcc.args[i], callee_ty->func.params[i]);
-                            if (arg_ty && sema_verify_typespec(s, arg_ty, AT_VALUE, astnode->funcc.args[i]->span)) {
+                            if (arg_ty && sema_verify_isvalue(s, arg_ty, AT_DEFAULT_VALUE, astnode->funcc.args[i]->span)) {
                                 if (!sema_check_types_equal(s, arg_ty, callee_ty->func.params[i], false, astnode->funcc.args[i]->span)) error = true;
                             } else error = true;
                         }
@@ -1364,7 +1466,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
         case ASTNODE_EXPRSTMT: {
             Typespec* child = sema_astnode(s, astnode->exprstmt, NULL);
-            if (child && sema_verify_typespec(s, child, AT_VALUE|AT_NORETURN, astnode->span)) {
+            if (child && sema_verify_isvalue(s, child, AT_DEFAULT_VALUE|AT_NORETURN, astnode->span)) {
                 astnode->typespec = child;
                 if (typespec_is_void(child) || child->kind == TS_NORETURN) {
                 } else {
@@ -1399,6 +1501,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                 case BS_i64:   astnode->typespec = predef_typespecs.i64_type; break;
                 case BS_bool:  astnode->typespec = predef_typespecs.bool_type; break;
                 case BS_void:  astnode->typespec = predef_typespecs.void_type; break;
+                case BS_noreturn:  astnode->typespec = predef_typespecs.noreturn_type; break;
                 case BS_true:  astnode->typespec = predef_typespecs.bool_type->ty; break;
                 case BS_false: astnode->typespec = predef_typespecs.bool_type->ty; break;
                 default: assert(0);
@@ -1483,7 +1586,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             Typespec* mainbody_ty = sema_astnode(s, mainbody, NULL);
             astnode->typespec = predef_typespecs.void_type->ty;
             bool error = false;
-            if (mainbody_ty && sema_verify_typespec(s, mainbody_ty, AT_VALUE|AT_NORETURN, mainbody->span)) {
+            if (mainbody_ty && sema_verify_isvalue(s, mainbody_ty, AT_DEFAULT_VALUE|AT_NORETURN, mainbody->span)) {
                 Span mainbody_val_span = mainbody->kind == ASTNODE_SCOPED_BLOCK
                                     ? (mainbody->blk.val ? mainbody->blk.val->span : mainbody->blk.rbrace->span)
                                     : (mainbody->span);
@@ -1537,7 +1640,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             Typespec* elsebody_ty = NULL;
             if (elsebody) {
                 elsebody_ty = sema_astnode(s, elsebody, NULL);
-                if (elsebody_ty && sema_verify_typespec(s, elsebody_ty, AT_VALUE|AT_NORETURN, elsebody->span)) {
+                if (elsebody_ty && sema_verify_isvalue(s, elsebody_ty, AT_DEFAULT_VALUE|AT_NORETURN, elsebody->span)) {
                     TypeComparisonInfo cmpinfo = sema_are_types_equal(s, elsebody_ty, astnode->typespec, elsebody->span);
                     if (cmpinfo.result == TC_OK) {
                         astnode->typespec = cmpinfo.final;
@@ -1570,7 +1673,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
         case ASTNODE_BREAK: {
             if (astnode->brk.child) {
                 Typespec* child = sema_astnode(s, astnode->brk.child, NULL);
-                if (child && sema_verify_typespec(s, child, AT_VALUE, astnode->brk.child->span)) {
+                if (child && sema_verify_isvalue(s, child, AT_DEFAULT_VALUE, astnode->brk.child->span)) {
                     astnode->typespec = predef_typespecs.noreturn_type->ty;
                 } else return NULL;
             } else {
@@ -1585,9 +1688,22 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
         } break;
 
         case ASTNODE_RETURN: {
+            if (!s->current_func) {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    "`return` used outside of a function",
+                    astnode->span);
+                msg_emit(s, &msg);
+                return NULL;
+            }
+
+            astnode->ret.ref = s->current_func;
+            Typespec* func_ret = astnode->ret.ref->typespec->func.ret_typespec;
             if (astnode->ret.child) {
                 Typespec* child = sema_astnode(s, astnode->ret.child, NULL);
-                if (child && sema_verify_typespec(s, child, AT_VALUE, astnode->ret.child->span)) {
+                if (child && sema_verify_isvalue(s, child, AT_DEFAULT_VALUE, astnode->ret.child->span)) {
+                    if (sema_check_types_equal(s, child, func_ret, false, astnode->ret.child->span)) {
+                    } else return NULL;
                 } else return NULL;
             }
             astnode->typespec = predef_typespecs.noreturn_type->ty;
@@ -1610,7 +1726,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             Typespec* initializer = NULL;
             if (astnode->vard.initializer) {
                 initializer = sema_astnode(s, astnode->vard.initializer, astnode->typespec);
-                if (initializer && sema_verify_typespec(s, initializer, AT_VALUE, astnode->vard.initializer->span)) {
+                if (initializer && sema_verify_isvalue(s, initializer, AT_RUNTIME|AT_COMPTIME, astnode->vard.initializer->span)) {
                 } else error = true;
             }
             if (!sema_declare_variable(s, astnode)) error = true;

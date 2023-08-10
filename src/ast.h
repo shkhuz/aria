@@ -93,6 +93,7 @@ typedef enum {
     BS_i64,
     BS_bool,
     BS_void,
+    BS_noreturn,
     BS_true,
     BS_false,
 } BuiltinSymbolKind;
@@ -146,6 +147,7 @@ typedef struct {
 
 typedef struct {
     AstNode* child;
+    AstNode* ref;
 } AstNodeReturn;
 
 typedef struct {

@@ -47,6 +47,7 @@ void init_global_compiler_state() {
     bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "i64", BS_i64 });
     bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "bool", BS_bool });
     bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "void", BS_void });
+    bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "noreturn", BS_noreturn });
     bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "true", BS_true });
     bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "false", BS_false });
 
