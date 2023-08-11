@@ -402,6 +402,33 @@ typedef enum {
     AT_RETURN_TYPE = AT_RUNTIME | AT_VOID | AT_NORETURN,
 } AcceptTypespecKind;
 
+typedef struct {
+    bool accept_runtime;
+    bool accept_comptime;
+    bool accept_void;
+    bool accept_func;
+    bool accept_noreturn;
+} AcceptTypespecDecoded;
+
+static AcceptTypespecKind get_accept_params(Typespec* ty) {
+    AcceptTypespecKind given_ty;
+    if (typespec_is_void(ty))         return AT_VOID;
+    else if (ty->kind == TS_FUNC)     return AT_FUNC;
+    else if (ty->kind == TS_NORETURN) return AT_NORETURN;
+    else if (typespec_is_sized(ty))   return AT_RUNTIME;
+    else                              return AT_COMPTIME;
+}
+
+static AcceptTypespecDecoded get_decoded_accept_params(AcceptTypespecKind accept) {
+    AcceptTypespecDecoded a;
+    a.accept_runtime = (accept&AT_RUNTIME) == AT_RUNTIME;
+    a.accept_comptime = (accept&AT_COMPTIME) == AT_COMPTIME;
+    a.accept_void = (accept&AT_VOID) == AT_VOID;
+    a.accept_func = (accept&AT_FUNC) == AT_FUNC;
+    a.accept_noreturn = (accept&AT_NORETURN) == AT_NORETURN;
+    return a;
+}
+
 static bool sema_verify_isvalue(SemaCtx* s, Typespec* ty, AcceptTypespecKind accept, Span error) {
     if (ty->kind == TS_TYPE || ty->kind == TS_MODULE) {
         Msg msg = msg_with_span(
@@ -412,33 +439,23 @@ static bool sema_verify_isvalue(SemaCtx* s, Typespec* ty, AcceptTypespecKind acc
         return false;
     }
 
-    AcceptTypespecKind given_ty;
-    if (typespec_is_void(ty))         given_ty = AT_VOID;
-    else if (ty->kind == TS_FUNC)     given_ty = AT_FUNC;
-    else if (ty->kind == TS_NORETURN) given_ty = AT_NORETURN;
-    else if (typespec_is_sized(ty))   given_ty = AT_RUNTIME;
-    else                              given_ty = AT_COMPTIME;
+    AcceptTypespecKind given_ty = get_accept_params(ty);
+    AcceptTypespecDecoded a = get_decoded_accept_params(accept);
 
-    bool accept_runtime = (accept&AT_RUNTIME) == AT_RUNTIME;
-    bool accept_comptime = (accept&AT_COMPTIME) == AT_COMPTIME;
-    bool accept_void = (accept&AT_VOID) == AT_VOID;
-    bool accept_func = (accept&AT_FUNC) == AT_FUNC;
-    bool accept_noreturn = (accept&AT_NORETURN) == AT_NORETURN;
-
-    if ((accept_runtime && given_ty == AT_RUNTIME)
-        || (accept_comptime && given_ty == AT_COMPTIME)
-        || (accept_void && given_ty == AT_VOID)
-        || (accept_func && given_ty == AT_FUNC)
-        || (accept_noreturn && given_ty == AT_NORETURN)) {
+    if ((a.accept_runtime && given_ty == AT_RUNTIME)
+        || (a.accept_comptime && given_ty == AT_COMPTIME)
+        || (a.accept_void && given_ty == AT_VOID)
+        || (a.accept_func && given_ty == AT_FUNC)
+        || (a.accept_noreturn && given_ty == AT_NORETURN)) {
         return true;
-    } else if (accept_runtime && given_ty == AT_COMPTIME) {
+    } else if (a.accept_runtime && given_ty == AT_COMPTIME) {
         Msg msg = msg_with_span(
             MSG_ERROR,
             format_string_with_one_type("expected runtime value, got `%T`", ty),
             error);
         msg_emit(s, &msg);
         return false;
-    } else if (given_ty == AT_NORETURN && !accept_noreturn) {
+    } else if (given_ty == AT_NORETURN && !a.accept_noreturn) {
         Msg msg = msg_with_span(
             MSG_ERROR,
             "value is of type `noreturn`: parent code unreachable",
@@ -465,30 +482,19 @@ static bool sema_verify_istype(SemaCtx* s, Typespec* ty, AcceptTypespecKind acce
         return false;
     }
 
-    Typespec* internal_ty = ty->ty;
-    AcceptTypespecKind given_ty;
-    if (typespec_is_void(internal_ty))         given_ty = AT_VOID;
-    else if (internal_ty->kind == TS_FUNC)     given_ty = AT_FUNC;
-    else if (internal_ty->kind == TS_NORETURN) given_ty = AT_NORETURN;
-    else if (typespec_is_sized(internal_ty))   given_ty = AT_RUNTIME;
-    else                                       given_ty = AT_COMPTIME;
+    AcceptTypespecKind given_ty = get_accept_params(ty->ty);
+    AcceptTypespecDecoded a = get_decoded_accept_params(accept);
 
-    bool accept_runtime = (accept&AT_RUNTIME) == AT_RUNTIME;
-    bool accept_comptime = (accept&AT_COMPTIME) == AT_COMPTIME;
-    bool accept_void = (accept&AT_VOID) == AT_VOID;
-    bool accept_func = (accept&AT_FUNC) == AT_FUNC;
-    bool accept_noreturn = (accept&AT_NORETURN) == AT_NORETURN;
-
-    if ((accept_runtime && given_ty == AT_RUNTIME)
-        || (accept_comptime && given_ty == AT_COMPTIME)
-        || (accept_void && given_ty == AT_VOID)
-        || (accept_func && given_ty == AT_FUNC)
-        || (accept_noreturn && given_ty == AT_NORETURN)) {
+    if ((a.accept_runtime && given_ty == AT_RUNTIME)
+        || (a.accept_comptime && given_ty == AT_COMPTIME)
+        || (a.accept_void && given_ty == AT_VOID)
+        || (a.accept_func && given_ty == AT_FUNC)
+        || (a.accept_noreturn && given_ty == AT_NORETURN)) {
         return true;
     } else {
         Msg msg = msg_with_span(
             MSG_ERROR,
-            format_string_with_one_type("type `%T` is invalid here", internal_ty),
+            format_string_with_one_type("type `%T` is invalid here", ty->ty),
             error);
         msg_emit(s, &msg);
         return false;
@@ -1279,7 +1285,13 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             Typespec* left = sema_astnode(s, astnode->cast.left, NULL);
             Typespec* right = sema_astnode(s, astnode->cast.right, NULL);
             bool left_valid = left && sema_verify_isvalue(s, left, AT_DEFAULT_VALUE, astnode->cast.left->span);
-            bool right_valid = right && sema_verify_istype(s, right, AT_RUNTIME|AT_VOID|AT_FUNC|AT_NORETURN /*Maybe this is not neccesary as it accepts all types */, astnode->cast.right->span);
+            bool right_valid = right && sema_verify_istype(
+                s,
+                right,
+                // Maybe this is not neccesary as it accepts all types,
+                // and checks it on its own.
+                AT_RUNTIME|AT_VOID|AT_FUNC|AT_NORETURN,
+                astnode->cast.right->span);
 
             if (left_valid && right_valid) {
                 TypeComparisonResult result = TC_OK;
