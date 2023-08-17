@@ -3,12 +3,13 @@ struct Ctx {
     b: bool,
 }
 
-fn cool(a: u8) void {
-
+fn cool(a: i8) i8 {
+    return a;
 }
 
 fn main(a: i8) i8 {
-    imm i = 1;
-    mut b: u8 = i;
-    return 1;
+    imm i = cool(10);
+    mut b: i8 = cool(i);
+    b = 11;
+    return b;
 }

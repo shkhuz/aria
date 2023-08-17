@@ -41,7 +41,7 @@ static void initialize_test(
     };
 
     Srcfile* srcfiles_ptr = srcfiles;
-    CompileCtx test_ctx = compile_new_context();
+    CompileCtx test_ctx = compile_new_context(NULL);
 #ifdef TEST_PRINT_COMPILER_MSGS
     test_ctx.print_msg_to_stderr = true;
 #else

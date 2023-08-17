@@ -66,12 +66,14 @@ void init_global_compiler_state() {
     };
 }
 
-CompileCtx compile_new_context() {
+CompileCtx compile_new_context(const char* target_triple) {
     CompileCtx c;
     c.mod_tys = NULL;
+    c.target_triple = target_triple;
     c.msgs = NULL;
     c.parsing_error = false;
     c.sema_error = false;
+    c.cg_error = false;
     c.print_msg_to_stderr = true;
     c.print_ast = false;
     c.did_msg = false;
@@ -118,7 +120,7 @@ void compile(CompileCtx* c) {
     if (c->sema_error) return;
 
     CgCtx cg_ctx = cg_new_context(c->mod_tys, c);
-    cg(&cg_ctx);
+    c->cg_error = cg(&cg_ctx);
 }
 
 struct Typespec* read_srcfile(const char* path, OptionalSpan span, CompileCtx* compile_ctx) {
@@ -137,7 +139,7 @@ struct Typespec* read_srcfile(const char* path, OptionalSpan span, CompileCtx* c
         } break;
 
         case FOO_FAILURE: {
-            const char* error_msg = format_string("cannot read source file `%s`", path);
+            const char* error_msg = format_string("cannot read source file '%s'", path);
             if (span.exists) {
                 Msg msg = msg_with_span(MSG_ERROR, error_msg, span.span);
                 _msg_emit(&msg, compile_ctx);

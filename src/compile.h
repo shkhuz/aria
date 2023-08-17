@@ -49,9 +49,13 @@ typedef struct Srcfile Srcfile;
 
 struct CompileCtx {
     struct Typespec** mod_tys;
+    const char* target_triple;
+
     Msg* msgs;
     bool parsing_error;
     bool sema_error;
+    bool cg_error;
+
     bool print_msg_to_stderr;
     bool print_ast;
     bool did_msg;
@@ -59,7 +63,7 @@ struct CompileCtx {
 
 void init_global_compiler_state();
 
-CompileCtx compile_new_context();
+CompileCtx compile_new_context(const char* target_triple);
 void register_msg(CompileCtx* c, Msg msg);
 void compile(CompileCtx* c);
 

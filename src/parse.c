@@ -698,7 +698,7 @@ static AstNode* parse_import(ParseCtx* p) {
     Token* arg = expect(p, TOKEN_STRING_LITERAL, "expected path string");
     Token* as = NULL;
     if (match(p, TOKEN_KEYWORD_AS)) {
-        as = expect_identifier(p, "expected new module name");
+        as = expect_identifier(p, "expected identifier to rename imported module");
     }
     expect_semicolon(p);
 

@@ -8,7 +8,15 @@ CgCtx cg_new_context(struct Typespec** mod_tys, struct CompileCtx* compile_ctx) 
     CgCtx c;
     c.mod_tys = mod_tys;
     c.compile_ctx = compile_ctx;
+    c.error = false;
     return c;
+}
+
+static inline void msg_emit(CgCtx* c, Msg* msg) {
+    _msg_emit(msg, c->compile_ctx);
+    if (msg->kind == MSG_ERROR) {
+        c->error = true;
+    }
 }
 
 static LLVMTypeRef cg_get_llvm_type(Typespec* typespec) {
@@ -167,6 +175,33 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                 : LLVMBuildLoad2(c->llvmbuilder, astnode->sym.ref->llvmtype, astnode->sym.ref->llvmvalue, "");
         } break;
 
+        case ASTNODE_ASSIGN: {
+            Typespec* left = astnode->assign.left->typespec;
+            Typespec* right = astnode->assign.right->typespec;
+            Typespec* left_target_type = NULL;
+            Typespec* right_target_type = NULL;
+            if (typespec_is_unsized_integer(right))
+                right_target_type = left;
+            else if (typespec_get_bytes(left) > typespec_get_bytes(right))
+                right_target_type = left;
+            else
+                left_target_type = right;
+            LLVMValueRef left_llvmvalue = cg_astnode(
+                c,
+                astnode->assign.left,
+                true,
+                left_target_type,
+                left_target_type ? cg_get_llvm_type(left_target_type) : NULL);
+            LLVMValueRef right_llvmvalue = cg_astnode(
+                c,
+                astnode->assign.right,
+                false,
+                right_target_type,
+                right_target_type ? cg_get_llvm_type(right_target_type) : NULL);
+            LLVMBuildStore(c->llvmbuilder, right_llvmvalue, left_llvmvalue);
+            return NULL;
+        } break;
+
         case ASTNODE_UNOP: {
             switch (astnode->unop.kind) {
                 case UNOP_NEG: {} break;
@@ -199,9 +234,9 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
         } break;
 
         case ASTNODE_VARIABLE_DECL: {
-            if (astnode->vard.initializer) {
+            if (astnode->vard.initializer && !typespec_is_comptime(astnode->typespec)) {
                 LLVMValueRef initializer_llvmvalue = cg_astnode(c, astnode->vard.initializer, false, astnode->typespec, astnode->llvmtype);
-                LLVMSetInitializer(astnode->llvmvalue, initializer_llvmvalue);
+                LLVMBuildStore(c->llvmbuilder, initializer_llvmvalue, astnode->llvmvalue);
                 return astnode->llvmvalue;
             }
             return NULL;
@@ -252,11 +287,13 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
 
             AstNode** locals = astnode->funcdef.locals;
             bufloop(locals, i) {
-                locals[i]->llvmtype = cg_get_llvm_type(locals[i]->typespec);
-                locals[i]->llvmvalue = LLVMBuildAlloca(
-                    c->llvmbuilder,
-                    locals[i]->llvmtype,
-                    locals[i]->vard.name);
+                if (!typespec_is_comptime(locals[i]->typespec)) {
+                    locals[i]->llvmtype = cg_get_llvm_type(locals[i]->typespec);
+                    locals[i]->llvmvalue = LLVMBuildAlloca(
+                        c->llvmbuilder,
+                        locals[i]->llvmtype,
+                        locals[i]->vard.name);
+                }
             }
 
             LLVMValueRef body_llvmvalue = cg_astnode(c, astnode->funcdef.body, false, NULL, NULL);
@@ -272,7 +309,61 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
     return NULL;
 }
 
-void cg(CgCtx* c) {
+static bool init_cg(CgCtx* c) {
+    LLVMInitializeAllTargetInfos();
+    LLVMInitializeAllTargets();
+    LLVMInitializeAllTargetMCs();
+    LLVMInitializeAllAsmParsers();
+    LLVMInitializeAllAsmPrinters();
+
+    if (!c->compile_ctx->target_triple) {
+        c->compile_ctx->target_triple = LLVMGetDefaultTargetTriple();
+    }
+
+    char* errors = NULL;
+    bool error = LLVMGetTargetFromTriple(
+        c->compile_ctx->target_triple,
+        &c->llvmtarget,
+        &errors);
+    if (error) {
+        Msg msg = msg_with_no_span(
+            MSG_ERROR,
+            format_string("invalid or unsupported target: '%s'", c->compile_ctx->target_triple));
+        msg_addl_thin(&msg, errors);
+        msg_emit(c, &msg);
+    }
+    LLVMDisposeMessage(errors);
+    errors = NULL;
+    if (error) return true;
+
+    printf(
+            "======== MACHINE INFO ========\n"
+            "target: %s, [%s], %d, %d\n",
+            LLVMGetTargetName(c->llvmtarget),
+            LLVMGetTargetDescription(c->llvmtarget),
+            LLVMTargetHasJIT(c->llvmtarget),
+            LLVMTargetHasTargetMachine(c->llvmtarget));
+    printf("host triple: %s\n", LLVMGetDefaultTargetTriple());
+
+    c->llvmtargetmachine = LLVMCreateTargetMachine(
+            c->llvmtarget,
+            c->compile_ctx->target_triple,
+            "generic",
+            "",
+            LLVMCodeGenLevelDefault,
+            LLVMRelocDefault,
+            LLVMCodeModelDefault);
+    c->llvmtargetdatalayout = LLVMCreateTargetDataLayout(c->llvmtargetmachine);
+
+    c->llvmpm = LLVMCreatePassManager();
+    LLVMAddPromoteMemoryToRegisterPass(c->llvmpm);
+
+    return false;
+}
+
+bool cg(CgCtx* c) {
+    if (init_cg(c)) return true;
+
     c->llvmbuilder = LLVMCreateBuilder();
     c->llvmmod = LLVMModuleCreateWithName("root");
 
@@ -297,6 +388,34 @@ void cg(CgCtx* c) {
         }
     }
 
-    printf("\n======= LLVM IR =======\n");
+    printf("\n======= Raw LLVM IR Start =======\n");
     LLVMDumpModule(c->llvmmod);
+    printf("\n======= Raw LLVM IR End =======\n");
+
+    bool error = false;
+    char* errors = NULL;
+
+    error = LLVMVerifyModule(c->llvmmod, LLVMReturnStatusAction, &errors);
+    if (error) {
+        Msg msg = msg_with_no_span(
+            MSG_ERROR,
+            "[internal] IR generated by the compiler is invalid");
+        msg_addl_thin(&msg, errors);
+        msg_emit(c, &msg);
+    }
+
+    LLVMDisposeMessage(errors);
+    errors = NULL;
+    if (error) {
+        c->error = true;
+        return c->error;
+    }
+
+    LLVMRunPassManager(c->llvmpm, c->llvmmod);
+
+    //printf("\n======= Optimized LLVM IR Start =======\n");
+    //LLVMDumpModule(c->llvmmod);
+    //printf("\n======= Optimized LLVM IR End =======\n");
+
+    return c->error;
 }

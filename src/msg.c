@@ -159,28 +159,28 @@ void _msg_emit_no_register(Msg* msg, CompileCtx* compile_ctx) {
 
     if (msg->span.exists) {
         print_source_line(msg->span.span, color, true);
+    }
 
-        bufloop(msg->addl_fat, i) {
-            fprintf(
-                stderr,
-                "  %snote:%s %s\n",
-                g_note_color,
-                g_reset_color,
-                msg->addl_fat[i].msg);
-            print_source_line(
-                msg->addl_fat[i].span,
-                g_note_color,
-                true/*msg->span.span.srcfile != msg->addl_fat[i].span.srcfile*/);
-        }
+    bufloop(msg->addl_fat, i) {
+        fprintf(
+            stderr,
+            "  %snote:%s %s\n",
+            g_note_color,
+            g_reset_color,
+            msg->addl_fat[i].msg);
+        print_source_line(
+            msg->addl_fat[i].span,
+            g_note_color,
+            true/*msg->span.span.srcfile != msg->addl_fat[i].span.srcfile*/);
+    }
 
-        bufloop(msg->addl_thin, i) {
-            fprintf(
-                stderr,
-                "  %snote:%s %s\n",
-                g_note_color,
-                g_reset_color,
-                msg->addl_thin[i].msg);
-        }
+    bufloop(msg->addl_thin, i) {
+        fprintf(
+            stderr,
+            "  %snote:%s %s\n",
+            g_note_color,
+            g_reset_color,
+            msg->addl_thin[i].msg);
     }
 
     if (!(compile_ctx->did_msg)) {

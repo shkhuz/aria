@@ -16,9 +16,15 @@ typedef struct {
     struct CompileCtx* compile_ctx;
     LLVMBuilderRef llvmbuilder;
     LLVMModuleRef llvmmod;
+    bool error;
+
+    LLVMTargetRef llvmtarget;
+    LLVMTargetMachineRef llvmtargetmachine;
+    LLVMTargetDataRef llvmtargetdatalayout;
+    LLVMPassManagerRef llvmpm;
 } CgCtx;
 
 CgCtx cg_new_context(struct Typespec** mod_tys, struct CompileCtx* compile_ctx);
-void cg(CgCtx* c);
+bool cg(CgCtx* c);
 
 #endif

@@ -174,6 +174,10 @@ static char* tostring(Typespec* ty) {
     return NULL;
 }
 
+bool typespec_is_comptime(Typespec* ty) {
+    return typespec_is_unsized_integer(ty);
+}
+
 bool typespec_is_sized_integer(Typespec* ty) {
     switch (ty->kind) {
         case TS_PRIM: {
@@ -247,20 +251,29 @@ u32 typespec_get_bytes(Typespec* ty) {
     switch (ty->kind) {
         case TS_PRIM: {
             switch (ty->prim.kind) {
-            case PRIM_u8:
-            case PRIM_i8:
-                return 1;
-            case PRIM_u16:
-            case PRIM_i16:
-                return 2;
-            case PRIM_u32:
-            case PRIM_i32:
-                return 4;
-            case PRIM_u64:
-            case PRIM_i64:
-                return 8;
-            case PRIM_void:
-                return 0;
+                case PRIM_u8:
+                case PRIM_i8:
+                    return 1;
+                case PRIM_u16:
+                case PRIM_i16:
+                    return 2;
+                case PRIM_u32:
+                case PRIM_i32:
+                    return 4;
+                case PRIM_u64:
+                case PRIM_i64:
+                    return 8;
+                case PRIM_void:
+                    return 0;
+                case PRIM_integer: {
+                    u64 d = ty->prim.integer.d[0];
+                    usize bits = get_bits_for_value(d);
+                    if (bits <= 8) bits = 8;
+                    else if (bits <= 16) bits = 16;
+                    else if (bits <= 32) bits = 32;
+                    else if (bits <= 64) bits = 64;
+                    return bits / 8;
+                } break;
             }
         } break;
     }

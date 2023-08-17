@@ -97,6 +97,7 @@ Typespec* typespec_type_new(Typespec* typespec);
 Typespec* typespec_module_new(struct Srcfile* srcfile);
 Typespec* typespec_noreturn_new();
 
+bool typespec_is_comptime(Typespec* ty);
 bool typespec_is_sized_integer(Typespec* ty);
 bool typespec_is_unsized_integer(Typespec* ty);
 bool typespec_is_integer(Typespec* ty);

@@ -94,7 +94,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    CompileCtx compile_ctx = compile_new_context();
+    CompileCtx compile_ctx = compile_new_context(target_triple);
     compile_ctx.print_ast = true;
 
     if (optind == argc) {
@@ -115,7 +115,8 @@ int main(int argc, char* argv[]) {
 
     compile(&compile_ctx);
     if (compile_ctx.parsing_error
-        || compile_ctx.sema_error) {
+        || compile_ctx.sema_error
+        || compile_ctx.cg_error) {
         terminate_compilation();
     }
 }
