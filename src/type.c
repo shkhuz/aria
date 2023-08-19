@@ -5,6 +5,7 @@
 static Typespec* typespec_new(TypespecKind kind) {
     Typespec* ty = alloc_obj(Typespec);
     ty->kind = kind;
+    ty->llvmtype = NULL;
     return ty;
 }
 
@@ -143,7 +144,7 @@ static char* tostring(Typespec* ty) {
 
         case TS_FUNC: {
             char* buf = NULL;
-            bufstrexpandpush(buf, "fn (");
+            bufstrexpandpush(buf, "fn(");
             bufloop(ty->func.params, i) {
                 bufstrexpandpush(buf, tostring(ty->func.params[i]));
                 if (i != buflen(ty->func.params)-1) bufstrexpandpush(buf, ", ");
@@ -275,6 +276,12 @@ u32 typespec_get_bytes(Typespec* ty) {
                     return bits / 8;
                 } break;
             }
+        } break;
+
+        case TS_PTR:
+        case TS_MULTIPTR: {
+            // TODO: make this platform specific
+            return 8;
         } break;
     }
     assert(0);

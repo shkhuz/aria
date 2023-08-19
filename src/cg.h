@@ -13,6 +13,7 @@ struct CompileCtx;
 
 typedef struct {
     struct Typespec** mod_tys;
+    struct Typespec* current_mod_ty;
     struct CompileCtx* compile_ctx;
     LLVMBuilderRef llvmbuilder;
     LLVMModuleRef llvmmod;

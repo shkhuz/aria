@@ -4,6 +4,8 @@
 #include "core.h"
 #include "bigint.h"
 
+#include <llvm-c/Core.h>
+
 struct AstNode;
 struct Srcfile;
 
@@ -41,6 +43,9 @@ typedef enum {
 
 typedef struct Typespec {
     TypespecKind kind;
+
+    LLVMTypeRef llvmtype;
+
     union {
         struct {
             PrimKind kind;

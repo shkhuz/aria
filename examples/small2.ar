@@ -1,15 +1,27 @@
+import "small2_import.ar" as c;
+
 struct Ctx {
     a: u8,
     b: bool,
 }
 
-fn cool(a: i8) i8 {
+fn cool(a: u8) u8 {
     return a;
 }
 
-fn main(a: i8) i8 {
-    imm i = cool(10);
-    mut b: i8 = cool(i);
-    b = 11;
-    return b;
+fn _main(a: i8) u8 {
+    mut num: u8 = c.cool(1);
+    mut ptr = &num;
+    ptr.* = 2;
+
+    mut f = &cool;
+    f(1);
+
+    return ptr.*;
 }
+
+// fn cool() void {}
+// fn main() {
+//     mut f = &cool;          // f is `*fn() void`
+//     f.*();                  // callee type is `fn() void`
+// }

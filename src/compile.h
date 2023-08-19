@@ -35,6 +35,7 @@ typedef struct {
 } PredefTypespecs;
 
 struct Srcfile {
+    u64 id;
     File handle;
     Token** tokens;
     struct AstNode** astnodes;
@@ -59,6 +60,8 @@ struct CompileCtx {
     bool print_msg_to_stderr;
     bool print_ast;
     bool did_msg;
+
+    u64 next_srcfile_id;
 };
 
 void init_global_compiler_state();

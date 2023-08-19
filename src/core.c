@@ -68,6 +68,14 @@ char* format_string(const char* fmt, ...) {
     return buf;
 }
 
+u64 hash_string(const char* str) {
+    u64 hash = 5381;
+    int c;
+    while ((c = *str++))
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+    return hash;
+}
+
 void terminate_compilation() {
     exit(1);
 }

@@ -77,6 +77,7 @@ CompileCtx compile_new_context(const char* target_triple) {
     c.print_msg_to_stderr = true;
     c.print_ast = false;
     c.did_msg = false;
+    c.next_srcfile_id = 0;
     return c;
 }
 
@@ -132,6 +133,7 @@ struct Typespec* read_srcfile(const char* path, OptionalSpan span, CompileCtx* c
                     return compile_ctx->mod_tys[i];
             }
             Srcfile* srcfile = malloc(sizeof(Srcfile));
+            srcfile->id = compile_ctx->next_srcfile_id++;
             srcfile->handle = efile.handle;
             Typespec* mod = typespec_module_new(srcfile);
             bufpush(compile_ctx->mod_tys, mod);

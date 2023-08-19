@@ -7,6 +7,7 @@
 CgCtx cg_new_context(struct Typespec** mod_tys, struct CompileCtx* compile_ctx) {
     CgCtx c;
     c.mod_tys = mod_tys;
+    c.current_mod_ty = NULL;
     c.compile_ctx = compile_ctx;
     c.error = false;
     return c;
@@ -19,7 +20,16 @@ static inline void msg_emit(CgCtx* c, Msg* msg) {
     }
 }
 
+static char* mangle_name(CgCtx* c, char* name) {
+    return format_string(
+        "_Z%lu%s",
+        c->current_mod_ty->mod.srcfile->id,
+        name);
+}
+
 static LLVMTypeRef cg_get_llvm_type(Typespec* typespec) {
+    if (typespec->llvmtype) return typespec->llvmtype;
+
     switch (typespec->kind) {
         case TS_PRIM: {
             switch (typespec->prim.kind) {
@@ -31,24 +41,32 @@ static LLVMTypeRef cg_get_llvm_type(Typespec* typespec) {
                 case PRIM_i16:
                 case PRIM_i32:
                 case PRIM_i64:
-                    return LLVMIntType(typespec_get_bytes(typespec) * 8);
+                    typespec->llvmtype = LLVMIntType(typespec_get_bytes(typespec) * 8);
+                    break;
 
                 case PRIM_bool:
-                    return LLVMInt8Type();
+                    typespec->llvmtype = LLVMInt8Type();
+                    break;
+
                 case PRIM_void:
-                    return LLVMVoidType();
+                    typespec->llvmtype = LLVMVoidType();
+                    break;
 
                 case PRIM_integer:
-                    return LLVMInt64Type();
+                    typespec->llvmtype = LLVMInt64Type();
+                    break;
 
                 default: assert(0 && "cg_get_llvm_type()");
             }
         } break;
 
         case TS_PTR:
-            return LLVMPointerType(cg_get_llvm_type(typespec->ptr.child), 0);
+            typespec->llvmtype = LLVMPointerType(cg_get_llvm_type(typespec->ptr.child), 0);
+            break;
+
         case TS_MULTIPTR:
-            return LLVMPointerType(cg_get_llvm_type(typespec->mulptr.child), 0);
+            typespec->llvmtype = LLVMPointerType(cg_get_llvm_type(typespec->mulptr.child), 0);
+            break;
 
         case TS_FUNC: {
             LLVMTypeRef* param_llvmtypes = NULL;
@@ -58,7 +76,7 @@ static LLVMTypeRef cg_get_llvm_type(Typespec* typespec) {
                 bufpush(param_llvmtypes, cg_get_llvm_type(params[i]));
             }
             LLVMTypeRef ret_llvmtype = cg_get_llvm_type(ret);
-            return LLVMFunctionType(
+            typespec->llvmtype = LLVMFunctionType(
                 ret_llvmtype,
                 param_llvmtypes,
                 buflen(params),
@@ -66,18 +84,18 @@ static LLVMTypeRef cg_get_llvm_type(Typespec* typespec) {
         };
 
         case TS_STRUCT:
-            return typespec->agg->llvmtype;
+            typespec->llvmtype = typespec->agg->strct.llvmtype;
+            break;
 
         default: assert(0 && "cg_get_llvm_type()");
     }
-    assert(0);
-    return NULL;
+    return typespec->llvmtype;
 }
 
 static void cg_top_level_decls_prec1(CgCtx* c, AstNode* astnode) {
     switch (astnode->kind) {
         case ASTNODE_STRUCT: {
-            astnode->llvmtype = LLVMStructCreateNamed(
+            astnode->strct.llvmtype = LLVMStructCreateNamed(
                 LLVMGetGlobalContext(),
                 token_tostring(astnode->strct.identifier));
         } break;
@@ -87,43 +105,44 @@ static void cg_top_level_decls_prec1(CgCtx* c, AstNode* astnode) {
 static void cg_top_level_decls_prec2(CgCtx* c, AstNode* astnode) {
     switch (astnode->kind) {
         case ASTNODE_VARIABLE_DECL: {
-            astnode->llvmtype = cg_get_llvm_type(astnode->typespec);
+            cg_get_llvm_type(astnode->typespec);
             astnode->llvmvalue = LLVMAddGlobal(
                 c->llvmmod,
-                astnode->llvmtype,
+                astnode->typespec->llvmtype,
                 token_tostring(astnode->vard.identifier));
         } break;
 
         case ASTNODE_FUNCTION_DEF: {
             AstNodeFunctionHeader* header = &astnode->funcdef.header->funch;
+            header->mangled_name = mangle_name(c, header->name);
             LLVMTypeRef* param_llvmtypes = NULL;
             bufloop(header->params, i) {
-                header->params[i]->llvmtype = cg_get_llvm_type(header->params[i]->typespec);
-                bufpush(param_llvmtypes, header->params[i]->llvmtype);
+                cg_get_llvm_type(header->params[i]->typespec);
+                bufpush(param_llvmtypes, header->params[i]->typespec->llvmtype);
             }
             LLVMTypeRef ret_llvmtype = cg_get_llvm_type(astnode->typespec->func.ret_typespec);
-            astnode->funcdef.header->funch.ret_typespec->llvmtype = ret_llvmtype;
+            astnode->funcdef.header->funch.ret_typespec->typespec->llvmtype = ret_llvmtype;
 
-            astnode->llvmtype = LLVMFunctionType(
+            astnode->funcdef.header->typespec->llvmtype = LLVMFunctionType(
                 ret_llvmtype,
                 param_llvmtypes,
                 buflen(header->params),
                 false);
             astnode->llvmvalue = LLVMAddFunction(
                 c->llvmmod,
-                header->name,
-                astnode->llvmtype);
+                header->mangled_name,
+                astnode->typespec->llvmtype);
         } break;
 
         case ASTNODE_STRUCT: {
             LLVMTypeRef* field_llvmtypes = NULL;
             bufloop(astnode->strct.fields, i) {
-                astnode->strct.fields[i]->llvmtype = cg_get_llvm_type(astnode->strct.fields[i]->typespec);
-                bufpush(field_llvmtypes, astnode->strct.fields[i]->llvmtype);
+                cg_get_llvm_type(astnode->strct.fields[i]->typespec);
+                bufpush(field_llvmtypes, astnode->strct.fields[i]->typespec->llvmtype);
             }
 
             LLVMStructSetBody(
-                astnode->llvmtype,
+                astnode->strct.llvmtype,
                 field_llvmtypes,
                 buflen(field_llvmtypes),
                 false);
@@ -131,10 +150,12 @@ static void cg_top_level_decls_prec2(CgCtx* c, AstNode* astnode) {
     }
 }
 
-LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* target, LLVMTypeRef target_llvmtype) {
+LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* target) {
+    assert(astnode->typespec);
+    LLVMValueRef result = NULL;
     if (typespec_is_unsized_integer(astnode->typespec) && target) {
         return LLVMConstInt(
-            typespec_is_sized_integer(target) ? target_llvmtype : LLVMInt64Type(),
+            typespec_is_sized_integer(target) ? cg_get_llvm_type(target) : LLVMInt64Type(),
             astnode->typespec->prim.integer.neg ? (-astnode->typespec->prim.integer.d[0]) : astnode->typespec->prim.integer.d[0],
             astnode->typespec->prim.integer.neg);
     }
@@ -144,6 +165,11 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
         case ASTNODE_INTEGER_LITERAL: assert(0); break;
 
         case ASTNODE_FUNCTION_CALL: {
+            LLVMValueRef callee_llvmvalue = cg_astnode(c, astnode->funcc.callee, false, NULL);
+            Typespec* func_ty = astnode->funcc.callee->typespec->kind == TS_PTR
+                ? astnode->funcc.callee->typespec->ptr.child
+                : astnode->funcc.ref->funcdef.header->typespec;
+
             LLVMValueRef* arg_llvmvalues = NULL;
             if (buflen(astnode->funcc.args) != 0) {
                 bufloop(astnode->funcc.args, i) {
@@ -151,28 +177,27 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                         c,
                         astnode->funcc.args[i],
                         false,
-                        astnode->funcc.callee->sym.ref->funcdef.header->funch.params[i]->typespec,
-                        astnode->funcc.callee->sym.ref->funcdef.header->funch.params[i]->llvmtype));
+                        func_ty->func.params[i]));
                 }
             }
 
-            astnode->llvmtype = astnode->funcc.callee->sym.ref->funcdef.header->funch.ret_typespec->llvmtype;
+            astnode->typespec->llvmtype = cg_get_llvm_type(func_ty->func.ret_typespec);
             astnode->llvmvalue = LLVMBuildCall2(
                 c->llvmbuilder,
-                astnode->funcc.callee->sym.ref->llvmtype,
-                astnode->funcc.callee->sym.ref->llvmvalue,
+                func_ty->llvmtype,
+                callee_llvmvalue,
                 arg_llvmvalues,
                 buflen(astnode->funcc.args),
                 "");
-            return astnode->llvmvalue;
+            result = astnode->llvmvalue;
         } break;
 
         case ASTNODE_SYMBOL: {
-            astnode->llvmtype = astnode->sym.ref->llvmtype;
+            astnode->typespec->llvmtype = astnode->sym.ref->typespec->llvmtype;
 
-            return lvalue
+            result = lvalue
                 ? astnode->sym.ref->llvmvalue
-                : LLVMBuildLoad2(c->llvmbuilder, astnode->sym.ref->llvmtype, astnode->sym.ref->llvmvalue, "");
+                : LLVMBuildLoad2(c->llvmbuilder, astnode->sym.ref->typespec->llvmtype, astnode->sym.ref->llvmvalue, "");
         } break;
 
         case ASTNODE_ASSIGN: {
@@ -190,16 +215,13 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                 c,
                 astnode->assign.left,
                 true,
-                left_target_type,
-                left_target_type ? cg_get_llvm_type(left_target_type) : NULL);
+                left_target_type);
             LLVMValueRef right_llvmvalue = cg_astnode(
                 c,
                 astnode->assign.right,
                 false,
-                right_target_type,
-                right_target_type ? cg_get_llvm_type(right_target_type) : NULL);
+                right_target_type);
             LLVMBuildStore(c->llvmbuilder, right_llvmvalue, left_llvmvalue);
-            return NULL;
         } break;
 
         case ASTNODE_UNOP: {
@@ -207,46 +229,52 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                 case UNOP_NEG: {} break;
                 case UNOP_BOOLNOT: {} break;
                 case UNOP_ADDR: {
-                    astnode->llvmtype = cg_get_llvm_type(astnode->typespec);
-                    astnode->llvmvalue = cg_astnode(c, astnode->unop.child, true, NULL, NULL);
-                    return astnode->llvmvalue;
+                    cg_get_llvm_type(astnode->typespec);
+                    astnode->llvmvalue = cg_astnode(c, astnode->unop.child, true, NULL);
+                    result = astnode->llvmvalue;
                 } break;
             }
         } break;
 
         case ASTNODE_DEREF: {
-            astnode->llvmtype = cg_get_llvm_type(astnode->typespec);
-            LLVMValueRef child_llvmvalue = cg_astnode(c, astnode->deref.child, false, NULL, NULL);
-            astnode->llvmvalue = LLVMBuildLoad2(
-                c->llvmbuilder,
-                astnode->llvmtype,
-                child_llvmvalue,
-                "");
-            return astnode->llvmvalue;
+            cg_get_llvm_type(astnode->typespec);
+            LLVMValueRef child_llvmvalue = cg_astnode(c, astnode->deref.child, false, NULL);
+            // TODO: should `astnode->llvmvalue` differentiate between lvalue-llvmvalue and
+            // rvalue-llvmvalue? (i know that lvalue checking is a must if we directly set
+            // the result, but should we also alter astnode->llvmvalue in lieu of `lvalue`?)
+            if (lvalue)
+                astnode->llvmvalue = child_llvmvalue;
+            else
+                astnode->llvmvalue = LLVMBuildLoad2(
+                    c->llvmbuilder,
+                    astnode->typespec->llvmtype,
+                    child_llvmvalue,
+                    "");
+            result = astnode->llvmvalue;
         } break;
 
         case ASTNODE_ACCESS: {
-
+            astnode->typespec->llvmtype = astnode->acc.accessed->typespec->llvmtype;
+            astnode->llvmvalue = astnode->acc.accessed->llvmvalue;
+            result = astnode->llvmvalue;
         } break;
 
         case ASTNODE_EXPRSTMT: {
-            return cg_astnode(c, astnode->exprstmt, false, NULL, NULL);
+            result = cg_astnode(c, astnode->exprstmt, false, NULL);
         } break;
 
         case ASTNODE_VARIABLE_DECL: {
             if (astnode->vard.initializer && !typespec_is_comptime(astnode->typespec)) {
-                LLVMValueRef initializer_llvmvalue = cg_astnode(c, astnode->vard.initializer, false, astnode->typespec, astnode->llvmtype);
+                LLVMValueRef initializer_llvmvalue = cg_astnode(c, astnode->vard.initializer, false, astnode->typespec);
                 LLVMBuildStore(c->llvmbuilder, initializer_llvmvalue, astnode->llvmvalue);
-                return astnode->llvmvalue;
+                result = astnode->llvmvalue;
             }
-            return NULL;
         } break;
 
         case ASTNODE_SCOPED_BLOCK: {
             bufloop(astnode->blk.stmts, i) {
-                cg_astnode(c, astnode->blk.stmts[i], false, NULL, NULL);
+                cg_astnode(c, astnode->blk.stmts[i], false, NULL);
             }
-            return NULL;
         } break;
 
         case ASTNODE_RETURN: {
@@ -255,13 +283,12 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                     c,
                     astnode->ret.child,
                     false,
-                    astnode->ret.ref->typespec->func.ret_typespec,
-                    astnode->ret.ref->funcdef.header->funch.ret_typespec->llvmtype);
+                    astnode->ret.ref->typespec->func.ret_typespec);
                 astnode->llvmvalue = LLVMBuildRet(c->llvmbuilder, child_llvmvalue);
             } else {
                 astnode->llvmvalue = LLVMBuildRetVoid(c->llvmbuilder);
             }
-            return astnode->llvmvalue;
+            result = astnode->llvmvalue;
         } break;
 
         case ASTNODE_FUNCTION_DEF: {
@@ -280,7 +307,7 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                         param_llvmvalues[i],
                         params[i]->paramd.name,
                         params[i]->paramd.identifier->span.end - params[i]->paramd.identifier->span.start);
-                    params[i]->llvmvalue = LLVMBuildAlloca(c->llvmbuilder, params[i]->llvmtype, strcat(params[i]->paramd.name, ".addr"));
+                    params[i]->llvmvalue = LLVMBuildAlloca(c->llvmbuilder, params[i]->typespec->llvmtype, strcat(params[i]->paramd.name, ".addr"));
                     LLVMBuildStore(c->llvmbuilder, param_llvmvalues[i], params[i]->llvmvalue);
                 }
             }
@@ -288,25 +315,44 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
             AstNode** locals = astnode->funcdef.locals;
             bufloop(locals, i) {
                 if (!typespec_is_comptime(locals[i]->typespec)) {
-                    locals[i]->llvmtype = cg_get_llvm_type(locals[i]->typespec);
+                    cg_get_llvm_type(locals[i]->typespec);
                     locals[i]->llvmvalue = LLVMBuildAlloca(
                         c->llvmbuilder,
-                        locals[i]->llvmtype,
+                        locals[i]->typespec->llvmtype,
                         locals[i]->vard.name);
                 }
             }
 
-            LLVMValueRef body_llvmvalue = cg_astnode(c, astnode->funcdef.body, false, NULL, NULL);
-            return astnode->llvmvalue;
+            LLVMValueRef body_llvmvalue = cg_astnode(c, astnode->funcdef.body, false, NULL);
+            result = astnode->llvmvalue;
         } break;
 
-        case ASTNODE_STRUCT: {} return NULL;
+        case ASTNODE_STRUCT: {} break;
+        case ASTNODE_IMPORT: {} break;
 
         default: assert(0); break;
     }
 
-    assert(0);
-    return NULL;
+    // Integer implicit casting
+    if (target && typespec_is_sized_integer(target) && typespec_is_sized_integer(astnode->typespec)) {
+        if (typespec_get_bytes(target) > typespec_get_bytes(astnode->typespec)) {
+            if (typespec_is_signed(target)) {
+                result = LLVMBuildSExt(
+                    c->llvmbuilder,
+                    result,
+                    cg_get_llvm_type(target),
+                    "");
+            } else {
+                result = LLVMBuildZExt(
+                    c->llvmbuilder,
+                    result,
+                    cg_get_llvm_type(target),
+                    "");
+            }
+        }
+    }
+
+    return result;
 }
 
 static bool init_cg(CgCtx* c) {
@@ -369,6 +415,7 @@ bool cg(CgCtx* c) {
 
     bufloop(c->mod_tys, i) {
         Srcfile* srcfile = c->mod_tys[i]->mod.srcfile;
+        c->current_mod_ty = c->mod_tys[i];
         bufloop(srcfile->astnodes, j) {
             cg_top_level_decls_prec1(c, srcfile->astnodes[j]);
         }
@@ -376,6 +423,7 @@ bool cg(CgCtx* c) {
 
     bufloop(c->mod_tys, i) {
         Srcfile* srcfile = c->mod_tys[i]->mod.srcfile;
+        c->current_mod_ty = c->mod_tys[i];
         bufloop(srcfile->astnodes, j) {
             cg_top_level_decls_prec2(c, srcfile->astnodes[j]);
         }
@@ -383,8 +431,9 @@ bool cg(CgCtx* c) {
 
     bufloop(c->mod_tys, i) {
         Srcfile* srcfile = c->mod_tys[i]->mod.srcfile;
+        c->current_mod_ty = c->mod_tys[i];
         bufloop(srcfile->astnodes, j) {
-            cg_astnode(c, srcfile->astnodes[j], false, NULL, NULL);
+            cg_astnode(c, srcfile->astnodes[j], false, NULL);
         }
     }
 
@@ -413,9 +462,9 @@ bool cg(CgCtx* c) {
 
     LLVMRunPassManager(c->llvmpm, c->llvmmod);
 
-    //printf("\n======= Optimized LLVM IR Start =======\n");
-    //LLVMDumpModule(c->llvmmod);
-    //printf("\n======= Optimized LLVM IR End =======\n");
+    printf("\n======= Optimized LLVM IR Start =======\n");
+    LLVMDumpModule(c->llvmmod);
+    printf("\n======= Optimized LLVM IR End =======\n");
 
     return c->error;
 }

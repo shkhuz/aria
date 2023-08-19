@@ -429,6 +429,23 @@ static AcceptTypespecDecoded get_decoded_accept_params(AcceptTypespecKind accept
     return a;
 }
 
+static bool sema_check_isvalue(SemaCtx* s, Typespec* ty, AcceptTypespecKind accept) {
+    if (ty->kind == TS_TYPE || ty->kind == TS_MODULE) {
+        return false;
+    }
+
+    AcceptTypespecKind given_ty = get_accept_params(ty);
+    AcceptTypespecDecoded a = get_decoded_accept_params(accept);
+
+    if ((a.accept_runtime && given_ty == AT_RUNTIME)
+        || (a.accept_comptime && given_ty == AT_COMPTIME)
+        || (a.accept_void && given_ty == AT_VOID)
+        || (a.accept_func && given_ty == AT_FUNC)
+        || (a.accept_noreturn && given_ty == AT_NORETURN)) {
+        return true;
+    } else return false;
+}
+
 static bool sema_verify_isvalue(SemaCtx* s, Typespec* ty, AcceptTypespecKind accept, Span error) {
     if (ty->kind == TS_TYPE || ty->kind == TS_MODULE) {
         Msg msg = msg_with_span(
@@ -632,7 +649,10 @@ static void sema_top_level_decls_prec2(SemaCtx* s, AstNode* astnode) {
             if (ret_ty && sema_verify_istype(s, ret_ty, AT_RETURN_TYPE, header->ret_typespec->span)) {
             } else error = true;
 
-            if (!error) astnode->typespec = typespec_func_new(params_ty, ret_ty->ty);
+            if (!error) {
+                astnode->funcdef.header->typespec = typespec_func_new(params_ty, ret_ty->ty);
+                astnode->typespec = astnode->funcdef.header->typespec;
+            }
             sema_scope_declare(s, header->name, astnode, header->identifier->span);
         } break;
 
@@ -669,14 +689,14 @@ static bool sema_check_bigint_overflow(SemaCtx* s, bigint* b, Span span) {
     }
 }
 
-static Typespec* sema_access_field_from_type(SemaCtx* s, Typespec* ty, Token* key, Span error, bool derefed) {
+static AstNode* sema_access_field_from_type(SemaCtx* s, Typespec* ty, Token* key, Span error, bool derefed) {
     if (ty->kind == TS_STRUCT) {
         AstNode** fields = ty->agg->strct.fields;
         bufloop(fields, i) {
             if (are_token_lexemes_equal(
                     fields[i]->field.key,
                     key)) {
-                return fields[i]->field.value->typespec->ty;
+                return fields[i];
             }
         }
         Msg msg = msg_with_span(
@@ -691,7 +711,7 @@ static Typespec* sema_access_field_from_type(SemaCtx* s, Typespec* ty, Token* ke
         AstNode** astnodes = ty->mod.srcfile->astnodes;
         bufloop(astnodes, i) {
             if (is_token_lexeme(key, astnode_get_name(astnodes[i]))) {
-                return astnodes[i]->typespec;
+                return astnodes[i];
             }
         }
         Msg msg = msg_with_span(
@@ -1013,7 +1033,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                 } break;
 
                 case UNOP_ADDR: {
-                    if (child && sema_verify_isvalue(s, child, AT_RUNTIME/*TODO: check error handling*/, astnode->unop.child->span)) {
+                    if (child && sema_verify_isvalue(s, child, AT_RUNTIME|AT_FUNC/*TODO: check error handling*/, astnode->unop.child->span)) {
                         if (sema_check_is_lvalue(s, astnode->unop.child)) {
                             bool imm = sema_is_lvalue_imm(astnode->unop.child);
                             astnode->typespec = typespec_ptr_new(imm, child);
@@ -1027,7 +1047,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
         case ASTNODE_DEREF: {
             Typespec* child = sema_astnode(s, astnode->deref.child, NULL);
             if (child && sema_verify_isvalue(s, child, AT_DEFAULT_VALUE, astnode->deref.child->span)) {
-                if (child->kind == TS_PTR) {
+                if (child->kind == TS_PTR && sema_check_isvalue(s, child->ptr.child, AT_RUNTIME)) {
                     astnode->typespec = child->ptr.child;
                     return astnode->typespec;
                 } else {
@@ -1433,20 +1453,37 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
         case ASTNODE_FUNCTION_CALL: {
             Typespec* callee_ty = sema_astnode(s, astnode->funcc.callee, NULL);
             if (callee_ty && sema_verify_isvalue(s, callee_ty, AT_DEFAULT_VALUE|AT_FUNC, astnode->funcc.callee->span)) {
-                if (callee_ty->kind == TS_FUNC) {
-                    usize params_len = buflen(callee_ty->func.params);
+                if (callee_ty->kind == TS_FUNC ||
+                    (callee_ty->kind == TS_PTR && callee_ty->ptr.child->kind == TS_FUNC)) {
+
+                    Typespec* func_ty = NULL;
+                    if (callee_ty->kind == TS_FUNC) {
+                        // callee can be TS_FUNC in only two cases:
+                        // 1) it is a symbol, or
+                        // 2) it is an access expression
+                        if (astnode->funcc.callee->kind == ASTNODE_SYMBOL)
+                            astnode->funcc.ref = astnode->funcc.callee->sym.ref;
+                        else if (astnode->funcc.callee->kind == ASTNODE_ACCESS)
+                            astnode->funcc.ref = astnode->funcc.callee->acc.accessed;
+                        else assert(0 && "callee is not symbol/accessor expr when type is TS_FUNC");
+                        func_ty = callee_ty;
+                    } else if  (callee_ty->kind == TS_PTR && callee_ty->ptr.child->kind == TS_FUNC) {
+                        func_ty = callee_ty->ptr.child;
+                    }
+
+                    usize params_len = buflen(func_ty->func.params);
                     usize args_len = buflen(astnode->funcc.args);
                     if (args_len == params_len) {
                         bool error = false;
                         bufloop(astnode->funcc.args, i) {
-                            Typespec* arg_ty = sema_astnode(s, astnode->funcc.args[i], callee_ty->func.params[i]);
+                            Typespec* arg_ty = sema_astnode(s, astnode->funcc.args[i], func_ty->func.params[i]);
                             if (arg_ty && sema_verify_isvalue(s, arg_ty, AT_DEFAULT_VALUE, astnode->funcc.args[i]->span)) {
-                                if (!sema_check_types_equal(s, arg_ty, callee_ty->func.params[i], false, astnode->funcc.args[i]->span)) error = true;
+                                if (!sema_check_types_equal(s, arg_ty, func_ty->func.params[i], false, astnode->funcc.args[i]->span)) error = true;
                             } else error = true;
                         }
 
                         if (!error) {
-                            astnode->typespec = callee_ty->func.ret_typespec;
+                            astnode->typespec = func_ty->func.ret_typespec;
                             return astnode->typespec;
                         } else return NULL;
                     } else if (args_len < params_len) {
@@ -1454,7 +1491,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                             MSG_ERROR,
                             format_string("expected %d argument(s), found %d", params_len, args_len),
                             astnode->funcc.rparen->span);
-                        msg_addl_thin(&msg, format_string_with_one_type("expected argument of type `%T`", callee_ty->func.params[args_len]));
+                        msg_addl_thin(&msg, format_string_with_one_type("expected argument of type `%T`", func_ty->func.params[args_len]));
                         msg_emit(s, &msg);
                         return NULL;
                     } else if (args_len > params_len) {
@@ -1465,6 +1502,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                         msg_emit(s, &msg);
                         return NULL;
                     }
+
                 } else {
                     Msg msg = msg_with_span(
                         MSG_ERROR,
@@ -1526,7 +1564,9 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             if (left/*NOTE: No checking of `left` because types/modules are allowed as operands.*/) {
                 assert(astnode->acc.right->kind == ASTNODE_SYMBOL);
                 Token* right = astnode->acc.right->sym.identifier;
-                astnode->typespec = sema_access_field_from_type(s, left, right, astnode->short_span, false);
+                AstNode* accessed_node = sema_access_field_from_type(s, left, right, astnode->short_span, false);
+                astnode->typespec = accessed_node->typespec;
+                astnode->acc.accessed = accessed_node;
                 return astnode->typespec;
             } else return NULL;
         } break;

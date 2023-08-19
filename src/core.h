@@ -77,6 +77,7 @@ u64 maxinteger_signed(int bytes);
 // calling strncmp, it would work, but is inefficient.
 bool slice_eql_to_str(const char* slice, int slicelen, const char* str);
 char* format_string(const char* fmt, ...);
+u64 hash_string(const char* str);
 void terminate_compilation();
 
 extern char* g_exec_path;

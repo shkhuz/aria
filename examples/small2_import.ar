@@ -1,0 +1,3 @@
+fn cool(a: u8) u8 {
+    return a;
+}

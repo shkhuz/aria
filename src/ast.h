@@ -154,11 +154,16 @@ typedef struct {
     AstNode* callee;
     AstNode** args;
     Token* rparen;
+    // Points to the actual function, as opposed to
+    // the identifier or the node before the `(`.
+    // NULL if the callee is a function pointer.
+    AstNode* ref;
 } AstNodeFunctionCall;
 
 typedef struct {
     AstNode* left;
     AstNode* right;
+    AstNode* accessed;
 } AstNodeAccess;
 
 typedef enum {
@@ -236,6 +241,7 @@ typedef struct {
     Span span;
     Token* identifier;
     char* name;
+    char* mangled_name;
     AstNode** params;
     AstNode* ret_typespec;
 } AstNodeFunctionHeader;
@@ -250,6 +256,9 @@ typedef struct {
 typedef struct {
     Token* identifier;
     char* name;
+    // Only for globals
+    // NULL for locals
+    char* mangled_name;
     AstNode* typespec;
     Token* equal;
     AstNode* initializer;
@@ -268,6 +277,7 @@ typedef struct {
     Token* identifier;
     char* name;
     AstNode** fields;
+    LLVMTypeRef llvmtype;
 } AstNodeStruct;
 
 typedef enum {
@@ -319,7 +329,6 @@ struct AstNode {
     Span short_span;
     Typespec* typespec;
 
-    LLVMTypeRef llvmtype;
     LLVMValueRef llvmvalue;
 
     union {

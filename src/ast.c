@@ -8,6 +8,7 @@ AstNode* astnode_alloc(AstNodeKind kind, Span span) {
     astnode->span = span;
     astnode->short_span = span;
     astnode->typespec = NULL;
+    astnode->llvmvalue = NULL;
     return astnode;
 }
 
@@ -256,6 +257,7 @@ AstNode* astnode_function_call_new(AstNode* callee, AstNode** args, Token* end) 
     astnode->funcc.callee = callee;
     astnode->funcc.args = args;
     astnode->funcc.rparen = end;
+    astnode->funcc.ref = NULL;
     return astnode;
 }
 
@@ -266,6 +268,7 @@ AstNode* astnode_access_new(Token* op, AstNode* left, AstNode* right) {
     astnode->short_span = op->span;
     astnode->acc.left = left;
     astnode->acc.right = right;
+    astnode->acc.accessed = NULL;
     return astnode;
 }
 
@@ -372,6 +375,7 @@ AstNode* astnode_function_header_new(
         span_from_two(start->span, ret_typespec->span));
     astnode->funch.identifier = identifier;
     astnode->funch.name = token_tostring(identifier);
+    astnode->funch.mangled_name = NULL;
     astnode->funch.params = params;
     astnode->funch.ret_typespec = ret_typespec;
     return astnode;
@@ -401,6 +405,7 @@ AstNode* astnode_variable_decl_new(
         span_from_two(start->span, initializer ? initializer->span : typespec ? typespec->span : identifier->span));
     astnode->vard.identifier = identifier;
     astnode->vard.name = token_tostring(identifier);
+    astnode->vard.mangled_name = NULL;
     astnode->vard.typespec = typespec;
     astnode->vard.equal = equal;
     astnode->vard.initializer = initializer;
