@@ -154,10 +154,11 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
     assert(astnode->typespec);
     LLVMValueRef result = NULL;
     if (typespec_is_unsized_integer(astnode->typespec) && target) {
-        return LLVMConstInt(
+        astnode->llvmvalue = LLVMConstInt(
             typespec_is_sized_integer(target) ? cg_get_llvm_type(target) : LLVMInt64Type(),
             astnode->typespec->prim.integer.neg ? (-astnode->typespec->prim.integer.d[0]) : astnode->typespec->prim.integer.d[0],
             astnode->typespec->prim.integer.neg);
+        return astnode->llvmvalue;
     }
 
     switch (astnode->kind) {
@@ -224,12 +225,39 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
             LLVMBuildStore(c->llvmbuilder, right_llvmvalue, left_llvmvalue);
         } break;
 
+        case ASTNODE_ARITH_BINOP: {
+            cg_get_llvm_type(astnode->typespec);
+            LLVMValueRef left = cg_astnode(c, astnode->arthbin.left, false, astnode->typespec);
+            LLVMValueRef right = cg_astnode(c, astnode->arthbin.right, false, astnode->typespec);
+            LLVMOpcode op;
+            switch (astnode->arthbin.kind) {
+                case ARITH_BINOP_ADD: op = LLVMAdd; break;
+                case ARITH_BINOP_SUB: op = LLVMSub; break;
+                case ARITH_BINOP_MUL: op = LLVMMul; break;
+                case ARITH_BINOP_DIV: {
+                    if (typespec_is_signed(astnode->typespec))
+                        op = LLVMSDiv;
+                    else
+                        op = LLVMUDiv;
+                } break;
+                default: assert(0); break;
+            }
+            astnode->llvmvalue = LLVMBuildBinOp(c->llvmbuilder, op, left, right, "");
+            result = astnode->llvmvalue;
+        } break;
+
         case ASTNODE_UNOP: {
+            cg_get_llvm_type(astnode->typespec);
             switch (astnode->unop.kind) {
-                case UNOP_NEG: {} break;
+                case UNOP_NEG: {
+                    LLVMValueRef child_llvmvalue = cg_astnode(c, astnode->unop.child, false, astnode->typespec);
+                    astnode->llvmvalue = LLVMBuildNeg(c->llvmbuilder, child_llvmvalue, "");
+                    result = astnode->llvmvalue;
+                } break;
+
                 case UNOP_BOOLNOT: {} break;
+
                 case UNOP_ADDR: {
-                    cg_get_llvm_type(astnode->typespec);
                     astnode->llvmvalue = cg_astnode(c, astnode->unop.child, true, NULL);
                     result = astnode->llvmvalue;
                 } break;
@@ -382,14 +410,14 @@ static bool init_cg(CgCtx* c) {
     errors = NULL;
     if (error) return true;
 
-    printf(
-            "======== MACHINE INFO ========\n"
-            "target: %s, [%s], %d, %d\n",
-            LLVMGetTargetName(c->llvmtarget),
-            LLVMGetTargetDescription(c->llvmtarget),
-            LLVMTargetHasJIT(c->llvmtarget),
-            LLVMTargetHasTargetMachine(c->llvmtarget));
-    printf("host triple: %s\n", LLVMGetDefaultTargetTriple());
+    //printf(
+    //        "======== MACHINE INFO ========\n"
+    //        "target: %s, [%s], %d, %d\n",
+    //        LLVMGetTargetName(c->llvmtarget),
+    //        LLVMGetTargetDescription(c->llvmtarget),
+    //        LLVMTargetHasJIT(c->llvmtarget),
+    //        LLVMTargetHasTargetMachine(c->llvmtarget));
+    //printf("host triple: %s\n", LLVMGetDefaultTargetTriple());
 
     c->llvmtargetmachine = LLVMCreateTargetMachine(
             c->llvmtarget,

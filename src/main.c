@@ -95,7 +95,7 @@ int main(int argc, char* argv[]) {
     }
 
     CompileCtx compile_ctx = compile_new_context(target_triple);
-    compile_ctx.print_ast = true;
+    compile_ctx.print_ast = false;
 
     if (optind == argc) {
         Msg msg = msg_with_no_span(MSG_ERROR, "no input files");
