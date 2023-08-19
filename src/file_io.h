@@ -11,18 +11,19 @@ typedef struct {
 } File;
 
 typedef enum {
-    FOO_FAILURE,
-    FOO_SUCCESS,
-    FOO_DIRECTORY,
-} FileOpenOp;
+    FILEIO_FAILURE,
+    FILEIO_SUCCESS,
+    FILEIO_DIRECTORY,
+} FileOpResult;
 
 typedef struct {
     File handle;
-    FileOpenOp status;
+    FileOpResult status;
 } FileOrError;
 
 int is_dir(const char* path);
 FileOrError read_file(const char* path);
+FileOpResult write_bin_file(const char* path, const char* contents, u64 bytes);
 const char* file_get_line_ptr(const File* handle, usize line);
 
 #endif

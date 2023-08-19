@@ -10,11 +10,11 @@ FileOrError read_file(const char* path) {
     // TODO: more thorough error checking
     FILE* raw = fopen(path, "r");
     if (!raw) {
-        return (FileOrError){ {}, FOO_FAILURE };
+        return (FileOrError){ {}, FILEIO_FAILURE };
     }
 
     if (is_dir(path)) {
-        return (FileOrError){ {}, FOO_DIRECTORY };
+        return (FileOrError){ {}, FILEIO_DIRECTORY };
     }
 
     fseek(raw, 0, SEEK_END);
@@ -39,7 +39,22 @@ FileOrError read_file(const char* path) {
     handle.abs_path = abs_path;
     handle.contents = contents;
     handle.len = size;
-    return (FileOrError){ handle, FOO_SUCCESS };
+    return (FileOrError){ handle, FILEIO_SUCCESS };
+}
+
+FileOpResult write_bin_file(const char* path, const char* contents, u64 bytes) {
+    FILE* raw = fopen(path, "w");
+    if (!raw) {
+        return FILEIO_FAILURE;
+    }
+
+    if (is_dir(path)) {
+        return FILEIO_DIRECTORY;
+    }
+
+    fwrite(contents, bytes, 1, raw);
+    fclose(raw);
+    return FILEIO_SUCCESS;
 }
 
 const char* file_get_line_ptr(const File* handle, usize line) {

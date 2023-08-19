@@ -249,6 +249,7 @@ typedef struct {
 typedef struct {
     AstNode* header;
     AstNode* body;
+    bool export;
 
     AstNode** locals;
 } AstNodeFunctionDef;
@@ -437,7 +438,7 @@ AstNode* astnode_function_header_new(
     Token* identifier,
     AstNode** params,
     AstNode* ret_typespec);
-AstNode* astnode_function_def_new(AstNode* header, AstNode* body);
+AstNode* astnode_function_def_new(AstNode* header, AstNode* body, bool export);
 AstNode* astnode_variable_decl_new(
     Token* start,
     Token* identifier,

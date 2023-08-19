@@ -33,6 +33,7 @@ void init_global_compiler_state() {
     bufpush(keywords, (StringTokenKindTup){ "return", TOKEN_KEYWORD_RETURN });
     bufpush(keywords, (StringTokenKindTup){ "yield", TOKEN_KEYWORD_YIELD });
     bufpush(keywords, (StringTokenKindTup){ "import", TOKEN_KEYWORD_IMPORT });
+    bufpush(keywords, (StringTokenKindTup){ "export", TOKEN_KEYWORD_EXPORT });
     bufpush(keywords, (StringTokenKindTup){ "as", TOKEN_KEYWORD_AS });
     bufpush(keywords, (StringTokenKindTup){ "and", TOKEN_KEYWORD_AND });
     bufpush(keywords, (StringTokenKindTup){ "or", TOKEN_KEYWORD_OR });
@@ -127,7 +128,7 @@ void compile(CompileCtx* c) {
 struct Typespec* read_srcfile(const char* path, OptionalSpan span, CompileCtx* compile_ctx) {
     FileOrError efile = read_file(path);
     switch (efile.status) {
-        case FOO_SUCCESS: {
+        case FILEIO_SUCCESS: {
             for (usize i = 0; i < buflen(compile_ctx->mod_tys); i++) {
                 if (strcmp(efile.handle.abs_path, compile_ctx->mod_tys[i]->mod.srcfile->handle.abs_path) == 0)
                     return compile_ctx->mod_tys[i];
@@ -140,7 +141,7 @@ struct Typespec* read_srcfile(const char* path, OptionalSpan span, CompileCtx* c
             return mod;
         } break;
 
-        case FOO_FAILURE: {
+        case FILEIO_FAILURE: {
             const char* error_msg = format_string("cannot read source file '%s'", path);
             if (span.exists) {
                 Msg msg = msg_with_span(MSG_ERROR, error_msg, span.span);
@@ -151,7 +152,7 @@ struct Typespec* read_srcfile(const char* path, OptionalSpan span, CompileCtx* c
             }
         } break;
 
-        case FOO_DIRECTORY: {
+        case FILEIO_DIRECTORY: {
             const char* error_msg = format_string("`%s` is a directory", path);
             if (span.exists) {
                 Msg msg = msg_with_span(MSG_ERROR, error_msg, span.span);

@@ -1,0 +1,25 @@
+fn add(a: i32, b: i32) i32 {
+    return a + b;
+}
+
+fn sub(a: i32, b: i32) i32 {
+    return a - b;
+}
+
+fn mul(a: i32, b: i32) i32 {
+    return a * b;
+}
+
+fn div(a: i32, b: i32) i32 {
+    return a / b;
+}
+
+export fn main() i32 {
+    mut a: i32 = 18;
+    mut b: i32 = 3;
+
+    mut f = &div;
+
+    imm c = f(a, b);
+    return c; 
+}

@@ -9,7 +9,7 @@ fn cool(a: i16) i16 {
     return a;
 }
 
-fn _main(a: i8) i16 {
+export fn main(a: i8) i16 {
     mut num: i8 = c.cool(1);
     mut num2: i16 = 2;
     mut ptr = &num;

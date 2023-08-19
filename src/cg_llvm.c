@@ -114,7 +114,7 @@ static void cg_top_level_decls_prec2(CgCtx* c, AstNode* astnode) {
 
         case ASTNODE_FUNCTION_DEF: {
             AstNodeFunctionHeader* header = &astnode->funcdef.header->funch;
-            header->mangled_name = mangle_name(c, header->name);
+            header->mangled_name = astnode->funcdef.export ? header->name : mangle_name(c, header->name);
             LLVMTypeRef* param_llvmtypes = NULL;
             bufloop(header->params, i) {
                 cg_get_llvm_type(header->params[i]->typespec);
@@ -493,6 +493,16 @@ bool cg(CgCtx* c) {
     printf("\n======= Optimized LLVM IR Start =======\n");
     LLVMDumpModule(c->llvmmod);
     printf("\n======= Optimized LLVM IR End =======\n");
+
+    LLVMMemoryBufferRef objbuf = NULL;
+    LLVMTargetMachineEmitToMemoryBuffer(
+        c->llvmtargetmachine,
+        c->llvmmod,
+        LLVMObjectFile,
+        NULL,
+        &objbuf);
+    write_bin_file("mod.o", LLVMGetBufferStart(objbuf), LLVMGetBufferSize(objbuf));
+    LLVMDisposeMemoryBuffer(objbuf);
 
     return c->error;
 }
