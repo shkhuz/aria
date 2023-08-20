@@ -352,6 +352,13 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
             }
 
             LLVMValueRef body_llvmvalue = cg_astnode(c, astnode->funcdef.body, false, NULL);
+            AstNode* last_stmt = astnode->funcdef.body->blk.stmts
+                    ? astnode->funcdef.body->blk.stmts[buflen(astnode->funcdef.body->blk.stmts)-1]
+                    : NULL;
+            if (typespec_is_void(astnode->typespec->func.ret_typespec)
+                && (!last_stmt || (last_stmt->kind != ASTNODE_EXPRSTMT || last_stmt->exprstmt->kind != ASTNODE_RETURN))) {
+                LLVMBuildRetVoid(c->llvmbuilder);
+            }
             result = astnode->llvmvalue;
         } break;
 
@@ -490,9 +497,9 @@ bool cg(CgCtx* c) {
 
     LLVMRunPassManager(c->llvmpm, c->llvmmod);
 
-    printf("\n======= Optimized LLVM IR Start =======\n");
-    LLVMDumpModule(c->llvmmod);
-    printf("\n======= Optimized LLVM IR End =======\n");
+    //printf("\n======= Optimized LLVM IR Start =======\n");
+    //LLVMDumpModule(c->llvmmod);
+    //printf("\n======= Optimized LLVM IR End =======\n");
 
     LLVMMemoryBufferRef objbuf = NULL;
     LLVMTargetMachineEmitToMemoryBuffer(

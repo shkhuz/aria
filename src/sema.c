@@ -1435,14 +1435,41 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             sema_scope_push(s);
             bool error = false;
             AstNodeFunctionHeader* header = &astnode->funcdef.header->funch;
+
             bufloop(header->params, i) {
                 AstNode* param = header->params[i];
-                if (!sema_scope_declare(s, param->paramd.name, param, param->paramd.identifier->span)) error = true;
+                if (!sema_scope_declare(
+                        s,
+                        param->paramd.name,
+                        param,
+                        param->paramd.identifier->span))
+                    error = true;
             }
-            if (!sema_scoped_block(s, astnode->funcdef.body, astnode->funcdef.header->funch.ret_typespec->typespec->ty, false)) error = true;
+
+            if (sema_scoped_block(
+                    s,
+                    astnode->funcdef.body,
+                    astnode->funcdef.header->funch.ret_typespec->typespec->ty,
+                    false)) {
+                AstNode* last_stmt = astnode->funcdef.body->blk.stmts
+                        ? astnode->funcdef.body->blk.stmts[buflen(astnode->funcdef.body->blk.stmts)-1]
+                        : NULL;
+                if (!typespec_is_void(astnode->typespec->func.ret_typespec)
+                    && astnode->typespec->func.ret_typespec->kind != TS_NORETURN
+                    && (!last_stmt || (last_stmt->kind != ASTNODE_EXPRSTMT || last_stmt->exprstmt->kind != ASTNODE_RETURN))) {
+                    Msg msg = msg_with_span(
+                        MSG_ERROR,
+                        "non-void function does not return a value",
+                        astnode->funcdef.body->blk.rbrace->span);
+                    msg_emit(s, &msg);
+                    error = true;
+                }
+            } else {
+                error = true;
+            }
+
             sema_scope_pop(s);
             s->current_func = NULL;
-
             return error ? NULL : astnode->typespec;
         } break;
 
@@ -1751,6 +1778,17 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
             astnode->ret.ref = s->current_func;
             Typespec* func_ret = astnode->ret.ref->typespec->func.ret_typespec;
+
+            if (func_ret->kind == TS_NORETURN) {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    "`return` used in a `noreturn` function",
+                    astnode->span);
+                msg_addl_fat(&msg, "return type annotated here", astnode->ret.ref->funcdef.header->funch.ret_typespec->span);
+                msg_emit(s, &msg);
+                return NULL;
+            }
+
             if (astnode->ret.child) {
                 Typespec* child = sema_astnode(s, astnode->ret.child, NULL);
                 if (child && sema_verify_isvalue(s, child, AT_DEFAULT_VALUE, astnode->ret.child->span)) {
