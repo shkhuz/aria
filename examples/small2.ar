@@ -24,6 +24,9 @@ fn cool(a: i16) i16 {
 fn voidfn() void {
 }
 
+fn unreachablefn() noreturn {
+}
+
 // fn cool() void {}
 // fn main() {
 //     mut f = &cool;          // f is `*fn() void`

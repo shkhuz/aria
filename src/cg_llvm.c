@@ -87,6 +87,10 @@ static LLVMTypeRef cg_get_llvm_type(Typespec* typespec) {
             typespec->llvmtype = typespec->agg->strct.llvmtype;
             break;
 
+        case TS_NORETURN:
+            typespec->llvmtype = LLVMVoidType();
+            break;
+
         default: assert(0 && "cg_get_llvm_type()");
     }
     return typespec->llvmtype;
@@ -358,6 +362,9 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
             if (typespec_is_void(astnode->typespec->func.ret_typespec)
                 && (!last_stmt || (last_stmt->kind != ASTNODE_EXPRSTMT || last_stmt->exprstmt->kind != ASTNODE_RETURN))) {
                 LLVMBuildRetVoid(c->llvmbuilder);
+            }
+            if (astnode->typespec->func.ret_typespec->kind == TS_NORETURN) {
+                LLVMBuildUnreachable(c->llvmbuilder);
             }
             result = astnode->llvmvalue;
         } break;
