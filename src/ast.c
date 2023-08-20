@@ -381,14 +381,22 @@ AstNode* astnode_function_header_new(
     return astnode;
 }
 
-AstNode* astnode_function_def_new(AstNode* header, AstNode* body, bool export) {
+AstNode* astnode_function_def_new(Token* export, AstNode* header, AstNode* body) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_FUNCTION_DEF,
-        span_from_two(header->span, body->span));
+        span_from_two(export ? export->span : header->span, body->span));
     astnode->funcdef.header = header;
     astnode->funcdef.body = body;
-    astnode->funcdef.export = export;
+    astnode->funcdef.export = export ? true : false;
     astnode->funcdef.locals = NULL;
+    return astnode;
+}
+
+AstNode* astnode_extern_function_new(Token* extrn, AstNode* header) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_EXTERN_FUNCTION,
+        span_from_two(extrn->span, header->span));
+    astnode->extfunc.header = header;
     return astnode;
 }
 
@@ -451,6 +459,10 @@ char* astnode_get_name(AstNode* astnode) {
     switch (astnode->kind) {
         case ASTNODE_FUNCTION_DEF: {
             return astnode_get_name(astnode->funcdef.header);
+        } break;
+
+        case ASTNODE_EXTERN_FUNCTION: {
+            return astnode_get_name(astnode->extfunc.header);
         } break;
 
         case ASTNODE_FUNCTION_HEADER: {

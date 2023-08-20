@@ -21,10 +21,18 @@ fn cool(a: i16) i16 {
     return a;
 }
 
+extern fn other_func() i8;
+
 fn voidfn() void {
+    mut a: u8 = 1;
+    mut ptr = &a;
+    c.write_str(ptr);
 }
 
 fn unreachablefn() noreturn {
+    mut num: i8 = 1;
+    mut a: *u8 = num as *u8;
+    mut b = a as u16;
 }
 
 // fn cool() void {}

@@ -33,6 +33,7 @@ static void print_node(AstNode* astnode) {
         || astnode->kind == ASTNODE_WHILE
         || astnode->kind == ASTNODE_IMPORT
         || astnode->kind == ASTNODE_FUNCTION_DEF
+        || astnode->kind == ASTNODE_EXTERN_FUNCTION
         || astnode->kind == ASTNODE_VARIABLE_DECL
         || astnode->kind == ASTNODE_EXPRSTMT) {
         if (print_formatting) {
@@ -373,6 +374,12 @@ static void print_node(AstNode* astnode) {
             indent_block = false;
             print_node(astnode->funcdef.body);
             indent -= 4;
+            printf(")");
+        } break;
+
+        case ASTNODE_EXTERN_FUNCTION: {
+            printf("(extern ");
+            print_node(astnode->extfunc.header);
             printf(")");
         } break;
 

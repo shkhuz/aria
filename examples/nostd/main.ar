@@ -1,25 +1,29 @@
-fn add(a: i32, b: i32) i32 {
-    return a + b;
+extern fn _syscall(
+        syscall: u64,
+        p1: u64,
+        p2: u64,
+        p3: u64,
+        p4: u64,
+        p5: u64,
+        p6: u64) void;
+
+fn write(buf: *imm u8, bytes: u64) void {
+    _syscall(1, 1, buf as u64, bytes, 0, 0, 0);
 }
 
-fn sub(a: i32, b: i32) i32 {
-    return a - b;
+fn writedigit(digit: u8) void {
+    imm char = digit + 48;
+    write(&char, 1);
 }
 
-fn mul(a: i32, b: i32) i32 {
-    return a * b;
+fn calc(a: i32, b: u32) u32 {
+    mut c = a as u32 + b * a as u32;
+    c = c - a as u32;
+    c = c / b;
+    return c;
 }
 
-fn div(a: i32, b: i32) i32 {
-    return a / b;
-}
-
-export fn main() i32 {
-    mut a: i32 = 18;
-    mut b: i32 = 3;
-
-    mut f = &div;
-
-    imm c = f(a, b);
-    return c; 
+export fn main() void {
+    imm x = calc(2, 5);
+    writedigit(x as u8);
 }

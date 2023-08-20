@@ -34,6 +34,7 @@ void init_global_compiler_state() {
     bufpush(keywords, (StringTokenKindTup){ "yield", TOKEN_KEYWORD_YIELD });
     bufpush(keywords, (StringTokenKindTup){ "import", TOKEN_KEYWORD_IMPORT });
     bufpush(keywords, (StringTokenKindTup){ "export", TOKEN_KEYWORD_EXPORT });
+    bufpush(keywords, (StringTokenKindTup){ "extern", TOKEN_KEYWORD_EXTERN });
     bufpush(keywords, (StringTokenKindTup){ "as", TOKEN_KEYWORD_AS });
     bufpush(keywords, (StringTokenKindTup){ "and", TOKEN_KEYWORD_AND });
     bufpush(keywords, (StringTokenKindTup){ "or", TOKEN_KEYWORD_OR });
@@ -62,7 +63,7 @@ void init_global_compiler_state() {
         .i32_type = typespec_type_new(typespec_prim_new(PRIM_i32)),
         .i64_type = typespec_type_new(typespec_prim_new(PRIM_i64)),
         .bool_type = typespec_type_new(typespec_prim_new(PRIM_bool)),
-        .void_type = typespec_type_new(typespec_prim_new(PRIM_void)),
+        .void_type = typespec_type_new(typespec_void_new()),
         .noreturn_type = typespec_type_new(typespec_noreturn_new()),
     };
 }

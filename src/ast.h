@@ -255,6 +255,10 @@ typedef struct {
 } AstNodeFunctionDef;
 
 typedef struct {
+    AstNode* header;
+} AstNodeExternFunction;
+
+typedef struct {
     Token* identifier;
     char* name;
     // Only for globals
@@ -318,6 +322,7 @@ typedef enum {
     ASTNODE_IMPORT,
     ASTNODE_FUNCTION_HEADER,
     ASTNODE_FUNCTION_DEF,
+    ASTNODE_EXTERN_FUNCTION,
     ASTNODE_VARIABLE_DECL,
     ASTNODE_PARAM_DECL,
     ASTNODE_EXPRSTMT,
@@ -369,6 +374,7 @@ struct AstNode {
         AstNodeImport import;
         AstNodeFunctionHeader funch;
         AstNodeFunctionDef funcdef;
+        AstNodeExternFunction extfunc;
         AstNodeVariableDecl vard;
         AstNodeParamDecl paramd;
         AstNode* exprstmt;
@@ -438,7 +444,8 @@ AstNode* astnode_function_header_new(
     Token* identifier,
     AstNode** params,
     AstNode* ret_typespec);
-AstNode* astnode_function_def_new(AstNode* header, AstNode* body, bool export);
+AstNode* astnode_function_def_new(Token* export, AstNode* header, AstNode* body);
+AstNode* astnode_extern_function_new(Token* extrn, AstNode* header);
 AstNode* astnode_variable_decl_new(
     Token* start,
     Token* identifier,

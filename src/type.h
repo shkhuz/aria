@@ -11,6 +11,10 @@ struct Srcfile;
 
 typedef enum {
     TS_PRIM,
+
+    TS_void,
+    TS_noreturn,
+
     TS_PTR,
     TS_MULTIPTR,
     TS_SLICE,
@@ -23,8 +27,6 @@ typedef enum {
     TS_TYPE,
     TS_MODULE,
     TS_FUNC,
-
-    TS_NORETURN,
 } TypespecKind;
 
 typedef enum {
@@ -36,9 +38,8 @@ typedef enum {
     PRIM_i16,
     PRIM_i32,
     PRIM_i64,
-    PRIM_integer,
+    PRIM_INTEGER,
     PRIM_bool,
-    PRIM_void,
 } PrimKind;
 
 typedef struct Typespec {
@@ -84,14 +85,13 @@ typedef struct Typespec {
         struct {
             struct Srcfile* srcfile;
         } mod;
-
-        struct {
-        } noret;
     };
 } Typespec;
 
 Typespec* typespec_prim_new(PrimKind kind);
 Typespec* typespec_unsized_integer_new(bigint val);
+Typespec* typespec_void_new();
+Typespec* typespec_noreturn_new();
 Typespec* typespec_ptr_new(bool immutable, Typespec* child);
 Typespec* typespec_multiptr_new(bool immutable, Typespec* child);
 Typespec* typespec_slice_new(bool immutable, Typespec* child);
@@ -100,13 +100,12 @@ Typespec* typespec_func_new(Typespec** params, Typespec* ret_typespec);
 Typespec* typespec_struct_new(struct AstNode* astnode);
 Typespec* typespec_type_new(Typespec* typespec);
 Typespec* typespec_module_new(struct Srcfile* srcfile);
-Typespec* typespec_noreturn_new();
 
 bool typespec_is_comptime(Typespec* ty);
 bool typespec_is_sized_integer(Typespec* ty);
 bool typespec_is_unsized_integer(Typespec* ty);
 bool typespec_is_integer(Typespec* ty);
-bool typespec_is_void(Typespec* ty);
+bool typespec_is_bool(Typespec* ty);
 bool typespec_is_sized(Typespec* ty);
 bool typespec_is_signed(Typespec* ty);
 bool typespec_is_arrptr(Typespec* ty);

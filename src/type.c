@@ -17,8 +17,18 @@ Typespec* typespec_prim_new(PrimKind kind) {
 
 Typespec* typespec_unsized_integer_new(bigint val) {
     Typespec* ty = typespec_new(TS_PRIM);
-    ty->prim.kind = PRIM_integer;
+    ty->prim.kind = PRIM_INTEGER;
     ty->prim.integer = val;
+    return ty;
+}
+
+Typespec* typespec_void_new() {
+    Typespec* ty = typespec_new(TS_void);
+    return ty;
+}
+
+Typespec* typespec_noreturn_new() {
+    Typespec* ty = typespec_new(TS_noreturn);
     return ty;
 }
 
@@ -75,11 +85,6 @@ Typespec* typespec_module_new(struct Srcfile* srcfile) {
     return ty;
 }
 
-Typespec* typespec_noreturn_new() {
-    Typespec* ty = typespec_new(TS_NORETURN);
-    return ty;
-}
-
 static char* primkind_tostring(PrimKind kind) {
     char* type;
     switch (kind) {
@@ -91,9 +96,8 @@ static char* primkind_tostring(PrimKind kind) {
         case PRIM_i16:  type = "i16"; break;
         case PRIM_i32:  type = "i32"; break;
         case PRIM_i64:  type = "i64"; break;
-        case PRIM_integer: type = "{integer}"; break;
+        case PRIM_INTEGER: type = "{integer}"; break;
         case PRIM_bool: type = "bool"; break;
-        case PRIM_void: type = "void"; break;
         default: assert(0); break;
     }
     return type;
@@ -104,6 +108,9 @@ static char* tostring(Typespec* ty) {
         case TS_PRIM: {
             return primkind_tostring(ty->prim.kind);
         } break;
+
+        case TS_void:       return "void";
+        case TS_noreturn:   return "noreturn";
 
         case TS_PTR: {
             char* buf = NULL;
@@ -166,10 +173,6 @@ static char* tostring(Typespec* ty) {
         case TS_MODULE: {
             return "{module}";
         } break;
-
-        case TS_NORETURN: {
-            return "noreturn";
-        } break;
     }
     assert(0);
     return NULL;
@@ -201,22 +204,22 @@ bool typespec_is_sized_integer(Typespec* ty) {
 }
 
 bool typespec_is_unsized_integer(Typespec* ty) {
-    return ty->kind == TS_PRIM && ty->prim.kind == PRIM_integer;
+    return ty->kind == TS_PRIM && ty->prim.kind == PRIM_INTEGER;
 }
 
 bool typespec_is_integer(Typespec* ty) {
     return typespec_is_sized_integer(ty) || typespec_is_unsized_integer(ty);
 }
 
-bool typespec_is_void(Typespec* ty) {
-    return ty->kind == TS_PRIM && ty->prim.kind == PRIM_void;
+bool typespec_is_bool(Typespec* ty) {
+    return ty->kind == TS_PRIM && ty->prim.kind == PRIM_bool;
 }
 
 bool typespec_is_sized(Typespec* ty) {
     switch (ty->kind) {
         case TS_PRIM: {
             switch (ty->prim.kind) {
-                case PRIM_integer: return false;
+                case PRIM_INTEGER: return false;
                 default: return true;
             }
         } break;
@@ -264,9 +267,7 @@ u32 typespec_get_bytes(Typespec* ty) {
                 case PRIM_u64:
                 case PRIM_i64:
                     return 8;
-                case PRIM_void:
-                    return 0;
-                case PRIM_integer: {
+                case PRIM_INTEGER: {
                     u64 d = ty->prim.integer.d[0];
                     usize bits = get_bits_for_value(d);
                     if (bits <= 8) bits = 8;
@@ -277,6 +278,9 @@ u32 typespec_get_bytes(Typespec* ty) {
                 } break;
             }
         } break;
+
+        case TS_void:
+            return 0;
 
         case TS_PTR:
         case TS_MULTIPTR: {

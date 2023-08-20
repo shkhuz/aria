@@ -840,11 +840,11 @@ static AstNode* parse_scoped_block(ParseCtx* p) {
 
 static AstNode* parse_astnode_root(ParseCtx* p) {
     if (p->current->kind == TOKEN_KEYWORD_EXPORT || p->current->kind == TOKEN_KEYWORD_FN) {
-        bool export = false;
+        Token* export = NULL;
         if (match(p, TOKEN_KEYWORD_EXPORT)) {
-            export = true;
+            export = p->prev;
         }
-        assert(match(p, TOKEN_KEYWORD_FN));
+        expect(p, TOKEN_KEYWORD_FN, "expected `fn`");
         AstNode* header = parse_function_header(p);
         expect_lbrace(p);
         AstNode* body = parse_scoped_block(p);
@@ -857,7 +857,13 @@ static AstNode* parse_astnode_root(ParseCtx* p) {
             msg_addl_thin(&msg, "use `return` instead");
             msg_emit(p, &msg);
         }
-        return astnode_function_def_new(header, body, export);
+        return astnode_function_def_new(export, header, body);
+    } else if (match(p, TOKEN_KEYWORD_EXTERN)) {
+        Token* extrn = p->prev;
+        expect(p, TOKEN_KEYWORD_FN, "expected `fn`");
+        AstNode* header = parse_function_header(p);
+        expect_semicolon(p);
+        return astnode_extern_function_new(extrn, header);
     } else if (match(p, TOKEN_KEYWORD_STRUCT)) {
         Token* keyword = p->prev;
         Token* identifier = expect_identifier(p, "expected identifier");
