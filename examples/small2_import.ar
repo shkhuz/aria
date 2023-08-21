@@ -2,4 +2,4 @@ fn cool(a: i8) i8 {
     return a;
 }
 
-extern fn write_str(str: *u8) void;
+extern fn write_str(str: *u8) u8;

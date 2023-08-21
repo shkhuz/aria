@@ -241,6 +241,8 @@ bool typespec_is_signed(Typespec* ty) {
         case PRIM_u32:
         case PRIM_u64:
             return false;
+        case PRIM_INTEGER:
+            return ty->prim.integer.neg;
     }
     assert(0);
     return false;

@@ -10,15 +10,24 @@
 
 struct Typespec;
 struct CompileCtx;
+struct AstNode;
 
 typedef struct {
     struct Typespec** mod_tys;
-    struct Typespec* current_mod_ty;
     struct CompileCtx* compile_ctx;
-    LLVMBuilderRef llvmbuilder;
-    LLVMModuleRef llvmmod;
     bool error;
 
+    struct Typespec* current_mod_ty;
+    struct AstNode* current_func;
+    struct {
+        LLVMBasicBlockRef brcondbb;
+        LLVMBasicBlockRef brbodybb;
+        LLVMBasicBlockRef nextbb;
+        LLVMBasicBlockRef endifexprbb;
+    } ifstate;
+
+    LLVMBuilderRef llvmbuilder;
+    LLVMModuleRef llvmmod;
     LLVMTargetRef llvmtarget;
     LLVMTargetMachineRef llvmtargetmachine;
     LLVMTargetDataRef llvmtargetdatalayout;

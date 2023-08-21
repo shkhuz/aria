@@ -1,40 +1,46 @@
-import "small2_import.ar" as c;
-
-struct Ctx {
-    a: u8,
-    b: bool,
+//import "small2_import.ar" as c;
+//
+//struct Ctx {
+//    a: u8,
+//    b: bool,
+//}
+//
+//export fn main(a: i8) i16 {
+//    mut num: i8 = c.cool(1);
+//    mut num2: i16 = 2;
+//    mut ptr = &num;
+//    ptr.* = 2;
+//
+//    mut f = &cool;
+//    imm x = f(num+(-num2));
+//
+//    return ptr.* + x;
+//}
+//
+fn cool(a: i16) void {
+    mut _16: u16 = 1;
+    mut _8: u8 = 2;
+    //imm x = if (false) return 0 else if (true) a else 990;
+    //imm y = if (true) 0 as u32 else if (false) 1 as u32 else if (true) return -1 else 2 as u32;
+    imm z: u64 = if (true) _16 else if (false) return else _8 as u8;
+    if (&_16 == 3434 as *u16) return;
+    if (1 == 1) return;
+    //return y as i16;
 }
-
-export fn main(a: i8) i16 {
-    mut num: i8 = c.cool(1);
-    mut num2: i16 = 2;
-    mut ptr = &num;
-    ptr.* = 2;
-
-    mut f = &cool;
-    imm x = f(num+(-num2));
-
-    return ptr.* + x;
-}
-
-fn cool(a: i16) i16 {
-    return a;
-}
-
-extern fn other_func() i8;
-
-fn voidfn() void {
-    mut a: u8 = 1;
-    mut ptr = &a;
-    c.write_str(ptr);
-}
-
-fn unreachablefn() noreturn {
-    mut num: i8 = 1;
-    mut a: *u8 = num as *u8;
-    mut b = a as u16;
-}
-
+//
+//extern fn other_func() i8;
+//
+//fn voidfn() void {
+//    mut a: u8 = 1;
+//    mut ptr = &a;
+//}
+//
+//fn unreachablefn() noreturn {
+//    mut num: i8 = 1;
+//    mut a: *u8 = num as *u8;
+//    mut b = a as u16;
+//}
+//
 // fn cool() void {}
 // fn main() {
 //     mut f = &cool;          // f is `*fn() void`

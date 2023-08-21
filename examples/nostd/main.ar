@@ -5,10 +5,14 @@ extern fn _syscall(
         p3: u64,
         p4: u64,
         p5: u64,
-        p6: u64) void;
+        p6: u64) i32;
 
 fn write(buf: *imm u8, bytes: u64) void {
     _syscall(1, 1, buf as u64, bytes, 0, 0, 0);
+}
+
+fn read(buf: *u8, bytes: u64) i32 {
+    return _syscall(0, 0, buf as u64, bytes, 0, 0, 0);
 }
 
 fn writedigit(digit: u8) void {
@@ -16,14 +20,16 @@ fn writedigit(digit: u8) void {
     write(&char, 1);
 }
 
-fn calc(a: i32, b: u32) u32 {
-    mut c = a as u32 + b * a as u32;
-    c = c - a as u32;
-    c = c / b;
-    return c;
-}
-
 export fn main() void {
-    imm x = calc(2, 5);
-    writedigit(x as u8);
+    mut a: u64;
+    mut b: u64;
+    mut c: u64;
+    mut d: u64;
+    imm chars = read(&a as *u8, 8 * 4);
+    write(&a as *u8, chars as u64);
+    if (true) {
+        if (false) {
+            return;
+        }
+    }
 }

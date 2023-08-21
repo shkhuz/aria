@@ -8,6 +8,7 @@ CgCtx cg_new_context(struct Typespec** mod_tys, struct CompileCtx* compile_ctx) 
     CgCtx c;
     c.mod_tys = mod_tys;
     c.current_mod_ty = NULL;
+    c.current_func = NULL;
     c.compile_ctx = compile_ctx;
     c.error = false;
     return c;
@@ -162,19 +163,30 @@ static void cg_top_level_decls_prec2(CgCtx* c, AstNode* astnode) {
     }
 }
 
+LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* target);
+
+typedef struct {
+    LLVMBasicBlockRef condbb;
+    LLVMBasicBlockRef bodybb;
+} CondAndBodyBB;
+
 LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* target) {
     assert(astnode->typespec);
     if (typespec_is_unsized_integer(astnode->typespec) && target) {
         astnode->llvmvalue = LLVMConstInt(
-            typespec_is_sized_integer(target) ? cg_get_llvm_type(target) : LLVMInt64Type(),
-            astnode->typespec->prim.integer.neg ? (-astnode->typespec->prim.integer.d[0]) : astnode->typespec->prim.integer.d[0],
-            astnode->typespec->prim.integer.neg);
+                typespec_is_sized_integer(target) ? cg_get_llvm_type(target) : LLVMInt64Type(),
+                astnode->typespec->prim.integer.neg ? (-astnode->typespec->prim.integer.d[0]) : astnode->typespec->prim.integer.d[0],
+                astnode->typespec->prim.integer.neg);
         return astnode->llvmvalue;
     }
 
     switch (astnode->kind) {
-        // Integer literal case handled above
-        case ASTNODE_INTEGER_LITERAL: assert(0); break;
+        case ASTNODE_INTEGER_LITERAL: {
+//            astnode->llvmvalue = LLVMConstInt(
+//                    LLVMIntType(64),
+//                    astnode->intl.val.neg ? (-astnode->intl.val.d[0]) : astnode->intl.val.d[0],
+//                    astnode->intl.val.neg);
+        } break;
 
         case ASTNODE_FUNCTION_CALL: {
             LLVMValueRef callee_llvmvalue = cg_astnode(c, astnode->funcc.callee, false, NULL);
@@ -209,6 +221,20 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
             astnode->llvmvalue = lvalue || astnode->sym.ref->kind == ASTNODE_FUNCTION_DEF || astnode->sym.ref->kind == ASTNODE_EXTERN_FUNCTION
                 ? astnode->sym.ref->llvmvalue
                 : LLVMBuildLoad2(c->llvmbuilder, astnode->sym.ref->typespec->llvmtype, astnode->sym.ref->llvmvalue, "");
+        } break;
+
+        case ASTNODE_BUILTIN_SYMBOL: {
+            switch (astnode->bsym.kind) {
+                case BS_true: {
+                    cg_get_llvm_type(astnode->typespec);
+                    astnode->llvmvalue = LLVMConstInt(LLVMInt8Type(), 1, false);
+                } break;
+
+                case BS_false: {
+                    cg_get_llvm_type(astnode->typespec);
+                    astnode->llvmvalue = LLVMConstInt(LLVMInt8Type(), 0, false);
+                } break;
+            }
         } break;
 
         case ASTNODE_CAST: {
@@ -292,6 +318,33 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
             astnode->llvmvalue = LLVMBuildBinOp(c->llvmbuilder, op, left, right, "");
         } break;
 
+        case ASTNODE_CMP_BINOP: {
+            cg_get_llvm_type(astnode->typespec);
+            cg_get_llvm_type(astnode->cmpbin.peerres);
+            LLVMValueRef left = cg_astnode(c, astnode->cmpbin.left, false, astnode->cmpbin.peerres);
+            LLVMValueRef right = cg_astnode(c, astnode->cmpbin.right, false, astnode->cmpbin.peerres);
+            LLVMIntPredicate op;
+            bool signd;
+            if (typespec_is_integer(astnode->cmpbin.left->typespec)) {
+                signd = typespec_is_signed(astnode->cmpbin.left->typespec);
+            }
+
+            switch (astnode->cmpbin.kind) {
+                case CMP_BINOP_EQ: op = LLVMIntEQ; break;
+                case CMP_BINOP_NE: op = LLVMIntNE; break;
+                case CMP_BINOP_LT: signd ? op = LLVMIntSLT : (op = LLVMIntULT); break;
+                case CMP_BINOP_GT: signd ? op = LLVMIntSGT : (op = LLVMIntUGT); break;
+                case CMP_BINOP_LE: signd ? op = LLVMIntSLE : (op = LLVMIntULE); break;
+                case CMP_BINOP_GE: signd ? op = LLVMIntSGE : (op = LLVMIntUGE); break;
+            }
+            astnode->llvmvalue = LLVMBuildICmp(
+                    c->llvmbuilder,
+                    op,
+                    left,
+                    right,
+                    "");
+        } break;
+
         case ASTNODE_UNOP: {
             cg_get_llvm_type(astnode->typespec);
             switch (astnode->unop.kind) {
@@ -311,9 +364,6 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
         case ASTNODE_DEREF: {
             cg_get_llvm_type(astnode->typespec);
             LLVMValueRef child_llvmvalue = cg_astnode(c, astnode->deref.child, false, NULL);
-            // TODO: should `astnode->llvmvalue` differentiate between lvalue-llvmvalue and
-            // rvalue-llvmvalue? (i know that lvalue checking is a must if we directly set
-            // the result, but should we also alter astnode->llvmvalue in lieu of `lvalue`?)
             if (lvalue)
                 astnode->llvmvalue = child_llvmvalue;
             else
@@ -346,6 +396,116 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
             }
         } break;
 
+        case ASTNODE_IF_BRANCH: {
+            if (astnode->ifbr.kind != IFBR_ELSE) {
+                if (c->ifstate.brcondbb) LLVMPositionBuilderAtEnd(c->llvmbuilder, c->ifstate.brcondbb);
+                LLVMValueRef cond_llvmvalue = cg_astnode(c, astnode->ifbr.cond, false, NULL);
+                LLVMBuildCondBr(
+                        c->llvmbuilder,
+                        LLVMBuildIntCast2(
+                                c->llvmbuilder,
+                                cond_llvmvalue,
+                                LLVMInt1Type(),
+                                false,
+                                ""),
+                        c->ifstate.brbodybb,
+                        c->ifstate.nextbb);
+            }
+
+            LLVMPositionBuilderAtEnd(c->llvmbuilder, c->ifstate.brbodybb);
+            astnode->llvmvalue = cg_astnode(c, astnode->ifbr.body, lvalue, target);
+            cg_get_llvm_type(astnode->typespec);
+            if (astnode->typespec->kind != TS_noreturn)
+                LLVMBuildBr(c->llvmbuilder, c->ifstate.endifexprbb);
+            LLVMPositionBuilderAtEnd(c->llvmbuilder, c->ifstate.nextbb);
+        } break;
+
+        case ASTNODE_IF: {
+            LLVMBasicBlockRef ifbrbb = LLVMAppendBasicBlock(
+                    c->current_func->llvmvalue,
+                    "if.body");
+            CondAndBodyBB* elseifbrbb = NULL;
+            bufloop(astnode->iff.elseifbr, i) {
+                bufpush(elseifbrbb, (CondAndBodyBB){
+                    LLVMAppendBasicBlock(
+                            c->current_func->llvmvalue,
+                            "elseif.cond"),
+                    LLVMAppendBasicBlock(
+                            c->current_func->llvmvalue,
+                            "elseif.body")
+                });
+            }
+            LLVMBasicBlockRef elsebrbb = NULL;
+            if (astnode->iff.elsebr) {
+                elsebrbb = LLVMAppendBasicBlock(
+                        c->current_func->llvmvalue,
+                        "else.body");
+            }
+            LLVMBasicBlockRef endifexprbb = LLVMAppendBasicBlock(
+                    c->current_func->llvmvalue,
+                    "if.end");
+            c->ifstate.endifexprbb = endifexprbb;
+
+            c->ifstate.brcondbb = NULL;
+            c->ifstate.brbodybb = ifbrbb;
+            c->ifstate.nextbb = buflen(elseifbrbb) != 0
+                    ? elseifbrbb[0].condbb
+                    : (elsebrbb
+                        ? elsebrbb
+                        : endifexprbb);
+            LLVMValueRef ifbrval = cg_astnode(
+                    c,
+                    astnode->iff.ifbr,
+                    lvalue,
+                    astnode->typespec);
+
+            LLVMValueRef* elseifbrval = NULL;
+            bufloop(astnode->iff.elseifbr, i) {
+                c->ifstate.brcondbb = elseifbrbb[i].condbb;
+                c->ifstate.brbodybb = elseifbrbb[i].bodybb;
+                c->ifstate.nextbb = i < buflen(elseifbrbb)-1
+                        ? elseifbrbb[i+1].condbb
+                        : (elsebrbb
+                            ? elsebrbb
+                            : endifexprbb);
+                bufpush(elseifbrval, cg_astnode(
+                        c,
+                        astnode->iff.elseifbr[i],
+                        lvalue,
+                        astnode->typespec));
+            }
+
+            LLVMValueRef elsebrval = NULL;
+            if (astnode->iff.elsebr) {
+                c->ifstate.brcondbb = NULL;
+                c->ifstate.brbodybb = elsebrbb;
+                c->ifstate.nextbb = endifexprbb;
+                elsebrval = cg_astnode(
+                        c,
+                        astnode->iff.elsebr,
+                        lvalue,
+                        astnode->typespec);
+            }
+
+            if (astnode->typespec->kind != TS_void
+                && astnode->typespec->kind != TS_noreturn) {
+                LLVMValueRef phi = LLVMBuildPhi(
+                        c->llvmbuilder,
+                        cg_get_llvm_type(astnode->typespec),
+                        "");
+                if (astnode->iff.ifbr->typespec->kind != TS_noreturn)
+                    LLVMAddIncoming(phi, &ifbrval, &ifbrbb, 1);
+                bufloop(astnode->iff.elseifbr, i) {
+                    if (astnode->iff.elseifbr[i]->typespec->kind != TS_noreturn)
+                        LLVMAddIncoming(phi, &elseifbrval[i], &elseifbrbb[i].bodybb, 1);
+                }
+                if (elsebrval && astnode->iff.elsebr->typespec->kind != TS_noreturn) {
+                    LLVMAddIncoming(phi, &elsebrval, &elsebrbb, 1);
+                }
+                astnode->llvmvalue = phi;
+            }
+        } break;
+
         case ASTNODE_RETURN: {
             if (astnode->ret.child) {
                 LLVMValueRef child_llvmvalue = cg_astnode(
@@ -360,6 +520,7 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
         } break;
 
         case ASTNODE_FUNCTION_DEF: {
+            c->current_func = astnode;
             AstNodeFunctionHeader* header = &astnode->funcdef.header->funch;
             LLVMBasicBlockRef entry = LLVMAppendBasicBlock(astnode->llvmvalue, "entry");
             LLVMPositionBuilderAtEnd(c->llvmbuilder, entry);
@@ -402,6 +563,7 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
             if (astnode->typespec->func.ret_typespec->kind == TS_noreturn) {
                 LLVMBuildUnreachable(c->llvmbuilder);
             }
+            c->current_func = NULL;
         } break;
 
         case ASTNODE_EXTERN_FUNCTION: {} break;
@@ -542,7 +704,10 @@ bool cg(CgCtx* c) {
         return c->error;
     }
 
-    LLVMRunPassManager(c->llvmpm, c->llvmmod);
+    // NOTE: I've disabled memory optimizations for now, because LLVM
+    // deletes all unused locals, and I need them to form a memory buffer
+    // in the examples/nostd program.
+    //LLVMRunPassManager(c->llvmpm, c->llvmmod);
 
     printf("\n======= Optimized LLVM IR Start =======\n");
     LLVMDumpModule(c->llvmmod);

@@ -221,6 +221,7 @@ typedef enum {
 typedef struct {
     AstNode* left, *right;
     CmpBinopKind kind;
+    Typespec* peerres;
 } AstNodeCmpBinop;
 
 typedef struct {

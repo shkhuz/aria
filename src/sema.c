@@ -161,6 +161,14 @@ static bool sema_are_types_exactly_equal(SemaCtx* s, Typespec* from, Typespec* t
                 else return false;
             } break;
 
+            case TS_void: {
+                return true;
+            } break;
+
+            case TS_noreturn: {
+                return true;
+            } break;
+
             case TS_PTR: {
                 if (from->ptr.immutable == to->ptr.immutable) {
                     return sema_are_types_exactly_equal(s, from->ptr.child, to->ptr.child);
@@ -215,17 +223,13 @@ static bool sema_are_types_exactly_equal(SemaCtx* s, Typespec* from, Typespec* t
                 } else return false;
             } break;
 
-            case TS_noreturn: {
-                return true;
-            } break;
-
             default: assert(0);
         }
     }
     return false;
 }
 
-static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Typespec* to, Span error) {
+static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Typespec* to, bool peer, Span error) {
     if (from->kind == to->kind) {
         switch (from->kind) {
             case TS_PRIM: {
@@ -253,9 +257,18 @@ static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Types
                         }
                     } else if (typespec_is_signed(from) == typespec_is_signed(to)) {
                         if (typespec_get_bytes(from) <= typespec_get_bytes(to)) return (TypeComparisonInfo){ .result = TC_OK, .final = to };
+                        else if (peer) return (TypeComparisonInfo){ .result = TC_OK, .final = from };
                         else return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
                     } else return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
                 } else return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
+            } break;
+
+            case TS_void: {
+                return (TypeComparisonInfo){ .result = TC_OK, .final = to };
+            } break;
+
+            case TS_noreturn: {
+                return (TypeComparisonInfo){ .result = TC_OK, .final = to };
             } break;
 
             case TS_PTR: {
@@ -315,6 +328,7 @@ static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Types
                                 s,
                                 from->func.params[i],
                                 to->func.params[i],
+                                false,
                                 error);
                         if (cmpinfo.result != TC_OK) {
                             same = false;
@@ -327,12 +341,9 @@ static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Types
                         s,
                         from->func.ret_typespec,
                         to->func.ret_typespec,
+                        false,
                         error);
                 } else return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
-            } break;
-
-            case TS_noreturn: {
-                return (TypeComparisonInfo){ .result = TC_OK, .final = to };
             } break;
         }
     } else if (typespec_is_arrptr(from) && (to->kind == TS_MULTIPTR || to->kind == TS_SLICE)) {
@@ -363,7 +374,7 @@ static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Types
 }
 
 static Typespec* sema_check_types_equal(SemaCtx* s, Typespec* from, Typespec* to, bool peer, Span error) {
-    TypeComparisonInfo cmpinfo = sema_are_types_equal(s, from, to, error);
+    TypeComparisonInfo cmpinfo = sema_are_types_equal(s, from, to, peer, error);
     if (cmpinfo.result != TC_OK && cmpinfo.result != TC_ERROR_HANDLED) {
         if (peer) {
             Msg msg = msg_with_span(
@@ -789,13 +800,13 @@ static Typespec* sema_index_type(SemaCtx* s, Typespec* ty, Span error, bool dere
     }
 }
 
-static bool sema_if_branch(
+static bool sema_ifbranch(
     SemaCtx* s,
     AstNode* iff,
     AstNode* br,
     bool* first_br_val_valid,
-    Typespec** first_br_val_type,
-    Span* first_br_val_span,
+    Typespec** main_br_val_type,
+    Span* main_br_val_span,
     bool* else_req_if_value_br_error)
 {
     bool error = false;
@@ -820,11 +831,16 @@ static bool sema_if_branch(
             TypeComparisonInfo cmpinfo = sema_are_types_equal(
                 s,
                 body,
-                *first_br_val_type,
+                *main_br_val_type,
+                false,
                 cur_br_val_span);
             if (cmpinfo.result == TC_OK) {
-                br->typespec = cmpinfo.final;
+                // `br->typespec` is always the body type. CG needs the exact
+                // type of body to determine the arguments to phi node.
+                br->typespec = body;
                 iff->typespec = cmpinfo.final;
+                *main_br_val_type = cmpinfo.final;
+                if (*main_br_val_type == body) *main_br_val_span = cur_br_val_span;
             } else if (cmpinfo.result == TC_ERROR_HANDLED) {
                 error = true;
             } else {
@@ -834,16 +850,17 @@ static bool sema_if_branch(
                     cur_br_val_span);
                 msg_addl_fat(
                     &msg,
-                    format_string_with_one_type("...while first branch yields `%T`:", *first_br_val_type),
-                    *first_br_val_span);
+                    format_string_with_one_type("...while this branch yields `%T`:", *main_br_val_type),
+                    *main_br_val_span);
                 msg_emit(s, &msg);
                 error = true;
             }
         } else if (br->ifbr.kind == IFBR_IF) {
             *first_br_val_valid = true;
-            *first_br_val_type = body;
-            *first_br_val_span = cur_br_val_span;
-            iff->typespec = *first_br_val_type;
+            *main_br_val_type = body;
+            *main_br_val_span = cur_br_val_span;
+            iff->typespec = *main_br_val_type;
+            br->typespec = *main_br_val_type;
         }
     } else error = true;
 
@@ -1278,7 +1295,8 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                 bool left_valid = sema_verify_isvalue(s, left, AT_DEFAULT_VALUE, astnode->cmpbin.left->span);
                 bool right_valid = sema_verify_isvalue(s, right, AT_DEFAULT_VALUE, astnode->cmpbin.right->span);
                 if (left_valid && right_valid) {
-                    if (sema_check_types_equal(s, left, right, true, astnode->short_span)) {
+                    astnode->cmpbin.peerres = sema_check_types_equal(s, left, right, true, astnode->short_span);
+                    if (astnode->cmpbin.peerres) {
                         astnode->typespec = predef_typespecs.bool_type->ty;
                         return astnode->typespec;
                     } else return NULL;
@@ -1634,43 +1652,54 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             bool error = false;
 
             bool first_br_val_valid = false;
-            Typespec* first_br_val_type = NULL;
-            Span first_br_val_span;
+            Typespec* main_br_val_type = NULL;
+            Span main_br_val_span;
 
             bool else_req_if_value_br_error = false;
 
-            if (sema_if_branch(
+            if (sema_ifbranch(
                 s,
                 astnode,
                 astnode->iff.ifbr,
                 &first_br_val_valid,
-                &first_br_val_type,
-                &first_br_val_span,
+                &main_br_val_type,
+                &main_br_val_span,
                 &else_req_if_value_br_error)) error = true;
             bufloop(astnode->iff.elseifbr, i) {
-                if (sema_if_branch(
+                if (sema_ifbranch(
                     s,
                     astnode,
                     astnode->iff.elseifbr[i],
                     &first_br_val_valid,
-                    &first_br_val_type,
-                    &first_br_val_span,
+                    &main_br_val_type,
+                    &main_br_val_span,
                     &else_req_if_value_br_error)) error = true;
             }
             if (astnode->iff.elsebr) {
-                if (sema_if_branch(
+                if (sema_ifbranch(
                     s,
                     astnode,
                     astnode->iff.elsebr,
                     &first_br_val_valid,
-                    &first_br_val_type,
-                    &first_br_val_span,
+                    &main_br_val_type,
+                    &main_br_val_span,
                     &else_req_if_value_br_error)) error = true;
             } else if (!error) {
                 // Here, the `if` branch is guaranteed to not yield to a non-void or non-noreturn type
                 // because it errors if the else clause if missing in that situation.
                 assert(astnode->typespec->kind == TS_void || astnode->typespec->kind == TS_noreturn);
                 astnode->typespec = predef_typespecs.void_type->ty;
+            }
+
+            if (!error && typespec_is_comptime(astnode->typespec)) {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    format_string_with_one_type(
+                        "`if` yields comptime-type `%T` but depends on runtime control-flow",
+                        astnode->typespec),
+                    astnode->span);
+                msg_emit(s, &msg);
+                error = true;
             }
 
             return error ? NULL : astnode->typespec;
@@ -1702,7 +1731,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                     if (break_ty) {
                         if (i != 0) {
                             Typespec* prev_break_ty = astnode->whloop.breaks[0]->brk.child ? astnode->whloop.breaks[0]->brk.child->typespec : predef_typespecs.void_type->ty;
-                            TypeComparisonInfo cmpinfo = sema_are_types_equal(s, break_ty, prev_break_ty, cur->span);
+                            TypeComparisonInfo cmpinfo = sema_are_types_equal(s, break_ty, prev_break_ty, false, cur->span);
                             if (cmpinfo.result == TC_OK) {
                                 astnode->typespec = cmpinfo.final;
                             } else if (cmpinfo.result == TC_ERROR_HANDLED) {
@@ -1736,7 +1765,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             if (elsebody) {
                 elsebody_ty = sema_astnode(s, elsebody, NULL);
                 if (elsebody_ty && sema_verify_isvalue(s, elsebody_ty, AT_DEFAULT_VALUE|AT_NORETURN, elsebody->span)) {
-                    TypeComparisonInfo cmpinfo = sema_are_types_equal(s, elsebody_ty, astnode->typespec, elsebody->span);
+                    TypeComparisonInfo cmpinfo = sema_are_types_equal(s, elsebody_ty, astnode->typespec, false, elsebody->span);
                     if (cmpinfo.result == TC_OK) {
                         astnode->typespec = cmpinfo.final;
                     } else if (cmpinfo.result == TC_ERROR_HANDLED) {
@@ -1805,14 +1834,24 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                 return NULL;
             }
 
+            Typespec* child = NULL;
             if (astnode->ret.child) {
-                Typespec* child = sema_astnode(s, astnode->ret.child, NULL);
+                child = sema_astnode(s, astnode->ret.child, NULL);
                 if (child && sema_verify_isvalue(s, child, AT_DEFAULT_VALUE, astnode->ret.child->span)) {
-                    if (sema_check_types_equal(s, child, func_ret, false, astnode->ret.child->span)) {
-                    } else return NULL;
                 } else return NULL;
-            }
-            astnode->typespec = predef_typespecs.noreturn_type->ty;
+            } else child = predef_typespecs.void_type->ty;
+
+            if (sema_check_types_equal(
+                    s,
+                    child,
+                    func_ret,
+                    false,
+                    astnode->ret.child
+                        ? astnode->ret.child->span
+                        : astnode->span)) {
+                astnode->typespec = predef_typespecs.noreturn_type->ty;
+            } else return NULL;
+
             return astnode->typespec;
         } break;
 
