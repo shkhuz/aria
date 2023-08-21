@@ -19,12 +19,7 @@ typedef struct {
 
     struct Typespec* current_mod_ty;
     struct AstNode* current_func;
-    struct {
-        LLVMBasicBlockRef brcondbb;
-        LLVMBasicBlockRef brbodybb;
-        LLVMBasicBlockRef nextbb;
-        LLVMBasicBlockRef endifexprbb;
-    } ifstate;
+    LLVMBasicBlockRef current_bb;
 
     LLVMBuilderRef llvmbuilder;
     LLVMModuleRef llvmmod;

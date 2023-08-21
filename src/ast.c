@@ -330,6 +330,7 @@ AstNode* astnode_cmp_binop_new(CmpBinopKind kind, Token* op, AstNode* left, AstN
     astnode->cmpbin.kind = kind;
     astnode->cmpbin.left = left;
     astnode->cmpbin.right = right;
+    astnode->cmpbin.peerres = NULL;
     return astnode;
 }
 
@@ -485,4 +486,8 @@ char* astnode_get_name(AstNode* astnode) {
             assert(0);
         } break;
     }
+}
+
+bool is_equality_op(CmpBinopKind kind) {
+    return kind == CMP_BINOP_EQ || kind == CMP_BINOP_NE;
 }

@@ -18,14 +18,34 @@
 //}
 //
 fn cool(a: i16) void {
+    mut b = true;
+    mut c = false;
     mut _16: u16 = 1;
     mut _8: u8 = 2;
-    //imm x = if (false) return 0 else if (true) a else 990;
-    //imm y = if (true) 0 as u32 else if (false) 1 as u32 else if (true) return -1 else 2 as u32;
-    imm z: u64 = if (true) _16 else if (false) return else _8 as u8;
-    if (&_16 == 3434 as *u16) return;
-    if (1 == 1) return;
-    //return y as i16;
+    c = _16 <= _8;
+    imm x =
+        if (false) 1
+        else if (true) a
+        else 990;
+    //imm y =
+    //    if (true)       0 as u32
+    //    else if (false) 1 as u32
+    //    else if (true)  return
+    //    else            2 as u32;
+    //imm z: u64 =
+    //    if (true) _16
+    //    else if (false) return
+    //    else _8 as u8;
+
+    //cool(1);
+    //cool(1);
+    //cool(1);
+
+    //imm w = if (true) {
+    //    yield _8;
+    //} else {
+    //    yield _16;
+    //};
 }
 //
 //extern fn other_func() i8;

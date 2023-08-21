@@ -546,11 +546,9 @@ static bool sema_check_is_lvalue(SemaCtx* s, AstNode* astnode) {
     if (astnode->kind == ASTNODE_ACCESS
         || astnode->kind == ASTNODE_DEREF
         || astnode->kind == ASTNODE_INDEX
-        || astnode->kind == ASTNODE_SYMBOL
-        || astnode->kind == ASTNODE_BUILTIN_SYMBOL) {
-        if ((astnode->kind == ASTNODE_SYMBOL || astnode->kind == ASTNODE_BUILTIN_SYMBOL)
-            && (astnode->typespec->kind == TS_TYPE
-                || astnode->typespec->kind == TS_MODULE)) {
+        || astnode->kind == ASTNODE_SYMBOL) {
+        if ((astnode->kind == ASTNODE_SYMBOL)
+            && (astnode->typespec->kind == TS_TYPE || astnode->typespec->kind == TS_MODULE)) {
             assert(0 && "Symbol is not lvalue: not a valuetype");
         }
         return true;
@@ -832,7 +830,7 @@ static bool sema_ifbranch(
                 s,
                 body,
                 *main_br_val_type,
-                false,
+                true,
                 cur_br_val_span);
             if (cmpinfo.result == TC_OK) {
                 // `br->typespec` is always the body type. CG needs the exact
@@ -928,6 +926,48 @@ static Typespec* sema_scoped_block(SemaCtx* s, AstNode* astnode, Typespec* targe
     }
     if (open_new_scope) sema_scope_pop(s);
     return error ? NULL : astnode->typespec;
+}
+
+static Typespec* sema_check_one_unsized_one_sized_integer_operand(SemaCtx* s, Typespec* left, Typespec* right, Span error) {
+    Typespec* unsized_integer = left->prim.kind == PRIM_INTEGER ? left : right;
+    Typespec* sized_integer = left->prim.kind == PRIM_INTEGER ? right : left;
+    bool is_left_unsized_integer = left->prim.kind == PRIM_INTEGER;
+
+    if (bigint_fits(
+        &unsized_integer->prim.integer,
+        typespec_get_bytes(sized_integer),
+        typespec_is_signed(sized_integer))) {
+        return sized_integer;
+    } else {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            format_string_with_one_type(
+                "%s operand `%s` cannot fit in %s operand's type `%T`",
+                sized_integer,
+                is_left_unsized_integer ? "left" : "right",
+                bigint_tostring(&unsized_integer->prim.integer),
+                is_left_unsized_integer ? "right" : "left"),
+            error);
+        // TODO: add range help note
+        msg_emit(s, &msg);
+    }
+    return NULL;
+}
+
+static Typespec* sema_check_two_sized_integer_operands(SemaCtx* s, Typespec* left, Typespec* right, Span error) {
+    if (typespec_is_signed(left) == typespec_is_signed(right)) {
+        if (typespec_get_bytes(left) >= typespec_get_bytes(right))
+            return left;
+        else
+            return right;
+    } else {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            format_string_with_two_types("mismatched operand signedness: `%T` and `%T`", left, right),
+            error);
+        msg_emit(s, &msg);
+    }
+    return NULL;
 }
 
 static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
@@ -1165,21 +1205,12 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
                     if (left_is_anyint && right_is_anyint) {
                         if (left_is_sized_integer && right_is_sized_integer) {
-                            if (typespec_is_signed(left) == typespec_is_signed(right)) {
-                                if (typespec_get_bytes(left) >= typespec_get_bytes(right)) {
-                                    astnode->typespec = left;
-                                } else {
-                                    astnode->typespec = right;
-                                }
-                                return astnode->typespec;
-                            } else {
-                                Msg msg = msg_with_span(
-                                    MSG_ERROR,
-                                    format_string_with_two_types("mismatched operand signedness: `%T` and `%T`", left, right),
+                            astnode->typespec = sema_check_two_sized_integer_operands(
+                                    s,
+                                    left,
+                                    right,
                                     astnode->short_span);
-                                msg_emit(s, &msg);
-                                return NULL;
-                            }
+                            return astnode->typespec;
                         } else if (left_is_unsized_integer && right_is_unsized_integer) {
                             bigint new = bigint_new();
                             if (astnode->arthbin.kind == ARITH_BINOP_ADD
@@ -1233,30 +1264,12 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                             astnode->typespec = tynew;
                             return tynew;
                         } else {
-                            Typespec* unsized_integer = left->prim.kind == PRIM_INTEGER ? left : right;
-                            Typespec* sized_integer = left->prim.kind == PRIM_INTEGER ? right : left;
-                            bool is_left_unsized_integer = left->prim.kind == PRIM_INTEGER;
-
-                            if (bigint_fits(
-                                &unsized_integer->prim.integer,
-                                typespec_get_bytes(sized_integer),
-                                typespec_is_signed(sized_integer))) {
-                                astnode->typespec = sized_integer;
-                                return astnode->typespec;
-                            } else {
-                                Msg msg = msg_with_span(
-                                    MSG_ERROR,
-                                    format_string_with_one_type(
-                                        "%s operand `%s` cannot fit in %s operand's type `%T`",
-                                        sized_integer,
-                                        is_left_unsized_integer ? "left" : "right",
-                                        bigint_tostring(&unsized_integer->prim.integer),
-                                        is_left_unsized_integer ? "right" : "left"),
+                            astnode->typespec = sema_check_one_unsized_one_sized_integer_operand(
+                                    s,
+                                    left,
+                                    right,
                                     astnode->short_span);
-                                // TODO: add range help note
-                                msg_emit(s, &msg);
-                                return NULL;
-                            }
+                            return astnode->typespec;
                         }
                     } else {
                         if (!left_is_anyint) {
@@ -1289,17 +1302,76 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
         } break;
 
         case ASTNODE_CMP_BINOP: {
+            // TODO: fix this so it only accepts integers for (</>)=
             Typespec* left = sema_astnode(s, astnode->cmpbin.left, NULL);
             Typespec* right = sema_astnode(s, astnode->cmpbin.right, NULL);
             if (left && right) {
                 bool left_valid = sema_verify_isvalue(s, left, AT_DEFAULT_VALUE, astnode->cmpbin.left->span);
                 bool right_valid = sema_verify_isvalue(s, right, AT_DEFAULT_VALUE, astnode->cmpbin.right->span);
                 if (left_valid && right_valid) {
-                    astnode->cmpbin.peerres = sema_check_types_equal(s, left, right, true, astnode->short_span);
-                    if (astnode->cmpbin.peerres) {
-                        astnode->typespec = predef_typespecs.bool_type->ty;
-                        return astnode->typespec;
-                    } else return NULL;
+                    #define sema_cmp_binop_mismatched_operands_error() { \
+                        Msg msg = msg_with_span( \
+                            MSG_ERROR, \
+                            format_string_with_two_types("mismatched operands: `%T` and `%T`", left, right), \
+                            astnode->short_span); \
+                        msg_emit(s, &msg); \
+                        return NULL; \
+                    }
+
+                    #define sema_cmp_binop_operator_not_defined_for_error() { \
+                        Msg msg = msg_with_span( \
+                            MSG_ERROR, \
+                            format_string_with_one_type("operator not defined for type `%T`", left), \
+                            astnode->short_span); \
+                        msg_emit(s, &msg); \
+                        return NULL; \
+                    }
+
+                    bool integers = false;
+                    if (left->kind == right->kind) {
+                        if (typespec_is_integer(left) || typespec_is_integer(right)) {
+                            if (typespec_is_integer(left) && typespec_is_integer(right)) {
+                                integers = true;
+                                if (typespec_is_unsized_integer(left) && typespec_is_unsized_integer(right)) {
+                                    // OK
+                                    astnode->cmpbin.peerres = left;
+                                } else if (typespec_is_unsized_integer(left) || typespec_is_unsized_integer(right)) {
+                                    astnode->cmpbin.peerres = sema_check_one_unsized_one_sized_integer_operand(
+                                            s,
+                                            left,
+                                            right,
+                                            astnode->short_span);
+                                } else {
+                                    astnode->cmpbin.peerres = sema_check_two_sized_integer_operands(
+                                            s,
+                                            left,
+                                            right,
+                                            astnode->short_span);
+                                }
+                            } else sema_cmp_binop_mismatched_operands_error();
+                        } else if (typespec_is_bool(left) || typespec_is_bool(right)) {
+                            if (typespec_is_bool(left) && typespec_is_bool(right)) {
+                                astnode->cmpbin.peerres = left;
+                                // OK
+                            } else sema_cmp_binop_mismatched_operands_error();
+                        } else if (left->kind == TS_PTR) {
+                            if (sema_check_types_equal(s, left, right, true, astnode->short_span)) {
+                                astnode->cmpbin.peerres = left;
+                            } else return NULL;
+                        } else if (left->kind == TS_MULTIPTR) {
+                            if (sema_check_types_equal(s, left, right, true, astnode->short_span)) {
+                                astnode->cmpbin.peerres = left;
+                            } else return NULL;
+                        } else sema_cmp_binop_operator_not_defined_for_error();
+                    } else sema_cmp_binop_mismatched_operands_error();
+                    assert(astnode->cmpbin.peerres);
+
+                    if (!integers && !is_equality_op(astnode->cmpbin.kind)) {
+                        sema_cmp_binop_operator_not_defined_for_error();
+                    }
+                    astnode->typespec = predef_typespecs.bool_type->ty;
+                    return astnode->typespec;
+
                 } else return NULL;
             } else return NULL;
 
@@ -1841,18 +1913,32 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                 } else return NULL;
             } else child = predef_typespecs.void_type->ty;
 
-            if (sema_check_types_equal(
+            Span errspan = astnode->ret.child
+                    ? astnode->ret.child->span
+                    : astnode->span;
+            TypeComparisonInfo cmpinfo = sema_are_types_equal(
                     s,
                     child,
                     func_ret,
                     false,
-                    astnode->ret.child
-                        ? astnode->ret.child->span
-                        : astnode->span)) {
+                    errspan);
+            if (cmpinfo.result == TC_OK) {
                 astnode->typespec = predef_typespecs.noreturn_type->ty;
-            } else return NULL;
-
-            return astnode->typespec;
+                return astnode->typespec;
+            } else if (cmpinfo.result == TC_ERROR_HANDLED) {
+                return NULL;
+            } else {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    format_string_with_one_type("`return` returns type `%T`...", child),
+                    errspan);
+                msg_addl_fat(
+                    &msg,
+                    format_string_with_one_type("...but function returns `%T`", func_ret),
+                    astnode->ret.ref->funcdef.header->funch.ret_typespec->span);
+                msg_emit(s, &msg);
+                return NULL;
+            }
         } break;
 
         case ASTNODE_VARIABLE_DECL: {

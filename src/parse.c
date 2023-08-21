@@ -583,28 +583,8 @@ static AstNode* parse_arithadd_binop_expr(ParseCtx* p) {
     return left;
 }
 
-static AstNode* parse_booland_binop_expr(ParseCtx* p) {
-    AstNode* left = parse_arithadd_binop_expr(p);
-    while (match(p, TOKEN_KEYWORD_AND)) {
-        Token* op = p->prev;
-        AstNode* right = parse_arithadd_binop_expr(p);
-        left = astnode_bool_binop_new(BOOL_BINOP_AND, op, left, right);
-    }
-    return left;
-}
-
-static AstNode* parse_boolor_binop_expr(ParseCtx* p) {
-    AstNode* left = parse_booland_binop_expr(p);
-    while (match(p, TOKEN_KEYWORD_OR)) {
-        Token* op = p->prev;
-        AstNode* right = parse_booland_binop_expr(p);
-        left = astnode_bool_binop_new(BOOL_BINOP_OR, op, left, right);
-    }
-    return left;
-}
-
 static AstNode* parse_cmp_binop_expr(ParseCtx* p) {
-    AstNode* left = parse_boolor_binop_expr(p);
+    AstNode* left = parse_arithadd_binop_expr(p);
     while (match(p, TOKEN_DOUBLE_EQUAL)
            || match(p, TOKEN_BANG_EQUAL)
            || match(p, TOKEN_LANGBR)
@@ -622,17 +602,37 @@ static AstNode* parse_cmp_binop_expr(ParseCtx* p) {
             case TOKEN_RANGBR_EQUAL: kind = CMP_BINOP_GE; break;
             default: assert(0); break;
         }
-        AstNode* right = parse_boolor_binop_expr(p);
+        AstNode* right = parse_arithadd_binop_expr(p);
         left = astnode_cmp_binop_new(kind, op, left, right);
     }
     return left;
 }
 
-static AstNode* parse_assign_expr(ParseCtx* p) {
+static AstNode* parse_booland_binop_expr(ParseCtx* p) {
     AstNode* left = parse_cmp_binop_expr(p);
+    while (match(p, TOKEN_KEYWORD_AND)) {
+        Token* op = p->prev;
+        AstNode* right = parse_cmp_binop_expr(p);
+        left = astnode_bool_binop_new(BOOL_BINOP_AND, op, left, right);
+    }
+    return left;
+}
+
+static AstNode* parse_boolor_binop_expr(ParseCtx* p) {
+    AstNode* left = parse_booland_binop_expr(p);
+    while (match(p, TOKEN_KEYWORD_OR)) {
+        Token* op = p->prev;
+        AstNode* right = parse_booland_binop_expr(p);
+        left = astnode_bool_binop_new(BOOL_BINOP_OR, op, left, right);
+    }
+    return left;
+}
+
+static AstNode* parse_assign_expr(ParseCtx* p) {
+    AstNode* left = parse_boolor_binop_expr(p);
     if (match(p, TOKEN_EQUAL)) {
         Token* equal = p->prev;
-        AstNode* right = parse_cmp_binop_expr(p);
+        AstNode* right = parse_boolor_binop_expr(p);
         left = astnode_assign_new(equal, left, right);
     }
     return left;

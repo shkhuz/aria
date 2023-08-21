@@ -218,6 +218,8 @@ typedef enum {
     CMP_BINOP_GE,
 } CmpBinopKind;
 
+bool is_equality_op(CmpBinopKind kind);
+
 typedef struct {
     AstNode* left, *right;
     CmpBinopKind kind;

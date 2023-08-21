@@ -25,11 +25,8 @@ export fn main() void {
     mut b: u64;
     mut c: u64;
     mut d: u64;
-    imm chars = read(&a as *u8, 8 * 4);
-    write(&a as *u8, chars as u64);
-    if (true) {
-        if (false) {
-            return;
-        }
-    }
+    //imm chars = read(&a as *u8, 8 * 4);
+    //write(&a as *u8, chars as u64);
+
+    writedigit((true and 1 <= 4) as u8);
 }

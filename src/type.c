@@ -278,6 +278,8 @@ u32 typespec_get_bytes(Typespec* ty) {
                     else if (bits <= 64) bits = 64;
                     return bits / 8;
                 } break;
+                case PRIM_bool:
+                    return 1;
             }
         } break;
 
