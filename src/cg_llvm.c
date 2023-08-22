@@ -71,6 +71,12 @@ static LLVMTypeRef cg_get_llvm_type(Typespec* typespec) {
             typespec->llvmtype = LLVMPointerType(cg_get_llvm_type(typespec->mulptr.child), 0);
             break;
 
+        case TS_ARRAY: {
+            typespec->llvmtype = LLVMArrayType(
+                    cg_get_llvm_type(typespec->array.child),
+                    typespec->array.size->prim.integer.d[0]);
+        } break;
+
         case TS_FUNC: {
             LLVMTypeRef* param_llvmtypes = NULL;
             Typespec** params = typespec->func.params;
@@ -199,6 +205,24 @@ static LLVMValueRef cg_build_cond_br(
                     ""),
             then,
             elsee);
+}
+
+LLVMValueRef cg_get_elemptr_in_array(
+        CgCtx* c,
+        LLVMValueRef array_ptr,
+        LLVMValueRef index,
+        LLVMTypeRef array_ty) {
+    LLVMValueRef left = array_ptr;
+    LLVMValueRef indices[2];
+    indices[0] = LLVMConstInt(LLVMInt64Type(), 0, false);
+    indices[1] = index;
+    return LLVMBuildGEP2(
+            c->llvmbuilder,
+            array_ty,
+            left,
+            indices,
+            2,
+            "");
 }
 
 LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* target, void* addl_info) {
@@ -425,6 +449,51 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                 case UNOP_ADDR: {
                     astnode->llvmvalue = cg_astnode(c, astnode->unop.child, true, NULL, NULL);
                 } break;
+            }
+        } break;
+
+        case ASTNODE_INDEX: {
+            switch (astnode->idx.left->typespec->kind) {
+                case TS_PTR: {
+                    assert(astnode->idx.left->typespec->mulptr.child->kind == TS_ARRAY);
+                    LLVMValueRef left = cg_astnode(c, astnode->idx.left, false, target, NULL);
+                    LLVMValueRef index = cg_astnode(c, astnode->idx.idx, false, predef_typespecs.u64_type->ty, NULL);
+                    astnode->llvmvalue = cg_get_elemptr_in_array(
+                            c,
+                            left,
+                            index,
+                            cg_get_llvm_type(astnode->idx.left->typespec->ptr.child));
+                } break;
+
+                case TS_MULTIPTR: {
+                    LLVMValueRef left = cg_astnode(c, astnode->idx.left, false, target, NULL);
+                    LLVMValueRef index = cg_astnode(c, astnode->idx.idx, false, predef_typespecs.u64_type->ty, NULL);
+                    astnode->llvmvalue = LLVMBuildGEP2(
+                            c->llvmbuilder,
+                            cg_get_llvm_type(astnode->typespec),
+                            left,
+                            &index,
+                            1,
+                            "");
+                } break;
+
+                case TS_ARRAY: {
+                    LLVMValueRef left = cg_astnode(c, astnode->idx.left, true, target, NULL);
+                    LLVMValueRef index = cg_astnode(c, astnode->idx.idx, false, predef_typespecs.u64_type->ty, NULL);
+                    astnode->llvmvalue = cg_get_elemptr_in_array(
+                            c,
+                            left,
+                            index,
+                            cg_get_llvm_type(astnode->idx.left->typespec));
+                } break;
+            }
+
+            if (!lvalue) {
+                astnode->llvmvalue = LLVMBuildLoad2(
+                        c->llvmbuilder,
+                        cg_get_llvm_type(astnode->typespec),
+                        astnode->llvmvalue,
+                        "");
             }
         } break;
 

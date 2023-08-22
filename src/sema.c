@@ -1698,9 +1698,11 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                 assert(astnode->acc.right->kind == ASTNODE_SYMBOL);
                 Token* right = astnode->acc.right->sym.identifier;
                 AstNode* accessed_node = sema_access_field_from_type(s, left, right, astnode->short_span, false);
-                astnode->typespec = accessed_node->typespec;
-                astnode->acc.accessed = accessed_node;
-                return astnode->typespec;
+                if (accessed_node) {
+                    astnode->typespec = accessed_node->typespec;
+                    astnode->acc.accessed = accessed_node;
+                    return astnode->typespec;
+                } else return NULL;
             } else return NULL;
         } break;
 

@@ -1,68 +1,9 @@
 //import "small2_import.ar" as c;
-//
-//struct Ctx {
-//    a: u8,
-//    b: bool,
-//}
-//
-//export fn main(a: i8) i16 {
-//    mut num: i8 = c.cool(1);
-//    mut num2: i16 = 2;
-//    mut ptr = &num;
-//    ptr.* = 2;
-//
-//    mut f = &cool;
-//    imm x = f(num+(-num2));
-//
-//    return ptr.* + x;
-//}
-//
-fn cool(a: i16) void {
-    mut b = true;
-    mut c = false;
-    mut _16: u16 = 1;
-    mut _8: u8 = 2;
-    c = _16 <= _8;
-    imm x =
-        if (false) 1
-        else if (true) a
-        else 990;
-    //imm y =
-    //    if (true)       0 as u32
-    //    else if (false) 1 as u32
-    //    else if (true)  return
-    //    else            2 as u32;
-    //imm z: u64 =
-    //    if (true) _16
-    //    else if (false) return
-    //    else _8 as u8;
+import "nostd/main.ar" as m;
 
-    //cool(1);
-    //cool(1);
-    //cool(1);
-
-    //imm w = if (true) {
-    //    yield _8;
-    //} else {
-    //    yield _16;
-    //};
+export fn main() void {
+    mut arr: [10]u32;
+    mut ptr = &arr;
+    ptr[1] = 5;
+    m.writedigit(arr[1] as u8);
 }
-//
-//extern fn other_func() i8;
-//
-//fn voidfn() void {
-//    mut a: u8 = 1;
-//    mut ptr = &a;
-//}
-//
-//fn unreachablefn() noreturn {
-//    mut num: i8 = 1;
-//    mut a: *u8 = num as *u8;
-//    mut b = a as u16;
-//}
-//
-// fn cool() void {}
-// fn main() {
-//     mut f = &cool;          // f is `*fn() void`
-//     f.*();                  // callee type is `fn() void`
-// }
