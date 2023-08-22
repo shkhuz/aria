@@ -223,6 +223,7 @@ AstNode* astnode_while_new(Token* keyword, AstNode* cond, AstNode* mainbody, Ast
     astnode->whloop.mainbody = mainbody;
     astnode->whloop.elsebody = elsebody;
     astnode->whloop.breaks = breaks;
+    astnode->whloop.target = NULL;
     return astnode;
 }
 
@@ -231,6 +232,8 @@ AstNode* astnode_break_new(Token* keyword, AstNode* child) {
         ASTNODE_BREAK,
         span_from_two(keyword->span, child ? child->span : keyword->span));
     astnode->brk.child = child;
+    astnode->brk.loopref = NULL;
+    astnode->brk.llvmbb = NULL;
     return astnode;
 }
 

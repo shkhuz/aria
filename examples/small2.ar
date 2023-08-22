@@ -1,9 +1,15 @@
 //import "small2_import.ar" as c;
 import "nostd/main.ar" as m;
 
+fn take_arr(arr: *[4]bool) void {
+}
+
 export fn main() void {
     mut arr: [10]u32;
     mut ptr = &arr;
     ptr[1] = 5;
     m.writedigit(arr[1] as u8);
+
+    mut r: [4]bool;
+    take_arr(&r);
 }

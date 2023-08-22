@@ -25,6 +25,7 @@ typedef struct {
     bool error;
 
     AstNode* current_func;
+    AstNode** loop_stack;
 } SemaCtx;
 
 SemaCtx sema_new_context(

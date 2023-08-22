@@ -20,15 +20,12 @@ fn writedigit(digit: u8) void {
     write(&char, 1);
 }
 
-export fn main() void {
-    mut a: u64;
-    mut b: u64;
-    mut c: u64;
-    mut d: u64;
-    mut e: u8 = 7;
-    //imm chars = read(&a as *u8, 8 * 4);
-    //write(&a as *u8, chars as u64);
+fn fibbonacci(n: u8) u8 {
+   return if (n == 0) 0
+   else if (n == 1) 1
+   else (fibbonacci(n-1) + fibbonacci(n-2));
+}
 
-    imm ptr: [*]u8 = &c as [*]u8;
-    writedigit(ptr[0]);
+export fn main() void {
+    writedigit(fibbonacci(2));
 }

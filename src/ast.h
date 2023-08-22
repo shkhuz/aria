@@ -136,10 +136,13 @@ typedef struct {
     // Stores references to
     // `break` expressions.
     AstNode** breaks;
+    Typespec* target;
 } AstNodeWhile;
 
 typedef struct {
     AstNode* child;
+    AstNode* loopref;
+    LLVMBasicBlockRef llvmbb;
 } AstNodeBreak;
 
 typedef struct {
