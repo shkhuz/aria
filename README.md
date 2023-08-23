@@ -2,17 +2,20 @@
 
 [![Build](https://github.com/shkhuz/aria/actions/workflows/build.yml/badge.svg?branch=master&event=push)](https://github.com/shkhuz/aria/actions/workflows/build.yml)
 
-_Note: The compiler is undergoing major changes at the moment, so the examples in this document and in the examples/ directory might not work._
-
 This repository houses the Aria compiler/toolchain and the language
 specification. 
 
 ## Installation
 
-Dependencies:
+### Compilation Dependencies
 
-- LLVM
-- lld
+- Any C compiler
+- `make`
+- Latest version of LLVM
+
+### Runtime Dependencies
+
+- Latest version of LLVM
 
 ### Arch Linux
 
