@@ -22,3 +22,9 @@ jobs:
 
       - name: Test Aria
         run: make test
+     
+      - name: Archive executable
+        uses: actions/upload-artifact@v3
+        with:
+          name: compiler-linux-executable
+          path: build/aria
