@@ -367,12 +367,16 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                 case ARITH_BINOP_ADD: op = LLVMAdd; break;
                 case ARITH_BINOP_SUB: op = LLVMSub; break;
                 case ARITH_BINOP_MUL: op = LLVMMul; break;
-                case ARITH_BINOP_DIV: {
-                    if (typespec_is_signed(astnode->typespec))
-                        op = LLVMSDiv;
-                    else
-                        op = LLVMUDiv;
-                } break;
+                case ARITH_BINOP_DIV:
+                    typespec_is_signed(astnode->typespec)
+                        ? op = LLVMSDiv
+                        : (op = LLVMUDiv);
+                    break;
+                case ARITH_BINOP_REM:
+                    typespec_is_signed(astnode->typespec)
+                        ? op = LLVMSRem
+                        : (op = LLVMURem);
+                    break;
                 default: assert(0); break;
             }
             astnode->llvmvalue = LLVMBuildBinOp(c->llvmbuilder, op, left, right, "");
