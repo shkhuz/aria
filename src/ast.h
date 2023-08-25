@@ -52,6 +52,7 @@ typedef struct {
 typedef struct {
     Token* key;
     AstNode* value;
+    usize idx;
 } AstNodeField;
 
 typedef struct {
@@ -401,7 +402,7 @@ AstNode* astnode_directive_new(
     Token* callee,
     AstNode** args,
     Token* rparen);
-AstNode* astnode_field_new(Token* key, AstNode* value);
+AstNode* astnode_field_new(Token* key, AstNode* value, usize idx);
 AstNode* astnode_field_in_literal_new(Token* start, Token* key, AstNode* value);
 
 AstNode* astnode_integer_literal_new(Token* token, bigint val);

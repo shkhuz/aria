@@ -142,6 +142,32 @@ static char* format_string_with_two_types(char* fmt, Typespec* ty1, Typespec* ty
     return newfmt2;
 }
 
+typedef struct {
+    bool immutable;
+    Typespec* child;
+} RefTypespecInfo;
+
+RefTypespecInfo sema_get_refty_info(Typespec* refty) {
+    RefTypespecInfo result;
+    switch (refty->kind) {
+        case TS_PTR:
+            result.immutable = refty->ptr.immutable;
+            result.child = refty->ptr.child;
+            break;
+        case TS_MULTIPTR:
+            result.immutable = refty->mulptr.immutable;
+            result.child = refty->mulptr.child;
+            break;
+        case TS_SLICE:
+            result.immutable = refty->slice.immutable;
+            result.child = refty->slice.child;
+            break;
+        default:
+            assert(0);
+    }
+    return result;
+}
+
 typedef enum {
     TC_OK,
     TC_MISMATCH,
@@ -348,16 +374,9 @@ static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Types
             } break;
         }
     } else if (typespec_is_arrptr(from) && (to->kind == TS_MULTIPTR || to->kind == TS_SLICE)) {
-        bool to_imm;
-        Typespec* to_child = NULL;
-        switch (to->kind) {
-            case TS_MULTIPTR: to_imm = to->mulptr.immutable; to_child = to->mulptr.child; break;
-            case TS_SLICE:    to_imm = to->slice.immutable;  to_child = to->slice.child; break;
-            default: assert(0);
-        }
-
-        if (!from->ptr.immutable || to_imm) {
-            if (sema_are_types_exactly_equal(s, from->ptr.child->array.child, to_child)) {
+        RefTypespecInfo to_info = sema_get_refty_info(to);
+        if (!from->ptr.immutable || to_info.immutable) {
+            if (sema_are_types_exactly_equal(s, from->ptr.child->array.child, to_info.child)) {
                 return (TypeComparisonInfo){ .result = TC_OK, .final = to };
             } else {
                 return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
@@ -566,8 +585,8 @@ static bool sema_check_is_lvalue(SemaCtx* s, AstNode* astnode) {
 static bool sema_is_lvalue_imm(AstNode* astnode) {
     if ((astnode->kind == ASTNODE_ACCESS && (astnode->acc.left->typespec->kind == TS_PTR))
         || astnode->kind == ASTNODE_DEREF
-        || (astnode->kind == ASTNODE_INDEX && (astnode->idx.left->typespec->kind == TS_MULTIPTR
-                                               || astnode->idx.left->typespec->kind == TS_SLICE))) {
+        || (astnode->kind == ASTNODE_INDEX
+            && (astnode->idx.left->typespec->kind == TS_MULTIPTR || astnode->idx.left->typespec->kind == TS_SLICE || typespec_is_arrptr(astnode->idx.left->typespec)))) {
         AstNode* child;
         switch (astnode->kind) {
             case ASTNODE_ACCESS: child = astnode->acc.left; break;
@@ -576,12 +595,8 @@ static bool sema_is_lvalue_imm(AstNode* astnode) {
             default: assert(0);
         }
 
-        switch (child->typespec->kind) {
-            case TS_PTR: return child->typespec->ptr.immutable;
-            case TS_MULTIPTR: return child->typespec->mulptr.immutable;
-            case TS_SLICE: return child->typespec->slice.immutable;
-            default: assert(0);
-        }
+        RefTypespecInfo child_info = sema_get_refty_info(child->typespec);
+        return child_info.immutable;
     }
 
     switch (astnode->kind) {
@@ -1433,10 +1448,15 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                 if (left->kind == TS_PRIM && inright->kind == TS_PRIM) {
                 } else if (left->kind == TS_void && inright->kind == TS_void) {
                 } else if (typespec_is_arrptr(left) && (inright->kind == TS_MULTIPTR || inright->kind == TS_SLICE)) {
-                    // TODO: maybe check for immutability
+                    RefTypespecInfo inright_info = sema_get_refty_info(inright);
+                    if (!left->ptr.immutable || inright_info.immutable) {
+                    } else result = TC_CONST;
                 } else if ((left->kind == TS_PTR || left->kind == TS_MULTIPTR || left->kind == TS_SLICE) &&
                            (inright->kind == TS_PTR || inright->kind == TS_MULTIPTR || inright->kind == TS_SLICE)) {
-                    // TODO: maybe check for immutability
+                    RefTypespecInfo left_info = sema_get_refty_info(left);
+                    RefTypespecInfo inright_info = sema_get_refty_info(inright);
+                    if (!left_info.immutable || inright_info.immutable) {
+                    } else result = TC_CONST;
                     // TODO: take care of alignment
                 } else if (left->kind == TS_PRIM && (inright->kind == TS_PTR || inright->kind == TS_MULTIPTR)) {
                 } else if ((left->kind == TS_PTR || left->kind == TS_MULTIPTR) && inright->kind == TS_PRIM) {
@@ -1457,6 +1477,9 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                         MSG_ERROR,
                         format_string_with_two_types("cannot cast type `%T` to `%T`", left, inright),
                         astnode->short_span);
+                    if (result == TC_CONST) {
+                        msg_addl_thin(&msg, "type mismatch due to change in immutability");
+                    }
                     msg_emit(s, &msg);
                     return NULL;
                 } else {

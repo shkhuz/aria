@@ -880,6 +880,7 @@ static AstNode* parse_astnode_root(ParseCtx* p) {
                     expect_comma(p);
                 }
 
+                usize field_idx = 0;
                 bool dup = false;
                 bufloop(fields, i) {
                     if (are_token_lexemes_equal(fields[i]->field.key, field_identifier)) {
@@ -892,7 +893,10 @@ static AstNode* parse_astnode_root(ParseCtx* p) {
                         dup = true;
                     }
                 }
-                if (!dup) bufpush(fields, astnode_field_new(field_identifier, field_typespec));
+                if (!dup) {
+                    bufpush(fields, astnode_field_new(field_identifier, field_typespec, field_idx));
+                    field_idx++;
+                }
             } else {
                 Msg msg = msg_with_span(
                     MSG_ERROR,

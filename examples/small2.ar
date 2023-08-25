@@ -1,4 +1,4 @@
-//import "small2_import.ar" as c;
+import "small2_import.ar" as c;
 import "nostd/main.ar" as m;
 
 fn take_arr(arr: *[4]bool) void {

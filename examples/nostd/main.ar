@@ -7,17 +7,17 @@ extern fn _syscall(
         p5: u64,
         p6: u64) i32;
 
-fn write(buf: *imm u8, bytes: u64) void {
+fn write(buf: [*]imm u8, bytes: u64) void {
     _syscall(1, 1, buf as u64, bytes, 0, 0, 0);
 }
 
-fn read(buf: *u8, bytes: u64) i32 {
+fn read(buf: [*]u8, bytes: u64) i32 {
     return _syscall(0, 0, buf as u64, bytes, 0, 0, 0);
 }
 
 fn writedigit(digit: u8) void {
     imm char = digit + 48;
-    write(&char, 1);
+    write(&char as [*]u8, 1);
 }
 
 fn writeinteger(int: u64) void {
@@ -42,7 +42,7 @@ fn writeinteger(int: u64) void {
         buf2[size-c-1] = buf[c];
     }
 
-    write(&buf2[0], size);
+    write(&buf2, size);
 }
 
 fn fibbonacci(n: u64) u64 {
@@ -51,6 +51,17 @@ fn fibbonacci(n: u64) u64 {
    else (fibbonacci(n-1) + fibbonacci(n-2));
 }
 
+struct State {
+    a: u8,
+}
+
 export fn main() void {
-    writeinteger(fibbonacci(35));
+    //writeinteger(fibbonacci(35));
+    mut s: State;
+    mut ps = &s;
+    ps.a = 90;
+    writeinteger(ps.a);
+
+    mut x: *imm u8 = &ps.a;
+    mut xx: *u8 = x;
 }

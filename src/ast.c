@@ -87,12 +87,13 @@ AstNode* astnode_directive_new(
     return astnode;
 }
 
-AstNode* astnode_field_new(Token* key, AstNode* value) {
+AstNode* astnode_field_new(Token* key, AstNode* value, usize idx) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_FIELD,
         span_from_two(key->span, value->span));
     astnode->field.key = key;
     astnode->field.value = value;
+    astnode->field.idx = idx;
     return astnode;
 }
 

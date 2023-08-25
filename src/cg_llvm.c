@@ -209,6 +209,29 @@ static LLVMValueRef cg_build_cond_br(
             elsee);
 }
 
+LLVMValueRef cg_access_struct_field(
+        CgCtx* c,
+        LLVMValueRef ptr_to_struct,
+        LLVMTypeRef struct_ty,
+        usize idx,
+        bool lvalue,
+        LLVMTypeRef field_ty) {
+    LLVMValueRef result = LLVMBuildStructGEP2(
+            c->llvmbuilder,
+            struct_ty,
+            ptr_to_struct,
+            idx,
+            "");
+    if (!lvalue) {
+        result = LLVMBuildLoad2(
+                c->llvmbuilder,
+                field_ty,
+                result,
+                "");
+    }
+    return result;
+}
+
 LLVMValueRef cg_get_elemptr_in_array(
         CgCtx* c,
         LLVMValueRef array_ptr,
@@ -243,6 +266,17 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
 //                    LLVMIntType(64),
 //                    astnode->intl.val.neg ? (-astnode->intl.val.d[0]) : astnode->intl.val.d[0],
 //                    astnode->intl.val.neg);
+        } break;
+
+        case ASTNODE_STRING_LITERAL: {
+            LLVMValueRef llvmstr = LLVMConstString(
+                    &astnode->strl.token->span.srcfile->handle.contents[astnode->strl.token->span.start+1],
+                    astnode->strl.token->span.end-1 - (astnode->strl.token->span.start+1),
+                    true);
+            LLVMValueRef llvmstrloc = LLVMAddGlobal(c->llvmmod, LLVMTypeOf(llvmstr), "");
+            LLVMSetLinkage(llvmstrloc, LLVMPrivateLinkage);
+            LLVMSetInitializer(llvmstrloc, llvmstr);
+            astnode->llvmvalue = llvmstrloc;
         } break;
 
         case ASTNODE_FUNCTION_CALL: {
@@ -517,8 +551,21 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
         } break;
 
         case ASTNODE_ACCESS: {
-            astnode->typespec->llvmtype = astnode->acc.accessed->typespec->llvmtype;
-            astnode->llvmvalue = astnode->acc.accessed->llvmvalue;
+            if (astnode->acc.left->typespec->kind == TS_MODULE) {
+                astnode->typespec->llvmtype = astnode->acc.accessed->typespec->llvmtype;
+                astnode->llvmvalue = astnode->acc.accessed->llvmvalue;
+            } else if (astnode->acc.left->typespec->kind == TS_STRUCT || astnode->acc.left->typespec->kind == TS_PTR) {
+                bool is_ptr = astnode->acc.left->typespec->kind == TS_PTR;
+                Typespec* agg_ty = is_ptr ? astnode->acc.left->typespec->ptr.child : astnode->acc.left->typespec;
+                LLVMValueRef left = cg_astnode(c, astnode->acc.left, is_ptr ? false : true, NULL, NULL);
+                astnode->llvmvalue = cg_access_struct_field(
+                        c,
+                        left,
+                        cg_get_llvm_type(agg_ty),
+                        astnode->acc.accessed->field.idx,
+                        lvalue,
+                        cg_get_llvm_type(astnode->typespec));
+            }
         } break;
 
         case ASTNODE_EXPRSTMT: {
