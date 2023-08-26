@@ -29,6 +29,8 @@ typedef struct {
     LLVMTargetMachineRef llvmtargetmachine;
     LLVMTargetDataRef llvmtargetdatalayout;
     LLVMPassManagerRef llvmpm;
+
+    LLVMTypeRef llvmptrtype;
 } CgCtx;
 
 CgCtx cg_new_context(struct Typespec** mod_tys, struct CompileCtx* compile_ctx);

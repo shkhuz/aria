@@ -1,0 +1,56 @@
+extern fn _syscall(
+        syscall: u64,
+        p1: u64,
+        p2: u64,
+        p3: u64,
+        p4: u64,
+        p5: u64,
+        p6: u64) i32;
+
+fn write(buf: [*]imm u8, bytes: u64) void {
+    _syscall(1, 1, buf as u64, bytes, 0, 0, 0);
+}
+
+fn writestring(string: []imm u8) void {
+    write(string.ptr, string.len);
+}
+
+fn read(buf: [*]u8, bytes: u64) i32 {
+    return _syscall(0, 0, buf as u64, bytes, 0, 0, 0);
+}
+
+fn writedigit(digit: u8) void {
+    imm char = digit + 48;
+    write(&char as [*]imm u8, 1);
+}
+
+fn writechar(char: u8) void {
+    write(&char as [*]imm u8, 1);
+}
+
+fn writeinteger(n: u64) void {
+    // Largest 64-bit number
+    // has char length of 20.
+    mut rev: [20]u8;
+    mut res: [20]u8;
+
+    mut c: u64 = 0;
+    if (n == 0) {
+        writedigit(0);
+        return;
+    }
+    while (n != 0) {
+        imm lsd = (n % 10) as u8;
+        n = n / 10;
+        rev[c] = lsd + 48;
+        c = c + 1;
+    }
+
+    mut size = c;
+    while (c != 0) {
+        c = c - 1;
+        res[size-c-1] = rev[c];
+    }
+
+    write(&res, size);
+}

@@ -8,7 +8,7 @@ export fn main() void {
     mut arr: [10]u32;
     mut ptr = &arr;
     ptr[1] = 5;
-    m.writedigit(arr[1] as u8);
+    m.std.writedigit(arr[1] as u8);
 
     mut r: [4]bool;
     take_arr(&r);

@@ -164,10 +164,18 @@ typedef struct {
     AstNode* ref;
 } AstNodeFunctionCall;
 
+typedef enum {
+    SLICE_FIELD_PTR,
+    SLICE_FIELD_LEN,
+} SliceField;
+
 typedef struct {
     AstNode* left;
     AstNode* right;
     AstNode* accessed;
+    union {
+        SliceField slicefield;
+    };
 } AstNodeAccess;
 
 typedef enum {
@@ -288,6 +296,7 @@ typedef struct {
 typedef struct {
     Token* identifier;
     char* name;
+    char* mangled_name;
     AstNode** fields;
     LLVMTypeRef llvmtype;
 } AstNodeStruct;

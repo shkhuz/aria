@@ -728,54 +728,75 @@ static bool sema_check_bigint_overflow(SemaCtx* s, bigint* b, Span span) {
     }
 }
 
-static AstNode* sema_access_field_from_type(SemaCtx* s, Typespec* ty, Token* key, Span error, bool derefed) {
+static bool sema_access_field_from_type(SemaCtx* s, Typespec* ty, Token* key, AstNode* astnode, bool derefed) {
+    AstNode* result = NULL;
+
+    #define sema_symbol_not_found_in_type_error(typespec) { \
+            Msg msg = msg_with_span( \
+                MSG_ERROR, \
+                format_string_with_one_type("symbol not found in type `%T`%s", ty, derefed ? " (dereferenced)" : ""), \
+                astnode->short_span); \
+            msg_emit(s, &msg); \
+        }
+
     if (ty->kind == TS_STRUCT) {
         AstNode** fields = ty->agg->strct.fields;
         bufloop(fields, i) {
             if (are_token_lexemes_equal(
                     fields[i]->field.key,
                     key)) {
-                return fields[i];
+                result = fields[i];
             }
         }
-        Msg msg = msg_with_span(
-            MSG_ERROR,
-            format_string_with_one_type("symbol not found in type `%T`%s", ty, derefed ? " (dereferenced)" : ""),
-            error);
-        msg_emit(s, &msg);
-        return NULL;
+        if (!result) {
+            sema_symbol_not_found_in_type_error(ty);
+        }
     } else if (ty->kind == TS_TYPE) {
         assert(0 && "TODO: implement");
     } else if (ty->kind == TS_MODULE) {
         AstNode** astnodes = ty->mod.srcfile->astnodes;
         bufloop(astnodes, i) {
             if (is_token_lexeme(key, astnode_get_name(astnodes[i]))) {
-                return astnodes[i];
+                result = astnodes[i];
             }
         }
-        Msg msg = msg_with_span(
-            MSG_ERROR,
-            "symbol not found",
-            error);
-        msg_emit(s, &msg);
-        return NULL;
+        if (!result) {
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                "symbol not found in module",
+                astnode->short_span);
+            msg_emit(s, &msg);
+        }
     } else if (ty->kind == TS_PRIM) {
-        Msg msg = msg_with_span(
-            MSG_ERROR,
-            format_string_with_one_type("symbol not found in type `%T`%s", ty, derefed ? " (dereferenced)" : ""),
-            error);
-        msg_emit(s, &msg);
-        return NULL;
+        sema_symbol_not_found_in_type_error(ty);
     } else if (ty->kind == TS_PTR) {
-        return sema_access_field_from_type(s, ty->ptr.child, key, error, true);
+        return sema_access_field_from_type(s, ty->ptr.child, key, astnode, true);
+    } else if (ty->kind == TS_SLICE) {
+        if (is_token_lexeme(astnode->acc.right->sym.identifier, "ptr")) {
+            astnode->acc.slicefield = SLICE_FIELD_PTR;
+            astnode->typespec = typespec_multiptr_new(ty->slice.immutable, ty->slice.child);
+            return true;
+        } else if (is_token_lexeme(astnode->acc.right->sym.identifier, "len")) {
+            astnode->acc.slicefield = SLICE_FIELD_LEN;
+            astnode->typespec = predef_typespecs.u64_type->ty;
+            return true;
+        } else {
+            sema_symbol_not_found_in_type_error(ty);
+        }
     } else {
         Msg msg = msg_with_span(
             MSG_ERROR,
             format_string_with_one_type("field access is not supported by type `%T`%s", ty, derefed ? " (dereferenced)" : ""),
-            error);
+            astnode->short_span);
         msg_emit(s, &msg);
-        return NULL;
     }
+
+    if (result) {
+        astnode->typespec = result->typespec;
+        astnode->acc.accessed = result;
+        return true;
+    }
+    return false;
 }
 
 static Typespec* sema_index_type(SemaCtx* s, Typespec* ty, Span error, bool derefed) {
@@ -1729,12 +1750,9 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             if (left/*NOTE: No checking of `left` because types/modules are allowed as operands.*/) {
                 assert(astnode->acc.right->kind == ASTNODE_SYMBOL);
                 Token* right = astnode->acc.right->sym.identifier;
-                AstNode* accessed_node = sema_access_field_from_type(s, left, right, astnode->short_span, false);
-                if (accessed_node) {
-                    astnode->typespec = accessed_node->typespec;
-                    astnode->acc.accessed = accessed_node;
+                if (sema_access_field_from_type(s, left, right, astnode, false))
                     return astnode->typespec;
-                } else return NULL;
+                else return NULL;
             } else return NULL;
         } break;
 
