@@ -606,6 +606,7 @@ static bool sema_is_lvalue_imm(AstNode* astnode) {
                 case ASTNODE_FUNCTION_DEF:
                 case ASTNODE_EXTERN_FUNCTION: return true;
                 case ASTNODE_VARIABLE_DECL: return ref->vard.immutable;
+                case ASTNODE_EXTERN_VARIABLE: return ref->extvar.immutable;
                 case ASTNODE_PARAM_DECL: return false;
                 default: assert(0);
             }
@@ -634,21 +635,25 @@ static void sema_top_level_decls_prec1(SemaCtx* s, AstNode* astnode) {
             astnode->typespec = ty;
             sema_scope_declare(s, astnode->strct.name, astnode, astnode->strct.identifier->span);
         } break;
+
+        case ASTNODE_IMPORT: {
+            sema_scope_declare(s, astnode->import.name, astnode, astnode->import.arg->span);
+        } break;
     }
 }
 
-static bool sema_check_variable_type(SemaCtx* s, AstNode* astnode) {
-    if (astnode->vard.typespec) {
-        Typespec* ty = sema_astnode(s, astnode->vard.typespec, NULL);
-        if (ty && sema_verify_istype(s, ty, AT_STORAGE_TYPE, astnode->vard.typespec->span)) {
-            astnode->typespec = ty->ty;
+static bool sema_check_variable_type(SemaCtx* s, AstNode* parent, AstNode* typespec) {
+    if (typespec) {
+        Typespec* ty = sema_astnode(s, typespec, NULL);
+        if (ty && sema_verify_istype(s, ty, AT_STORAGE_TYPE, typespec->span)) {
+            parent->typespec = ty->ty;
             return true;
         } return false;
     } else return true;
 }
 
-static bool sema_declare_variable(SemaCtx* s, AstNode* astnode) {
-    return sema_scope_declare(s, astnode->vard.name, astnode, astnode->vard.identifier->span);
+static bool sema_declare_variable(SemaCtx* s, AstNode* astnode, char* name, Token* identifier) {
+    return sema_scope_declare(s, name, astnode, identifier->span);
 }
 
 static Typespec* sema_function_header(SemaCtx* s, AstNodeFunctionHeader* header) {
@@ -673,8 +678,13 @@ static Typespec* sema_function_header(SemaCtx* s, AstNodeFunctionHeader* header)
 static void sema_top_level_decls_prec2(SemaCtx* s, AstNode* astnode) {
     switch (astnode->kind) {
         case ASTNODE_VARIABLE_DECL: {
-            sema_check_variable_type(s, astnode);
-            sema_declare_variable(s, astnode);
+            sema_check_variable_type(s, astnode, astnode->vard.typespec);
+            sema_declare_variable(s, astnode, astnode->vard.name, astnode->vard.identifier);
+        } break;
+
+        case ASTNODE_EXTERN_VARIABLE: {
+            sema_check_variable_type(s, astnode, astnode->extvar.typespec);
+            sema_declare_variable(s, astnode, astnode->extvar.name, astnode->extvar.identifier);
         } break;
 
         case ASTNODE_FUNCTION_DEF: {
@@ -699,6 +709,7 @@ static void sema_top_level_decls_prec2(SemaCtx* s, AstNode* astnode) {
             bool error = false;
             bufloop(astnode->strct.fields, i) {
                 AstNode* fieldnode = astnode->strct.fields[i];
+                fieldnode->field.idx = i;
                 Typespec* field_ty = sema_astnode(s, fieldnode->field.value, NULL);
                 if (field_ty && sema_verify_istype(s, field_ty, AT_STORAGE_TYPE, fieldnode->field.value->span)) {
                     fieldnode->typespec = field_ty->ty;
@@ -1766,10 +1777,6 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             // TODO: implement
         } break;
 
-        case ASTNODE_IMPORT: {
-            sema_scope_declare(s, astnode->import.name, astnode, astnode->import.arg->span);
-        } break;
-
         case ASTNODE_IF: {
             // TODO: make small errors like wrong-cond-type not halt further analysis
             // of other astnodes (return a type). Maybe divide errors into further enumerations.
@@ -2033,14 +2040,14 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
             bufpush(s->current_func->funcdef.locals, astnode);
             bool error = false;
-            if (!sema_check_variable_type(s, astnode)) error = true;
+            if (!sema_check_variable_type(s, astnode, astnode->vard.typespec)) error = true;
             Typespec* initializer = NULL;
             if (astnode->vard.initializer) {
                 initializer = sema_astnode(s, astnode->vard.initializer, astnode->typespec);
                 if (initializer && sema_verify_isvalue(s, initializer, AT_RUNTIME|AT_COMPTIME, astnode->vard.initializer->span)) {
                 } else error = true;
             }
-            if (!sema_declare_variable(s, astnode)) error = true;
+            if (!sema_declare_variable(s, astnode, astnode->vard.name, astnode->vard.identifier)) error = true;
 
             if (error) return NULL;
             error = false;
@@ -2067,6 +2074,10 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             }
 
             return error ? NULL : astnode->typespec;
+        } break;
+
+        case ASTNODE_EXTERN_VARIABLE: {
+            return astnode->typespec;
         } break;
     }
 

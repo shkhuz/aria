@@ -1,9 +1,10 @@
     .text
+    .extern exit
     .global _start
 _start:
     bl main
-    mov x0, #0
-    bl sysexit
+
+    bl exit
 
     .global _syscall
 _syscall:
@@ -16,3 +17,11 @@ _syscall:
     mov x5, x6
     svc #0
     ret
+
+    .data
+    .global SYS_READ
+SYS_READ:   .short 63
+    .global SYS_WRITE
+SYS_WRITE:   .short 64
+    .global SYS_EXIT
+SYS_EXIT:   .short 93

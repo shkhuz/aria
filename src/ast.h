@@ -291,6 +291,13 @@ typedef struct {
     Token* identifier;
     char* name;
     AstNode* typespec;
+    bool immutable;
+} AstNodeExternVariable;
+
+typedef struct {
+    Token* identifier;
+    char* name;
+    AstNode* typespec;
 } AstNodeParamDecl;
 
 typedef struct {
@@ -340,6 +347,7 @@ typedef enum {
     ASTNODE_FUNCTION_DEF,
     ASTNODE_EXTERN_FUNCTION,
     ASTNODE_VARIABLE_DECL,
+    ASTNODE_EXTERN_VARIABLE,
     ASTNODE_PARAM_DECL,
     ASTNODE_EXPRSTMT,
     ASTNODE_STRUCT,
@@ -392,6 +400,7 @@ struct AstNode {
         AstNodeFunctionDef funcdef;
         AstNodeExternFunction extfunc;
         AstNodeVariableDecl vard;
+        AstNodeExternVariable extvar;
         AstNodeParamDecl paramd;
         AstNode* exprstmt;
         AstNodeStruct strct;
@@ -469,6 +478,11 @@ AstNode* astnode_variable_decl_new(
     Token* equal,
     AstNode* initializer,
     bool stack,
+    bool immutable);
+AstNode* astnode_extern_variable_new(
+    Token* start,
+    Token* identifier,
+    AstNode* typespec,
     bool immutable);
 AstNode* astnode_param_new(Token* identifier, AstNode* typespec);
 AstNode* astnode_exprstmt_new(AstNode* expr);

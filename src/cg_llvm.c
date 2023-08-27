@@ -146,7 +146,16 @@ static void cg_top_level_decls_prec2(CgCtx* c, AstNode* astnode) {
             astnode->llvmvalue = LLVMAddGlobal(
                 c->llvmmod,
                 astnode->typespec->llvmtype,
-                token_tostring(astnode->vard.identifier));
+                astnode->vard.name);
+        } break;
+
+        case ASTNODE_EXTERN_VARIABLE: {
+            cg_get_llvm_type(c, astnode->typespec);
+            astnode->llvmvalue = LLVMAddGlobal(
+                c->llvmmod,
+                astnode->typespec->llvmtype,
+                astnode->extvar.name);
+            LLVMSetExternallyInitialized(astnode->llvmvalue, true);
         } break;
 
         case ASTNODE_FUNCTION_DEF: {
@@ -566,6 +575,13 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
             if (left->kind == TS_MODULE) {
                 astnode->typespec->llvmtype = astnode->acc.accessed->typespec->llvmtype;
                 astnode->llvmvalue = astnode->acc.accessed->llvmvalue;
+                if (!lvalue && astnode->acc.accessed->kind != ASTNODE_FUNCTION_DEF && astnode->acc.accessed->kind != ASTNODE_EXTERN_FUNCTION) {
+                    astnode->llvmvalue = LLVMBuildLoad2(
+                            c->llvmbuilder,
+                            astnode->typespec->llvmtype,
+                            astnode->llvmvalue,
+                            "");
+                }
             } else if (left->kind == TS_STRUCT || left->kind == TS_SLICE) {
                 LLVMValueRef left_llvmvalue = cg_astnode(c, astnode->acc.left, is_ptr ? false : true, NULL, NULL);
 
@@ -602,6 +618,8 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                 LLVMBuildStore(c->llvmbuilder, initializer_llvmvalue, astnode->llvmvalue);
             }
         } break;
+
+        case ASTNODE_EXTERN_VARIABLE: {} break;
 
         case ASTNODE_SCOPED_BLOCK: {
             bufloop(astnode->blk.stmts, i) {

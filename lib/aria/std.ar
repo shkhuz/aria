@@ -7,8 +7,12 @@ extern fn _syscall(
         p5: u64,
         p6: u64) i32;
 
+extern imm SYS_READ: u16;
+extern imm SYS_WRITE: u16;
+extern imm SYS_EXIT: u16;
+
 fn write(buf: [*]imm u8, bytes: u64) void {
-    _syscall(1, 1, buf as u64, bytes, 0, 0, 0);
+    _syscall(SYS_WRITE, 1, buf as u64, bytes, 0, 0, 0);
 }
 
 fn writestring(string: []imm u8) void {
@@ -16,7 +20,11 @@ fn writestring(string: []imm u8) void {
 }
 
 fn read(buf: [*]u8, bytes: u64) i32 {
-    return _syscall(0, 0, buf as u64, bytes, 0, 0, 0);
+    return _syscall(SYS_READ, 0, buf as u64, bytes, 0, 0, 0);
+}
+
+export fn exit(code: i8) noreturn {
+    _syscall(SYS_EXIT, code as u64, 0, 0, 0, 0, 0);
 }
 
 fn writedigit(digit: u8) void {

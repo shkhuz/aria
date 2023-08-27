@@ -1,12 +1,12 @@
     .text
-    .globl _start
+    .extern exit
+    .global _start
 _start:
     callq main
     movl %eax, %edi
-    movl $60, %eax
-    syscall
+    callq exit
 
-    .globl _syscall
+    .global _syscall
 _syscall:
     movq %rdi, %rax
     movq %rsi, %rdi
@@ -15,5 +15,13 @@ _syscall:
     movq %r8, %r10
     movq %r9, %r8
     movq 8(%rsp), %r9
-    syscall 
+    syscall
     ret
+
+    .data
+    .global SYS_READ
+SYS_READ:   .short 0
+    .global SYS_WRITE
+SYS_WRITE:   .short 1
+    .global SYS_EXIT
+SYS_EXIT:   .short 60

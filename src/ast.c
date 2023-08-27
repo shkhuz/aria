@@ -428,6 +428,21 @@ AstNode* astnode_variable_decl_new(
     return astnode;
 }
 
+AstNode* astnode_extern_variable_new(
+    Token* start,
+    Token* identifier,
+    AstNode* typespec,
+    bool immutable) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_EXTERN_VARIABLE,
+        span_from_two(start->span, typespec->span));
+    astnode->extvar.identifier = identifier;
+    astnode->extvar.name = token_tostring(identifier);
+    astnode->extvar.typespec = typespec;
+    astnode->extvar.immutable = immutable;
+    return astnode;
+}
+
 AstNode* astnode_param_new(Token* identifier, AstNode* typespec) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_PARAM_DECL,
@@ -480,6 +495,10 @@ char* astnode_get_name(AstNode* astnode) {
 
         case ASTNODE_VARIABLE_DECL: {
             return astnode->vard.name;
+        } break;
+
+        case ASTNODE_EXTERN_VARIABLE: {
+            return astnode->extvar.name;
         } break;
 
         case ASTNODE_IMPORT: {

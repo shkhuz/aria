@@ -779,8 +779,6 @@ static AstNode* parse_import(ParseCtx* p) {
 static AstNode* parse_astnode_func_scope(ParseCtx* p, bool error_on_no_match) {
     if (match(p, TOKEN_KEYWORD_IMM) || match(p, TOKEN_KEYWORD_MUT)) {
         return parse_variable_decl(p, false);
-    } else if (match(p, TOKEN_KEYWORD_IMPORT)) {
-        return parse_import(p);
     }
 
     if (error_on_no_match) {
@@ -861,10 +859,24 @@ static AstNode* parse_astnode_root(ParseCtx* p) {
         return astnode_function_def_new(export, header, body);
     } else if (match(p, TOKEN_KEYWORD_EXTERN)) {
         Token* extrn = p->prev;
-        expect(p, TOKEN_KEYWORD_FN, "expected `fn`");
-        AstNode* header = parse_function_header(p);
-        expect_semicolon(p);
-        return astnode_extern_function_new(extrn, header);
+        if (match(p, TOKEN_KEYWORD_FN)) {
+            AstNode* header = parse_function_header(p);
+            expect_semicolon(p);
+            return astnode_extern_function_new(extrn, header);
+        } else if (match(p, TOKEN_KEYWORD_IMM) || match(p, TOKEN_KEYWORD_MUT)) {
+            bool immutable = p->prev->kind == TOKEN_KEYWORD_IMM;
+            Token* identifier = expect_identifier(p, "expected variable name");
+            expect_colon(p);
+            AstNode* typespec = parse_typespec(p);
+            expect_semicolon(p);
+            return astnode_extern_variable_new(extrn, identifier, typespec, immutable);
+        } else {
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                "expected `fn`/`imm`/`mut`",
+                p->current->span);
+            msg_emit(p, &msg);
+        }
     } else if (match(p, TOKEN_KEYWORD_STRUCT)) {
         Token* keyword = p->prev;
         Token* identifier = expect_identifier(p, "expected identifier");
