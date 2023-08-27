@@ -124,10 +124,20 @@ int main(int argc, char* argv[]) {
 
     bool read_error = false;
     for (int i = optind; i < argc; i++) {
-        Typespec* mod = read_srcfile(argv[i], NULL, span_none(), &compile_ctx);
+        if (strstr(argv[i], ".o") != NULL) {
+            bufpush(compile_ctx.other_obj_files, argv[i]);
+        } else {
+            Typespec* mod = read_srcfile(argv[i], NULL, span_none(), &compile_ctx);
+            if (!mod) {
+                read_error = true;
+                continue;
+            }
+        }
+    }
+    {
+        Typespec* mod = read_srcfile("core", "core", span_none(), &compile_ctx);
         if (!mod) {
             read_error = true;
-            continue;
         }
     }
     if (read_error) terminate_compilation(&compile_ctx);

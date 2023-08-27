@@ -72,6 +72,7 @@ CompileCtx compile_new_context(const char* target_triple) {
     CompileCtx c;
     c.mod_tys = NULL;
     c.target_triple = target_triple;
+    c.other_obj_files = NULL;
     c.msgs = NULL;
     c.parsing_error = false;
     c.sema_error = false;
@@ -93,6 +94,19 @@ static void msg_emit(CompileCtx* c, Msg* msg) {
     if (msg->kind == MSG_ERROR) {
         c->compile_error = true;
     }
+}
+
+static char* flatten_execopts(char** opts) {
+    char* str = NULL;
+    // buflen()-1 because last element is NULL
+    for (usize i = 0; i < buflen(opts)-1; i++) {
+        bufstrexpandpush(str, opts[i]);
+        if (i != buflen(opts)-2) {
+            bufpush(str, ' ');
+        }
+    }
+    bufpush(str, '\0');
+    return str;
 }
 
 static bool run_external_program(CompileCtx* c, char* path, char** opts, char* desc) {
@@ -119,6 +133,7 @@ static bool run_external_program(CompileCtx* c, char* path, char** opts, char* d
             Msg msg = msg_with_no_span(
                 MSG_ERROR,
                 "aborting due to previous error");
+            msg_addl_thin(&msg, format_string("command executed: '%s'", flatten_execopts(opts)));
             msg_emit(c, &msg);
             return false;
         }
@@ -201,29 +216,35 @@ void compile(CompileCtx* c) {
         return;
     }
 
-    char* asopts[6];
-    asopts[0] = "as";
-    asopts[1] = "-g";
-    asopts[2] = "-o";
-    asopts[3] = "_start.o";
-    asopts[4] = startfile_path;
-    asopts[5] = NULL;
+    char** asopts = NULL;
+    bufpush(asopts, "as");
+    bufpush(asopts, "-g");
+    bufpush(asopts, "-o");
+    bufpush(asopts, "_start.o");
+    bufpush(asopts, startfile_path);
+    bufpush(asopts, NULL);
     if (!run_external_program(c, "as", asopts, "assembler")) return;
+    buffree(asopts);
 
-    char* ldopts[4];
-    ldopts[0] = "ld";
-    ldopts[1] = "mod.o";
-    ldopts[2] = "_start.o";
-    ldopts[3] = NULL;
+    char** ldopts = NULL;
+    bufpush(ldopts, "ld");
+    bufpush(ldopts, "mod.o");
+    bufpush(ldopts, "_start.o");
+    bufloop(c->other_obj_files, i) {
+        bufpush(ldopts, c->other_obj_files[i]);
+    }
+    bufpush(ldopts, NULL);
     if (!run_external_program(c, "ld", ldopts, "linker")) return;
+    buffree(ldopts);
 
-    char* rmopts[5];
-    rmopts[0] = "rm";
-    rmopts[1] = "-f";
-    rmopts[2] = "mod.o";
-    rmopts[3] = "_start.o";
-    rmopts[4] = NULL;
+    char** rmopts = NULL;
+    bufpush(rmopts, "rm");
+    bufpush(rmopts, "-f");
+    bufpush(rmopts, "mod.o");
+    bufpush(rmopts, "_start.o");
+    bufpush(rmopts, NULL);
     if (!run_external_program(c, "rm", rmopts, NULL)) return;
+    buffree(rmopts);
 }
 
 struct Typespec* read_srcfile(char* path_wcwd, const char* path_wfile, OptionalSpan span, CompileCtx* compile_ctx) {
@@ -280,13 +301,14 @@ struct Typespec* read_srcfile(char* path_wcwd, const char* path_wfile, OptionalS
 }
 
 void terminate_compilation(CompileCtx* c) {
-    char* rmopts[6];
-    rmopts[0] = "rm";
-    rmopts[1] = "-f";
-    rmopts[2] = "mod.o";
-    rmopts[3] = "_start.o";
-    rmopts[4] = "a.out";
-    rmopts[5] = NULL;
+    char** rmopts = NULL;
+    bufpush(rmopts, "rm");
+    bufpush(rmopts, "-f");
+    bufpush(rmopts, "mod.o");
+    bufpush(rmopts, "_start.o");
+    bufpush(rmopts, "a.out");
+    bufpush(rmopts, NULL);
     run_external_program(c, "rm", rmopts, NULL);
+    buffree(rmopts);
     exit(1);
 }

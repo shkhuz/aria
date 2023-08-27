@@ -51,6 +51,7 @@ typedef struct Srcfile Srcfile;
 struct CompileCtx {
     struct Typespec** mod_tys;
     const char* target_triple;
+    char** other_obj_files;
 
     Msg* msgs;
     bool parsing_error;

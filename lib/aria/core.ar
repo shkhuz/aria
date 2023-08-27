@@ -1,0 +1,24 @@
+extern fn _syscall(
+        syscall: u64,
+        p1: u64,
+        p2: u64,
+        p3: u64,
+        p4: u64,
+        p5: u64,
+        p6: u64) i32;
+
+extern imm SYS_READ: u16;
+extern imm SYS_WRITE: u16;
+extern imm SYS_EXIT: u16;
+
+export fn write(buf: [*]imm u8, bytes: u64) void {
+    _syscall(SYS_WRITE, 1, buf as u64, bytes, 0, 0, 0);
+}
+
+export fn read(buf: [*]u8, bytes: u64) i32 {
+    return _syscall(SYS_READ, 0, buf as u64, bytes, 0, 0, 0);
+}
+
+export fn exit(code: i8) noreturn {
+    _syscall(SYS_EXIT, code as u64, 0, 0, 0, 0, 0);
+}

@@ -11,7 +11,6 @@ LDFLAGS := `llvm-config --ldflags --libs`
 
 PREFIX := /usr
 EXE_PATH := build/aria
-LIB_PATH := lib
 
 AR_FILE := examples/small2.ar
 
@@ -68,7 +67,7 @@ install: $(EXE_PATH)
 	@mkdir -p $(DESTDIR)$(PREFIX)/lib
 	cp -f $^ $(DESTDIR)$(PREFIX)/bin/aria
 	chmod 755 $(DESTDIR)$(PREFIX)/bin/aria
-	cp -rf $(LIB_PATH) $(DESTDIR)$(PREFIX)/lib/aria
+	cp -rf lib/aria/. $(DESTDIR)$(PREFIX)/lib/aria
 
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/aria
