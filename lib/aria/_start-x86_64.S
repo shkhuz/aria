@@ -1,8 +1,7 @@
     .text
-    .extern exit
     .global _start
 _start:
-    callq main
+    callq ariamain
     movl %eax, %edi
     callq exit
 

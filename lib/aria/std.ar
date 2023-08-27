@@ -4,12 +4,12 @@ fn writestring(string: []imm u8) void {
     core.write(string.ptr, string.len);
 }
 
-fn writedigit(digit: u8) void {
-    imm char = digit + 48;
+fn writechar(char: u8) void {
     core.write(&char as [*]imm u8, 1);
 }
 
-fn writechar(char: u8) void {
+fn writedigit(digit: u8) void {
+    imm char = digit + 48;
     core.write(&char as [*]imm u8, 1);
 }
 

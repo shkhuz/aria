@@ -1,5 +1,6 @@
 import "std";
 
-export fn main() void {
+fn main() i32 {
     std.writestring("Hello, world");
+    return 0;
 }

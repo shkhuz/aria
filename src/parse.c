@@ -701,14 +701,21 @@ static AstNode* parse_import(ParseCtx* p) {
         as = expect_identifier(p, "expected identifier to rename imported module");
     }
     expect_semicolon(p);
+    Token* final_arg_token = as ? as : arg;
 
-    if (is_token_lexeme(arg, "")) {
+    if (is_token_lexeme(arg, "\"\"")) {
         Msg msg = msg_with_span(
             MSG_ERROR,
             "empty import",
             arg->span);
         msg_emit_non_fatal(p, &msg);
         return NULL;
+    } else if (is_token_lexeme(arg, "\"root\"")) {
+        return astnode_import_new(
+            keyword,
+            final_arg_token,
+            p->compile_ctx->mod_tys[0],
+            as ? token_tostring(as) : "root");
     }
 
     // Denotes path wrt. file.
@@ -751,13 +758,9 @@ static AstNode* parse_import(ParseCtx* p) {
         bufpush(name, '\0');
     }
 
-    Token* final_arg_token = as ? as : arg;
-    char* final_name = as ? token_tostring(as) : name;
-
     /* printf(">> path_wfile: %s\n", path_wfile); */
-    /* printf(">> path_wcomp: %s\n", path_wcomp); */
+    /* printf(">> path_wcwd: %s\n", path_wcwd); */
     /* printf(">> name: %s\n", name); */
-    /* printf(">> final_name: %s\n", final_name); */
 
     Typespec* mod = read_srcfile(
         path_wcwd,
@@ -770,7 +773,7 @@ static AstNode* parse_import(ParseCtx* p) {
             keyword,
             final_arg_token,
             mod,
-            final_name);
+            as ? token_tostring(as) : name);
     }
     p->error = true;
     return NULL;
