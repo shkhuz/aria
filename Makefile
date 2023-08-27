@@ -9,11 +9,9 @@ TEST_OBJ_FILES := $(addprefix build/obj/, $(addsuffix .o, $(TEST_C_FILES)))
 CFLAGS := -std=c99 -Ivendor -I. `llvm-config --cflags` -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings -Wno-switch-bool -Wno-varargs
 LDFLAGS := `llvm-config --ldflags --libs`
 
-PREFIX := /usr/local
-EXE_NAME := aria
-EXE_PATH := build/$(EXE_NAME)
-LIB_NAME := aria
-LIB_PATH := lib/$(LIB_NAME)
+PREFIX := /usr
+EXE_PATH := build/aria
+LIB_PATH := lib
 
 AR_FILE := examples/small2.ar
 
@@ -68,13 +66,13 @@ debug: $(EXE_PATH)
 install: $(EXE_PATH)
 	@mkdir -p $(DESTDIR)$(PREFIX)/bin
 	@mkdir -p $(DESTDIR)$(PREFIX)/lib
-	cp -f $^ $(DESTDIR)$(PREFIX)/bin/$(EXE_NAME)
-	chmod 755 $(DESTDIR)$(PREFIX)/bin/$(EXE_NAME)
-	cp -rf $(LIB_PATH) $(DESTDIR)$(PREFIX)/lib
+	cp -f $^ $(DESTDIR)$(PREFIX)/bin/aria
+	chmod 755 $(DESTDIR)$(PREFIX)/bin/aria
+	cp -rf $(LIB_PATH) $(DESTDIR)$(PREFIX)/lib/aria
 
 uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/bin/$(EXE_NAME)
-	rm -rf $(DESTDIR)$(PREFIX)/lib/$(LIB_NAME)
+	rm -f $(DESTDIR)$(PREFIX)/bin/aria
+	rm -rf $(DESTDIR)$(PREFIX)/lib/aria
 
 clean:
 	rm -rf build/ a.out *.o
