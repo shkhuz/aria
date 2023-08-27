@@ -719,20 +719,20 @@ static AstNode* parse_import(ParseCtx* p) {
     path_wfile[--path_wfile_len] = '\0';
 
     const char* cur_path = p->srcfile->handle.path;
-    // Denotes path wrt. compiler.
-    char* path_wcomp = NULL;
+    // Denotes path wrt. cwd.
+    char* path_wcwd = NULL;
     {
         isize last_fslash_idx = -1;
         for (const char* c = cur_path; *c != '\0'; c++) {
             if (*c == '/') last_fslash_idx = c - cur_path;
         }
         for (isize i = 0; i <= last_fslash_idx; i++) {
-            bufpush(path_wcomp, cur_path[i]);
+            bufpush(path_wcwd, cur_path[i]);
         }
         for (usize i = 0; i < path_wfile_len; i++) {
-            bufpush(path_wcomp, path_wfile[i]);
+            bufpush(path_wcwd, path_wfile[i]);
         }
-        bufpush(path_wcomp, '\0');
+        bufpush(path_wcwd, '\0');
     }
 
     char* name = NULL;
@@ -760,7 +760,8 @@ static AstNode* parse_import(ParseCtx* p) {
     /* printf(">> final_name: %s\n", final_name); */
 
     Typespec* mod = read_srcfile(
-        path_wcomp,
+        path_wcwd,
+        path_wfile,
         span_some(arg->span),
         p->compile_ctx);
 

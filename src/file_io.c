@@ -1,5 +1,9 @@
 #include "file_io.h"
 
+bool file_exists(const char* path) {
+    return access(path, F_OK) == 0;
+}
+
 int is_dir(const char* path) {
     struct stat path_stat;
     stat(path, &path_stat);

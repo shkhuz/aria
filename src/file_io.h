@@ -21,6 +21,7 @@ typedef struct {
     FileOpResult status;
 } FileOrError;
 
+bool file_exists(const char* path);
 int is_dir(const char* path);
 FileOrError read_file(const char* path);
 FileOpResult write_bin_file(const char* path, const char* contents, u64 bytes);

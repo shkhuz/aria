@@ -56,6 +56,7 @@ struct CompileCtx {
     bool parsing_error;
     bool sema_error;
     bool cg_error;
+    bool compile_error;
 
     bool print_msg_to_stderr;
     bool print_ast;
@@ -70,6 +71,7 @@ CompileCtx compile_new_context(const char* target_triple);
 void register_msg(CompileCtx* c, Msg msg);
 void compile(CompileCtx* c);
 
-struct Typespec* read_srcfile(const char* path, OptionalSpan span, CompileCtx* compile_ctx);
+struct Typespec* read_srcfile(char* path_wcwd, const char* path_wfile, OptionalSpan span, CompileCtx* compile_ctx);
+void terminate_compilation(CompileCtx* c);
 
 #endif

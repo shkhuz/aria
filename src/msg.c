@@ -133,9 +133,11 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
 }
 
 void _msg_emit_no_register(Msg* msg, CompileCtx* compile_ctx) {
-    if (!(compile_ctx->print_msg_to_stderr)) return;
+    if (!compile_ctx->print_msg_to_stderr) return;
 
     if (compile_ctx->did_msg) fprintf(stderr, "\n");
+    compile_ctx->did_msg = true;
+
     const char* color = "";
     const char* msg_color = g_bold_cornflower_blue_color;
     switch (msg->kind) {
@@ -181,10 +183,6 @@ void _msg_emit_no_register(Msg* msg, CompileCtx* compile_ctx) {
             g_note_color,
             g_reset_color,
             msg->addl_thin[i].msg);
-    }
-
-    if (!(compile_ctx->did_msg)) {
-        compile_ctx->did_msg = true;
     }
 }
 

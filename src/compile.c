@@ -76,6 +76,7 @@ CompileCtx compile_new_context(const char* target_triple) {
     c.parsing_error = false;
     c.sema_error = false;
     c.cg_error = false;
+    c.compile_error = false;
     c.print_msg_to_stderr = true;
     c.print_ast = false;
     c.did_msg = false;
@@ -85,6 +86,55 @@ CompileCtx compile_new_context(const char* target_triple) {
 
 void register_msg(CompileCtx* c, Msg msg) {
     bufpush(c->msgs, msg);
+}
+
+static void msg_emit(CompileCtx* c, Msg* msg) {
+    _msg_emit(msg, c);
+    if (msg->kind == MSG_ERROR) {
+        c->compile_error = true;
+    }
+}
+
+static bool run_external_program(CompileCtx* c, char* path, char** opts, char* desc) {
+    int errdesc[2];
+    if (pipe2(errdesc, O_CLOEXEC) == -1) {
+        fprintf(stderr, "cannot execute pipe2(): %s", strerror(errno));
+        c->compile_error = true; return false;
+    }
+
+    pid_t proc = fork();
+    if (proc == -1) {
+        fprintf(stderr, "cannot execute fork(): %s", strerror(errno));
+        c->compile_error = true; return false;
+    }
+
+    if (proc) {
+        close(errdesc[1]);
+        char buf[2];
+        int status;
+        wait(&status);
+
+        int bytesread = read(errdesc[0], buf, sizeof(char));
+        if (bytesread == 0 && WEXITSTATUS(status) != 0) {
+            Msg msg = msg_with_no_span(
+                MSG_ERROR,
+                "aborting due to previous error");
+            msg_emit(c, &msg);
+            return false;
+        }
+    } else {
+        if (execvp(path, opts) == -1) {
+            close(errdesc[0]);
+            write(errdesc[1], "F", sizeof(char));
+            close(errdesc[1]);
+        }
+        Msg msg = msg_with_no_span(
+            MSG_ERROR,
+            format_string("%s '%s' not found", desc ? desc : "program", path));
+        msg_emit(c, &msg);
+        return false;
+    }
+    return true;
 }
 
 void compile(CompileCtx* c) {
@@ -124,10 +174,72 @@ void compile(CompileCtx* c) {
 
     CgCtx cg_ctx = cg_new_context(c->mod_tys, c);
     c->cg_error = cg(&cg_ctx);
+    if (c->cg_error) return;
+
+#if defined(PLATFORM_AMD64)
+    const char* startfile = "_start-x86_64.S";
+#elif defined(PLATFORM_AARCH64)
+    const char* startfile = "_start-aarch64.S";
+#else
+    Msg msg = msg_with_no_span(
+        MSG_ERROR,
+        "unknown platform: no startfile found");
+    _msg_emit(&msg, c);
+    c->cg_error = true;
+    return;
+#endif
+
+    char* startfile_path = NULL;
+    bufstrexpandpush(startfile_path, g_lib_path);
+    bufstrexpandpush(startfile_path, startfile);
+    bufpush(startfile_path, '\0');
+    if (!file_exists(startfile_path)) {
+        Msg msg = msg_with_no_span(
+            MSG_ERROR,
+            format_string("startfile '%s' not found", startfile_path));
+        msg_emit(c, &msg);
+        return;
+    }
+
+    char* asopts[6];
+    asopts[0] = "as";
+    asopts[1] = "-g";
+    asopts[2] = "-o";
+    asopts[3] = "_start.o";
+    asopts[4] = startfile_path;
+    asopts[5] = NULL;
+    if (!run_external_program(c, "as", asopts, "assembler")) return;
+
+    char* ldopts[4];
+    ldopts[0] = "ld";
+    ldopts[1] = "mod.o";
+    ldopts[2] = "_start.o";
+    ldopts[3] = NULL;
+    if (!run_external_program(c, "ld", ldopts, "linker")) return;
+
+    char* rmopts[5];
+    rmopts[0] = "rm";
+    rmopts[1] = "-f";
+    rmopts[2] = "mod.o";
+    rmopts[3] = "_start.o";
+    rmopts[4] = NULL;
+    if (!run_external_program(c, "rm", rmopts, NULL)) return;
 }
 
-struct Typespec* read_srcfile(const char* path, OptionalSpan span, CompileCtx* compile_ctx) {
-    FileOrError efile = read_file(path);
+struct Typespec* read_srcfile(char* path_wcwd, const char* path_wfile, OptionalSpan span, CompileCtx* compile_ctx) {
+    char* final_path = NULL;
+    bool readlib = false;
+    if (strstr(path_wcwd, ".ar") == NULL && path_wfile) {
+        bufstrexpandpush(final_path, g_lib_path);
+        bufstrexpandpush(final_path, path_wfile);
+        bufstrexpandpush(final_path, ".ar");
+        bufpush(final_path, '\0');
+        readlib = true;
+    } else {
+        final_path = path_wcwd;
+    }
+
+    FileOrError efile = read_file(final_path);
     switch (efile.status) {
         case FILEIO_SUCCESS: {
             for (usize i = 0; i < buflen(compile_ctx->mod_tys); i++) {
@@ -143,7 +255,7 @@ struct Typespec* read_srcfile(const char* path, OptionalSpan span, CompileCtx* c
         } break;
 
         case FILEIO_FAILURE: {
-            const char* error_msg = format_string("cannot read source file '%s'", path);
+            const char* error_msg = format_string(readlib ? "cannot read library file '%s'" : "cannot read source file '%s'", final_path);
             if (span.exists) {
                 Msg msg = msg_with_span(MSG_ERROR, error_msg, span.span);
                 _msg_emit(&msg, compile_ctx);
@@ -154,7 +266,7 @@ struct Typespec* read_srcfile(const char* path, OptionalSpan span, CompileCtx* c
         } break;
 
         case FILEIO_DIRECTORY: {
-            const char* error_msg = format_string("`%s` is a directory", path);
+            const char* error_msg = format_string("`%s` is a directory", final_path);
             if (span.exists) {
                 Msg msg = msg_with_span(MSG_ERROR, error_msg, span.span);
                 _msg_emit(&msg, compile_ctx);
@@ -165,4 +277,16 @@ struct Typespec* read_srcfile(const char* path, OptionalSpan span, CompileCtx* c
         } break;
     }
     return NULL;
+}
+
+void terminate_compilation(CompileCtx* c) {
+    char* rmopts[6];
+    rmopts[0] = "rm";
+    rmopts[1] = "-f";
+    rmopts[2] = "mod.o";
+    rmopts[3] = "_start.o";
+    rmopts[4] = "a.out";
+    rmopts[5] = NULL;
+    run_external_program(c, "rm", rmopts, NULL);
+    exit(1);
 }

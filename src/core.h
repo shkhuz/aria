@@ -17,12 +17,23 @@
 #include <ctype.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/wait.h>
 
 #ifdef __linux__
 #include <linux/limits.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#endif
+
+#if defined(__x86_64__) || defined(_M_X64)
+#define PLATFORM_AMD64
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#define PLATFORM_AARCH64
+#else
+#define PLATFORM_UNKNOWN
 #endif
 
 typedef uint8_t u8;
@@ -78,8 +89,8 @@ u64 maxinteger_signed(int bytes);
 bool slice_eql_to_str(const char* slice, int slicelen, const char* str);
 char* format_string(const char* fmt, ...);
 u64 hash_string(const char* str);
-void terminate_compilation();
 
-extern char* g_exec_path;
+extern char g_exec_path[PATH_MAX+1];
+extern char* g_lib_path;
 
 #endif

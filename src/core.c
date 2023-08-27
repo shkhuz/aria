@@ -75,7 +75,3 @@ u64 hash_string(const char* str) {
         hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
     return hash;
 }
-
-void terminate_compilation() {
-    exit(1);
-}

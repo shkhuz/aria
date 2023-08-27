@@ -1000,7 +1000,7 @@ bool cg(CgCtx* c) {
     }
 
     printf("\n======= Raw LLVM IR Start =======\n");
-    LLVMDumpModule(c->llvmmod);
+    printf("%s", LLVMPrintModuleToString(c->llvmmod));
     printf("\n======= Raw LLVM IR End =======\n");
 
     bool error = false;
@@ -1022,11 +1022,7 @@ bool cg(CgCtx* c) {
         return c->error;
     }
 
-    // NOTE: I've disabled memory optimizations for now, because LLVM
-    // deletes all unused locals, and I need them to form a memory buffer
-    // in the examples/nostd program.
     //LLVMRunPassManager(c->llvmpm, c->llvmmod);
-
     //printf("\n======= Optimized LLVM IR Start =======\n");
     //LLVMDumpModule(c->llvmmod);
     //printf("\n======= Optimized LLVM IR End =======\n");
@@ -1038,7 +1034,13 @@ bool cg(CgCtx* c) {
         LLVMObjectFile,
         NULL,
         &objbuf);
-    write_bin_file("mod.o", LLVMGetBufferStart(objbuf), LLVMGetBufferSize(objbuf));
+    if (write_bin_file("mod.o", LLVMGetBufferStart(objbuf), LLVMGetBufferSize(objbuf)) != FILEIO_SUCCESS) {
+        Msg msg = msg_with_no_span(
+            MSG_ERROR,
+            "cannot emit compiled binary");
+        msg_addl_thin(&msg, "filesystem error in opening file 'mod.o' for writing");
+        msg_emit(c, &msg);
+    }
     LLVMDisposeMemoryBuffer(objbuf);
 
     return c->error;

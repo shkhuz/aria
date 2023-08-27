@@ -1,7 +1,6 @@
 ALL_COMPILER_C_FILES := $(shell find src -type f -name "*.c" -not -path "src/tests/*")
 COMPILER_C_FILES := $(ALL_COMPILER_C_FILES)
 COMPILER_OBJ_FILES := $(addprefix build/obj/, $(addsuffix .o, $(COMPILER_C_FILES)))
-EXE_FILE := build/aria
 
 ALL_TEST_C_FILES := $(shell find src -type f -name "*.c" -not -path "src/main.c")
 TEST_C_FILES := $(ALL_TEST_C_FILES)
@@ -9,6 +8,13 @@ TEST_OBJ_FILES := $(addprefix build/obj/, $(addsuffix .o, $(TEST_C_FILES)))
 
 CFLAGS := -std=c99 -Ivendor -I. `llvm-config --cflags` -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings -Wno-switch-bool -Wno-varargs
 LDFLAGS := `llvm-config --ldflags --libs`
+
+PREFIX := /usr/local
+EXE_NAME := aria
+EXE_PATH := build/$(EXE_NAME)
+LIB_NAME := aria
+LIB_PATH := lib/$(LIB_NAME)
+
 AR_FILE := examples/small2.ar
 
 ifeq ($(prod), y)
@@ -26,10 +32,10 @@ endif
 CC := clang
 LD := clang
 
-run: $(EXE_FILE)
+run: $(EXE_PATH)
 	./$^ -o build/app $(AR_FILE)
 
-$(EXE_FILE): $(COMPILER_OBJ_FILES)
+$(EXE_PATH): $(COMPILER_OBJ_FILES)
 	@mkdir -p $(dir $@)
 	$(LD) -o $@ $(LDFLAGS) $^
 
@@ -56,13 +62,21 @@ build/obj/%.cc.o: %.cc
 	@mkdir -p $(dir $@)
 	$(CC) -c $(CFLAGS) $(CFLAGS_OPTIMIZE) -o $@ $^
 
-debug: $(EXE_FILE)
+debug: $(EXE_PATH)
 	gdb -ex '$(DBG_ARGS)' -args $^ $(AR_FILE)
 
-install: $(EXE_FILE)
-	install -Dm557 $^ "$(DESTDIR)/usr/bin/aria"
+install: $(EXE_PATH)
+	@mkdir -p $(DESTDIR)$(PREFIX)/bin
+	@mkdir -p $(DESTDIR)$(PREFIX)/lib
+	cp -f $^ $(DESTDIR)$(PREFIX)/bin/$(EXE_NAME)
+	chmod 755 $(DESTDIR)$(PREFIX)/bin/$(EXE_NAME)
+	cp -rf $(LIB_PATH) $(DESTDIR)$(PREFIX)/lib
+
+uninstall:
+	rm -f $(DESTDIR)$(PREFIX)/bin/$(EXE_NAME)
+	rm -rf $(DESTDIR)$(PREFIX)/lib/$(LIB_NAME)
 
 clean:
 	rm -rf build/ a.out *.o
 
-.PHONY: run debug install clean
+.PHONY: run debug install uninstall clean

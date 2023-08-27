@@ -1,4 +1,4 @@
-import "../std.ar";
+import "std";
 
 fn fibbonacci(n: u64) u64 {
    return if (n == 0) 0
