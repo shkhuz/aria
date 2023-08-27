@@ -5,8 +5,8 @@ _start:
     mov x0, #0
     bl sysexit
 
-    .global syscall
-syscall:
+    .global _syscall
+_syscall:
     mov x8, x0
     mov x0, x1
     mov x1, x2
