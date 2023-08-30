@@ -111,6 +111,8 @@ static LLVMTypeRef cg_get_llvm_type(CgCtx* c, Typespec* typespec) {
     return typespec->llvmtype;
 }
 
+LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* target, void* addl_info);
+
 static void cg_top_level_decls_prec1(CgCtx* c, AstNode* astnode) {
     switch (astnode->kind) {
         case ASTNODE_STRUCT: {
@@ -147,6 +149,12 @@ static void cg_top_level_decls_prec2(CgCtx* c, AstNode* astnode) {
                 c->llvmmod,
                 astnode->typespec->llvmtype,
                 astnode->vard.name);
+            if (astnode->vard.initializer) {
+                LLVMValueRef initializer_llvmvalue = cg_astnode(c, astnode->vard.initializer, false, astnode->typespec, NULL);
+                LLVMSetInitializer(astnode->llvmvalue, initializer_llvmvalue);
+            } else {
+                LLVMSetInitializer(astnode->llvmvalue, LLVMConstNull(astnode->typespec->llvmtype));
+            }
         } break;
 
         case ASTNODE_EXTERN_VARIABLE: {
@@ -630,7 +638,7 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
         } break;
 
         case ASTNODE_VARIABLE_DECL: {
-            if (astnode->vard.initializer && !typespec_is_comptime(astnode->typespec)) {
+            if (astnode->vard.stack && astnode->vard.initializer && !typespec_is_comptime(astnode->typespec)) {
                 LLVMValueRef initializer_llvmvalue = cg_astnode(c, astnode->vard.initializer, false, astnode->typespec, NULL);
                 LLVMBuildStore(c->llvmbuilder, initializer_llvmvalue, astnode->llvmvalue);
             }

@@ -334,6 +334,10 @@ AstNode* astnode_bool_binop_new(BoolBinopKind kind, Token* op, AstNode* left, As
     return astnode;
 }
 
+bool is_equality_op(CmpBinopKind kind) {
+    return kind == CMP_BINOP_EQ || kind == CMP_BINOP_NE;
+}
+
 AstNode* astnode_cmp_binop_new(CmpBinopKind kind, Token* op, AstNode* left, AstNode* right) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_CMP_BINOP,
@@ -517,8 +521,4 @@ char* astnode_get_name(AstNode* astnode) {
             assert(0);
         } break;
     }
-}
-
-bool is_equality_op(CmpBinopKind kind) {
-    return kind == CMP_BINOP_EQ || kind == CMP_BINOP_NE;
 }

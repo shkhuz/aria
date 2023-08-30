@@ -1,4 +1,13 @@
 import "std";
 
 fn main() void {
+    std.writestring(ONE);
+    imm ptr = &ONE;
+    std.writeuinteger(TWO);
+    var = 3;
+    std.writesinteger(var);
 }
+
+imm ONE = "hello";
+imm TWO = 2;
+mut var: i32 = 2;

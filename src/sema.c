@@ -675,11 +675,78 @@ static Typespec* sema_function_header(SemaCtx* s, AstNodeFunctionHeader* header)
     return error ? NULL : typespec_func_new(params_ty, ret_ty->ty);
 }
 
+static bool sema_check_astnode_comptime(SemaCtx* s, AstNode* astnode) {
+    bool comptime = false;
+    switch (astnode->kind) {
+        case ASTNODE_INTEGER_LITERAL:
+        case ASTNODE_STRING_LITERAL:
+        case ASTNODE_CHAR_LITERAL:
+        case ASTNODE_BUILTIN_SYMBOL:
+            return true;
+        case ASTNODE_ARITH_BINOP: return sema_check_astnode_comptime(s, astnode->arthbin.left) && sema_check_astnode_comptime(s, astnode->arthbin.right);
+        case ASTNODE_UNOP: {
+            if (astnode->unop.kind == UNOP_NEG) {
+                return sema_check_astnode_comptime(s, astnode->unop.child);
+            }
+        } break;
+        case ASTNODE_CAST: return sema_check_astnode_comptime(s, astnode->cast.left);
+    }
+
+    if (!comptime) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            "not a compile-time known value",
+            astnode->span);
+        msg_emit(s, &msg);
+    }
+    return comptime;
+}
+
+static Typespec* sema_variable_decl(SemaCtx* s, AstNode* astnode) {
+    bool error = false;
+    if (astnode->vard.stack) bufpush(s->current_func->funcdef.locals, astnode);
+
+    if (!sema_check_variable_type(s, astnode, astnode->vard.typespec)) error = true;
+    Typespec* initializer = NULL;
+    if (astnode->vard.initializer) {
+        if (astnode->vard.stack || sema_check_astnode_comptime(s, astnode->vard.initializer)) {
+            initializer = sema_astnode(s, astnode->vard.initializer, astnode->typespec);
+            if (initializer && sema_verify_isvalue(s, initializer, AT_RUNTIME|AT_COMPTIME, astnode->vard.initializer->span)) {
+            } else error = true;
+        } else error = true;
+    }
+    if (!sema_declare_variable(s, astnode, astnode->vard.name, astnode->vard.identifier)) error = true;
+
+    if (error) return NULL;
+    error = false;
+
+    Typespec* annotated = astnode->typespec;
+    if (annotated && initializer) {
+        if (sema_check_types_equal(s, initializer, annotated, false, astnode->vard.equal->span)) {
+        } else error = true;
+    } else if (initializer) {
+        if (typespec_is_unsized_integer(initializer) && !astnode->vard.immutable) {
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                format_string_with_one_type("mutable integer must have a sized integer type, got `%T`", initializer),
+                astnode->short_span);
+            msg_emit(s, &msg);
+            error = true;
+        } else astnode->typespec = initializer;
+    } else if (!annotated && !initializer) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            "no type annotation/initializer provided for declaration",
+            astnode->span);
+        msg_emit(s, &msg);
+    }
+    return error ? NULL : astnode->typespec;
+}
+
 static void sema_top_level_decls_prec2(SemaCtx* s, AstNode* astnode) {
     switch (astnode->kind) {
         case ASTNODE_VARIABLE_DECL: {
-            sema_check_variable_type(s, astnode, astnode->vard.typespec);
-            sema_declare_variable(s, astnode, astnode->vard.name, astnode->vard.identifier);
+            sema_variable_decl(s, astnode);
         } break;
 
         case ASTNODE_EXTERN_VARIABLE: {
@@ -2029,51 +2096,8 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
         } break;
 
         case ASTNODE_VARIABLE_DECL: {
-            if (!astnode->vard.stack) {
-                Msg msg = msg_with_span(
-                    MSG_ERROR,
-                    "[internal] global variables not implemented",
-                    astnode->span);
-                msg_emit(s, &msg);
-                return NULL;
-            }
-
-            bufpush(s->current_func->funcdef.locals, astnode);
-            bool error = false;
-            if (!sema_check_variable_type(s, astnode, astnode->vard.typespec)) error = true;
-            Typespec* initializer = NULL;
-            if (astnode->vard.initializer) {
-                initializer = sema_astnode(s, astnode->vard.initializer, astnode->typespec);
-                if (initializer && sema_verify_isvalue(s, initializer, AT_RUNTIME|AT_COMPTIME, astnode->vard.initializer->span)) {
-                } else error = true;
-            }
-            if (!sema_declare_variable(s, astnode, astnode->vard.name, astnode->vard.identifier)) error = true;
-
-            if (error) return NULL;
-            error = false;
-
-            Typespec* annotated = astnode->typespec;
-            if (annotated && initializer) {
-                if (sema_check_types_equal(s, initializer, annotated, false, astnode->vard.equal->span)) {
-                } else error = true;
-            } else if (initializer) {
-                if (typespec_is_unsized_integer(initializer) && !astnode->vard.immutable) {
-                    Msg msg = msg_with_span(
-                        MSG_ERROR,
-                        format_string_with_one_type("mutable integer must have a sized integer type, got `%T`", initializer),
-                        astnode->short_span);
-                    msg_emit(s, &msg);
-                    error = true;
-                } else astnode->typespec = initializer;
-            } else if (!annotated && !initializer) {
-                Msg msg = msg_with_span(
-                    MSG_ERROR,
-                    "no type annotation/initializer provided for declaration",
-                    astnode->span);
-                msg_emit(s, &msg);
-            }
-
-            return error ? NULL : astnode->typespec;
+            if (astnode->vard.stack) return sema_variable_decl(s, astnode);
+            else return astnode->typespec;
         } break;
 
         case ASTNODE_EXTERN_VARIABLE: {

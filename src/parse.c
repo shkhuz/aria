@@ -688,10 +688,7 @@ static AstNode* parse_variable_decl(ParseCtx* p, bool global) {
     }
     Token* equal = NULL;
     AstNode* initializer = NULL;
-    if (global) {
-        equal = expect_equal(p);
-        initializer = parse_expr(p);
-    } else if (match(p, TOKEN_EQUAL)) {
+    if (match(p, TOKEN_EQUAL)) {
         equal = p->prev;
         initializer = parse_expr(p);
     }
