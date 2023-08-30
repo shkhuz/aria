@@ -393,29 +393,38 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
         } break;
 
         case ASTNODE_ASSIGN: {
-            Typespec* left = astnode->assign.left->typespec;
-            Typespec* right = astnode->assign.right->typespec;
-            Typespec* left_target_type = NULL;
-            Typespec* right_target_type = NULL;
-            if (typespec_is_unsized_integer(right))
-                right_target_type = left;
-            else if (typespec_get_bytes(left) > typespec_get_bytes(right))
-                right_target_type = left;
-            else
-                left_target_type = right;
-            LLVMValueRef left_llvmvalue = cg_astnode(
-                c,
-                astnode->assign.left,
-                true,
-                left_target_type,
-                NULL);
-            LLVMValueRef right_llvmvalue = cg_astnode(
-                c,
-                astnode->assign.right,
-                false,
-                right_target_type,
-                NULL);
-            LLVMBuildStore(c->llvmbuilder, right_llvmvalue, left_llvmvalue);
+            if (astnode->assign.left) {
+                Typespec* left = astnode->assign.left->typespec;
+                Typespec* right = astnode->assign.right->typespec;
+                Typespec* left_target_type = NULL;
+                Typespec* right_target_type = NULL;
+                if (typespec_is_unsized_integer(right))
+                    right_target_type = left;
+                else if (typespec_get_bytes(left) > typespec_get_bytes(right))
+                    right_target_type = left;
+                else
+                    left_target_type = right;
+                LLVMValueRef left_llvmvalue = cg_astnode(
+                    c,
+                    astnode->assign.left,
+                    true,
+                    left_target_type,
+                    NULL);
+                LLVMValueRef right_llvmvalue = cg_astnode(
+                    c,
+                    astnode->assign.right,
+                    false,
+                    right_target_type,
+                    NULL);
+                LLVMBuildStore(c->llvmbuilder, right_llvmvalue, left_llvmvalue);
+            } else {
+                LLVMValueRef right_llvmvalue = cg_astnode(
+                    c,
+                    astnode->assign.right,
+                    false,
+                    NULL,
+                    NULL);
+            }
         } break;
 
         case ASTNODE_ARITH_BINOP: {

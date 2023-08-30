@@ -328,7 +328,7 @@ static inline AstNode* get_last_if_branch(
 }
 
 static AstNode* parse_atom_expr(ParseCtx* p) {
-    // NOTE: Add the case to `can_token_begin_expr()`
+    // NOTE: Add the case to `can_token_start_expr()`
     if (match(p, TOKEN_IDENTIFIER)) {
         AstNode* left = parse_identifier(p, p->prev, true);
 
@@ -631,11 +631,22 @@ static AstNode* parse_boolor_binop_expr(ParseCtx* p) {
 }
 
 static AstNode* parse_assign_expr(ParseCtx* p) {
-    AstNode* left = parse_boolor_binop_expr(p);
-    if (match(p, TOKEN_EQUAL)) {
+    AstNode* left = NULL;
+    Token* underscore = NULL;
+    bool parse_assign = false;
+    if (match(p, TOKEN_KEYWORD_UNDERSCORE)) {
+        underscore = p->prev;
+        parse_assign = true;
+        expect_equal(p);
+    } else {
+        left = parse_boolor_binop_expr(p);
+        if (match(p, TOKEN_EQUAL)) parse_assign = true;
+    }
+
+    if (parse_assign) {
         Token* equal = p->prev;
         AstNode* right = parse_boolor_binop_expr(p);
-        left = astnode_assign_new(equal, left, right);
+        left = astnode_assign_new(equal, left, left ? left->span : underscore->span, right);
     }
     return left;
 }

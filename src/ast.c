@@ -346,10 +346,10 @@ AstNode* astnode_cmp_binop_new(CmpBinopKind kind, Token* op, AstNode* left, AstN
     return astnode;
 }
 
-AstNode* astnode_assign_new(Token* equal, AstNode* left, AstNode* right) {
+AstNode* astnode_assign_new(Token* equal, AstNode* left, Span left_span, AstNode* right) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_ASSIGN,
-        span_from_two(left->span, right->span));
+        span_from_two(left_span, right->span));
     astnode->short_span = equal->span;
     astnode->assign.left = left;
     astnode->assign.right = right;

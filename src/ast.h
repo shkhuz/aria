@@ -467,7 +467,7 @@ AstNode* astnode_index_new(AstNode* left, AstNode* idx, Token* end);
 AstNode* astnode_arith_binop_new(ArithBinopKind kind, Token* op, AstNode* left, AstNode* right);
 AstNode* astnode_bool_binop_new(BoolBinopKind kind, Token* op, AstNode* left, AstNode* right);
 AstNode* astnode_cmp_binop_new(CmpBinopKind kind, Token* op, AstNode* left, AstNode* right);
-AstNode* astnode_assign_new(Token* equal, AstNode* left, AstNode* right);
+AstNode* astnode_assign_new(Token* equal, AstNode* left, Span left_span, AstNode* right);
 AstNode* astnode_cast_new(Token* op, AstNode* left, AstNode* right);
 
 AstNode* astnode_import_new(Token* keyword, Token* arg, struct Typespec* mod_ty, char* name);

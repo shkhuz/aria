@@ -1437,29 +1437,37 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
         } break;
 
         case ASTNODE_ASSIGN: {
-            Typespec* left = sema_astnode(s, astnode->assign.left, NULL);
-            Typespec* right = sema_astnode(s, astnode->assign.right, left);
             bool error = false;
+            if (astnode->assign.left) {
+                Typespec* left = sema_astnode(s, astnode->assign.left, NULL);
+                Typespec* right = sema_astnode(s, astnode->assign.right, left);
 
-            if (left && sema_verify_isvalue(s, left, AT_DEFAULT_VALUE, astnode->assign.left->span)) {
-                if (sema_check_is_lvalue(s, astnode->assign.left)) {
-                    bool imm = sema_is_lvalue_imm(astnode->assign.left);
-                    if (imm) {
-                        Msg msg = msg_with_span(
-                            MSG_ERROR,
-                            "cannot assign to constant",
-                            astnode->assign.left->span);
-                        msg_emit(s, &msg);
-                        error = true;
+                if (left && sema_verify_isvalue(s, left, AT_DEFAULT_VALUE, astnode->assign.left->span)) {
+                    if (sema_check_is_lvalue(s, astnode->assign.left)) {
+                        bool imm = sema_is_lvalue_imm(astnode->assign.left);
+                        if (imm) {
+                            Msg msg = msg_with_span(
+                                MSG_ERROR,
+                                "cannot assign to constant",
+                                astnode->assign.left->span);
+                            msg_emit(s, &msg);
+                            error = true;
+                        }
+                    } else error = true;
+
+                    if (right && sema_verify_isvalue(s, right, AT_DEFAULT_VALUE, astnode->assign.right->span)) {
+                        if (sema_check_types_equal(s, right, left, false, astnode->short_span)) {
+                            astnode->typespec = predef_typespecs.void_type->ty;
+                        } else error = true;
                     }
                 } else error = true;
 
-                if (right && sema_verify_isvalue(s, right, AT_DEFAULT_VALUE, astnode->assign.right->span)) {
-                    if (sema_check_types_equal(s, right, left, false, astnode->short_span)) {
-                        astnode->typespec = predef_typespecs.void_type->ty;
-                    } else error = true;
-                }
-            } else error = true;
+            } else {
+                Typespec* right = sema_astnode(s, astnode->assign.right, NULL);
+                if (right && sema_verify_isvalue(s,  right, AT_DEFAULT_VALUE, astnode->assign.right->span)) {
+                    astnode->typespec = right->kind == TS_noreturn ? predef_typespecs.noreturn_type->ty : predef_typespecs.void_type->ty;
+                } else error = true;
+            }
 
             return error ? NULL : astnode->typespec;
         } break;

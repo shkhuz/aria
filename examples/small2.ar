@@ -1,6 +1,4 @@
-fn take(n: u64) void {}
+import "std";
 
-fn main() void {
-    mut a: i64 = -1;
-    take((-a) as u64);
+fn main() noreturn {
 }

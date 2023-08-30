@@ -38,6 +38,7 @@ void init_global_compiler_state() {
     bufpush(keywords, (StringTokenKindTup){ "as", TOKEN_KEYWORD_AS });
     bufpush(keywords, (StringTokenKindTup){ "and", TOKEN_KEYWORD_AND });
     bufpush(keywords, (StringTokenKindTup){ "or", TOKEN_KEYWORD_OR });
+    bufpush(keywords, (StringTokenKindTup){ "_", TOKEN_KEYWORD_UNDERSCORE });
 
     bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "u8", BS_u8 });
     bufpush(builtin_symbols, (StringBuiltinSymbolKindTup){ "u16", BS_u16 });

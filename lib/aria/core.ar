@@ -14,7 +14,7 @@ extern fn _syscall(
         p6: u64) i32;
 
 export fn write(buf: [*]imm u8, bytes: u64) void {
-    _syscall(SYS_WRITE, 1, buf as u64, bytes, 0, 0, 0);
+    _ = _syscall(SYS_WRITE, 1, buf as u64, bytes, 0, 0, 0);
 }
 
 export fn read(buf: [*]u8, bytes: u64) i32 {
@@ -22,7 +22,7 @@ export fn read(buf: [*]u8, bytes: u64) i32 {
 }
 
 export fn exit(code: i8) noreturn {
-    _syscall(SYS_EXIT, code as u64, 0, 0, 0, 0, 0);
+    _ = _syscall(SYS_EXIT, code as u64, 0, 0, 0, 0, 0);
 }
 
 // To return an exit code, use the `exit` syscall.
