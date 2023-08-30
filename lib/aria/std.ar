@@ -13,7 +13,12 @@ fn writedigit(digit: u8) void {
     core.write(&char as [*]imm u8, 1);
 }
 
-fn writeinteger(n: u64) void {
+fn writesinteger(n: i64) void {
+    if (n < 0) writechar('-');
+    writeuinteger((n) as u64);
+}
+
+fn writeuinteger(n: u64) void {
     // Largest 64-bit number
     // has char length of 20.
     mut rev: [20]u8;

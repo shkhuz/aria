@@ -288,13 +288,21 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
 
         case ASTNODE_STRING_LITERAL: {
             LLVMValueRef llvmstr = LLVMConstString(
-                    &astnode->strl.token->span.srcfile->handle.contents[astnode->strl.token->span.start+1],
-                    astnode->strl.token->span.end-1 - (astnode->strl.token->span.start+1),
+                    astnode->strl.token->str,
+                    buflen(astnode->strl.token->str)-1,
                     true);
             LLVMValueRef llvmstrloc = LLVMAddGlobal(c->llvmmod, LLVMTypeOf(llvmstr), "");
             LLVMSetLinkage(llvmstrloc, LLVMPrivateLinkage);
             LLVMSetInitializer(llvmstrloc, llvmstr);
             astnode->llvmvalue = llvmstrloc;
+        } break;
+
+        case ASTNODE_CHAR_LITERAL: {
+            cg_get_llvm_type(c, astnode->typespec);
+            astnode->llvmvalue = LLVMConstInt(
+                    astnode->typespec->llvmtype,
+                    (unsigned long long)astnode->cl.token->c,
+                    false);
         } break;
 
         case ASTNODE_FUNCTION_CALL: {

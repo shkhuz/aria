@@ -123,6 +123,14 @@ AstNode* astnode_string_literal_new(Token* token) {
     return astnode;
 }
 
+AstNode* astnode_char_literal_new(Token* token) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_CHAR_LITERAL,
+        token->span);
+    astnode->cl.token = token;
+    return astnode;
+}
+
 AstNode* astnode_array_literal_new(Token* lbrack, AstNode** elems, AstNode* elem_type, Span end) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_ARRAY_LITERAL,

@@ -87,7 +87,7 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
             g_reset_color);
     }
 
-    int indent = snprintf(NULL, 0, "  %lu", line);
+    int indent = snprintf(NULL, 0, " %lu", line);
     fprintf(stderr, "%*s %s|%s", indent, "", g_bold_grey_color, g_reset_color);
     fprintf(stderr, "\n%s%*lu |%s ", g_bold_grey_color, indent, line, g_reset_color);
     bool multiline_span = false;

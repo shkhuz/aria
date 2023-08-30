@@ -1,0 +1,50 @@
+import "std";
+
+struct Board {
+    cells: [9]u8,
+}
+
+fn main() void {
+    mut b: Board;
+    mut i: u64 = 0;
+    while (i < 9) {
+        b.cells[i] = 45;
+        i = i+1;
+    }
+
+    print_board(&b);
+
+    mut buf: [2]u8;
+    mut xturn = true;
+    while (true) {
+        std.writestring(
+            if (xturn) "x"
+            else "o"
+        );
+        std.writestring(" turn> ");
+        std.core.read(&buf, 2);
+
+        buf[0] = buf[0] - 49;
+        if (b.cells[buf[0]] == 45) {
+            b.cells[buf[0]] =
+                if (xturn) 120 as u8
+                else 111;
+            print_board(&b);
+            xturn = if (xturn) false else true;
+        } else {
+            std.writestring("taken\n");
+            print_board(&b);
+            continue;
+        }
+    }
+}
+
+fn print_board(b: *Board) void {
+    mut i: u64 = 0;
+    while (i < 9) {
+        if (i % 3 == 0 and i != 0) std.writechar('\n');
+        std.writechar(b.cells[i]);
+        i = i+1;
+    }
+    std.writechar('\n');
+}

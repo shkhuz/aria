@@ -153,12 +153,18 @@ static bool run_external_program(CompileCtx* c, char* path, char** opts, char* d
 }
 
 void compile(CompileCtx* c) {
+    jmp_buf lex_error_handler_pos;
     jmp_buf parse_error_handler_pos;
 
     for (usize i = 0; i < buflen(c->mod_tys); i++) {
-        LexCtx l = lex_new_context(c->mod_tys[i]->mod.srcfile, c);
-        lex(&l);
-        if (l.error) {
+        LexCtx l = lex_new_context(c->mod_tys[i]->mod.srcfile, c, &lex_error_handler_pos);
+        if (!setjmp(lex_error_handler_pos)) {
+            lex(&l);
+            if (l.error) {
+                c->parsing_error = true;
+                continue;
+            }
+        } else {
             c->parsing_error = true;
             continue;
         }

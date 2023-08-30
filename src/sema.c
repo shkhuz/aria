@@ -846,68 +846,65 @@ static Typespec* sema_index_type(SemaCtx* s, Typespec* ty, Span error, bool dere
     }
 }
 
-static bool sema_ifbranch(
-    SemaCtx* s,
-    AstNode* iff,
-    AstNode* br,
-    bool* first_br_val_valid,
-    Typespec** main_br_val_type,
-    Span* main_br_val_span,
-    bool* else_req_if_value_br_error)
-{
-    bool error = false;
-    if (br->ifbr.kind != IFBR_ELSE) {
-        Typespec* cond = sema_astnode(s, br->ifbr.cond, NULL);
-        if (cond && sema_verify_isvalue(s, cond, AT_DEFAULT_VALUE, br->ifbr.cond->span)) {
-            if (sema_check_types_equal(s, cond, predef_typespecs.bool_type->ty, false, br->ifbr.cond->span)) {
-                br->ifbr.cond->typespec = predef_typespecs.bool_type->ty;
-            } else error = true;
-        } else error = true;
-    }
-
-    Span cur_br_val_span =
-        br->ifbr.body->kind != ASTNODE_SCOPED_BLOCK
+static Span get_ifbr_val_span(AstNode* br) {
+    return br->ifbr.body->kind != ASTNODE_SCOPED_BLOCK
         ? br->ifbr.body->span
         : (br->ifbr.body->blk.val
            ? br->ifbr.body->blk.val->span
            : br->ifbr.body->blk.rbrace->span);
-    Typespec* body = sema_astnode(s, br->ifbr.body, NULL);
-    if (body && sema_verify_isvalue(s, body, AT_DEFAULT_VALUE|AT_NORETURN, br->ifbr.body->span)) {
-        if (*first_br_val_valid) {
-            TypeComparisonInfo cmpinfo = sema_are_types_equal(
-                s,
-                body,
-                *main_br_val_type,
-                true,
-                cur_br_val_span);
-            if (cmpinfo.result == TC_OK) {
-                // `br->typespec` is always the body type. CG needs the exact
-                // type of body to determine the arguments to phi node.
-                br->typespec = body;
-                iff->typespec = cmpinfo.final;
-                *main_br_val_type = cmpinfo.final;
-                if (*main_br_val_type == body) *main_br_val_span = cur_br_val_span;
-            } else if (cmpinfo.result == TC_ERROR_HANDLED) {
-                error = true;
-            } else {
-                Msg msg = msg_with_span(
-                    MSG_ERROR,
-                    format_string_with_one_type("`if` branch type mismatch: this branch yields `%T`...", body),
-                    cur_br_val_span);
-                msg_addl_fat(
-                    &msg,
-                    format_string_with_one_type("...while this branch yields `%T`:", *main_br_val_type),
-                    *main_br_val_span);
-                msg_emit(s, &msg);
-                error = true;
-            }
-        } else if (br->ifbr.kind == IFBR_IF) {
-            *first_br_val_valid = true;
-            *main_br_val_type = body;
-            *main_br_val_span = cur_br_val_span;
-            iff->typespec = *main_br_val_type;
-            br->typespec = *main_br_val_type;
-        }
+}
+
+static bool sema_ifbranch(
+        SemaCtx* s,
+        AstNode* iff,
+        AstNode* br,
+        Typespec* target,
+        bool* else_req_if_value_br_error) {
+    bool error = false;
+    if (br->ifbr.kind != IFBR_ELSE) {
+        Typespec* cond =
+            sema_astnode(s, br->ifbr.cond, NULL);
+        if (cond && sema_verify_isvalue(
+                s, cond,
+                AT_DEFAULT_VALUE,
+                br->ifbr.cond->span)) {
+            if (sema_check_types_equal(
+                    s,
+                    cond,
+                    predef_typespecs.bool_type->ty,
+                    false,
+                    br->ifbr.cond->span)) {
+                br->ifbr.cond->typespec =
+                    predef_typespecs.bool_type->ty;
+            } else error = true;
+        } else error = true;
+    }
+
+    // Errored in `if` branch
+    if (!iff->typespec && br->ifbr.kind != IFBR_IF) return true;
+
+    Typespec* final_target =
+        br->ifbr.kind == IFBR_IF ? target : iff->typespec;
+    Typespec* body = sema_astnode(
+            s,
+            br->ifbr.body,
+            final_target);
+
+    if (body && sema_verify_isvalue(
+            s, body,
+            AT_DEFAULT_VALUE|AT_NORETURN,
+            br->ifbr.body->span)) {
+        br->typespec = body;
+        if (final_target) {
+            Typespec* final = sema_check_types_equal(
+                    s,
+                    body,
+                    final_target,
+                    br->ifbr.kind == IFBR_IF ? false : true,
+                    get_ifbr_val_span(br));
+            if (final) iff->typespec = final;
+            else error = true;
+        } else iff->typespec = body;
     } else error = true;
 
     if (body
@@ -919,11 +916,12 @@ static bool sema_ifbranch(
             MSG_ERROR,
             "`else` clause required if any `if` branch yields a value",
             iff->span);
-        msg_addl_fat(&msg, "value yielded here:", cur_br_val_span);
+        msg_addl_fat(&msg, "value yielded here:", get_ifbr_val_span(br));
         msg_emit(s, &msg);
-        *else_req_if_value_br_error = true;
         error = true;
+        *else_req_if_value_br_error = true;
     }
+
     return error;
 }
 
@@ -1040,12 +1038,17 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
         case ASTNODE_STRING_LITERAL: {
             Token* lit = astnode->strl.token;
-            bigint lit_size = bigint_new_u64((lit->span.end-1) - (lit->span.start+1));
+            bigint lit_size = bigint_new_u64(buflen(lit->str)-1);
             astnode->typespec = typespec_ptr_new(
                 true,
                 typespec_array_new(
                     typespec_unsized_integer_new(lit_size),
                     predef_typespecs.u8_type->ty));
+            return astnode->typespec;
+        } break;
+
+        case ASTNODE_CHAR_LITERAL: {
+            astnode->typespec = predef_typespecs.u8_type->ty;
             return astnode->typespec;
         } break;
 
@@ -1781,29 +1784,20 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             // TODO: make small errors like wrong-cond-type not halt further analysis
             // of other astnodes (return a type). Maybe divide errors into further enumerations.
             bool error = false;
-
-            bool first_br_val_valid = false;
-            Typespec* main_br_val_type = NULL;
-            Span main_br_val_span;
-
             bool else_req_if_value_br_error = false;
 
             if (sema_ifbranch(
                 s,
                 astnode,
                 astnode->iff.ifbr,
-                &first_br_val_valid,
-                &main_br_val_type,
-                &main_br_val_span,
+                target,
                 &else_req_if_value_br_error)) error = true;
             bufloop(astnode->iff.elseifbr, i) {
                 if (sema_ifbranch(
                     s,
                     astnode,
                     astnode->iff.elseifbr[i],
-                    &first_br_val_valid,
-                    &main_br_val_type,
-                    &main_br_val_span,
+                    target,
                     &else_req_if_value_br_error)) error = true;
             }
             if (astnode->iff.elsebr) {
@@ -1811,9 +1805,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                     s,
                     astnode,
                     astnode->iff.elsebr,
-                    &first_br_val_valid,
-                    &main_br_val_type,
-                    &main_br_val_span,
+                    target,
                     &else_req_if_value_br_error)) error = true;
             } else if (!error) {
                 // Here, the `if` branch is guaranteed to not yield to a non-void or non-noreturn type

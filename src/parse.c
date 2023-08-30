@@ -460,6 +460,8 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         return astnode_integer_literal_new(token, val);
     } else if (match(p, TOKEN_STRING_LITERAL)) {
         return astnode_string_literal_new(p->prev);
+    } else if (match(p, TOKEN_CHAR_LITERAL)) {
+        return astnode_char_literal_new(p->prev);
     } else if (match(p, TOKEN_DOT)) {
         Token* start = p->prev;
         if (match(p, TOKEN_LPAREN)) {

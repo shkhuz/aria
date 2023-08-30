@@ -1,6 +1,6 @@
-import "std";
+fn take(n: u64) void {}
 
-fn main() i32 {
-    std.writestring("Hello, world");
-    return 0;
+fn main() void {
+    mut a: i64 = -1;
+    take((-a) as u64);
 }

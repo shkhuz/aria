@@ -25,6 +25,10 @@ export fn exit(code: i8) noreturn {
     _syscall(SYS_EXIT, code as u64, 0, 0, 0, 0, 0);
 }
 
+// To return an exit code, use the `exit` syscall.
+// Otherwise, by default, `ariamain` will return 0
+// to _start.
 export fn ariamain() i32 {
-    return root.main();
+    root.main();
+    return 0;
 }

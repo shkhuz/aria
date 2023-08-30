@@ -36,6 +36,7 @@ typedef enum {
 
     TOKEN_IDENTIFIER,
     TOKEN_STRING_LITERAL,
+    TOKEN_CHAR_LITERAL,
     TOKEN_INTEGER_LITERAL,
     TOKEN_LBRACE,
     TOKEN_RBRACE,
@@ -71,6 +72,11 @@ typedef enum {
 typedef struct {
     TokenKind kind;
     Span span;
+
+    union {
+        char c;
+        char* str;
+    };
 } Token;
 
 Token* token_new(TokenKind kind, Span span);
