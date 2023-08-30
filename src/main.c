@@ -8,9 +8,6 @@
 
 #include <getopt.h>
 
-char g_exec_path[PATH_MAX+1];
-char* g_lib_path;
-
 int main(int argc, char* argv[]) {
     {
         int* buf = NULL;
@@ -47,24 +44,6 @@ int main(int argc, char* argv[]) {
 
     init_global_compiler_state();
     init_bigint();
-
-    {
-        ssize_t len = readlink("/proc/self/exe", g_exec_path, PATH_MAX);
-        if (len == -1) {
-            fprintf(stderr, "readlink(): cannot get executable path");
-            exit(1);
-        }
-        g_exec_path[len] = '\0';
-        g_lib_path = NULL;
-        bufstrexpandpush(g_lib_path, g_exec_path);
-        // Remove executable name
-        while (g_lib_path[buflen(g_lib_path)-1] != '/') bufpop(g_lib_path);
-        bufpop(g_lib_path);
-        //  Remove parent directory
-        while (g_lib_path[buflen(g_lib_path)-1] != '/') bufpop(g_lib_path);
-        bufstrexpandpush(g_lib_path, "lib/aria/");
-        bufpush(g_lib_path, '\0');
-    }
 
     const char* outpath = "a.out";
     const char* target_triple = NULL;

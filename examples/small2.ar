@@ -1,4 +1,4 @@
 import "std";
 
-fn main() noreturn {
+fn main() void {
 }

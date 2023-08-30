@@ -50,6 +50,9 @@ static void initialize_test(
     Typespec* mod_ty = typespec_module_new(srcfiles_ptr);
     test_ctx.mod_tys = NULL;
     bufpush(test_ctx.mod_tys, mod_ty);
+
+    read_srcfile("core", "core", span_none(), &test_ctx);
+
     compile(&test_ctx);
     *out_test_ctx = test_ctx;
 }

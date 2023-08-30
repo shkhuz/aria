@@ -14,6 +14,9 @@ StringTokenKindTup* keywords = NULL;
 StringBuiltinSymbolKindTup* builtin_symbols = NULL;
 PredefTypespecs predef_typespecs;
 
+char g_exec_path[PATH_MAX+1];
+char* g_lib_path;
+
 void init_global_compiler_state() {
     init_cmd();
 
@@ -67,6 +70,24 @@ void init_global_compiler_state() {
         .void_type = typespec_type_new(typespec_void_new()),
         .noreturn_type = typespec_type_new(typespec_noreturn_new()),
     };
+
+    {
+        ssize_t len = readlink("/proc/self/exe", g_exec_path, PATH_MAX);
+        if (len == -1) {
+            fprintf(stderr, "readlink(): cannot get executable path");
+            exit(1);
+        }
+        g_exec_path[len] = '\0';
+        g_lib_path = NULL;
+        bufstrexpandpush(g_lib_path, g_exec_path);
+        // Remove executable name
+        while (g_lib_path[buflen(g_lib_path)-1] != '/') bufpop(g_lib_path);
+        bufpop(g_lib_path);
+        //  Remove parent directory
+        while (g_lib_path[buflen(g_lib_path)-1] != '/') bufpop(g_lib_path);
+        bufstrexpandpush(g_lib_path, "lib/aria/");
+        bufpush(g_lib_path, '\0');
+    }
 }
 
 CompileCtx compile_new_context(const char* target_triple) {
