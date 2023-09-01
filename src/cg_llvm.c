@@ -548,7 +548,10 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                     astnode->llvmvalue = LLVMBuildNeg(c->llvmbuilder, child_llvmvalue, "");
                 } break;
 
-                case UNOP_BOOLNOT: {} break;
+                case UNOP_BOOLNOT: {
+                    LLVMValueRef child_llvmvalue = cg_astnode(c, astnode->unop.child, false, astnode->typespec, NULL);
+                    astnode->llvmvalue = LLVMBuildXor(c->llvmbuilder, child_llvmvalue, LLVMConstInt(LLVMInt8Type(), 1, false), "");
+                } break;
 
                 case UNOP_ADDR: {
                     astnode->llvmvalue = cg_astnode(c, astnode->unop.child, true, NULL, NULL);

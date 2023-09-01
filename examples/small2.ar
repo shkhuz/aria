@@ -2,9 +2,7 @@ import "std";
 
 fn main() void {
     mut a: u32 = 1;
-    mut ptr = &a as [*]u32;
-    std.writeuinteger(ptr as u64);
-    std.writechar('\n');
-    ptr += 1;
-    std.writeuinteger(ptr as u64);
+    if (!(a != 1)) {
+        std.writestring("Hello world");
+    }
 }
