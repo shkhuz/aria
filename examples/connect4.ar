@@ -9,82 +9,57 @@ fn getat(b: *Board, x: u64, y: u64) u8 {
 }
 
 fn print_board(b: *Board) void {
-    mut i: u64 = 0;
     std.writestring("1 2 3 4 5 6 7\n");
-    while (i < 42) {
+    for (mut i: u64 = 0; i < 42;) {
         std.writechar(b.cells[i]);
         std.writechar(' ');
-        i = i + 1;
+        i = i+1;
         if (i % 7 == 0 and i != 1) std.writechar('\n');
     }
 }
 
 fn check_winning_cond_for(b: *Board, player: u8) bool {
-    {
-        mut j: u64 = 0;
-        while (j < 6-3) {
-            mut i: u64 = 0;
-            while (i < 7) {
-                if (getat(b, i, j) == player 
-                        and getat(b, i, j+1) == player 
-                        and getat(b, i, j+2) == player 
-                        and getat(b, i, j+3) == player) {
-                    return true;
-                }
-                i = i+1;
+    for (mut j: u64 = 0; j < 6-3; j = j+1) {
+        for (mut i: u64 = 0; i < 7; i = i+1) {
+            if (getat(b, i, j) == player
+                    and getat(b, i, j+1) == player
+                    and getat(b, i, j+2) == player
+                    and getat(b, i, j+3) == player) {
+                return true;
             }
-            j = j+1;
-        }
-    }
-    
-    {
-        mut i: u64 = 0;
-        while (i < 7-3) {
-            mut j: u64 = 0;
-            while (j < 6) {
-                if (getat(b, i, j) == player 
-                        and getat(b, i+1, j) == player 
-                        and getat(b, i+2, j) == player 
-                        and getat(b, i+3, j) == player) {
-                    return true;
-                }
-                j = j+1;
-            }
-            i = i+1;
         }
     }
 
-    {
-        mut i: u64 = 3;
-        while (i < 7) {
-            mut j: u64 = 0;
-            while (j < 6-3) {
-                if (getat(b, i, j) == player 
-                        and getat(b, i-1, j+1) == player 
-                        and getat(b, i-2, j+2) == player 
-                        and getat(b, i-3, j+3) == player) {
-                    return true;
-                }
-                j = j+1;
+    for (mut i: u64 = 0; i < 7-3; i = i+1) {
+        for (mut j: u64 = 0; j < 6; j = j+1) {
+            if (getat(b, i, j) == player
+                    and getat(b, i+1, j) == player
+                    and getat(b, i+2, j) == player
+                    and getat(b, i+3, j) == player) {
+                return true;
             }
-            i = i+1;
         }
     }
-    
-    {
-        mut i: u64 = 3;
-        while (i < 7) {
-            mut j: u64 = 3;
-            while (j < 6) {
-                if (getat(b, i, j) == player 
-                        and getat(b, i-1, j-1) == player 
-                        and getat(b, i-2, j-2) == player 
-                        and getat(b, i-3, j-3) == player) {
-                    return true;
-                }
-                j = j+1;
+
+    for (mut i: u64 = 3; i < 7; i = i+1) {
+        for (mut j: u64 = 0; j < 6-3; j = j+1) {
+            if (getat(b, i, j) == player
+                    and getat(b, i-1, j+1) == player
+                    and getat(b, i-2, j+2) == player
+                    and getat(b, i-3, j+3) == player) {
+                return true;
             }
-            i = i+1;
+        }
+    }
+
+    for (mut i: u64 = 3; i < 7; i = i+1) {
+        for (mut j: u64 = 3; j < 6; j = j+1) {
+            if (getat(b, i, j) == player
+                    and getat(b, i-1, j-1) == player
+                    and getat(b, i-2, j-2) == player
+                    and getat(b, i-3, j-3) == player) {
+                return true;
+            }
         }
     }
 
@@ -112,10 +87,10 @@ fn main() void {
             std.writestring("O WON!");
             break;
         }
-        
+
         std.writestring(if (xturn) "x" else "o");
         std.writestring("'s turn> ");
-        
+
         mut read = std.core.read(&input, 16);
         if (read != 2) {
             if (read > 2) std.writestring("Invalid input: too long\n")
@@ -127,13 +102,12 @@ fn main() void {
         if (b.cells[col-1] == '-') {
             mut idx = col-1;
             while (b.cells[idx+7] == '-') idx = idx+7;
-            
+
             b.cells[idx] = if (xturn) 'x' else 'o';
             xturn = if (xturn) false else true;
         } else {
             std.writestring("column is full\n");
             continue;
         }
-
     }
 }
