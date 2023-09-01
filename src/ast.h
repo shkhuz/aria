@@ -228,6 +228,7 @@ typedef enum {
 typedef struct {
     AstNode* left, *right;
     ArithBinopKind kind;
+    bool ptrop;
 } AstNodeArithBinop;
 
 typedef enum {

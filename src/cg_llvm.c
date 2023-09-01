@@ -438,26 +438,46 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
 
         case ASTNODE_ARITH_BINOP: {
             cg_get_llvm_type(c, astnode->typespec);
-            LLVMValueRef left = cg_astnode(c, astnode->arthbin.left, false, astnode->typespec, NULL);
-            LLVMValueRef right = cg_astnode(c, astnode->arthbin.right, false, astnode->typespec, NULL);
-            LLVMOpcode op;
-            switch (astnode->arthbin.kind) {
-                case ARITH_BINOP_ADD: op = LLVMAdd; break;
-                case ARITH_BINOP_SUB: op = LLVMSub; break;
-                case ARITH_BINOP_MUL: op = LLVMMul; break;
-                case ARITH_BINOP_DIV:
-                    typespec_is_signed(astnode->typespec)
-                        ? op = LLVMSDiv
-                        : (op = LLVMUDiv);
-                    break;
-                case ARITH_BINOP_REM:
-                    typespec_is_signed(astnode->typespec)
-                        ? op = LLVMSRem
-                        : (op = LLVMURem);
-                    break;
-                default: assert(0); break;
+            if (astnode->arthbin.ptrop) {
+                LLVMValueRef left = cg_astnode(c, astnode->arthbin.left, false, astnode->typespec, NULL);
+                LLVMValueRef right = cg_astnode(
+                        c,
+                        astnode->arthbin.right,
+                        false,
+                        typespec_is_signed(astnode->arthbin.right->typespec) ? predef_typespecs.i64_type->ty : predef_typespecs.u64_type->ty,
+                        NULL);
+                if (astnode->arthbin.kind == ARITH_BINOP_SUB) {
+                    right = LLVMBuildNeg(c->llvmbuilder, right, "");
+                }
+                astnode->llvmvalue = LLVMBuildGEP2(
+                        c->llvmbuilder,
+                        cg_get_llvm_type(c, astnode->arthbin.left->typespec->mulptr.child),
+                        left,
+                        &right,
+                        1,
+                        "");
+            } else {
+                LLVMValueRef left = cg_astnode(c, astnode->arthbin.left, false, astnode->typespec, NULL);
+                LLVMValueRef right = cg_astnode(c, astnode->arthbin.right, false, astnode->typespec, NULL);
+                LLVMOpcode op;
+                switch (astnode->arthbin.kind) {
+                    case ARITH_BINOP_ADD: op = LLVMAdd; break;
+                    case ARITH_BINOP_SUB: op = LLVMSub; break;
+                    case ARITH_BINOP_MUL: op = LLVMMul; break;
+                    case ARITH_BINOP_DIV:
+                        typespec_is_signed(astnode->typespec)
+                            ? op = LLVMSDiv
+                            : (op = LLVMUDiv);
+                        break;
+                    case ARITH_BINOP_REM:
+                        typespec_is_signed(astnode->typespec)
+                            ? op = LLVMSRem
+                            : (op = LLVMURem);
+                        break;
+                    default: assert(0); break;
+                }
+                astnode->llvmvalue = LLVMBuildBinOp(c->llvmbuilder, op, left, right, "");
             }
-            astnode->llvmvalue = LLVMBuildBinOp(c->llvmbuilder, op, left, right, "");
         } break;
 
         case ASTNODE_BOOL_BINOP: {

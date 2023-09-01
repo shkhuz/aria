@@ -1443,10 +1443,10 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                     bool left_is_anyint = left_is_sized_integer || left_is_unsized_integer;
                     bool right_is_anyint = right_is_sized_integer || right_is_unsized_integer;
 
-                    #define sema_astnode_arith_binop_nonint_operand(name, ty) \
+                    #define sema_arith_binop_invalid_operands(left, right) \
                         Msg msg = msg_with_span( \
                             MSG_ERROR, \
-                            format_string_with_one_type("expected integer " name " operand, got `%T`", ty), \
+                            format_string_with_two_types("invalid operands to '%s': `%T` and `%T`", left, right, astnode_get_name(astnode)), \
                             astnode->short_span); \
                         msg_emit(s, &msg); \
 
@@ -1518,13 +1518,13 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                                     astnode->short_span);
                             return astnode->typespec;
                         }
+                    } else if ((astnode->arthbin.kind == ARITH_BINOP_ADD || astnode->arthbin.kind == ARITH_BINOP_SUB) &&
+                               left->kind == TS_MULTIPTR && right_is_anyint) {
+                        astnode->arthbin.ptrop = true;
+                        astnode->typespec = left;
+                        return astnode->typespec;
                     } else {
-                        if (!left_is_anyint) {
-                            sema_astnode_arith_binop_nonint_operand("left", left);
-                        }
-                        if (!right_is_anyint) {
-                            sema_astnode_arith_binop_nonint_operand("right", right);
-                        }
+                        sema_arith_binop_invalid_operands(left, right);
                         return NULL;
                     }
                 }
