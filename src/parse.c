@@ -67,6 +67,17 @@ static void check_eof(ParseCtx* p, Token* pair) {
     }
 }
 
+static void check_eof_custom(ParseCtx* p, const char* note, Token* marker) {
+    if (p->current->kind == TOKEN_EOF) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            "unexpected end of file",
+            p->current->span);
+        msg_addl_fat(&msg, note, marker->span);
+        msg_emit(p, &msg);
+    }
+}
+
 static bool match(ParseCtx* p, TokenKind kind) {
     if (p->current->kind == kind) {
         goto_next_tok(p);
@@ -286,16 +297,19 @@ static AstNode* parse_typespec(ParseCtx* p) {
 static void parse_check_body_for_elsetail_expr(ParseCtx* p, AstNode* check, AstNodeKind parent_kind) {
     if (check->kind == ASTNODE_IF
         || check->kind == ASTNODE_WHILE
-        /*|| check->kind == ASTNODE_FOR*/) {
+        || check->kind == ASTNODE_CFOR) {
+        char* name = NULL;
+        switch (parent_kind) {
+            case ASTNODE_IF_BRANCH: name = "`if` branch"; break;
+            case ASTNODE_WHILE:     name = "`while` body"; break;
+            case ASTNODE_CFOR:      name = "`for` body"; break;
+            default: assert(0);
+        }
         Msg msg = msg_with_span(
             MSG_ERROR,
             format_string(
                 "%s cannot contain another `if`, `while`, `for`",
-                parent_kind == ASTNODE_IF_BRANCH
-                ? "`if` branch"
-                : (parent_kind == ASTNODE_WHILE
-                   ? "`while` body"
-                   : assert(0), "")),
+                name),
             check->span);
         msg_addl_thin(&msg, "enclose body with `{}`");
         msg_emit(p, &msg);
@@ -327,6 +341,32 @@ static inline AstNode* get_last_if_branch(
     return ifbr;
 }
 
+static AstNode* parse_variable_decl(ParseCtx* p, bool global, bool eat_semicolon) {
+    Token* keyword = p->prev;
+    bool immutable = true;
+    if (keyword->kind == TOKEN_KEYWORD_MUT) immutable = false;
+    Token* identifier = expect_identifier(p, "expected variable name");
+    AstNode* typespec = NULL;
+    if (match(p, TOKEN_COLON)) {
+        typespec = parse_typespec(p);
+    }
+    Token* equal = NULL;
+    AstNode* initializer = NULL;
+    if (match(p, TOKEN_EQUAL)) {
+        equal = p->prev;
+        initializer = parse_expr(p);
+    }
+    if (eat_semicolon) expect_semicolon(p);
+    return astnode_variable_decl_new(
+        keyword,
+        identifier,
+        typespec,
+        equal,
+        initializer,
+        !global,
+        immutable);
+}
+
 static AstNode* parse_atom_expr(ParseCtx* p) {
     // NOTE: Add the case to `can_token_start_expr()`
     if (match(p, TOKEN_IDENTIFIER)) {
@@ -355,10 +395,13 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
             left = astnode_aggregate_literal_new(left, fields, p->prev);
         }
         return left;
+
     }/* else if (match(p, TOKEN_AT)) {
         return parse_directive(p);
+
     }*/ else if (match(p, TOKEN_LBRACE)) {
         return parse_scoped_block(p);
+
     } else if (match(p, TOKEN_KEYWORD_IF)) {
         AstNode* ifbr = parse_if_branch(p, p->prev, IFBR_IF);
         AstNode** elseifbr = NULL;
@@ -382,6 +425,7 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
             elseifbr,
             elsebr,
             get_last_if_branch(ifbr, elseifbr, elsebr));
+
     } else if (match(p, TOKEN_KEYWORD_WHILE)) {
         Token* keyword = p->prev;
         expect_lparen(p);
@@ -403,6 +447,59 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         }
 
         return astnode_while_new(keyword, cond, mainbody, elsebody, breaks);
+
+    } else if (match(p, TOKEN_KEYWORD_FOR)) {
+        Token* keyword = p->prev;
+        Token* lparen = expect_lparen(p);
+
+        AstNode** decls = NULL;
+        while (!match(p, TOKEN_SEMICOLON)) {
+            check_eof_custom(p, "while parsing loop initializer:", lparen);
+            if (match(p, TOKEN_KEYWORD_IMM) || match(p, TOKEN_KEYWORD_MUT)) {
+                bufpush(decls, parse_variable_decl(p, false, false));
+            } else {
+                AstNode* expr = parse_expr(p);
+                if (expr->kind != ASTNODE_ASSIGN) {
+                    Msg msg = msg_with_span(
+                        MSG_ERROR,
+                        "loop initializer is not an assignment",
+                        expr->span);
+                    msg_emit(p, &msg);
+                }
+                bufpush(decls, expr);
+            }
+            if (p->current->kind != TOKEN_SEMICOLON) expect_comma(p);
+        }
+
+        AstNode* cond = NULL;
+        if (p->current->kind != TOKEN_SEMICOLON) {
+            cond = parse_expr(p);
+        }
+        expect_semicolon(p);
+
+        AstNode** counts = NULL;
+        while (!match(p, TOKEN_RPAREN)) {
+            check_eof(p, lparen);
+            bufpush(counts, parse_expr(p));
+            if (p->current->kind != TOKEN_RPAREN) expect_comma(p);
+        }
+
+        bufpush(p->loop_breaks, NULL);
+        bufpush(p->loop_continues, NULL);
+        AstNode* mainbody = parse_expr(p);
+        AstNode** breaks = p->loop_breaks[buflen(p->loop_breaks)-1];
+        bufpop(p->loop_breaks);
+        bufpop(p->loop_continues);
+        parse_check_body_for_elsetail_expr(p, mainbody, ASTNODE_CFOR);
+
+        AstNode* elsebody = NULL;
+        if (match(p, TOKEN_KEYWORD_ELSE)) {
+            elsebody = parse_expr(p);
+            parse_check_body_for_elsetail_expr(p, elsebody, ASTNODE_CFOR);
+        }
+
+        return astnode_cfor_new(keyword, decls, cond, counts, mainbody, elsebody, breaks);
+
     } else if (match(p, TOKEN_KEYWORD_BREAK)) {
         Token* keyword = p->prev;
         AstNode* child = NULL;
@@ -420,6 +517,7 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
             msg_emit(p, &msg);
         }
         return astnode;
+
     } else if (match(p, TOKEN_KEYWORD_CONTINUE)) {
         Token* keyword = p->prev;
         if (buflen(p->loop_continues) == 0) {
@@ -430,6 +528,7 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
             msg_emit(p, &msg);
         }
         return astnode_continue_new(keyword);
+
     } else if (match(p, TOKEN_KEYWORD_RETURN)) {
         Token* keyword = p->prev;
         AstNode* operand = NULL;
@@ -437,6 +536,7 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
             operand = parse_expr(p);
         }
         return astnode_return_new(keyword, operand);
+
     } else if (match(p, TOKEN_INTEGER_LITERAL)) {
         Token* token = p->prev;
         bigint val = bigint_new();
@@ -458,10 +558,13 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         bigint_free(&base);
 
         return astnode_integer_literal_new(token, val);
+
     } else if (match(p, TOKEN_STRING_LITERAL)) {
         return astnode_string_literal_new(p->prev);
+
     } else if (match(p, TOKEN_CHAR_LITERAL)) {
         return astnode_char_literal_new(p->prev);
+
     } else if (match(p, TOKEN_DOT)) {
         Token* start = p->prev;
         if (match(p, TOKEN_LPAREN)) {
@@ -474,6 +577,7 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
             expect_identifier(p, "expected enum variant name");
             assert(false && "Not implemented");
         }
+
     } else if (match(p, TOKEN_LBRACK)) {
         Token* lbrack = p->prev;
         AstNode** elems = parse_args(p, lbrack, TOKEN_RBRACK, true, false);
@@ -484,12 +588,13 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
             elem_type = parse_typespec(p);
         }
         return astnode_array_literal_new(lbrack, elems, elem_type, elem_type ? elem_type->span : rbrack->span);
+
     } else if (match(p, TOKEN_LPAREN)) {
         AstNode* expr = parse_expr(p);
         expect_rparen(p);
         return expr;
     }
-    // NOTE: Add the case to `can_token_begin_expr()`
+    // NOTE: Add the case to `can_token_start_expr()`
 
     Msg msg = msg_with_span(
         MSG_ERROR,
@@ -677,32 +782,6 @@ static AstNode* parse_function_header(ParseCtx* p) {
     return astnode_function_header_new(keyword, identifier, params, ret_type);
 }
 
-static AstNode* parse_variable_decl(ParseCtx* p, bool global) {
-    Token* keyword = p->prev;
-    bool immutable = true;
-    if (keyword->kind == TOKEN_KEYWORD_MUT) immutable = false;
-    Token* identifier = expect_identifier(p, "expected variable name");
-    AstNode* typespec = NULL;
-    if (match(p, TOKEN_COLON)) {
-        typespec = parse_typespec(p);
-    }
-    Token* equal = NULL;
-    AstNode* initializer = NULL;
-    if (match(p, TOKEN_EQUAL)) {
-        equal = p->prev;
-        initializer = parse_expr(p);
-    }
-    expect_semicolon(p);
-    return astnode_variable_decl_new(
-        keyword,
-        identifier,
-        typespec,
-        equal,
-        initializer,
-        !global,
-        immutable);
-}
-
 static AstNode* parse_import(ParseCtx* p) {
     Token* keyword = p->prev;
     Token* arg = expect(p, TOKEN_STRING_LITERAL, "expected path string");
@@ -791,7 +870,7 @@ static AstNode* parse_import(ParseCtx* p) {
 
 static AstNode* parse_astnode_func_scope(ParseCtx* p, bool error_on_no_match) {
     if (match(p, TOKEN_KEYWORD_IMM) || match(p, TOKEN_KEYWORD_MUT)) {
-        return parse_variable_decl(p, false);
+        return parse_variable_decl(p, false, true);
     }
 
     if (error_on_no_match) {
@@ -838,6 +917,10 @@ static AstNode* parse_scoped_block(ParseCtx* p) {
                     && (expr->whloop.elsebody
                         ? expr->whloop.elsebody->kind == ASTNODE_SCOPED_BLOCK
                         : expr->whloop.mainbody->kind == ASTNODE_SCOPED_BLOCK))
+                || (expr->kind == ASTNODE_CFOR
+                    && (expr->cfor.elsebody
+                        ? expr->cfor.elsebody->kind == ASTNODE_SCOPED_BLOCK
+                        : expr->cfor.mainbody->kind == ASTNODE_SCOPED_BLOCK))
                 || expr->kind == ASTNODE_SCOPED_BLOCK) {
             } else {
                 expect_semicolon(p);
@@ -933,7 +1016,7 @@ static AstNode* parse_astnode_root(ParseCtx* p) {
         }
         return astnode_struct_new(keyword, identifier, fields, p->prev);
     } else if (match(p, TOKEN_KEYWORD_IMM) || match(p, TOKEN_KEYWORD_MUT)) {
-        return parse_variable_decl(p, true);
+        return parse_variable_decl(p, true, true);
     } else if (match(p, TOKEN_KEYWORD_IMPORT)) {
         return parse_import(p);
     }

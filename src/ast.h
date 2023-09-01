@@ -145,6 +145,21 @@ typedef struct {
 } AstNodeWhile;
 
 typedef struct {
+    // Assign or vardecls
+    AstNode** decls;
+    AstNode* cond;
+    AstNode** counts;
+
+    AstNode* mainbody;
+    AstNode* elsebody;
+
+    // Stores references to
+    // `break` expressions.
+    AstNode** breaks;
+    Typespec* target;
+} AstNodeCFor;
+
+typedef struct {
     AstNode* child;
     AstNode* loopref;
     LLVMBasicBlockRef llvmbb;
@@ -334,6 +349,7 @@ typedef enum {
     ASTNODE_IF_BRANCH,
     ASTNODE_IF,
     ASTNODE_WHILE,
+    ASTNODE_CFOR,
     ASTNODE_BREAK,
     ASTNODE_CONTINUE,
     ASTNODE_RETURN,
@@ -388,6 +404,7 @@ struct AstNode {
         AstNodeIfBranch ifbr;
         AstNodeIf iff;
         AstNodeWhile whloop;
+        AstNodeCFor cfor;
         AstNodeBreak brk;
         AstNodeContinue cont;
         AstNodeReturn ret;
@@ -456,7 +473,20 @@ AstNode* astnode_if_new(
     AstNode** elseifbr,
     AstNode* elsebr,
     AstNode* lastbr);
-AstNode* astnode_while_new(Token* keyword, AstNode* cond, AstNode* mainbody, AstNode* elsebody, AstNode** breaks);
+AstNode* astnode_while_new(
+    Token* keyword,
+    AstNode* cond,
+    AstNode* mainbody,
+    AstNode* elsebody,
+    AstNode** breaks);
+AstNode* astnode_cfor_new(
+    Token* keyword,
+    AstNode** decls,
+    AstNode* cond,
+    AstNode** counts,
+    AstNode* mainbody,
+    AstNode* elsebody,
+    AstNode** breaks);
 AstNode* astnode_break_new(Token* keyword, AstNode* child);
 AstNode* astnode_continue_new(Token* keyword);
 AstNode* astnode_return_new(Token* keyword, AstNode* child);

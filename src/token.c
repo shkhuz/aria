@@ -43,6 +43,7 @@ bool can_token_start_expr(Token* token) {
         || token->kind == TOKEN_LBRACE
         || token->kind == TOKEN_KEYWORD_IF
         || token->kind == TOKEN_KEYWORD_WHILE
+        || token->kind == TOKEN_KEYWORD_FOR
         || token->kind == TOKEN_KEYWORD_BREAK
         || token->kind == TOKEN_KEYWORD_CONTINUE
         || token->kind == TOKEN_KEYWORD_RETURN

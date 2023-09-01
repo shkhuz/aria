@@ -1,13 +1,29 @@
 import "std";
 
+imm ONE = "hello";
+imm TWO = 2;
+mut var: i32 = 2;
+
 fn main() void {
     std.writestring(ONE);
     imm ptr = &ONE;
     std.writeuinteger(TWO);
     var = 3;
     std.writesinteger(var);
-}
+    std.writechar('\n');
 
-imm ONE = "hello";
-imm TWO = 2;
-mut var: i32 = 2;
+    mut b = true;
+    while (b) {
+        b = false;
+    } else {
+    }
+
+    for (mut i: u64 = 0; i < 10; i=i+1) {
+        if (i%2 == 0) continue;
+        std.writestring("hello world\n");
+    } else {
+        std.writestring("not found\n");
+    }
+
+    //for (;;) {}
+}

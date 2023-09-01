@@ -1086,9 +1086,130 @@ static Typespec* sema_check_two_sized_integer_operands(SemaCtx* s, Typespec* lef
 static Typespec* sema_get_loop_target_type(AstNode* loop) {
     switch (loop->kind) {
         case ASTNODE_WHILE: return loop->whloop.target;
+        case ASTNODE_CFOR: return loop->cfor.target;
         default: assert(0);
     }
     return NULL;
+}
+
+static bool sema_check_loop_mainbody(
+        SemaCtx* s,
+        AstNode* astnode,
+        AstNode* mainbody,
+        Typespec* mainbody_ty,
+        AstNode** breaks,
+        Typespec* target) {
+    bool error = false;
+
+    if (mainbody_ty && sema_verify_isvalue(s, mainbody_ty, AT_DEFAULT_VALUE|AT_NORETURN, mainbody->span)) {
+        Span mainbody_val_span = mainbody->kind == ASTNODE_SCOPED_BLOCK
+                            ? (mainbody->blk.val ? mainbody->blk.val->span : mainbody->blk.rbrace->span)
+                            : (mainbody->span);
+        if ((mainbody->kind == ASTNODE_SCOPED_BLOCK && mainbody->blk.val)
+            || (mainbody_ty->kind != TS_noreturn && mainbody_ty->kind != TS_void)) {
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                format_string("`%s` cannot yield a value", astnode_get_name(astnode)),
+                mainbody_val_span);
+            msg_addl_thin(&msg, "use a `break` expression instead");
+            msg_emit(s, &msg);
+            error = true;
+        }
+
+        bufloop(breaks, i) {
+            AstNode* cur = breaks[i];
+            Typespec* break_ty = cur->brk.child ? cur->brk.child->typespec : predef_typespecs.void_type->ty;
+            if (break_ty) {
+                if (target) {
+                    astnode->typespec = sema_check_types_equal(s, break_ty, target, false, cur->span);
+                    if (!astnode->typespec) error = true;
+                } else if (i != 0) {
+                    Typespec* prev_break_ty = breaks[0]->brk.child ? breaks[0]->brk.child->typespec : predef_typespecs.void_type->ty;
+                    TypeComparisonInfo cmpinfo = sema_are_types_equal(s, break_ty, prev_break_ty, true, cur->span);
+                    if (cmpinfo.result == TC_OK) {
+                        astnode->typespec = cmpinfo.final;
+                    } else if (cmpinfo.result == TC_ERROR_HANDLED) {
+                        error = true;
+                    } else {
+                        Msg msg = msg_with_span(
+                            MSG_ERROR,
+                            format_string_with_one_type("break type mismatch: this returns `%T`...", break_ty),
+                            cur->span);
+                        msg_addl_fat(
+                            &msg,
+                            format_string_with_one_type("...while first break returns `%T`:", prev_break_ty),
+                            breaks[0]->span);
+                        msg_emit(s, &msg);
+                        error = true;
+                    }
+                } else {
+                    astnode->typespec = break_ty;
+                }
+            } else {
+                error = true;
+                continue;
+            }
+        }
+    } else error = true;
+
+    return error;
+}
+
+static bool sema_check_loop_elsebody(
+        SemaCtx* s,
+        AstNode* astnode,
+        AstNode* elsebody,
+        AstNode** breaks) {
+    bool error = false;
+
+    Typespec* elsebody_ty = NULL;
+    if (elsebody) {
+        elsebody_ty = sema_astnode(s, elsebody, astnode->typespec);
+        if (elsebody_ty && sema_verify_isvalue(s, elsebody_ty, AT_DEFAULT_VALUE|AT_NORETURN, elsebody->span)) {
+            TypeComparisonInfo cmpinfo = sema_are_types_equal(s, elsebody_ty, astnode->typespec, true, elsebody->span);
+            if (cmpinfo.result == TC_OK) {
+                astnode->typespec = cmpinfo.final;
+            } else if (cmpinfo.result == TC_ERROR_HANDLED) {
+                error = true;
+            } else {
+                char* name = astnode_get_name(astnode);
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    format_string_with_one_type("%s/else type mismatch: else returns `%T`...", elsebody_ty, name),
+                    elsebody->kind == ASTNODE_SCOPED_BLOCK
+                    ? (elsebody->blk.val ? elsebody->blk.val->span : elsebody->blk.rbrace->span)
+                    : elsebody->span);
+                msg_addl_thin(&msg, format_string_with_one_type("...while '%s' returns `%T`", astnode->typespec, name));
+                msg_emit(s, &msg);
+                error = true;
+            }
+        } else error = true;
+    } else if (astnode->typespec->kind != TS_void) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            "`else` clause is required when `break` returns a value",
+            astnode->span);
+        msg_addl_fat(&msg, "`break` returns a value here:", breaks[0]->span);
+        msg_emit(s, &msg);
+        error = true;
+    }
+
+    return error;
+}
+
+static bool sema_check_ctrlflow_for_comptimeonly_val(SemaCtx* s, bool error, AstNode* astnode) {
+    if (!error && typespec_is_comptime(astnode->typespec)) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            format_string_with_one_type(
+                "`%s` yields comptime-type `%T` but depends on runtime control-flow",
+                astnode->typespec,
+                astnode_get_name(astnode)),
+            astnode->span);
+        msg_emit(s, &msg);
+        return true;
+    }
+    return false;
 }
 
 static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
@@ -1889,16 +2010,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                 astnode->typespec = predef_typespecs.void_type->ty;
             }
 
-            if (!error && typespec_is_comptime(astnode->typespec)) {
-                Msg msg = msg_with_span(
-                    MSG_ERROR,
-                    format_string_with_one_type(
-                        "`if` yields comptime-type `%T` but depends on runtime control-flow",
-                        astnode->typespec),
-                    astnode->span);
-                msg_emit(s, &msg);
-                error = true;
-            }
+            if (sema_check_ctrlflow_for_comptimeonly_val(s, error, astnode)) error = true;
 
             return error ? NULL : astnode->typespec;
         } break;
@@ -1912,109 +2024,68 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             if (cond_ty && sema_verify_isvalue(s, cond_ty, AT_DEFAULT_VALUE, astnode->whloop.cond->span)) {
             } else error = true;
 
-            AstNode* mainbody = astnode->whloop.mainbody;
-            Typespec* mainbody_ty = sema_astnode(s, mainbody, NULL);
+            Typespec* mainbody_ty = sema_astnode(s, astnode->whloop.mainbody, NULL);
             astnode->typespec = predef_typespecs.void_type->ty;
-
-            if (mainbody_ty && sema_verify_isvalue(s, mainbody_ty, AT_DEFAULT_VALUE|AT_NORETURN, mainbody->span)) {
-                Span mainbody_val_span = mainbody->kind == ASTNODE_SCOPED_BLOCK
-                                    ? (mainbody->blk.val ? mainbody->blk.val->span : mainbody->blk.rbrace->span)
-                                    : (mainbody->span);
-                if ((mainbody->kind == ASTNODE_SCOPED_BLOCK && mainbody->blk.val)
-                    || (mainbody_ty->kind != TS_noreturn && mainbody_ty->kind != TS_void)) {
-                    Msg msg = msg_with_span(
-                        MSG_ERROR,
-                        "`while` cannot yield a value",
-                        mainbody_val_span);
-                    msg_addl_thin(&msg, "use a `break` expression instead");
-                    msg_emit(s, &msg);
-                    error = true;
-                }
-
-                bufloop(astnode->whloop.breaks, i) {
-                    AstNode* cur = astnode->whloop.breaks[i];
-                    Typespec* break_ty = cur->brk.child ? cur->brk.child->typespec : predef_typespecs.void_type->ty;
-                    if (break_ty) {
-                        if (target) {
-                            astnode->typespec = sema_check_types_equal(s, break_ty, target, false, cur->span);
-                            if (!astnode->typespec) error = true;
-                        } else if (i != 0) {
-                            Typespec* prev_break_ty = astnode->whloop.breaks[0]->brk.child ? astnode->whloop.breaks[0]->brk.child->typespec : predef_typespecs.void_type->ty;
-                            TypeComparisonInfo cmpinfo = sema_are_types_equal(s, break_ty, prev_break_ty, true, cur->span);
-                            if (cmpinfo.result == TC_OK) {
-                                astnode->typespec = cmpinfo.final;
-                            } else if (cmpinfo.result == TC_ERROR_HANDLED) {
-                                error = true;
-                            } else {
-                                Msg msg = msg_with_span(
-                                    MSG_ERROR,
-                                    format_string_with_one_type("break type mismatch: this returns `%T`...", break_ty),
-                                    cur->span);
-                                msg_addl_fat(
-                                    &msg,
-                                    format_string_with_one_type("...while first break returns `%T`:", prev_break_ty),
-                                    astnode->whloop.breaks[0]->span);
-                                msg_emit(s, &msg);
-                                error = true;
-                            }
-                        } else {
-                            astnode->typespec = break_ty;
-                        }
-                    } else {
-                        error = true;
-                        continue;
-                    }
-                }
-            } else error = true;
+            if (sema_check_loop_mainbody(s, astnode, astnode->whloop.mainbody, mainbody_ty, astnode->whloop.breaks, target)) error = true;
 
             if (error) {
                 bufpop(s->loop_stack);
-                return NULL; // early return if error
+                return NULL;
             }
 
-            AstNode* elsebody = astnode->whloop.elsebody;
-            Typespec* elsebody_ty = NULL;
-            if (elsebody) {
-                elsebody_ty = sema_astnode(s, elsebody, NULL);
-                if (elsebody_ty && sema_verify_isvalue(s, elsebody_ty, AT_DEFAULT_VALUE|AT_NORETURN, elsebody->span)) {
-                    TypeComparisonInfo cmpinfo = sema_are_types_equal(s, elsebody_ty, astnode->typespec, true, elsebody->span);
-                    if (cmpinfo.result == TC_OK) {
-                        astnode->typespec = cmpinfo.final;
-                    } else if (cmpinfo.result == TC_ERROR_HANDLED) {
-                        error = true;
-                    } else {
-                        Msg msg = msg_with_span(
-                            MSG_ERROR,
-                            format_string_with_one_type("while/else type mismatch: else returns `%T`...", elsebody_ty),
-                            elsebody->kind == ASTNODE_SCOPED_BLOCK
-                            ? (elsebody->blk.val ? elsebody->blk.val->span : elsebody->blk.rbrace->span)
-                            : elsebody->span);
-                        msg_addl_thin(&msg, format_string_with_one_type("...while 'while' returns `%T`", astnode->typespec));
-                        msg_emit(s, &msg);
-                        error = true;
-                    }
+            if (sema_check_loop_elsebody(s, astnode, astnode->whloop.elsebody, astnode->whloop.breaks)) error = true;
+
+            if (sema_check_ctrlflow_for_comptimeonly_val(s, error, astnode)) error = true;
+
+            bufpop(s->loop_stack);
+            return error ? NULL : astnode->typespec;
+        } break;
+
+        case ASTNODE_CFOR: {
+            bufpush(s->loop_stack, astnode);
+            astnode->cfor.target = target;
+            sema_scope_push(s);
+            bool error = false;
+
+            bufloop(astnode->cfor.decls, i) {
+                Typespec* decl_ty = sema_astnode(s, astnode->cfor.decls[i], NULL);
+                if (decl_ty && sema_verify_isvalue(s, decl_ty, AT_DEFAULT_VALUE, astnode->cfor.decls[i]->span)) {
                 } else error = true;
-            } else if (astnode->typespec->kind != TS_void) {
-                Msg msg = msg_with_span(
-                    MSG_ERROR,
-                    "`else` clause is required when `break` returns a value",
-                    astnode->span);
-                msg_addl_fat(&msg, "`break` returns a value here:", astnode->whloop.breaks[0]->span);
-                msg_emit(s, &msg);
-                error = true;
             }
 
-            if (!error && typespec_is_comptime(astnode->typespec)) {
-                Msg msg = msg_with_span(
-                    MSG_ERROR,
-                    format_string_with_one_type(
-                        "`while` yields comptime-type `%T` but depends on runtime control-flow",
-                        astnode->typespec),
-                    astnode->span);
-                msg_emit(s, &msg);
-                error = true;
+            if (astnode->cfor.cond) {
+                Typespec* cond_ty = sema_astnode(s, astnode->cfor.cond, predef_typespecs.bool_type->ty);
+                if (cond_ty && sema_verify_isvalue(s, cond_ty, AT_DEFAULT_VALUE, astnode->cfor.cond->span)) {
+                } else error = true;
             }
 
+            bufloop(astnode->cfor.counts, i) {
+                Typespec* count_ty = sema_astnode(s, astnode->cfor.counts[i], NULL);
+                if (count_ty && sema_verify_isvalue(s, count_ty, AT_DEFAULT_VALUE, astnode->cfor.counts[i]->span)) {
+                    if (sema_check_types_equal(s, count_ty, predef_typespecs.void_type->ty, false, astnode->cfor.counts[i]->span)) {
+                    } else error = true;
+                } else error = true;
+            }
+
+            Typespec* mainbody_ty = NULL;
+            if (astnode->cfor.mainbody->kind == ASTNODE_SCOPED_BLOCK)
+                mainbody_ty = sema_scoped_block(s, astnode->cfor.mainbody, NULL, false);
+            else
+                mainbody_ty = sema_astnode(s, astnode->cfor.mainbody, NULL);
+            astnode->typespec = predef_typespecs.void_type->ty;
+            if (sema_check_loop_mainbody(s, astnode, astnode->cfor.mainbody, mainbody_ty, astnode->cfor.breaks, target)) error = true;
+
+            if (error) {
+                sema_scope_pop(s);
+                bufpop(s->loop_stack);
+                return NULL;
+            }
+
+            if (sema_check_loop_elsebody(s, astnode, astnode->cfor.elsebody, astnode->cfor.breaks)) error = true;
+
+            if (sema_check_ctrlflow_for_comptimeonly_val(s, error, astnode)) error = true;
+
+            sema_scope_pop(s);
             bufpop(s->loop_stack);
             return error ? NULL : astnode->typespec;
         } break;

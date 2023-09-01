@@ -10,8 +10,8 @@ CgCtx cg_new_context(struct Typespec** mod_tys, struct CompileCtx* compile_ctx) 
     c.current_mod_ty = NULL;
     c.current_func = NULL;
     c.current_bb = NULL;
-    c.while_cond_stack = NULL;
-    c.while_end_stack = NULL;
+    c.loop_cond_stack = NULL;
+    c.loop_end_stack = NULL;
     c.compile_ctx = compile_ctx;
     c.error = false;
     return c;
@@ -145,10 +145,11 @@ static void cg_top_level_decls_prec2(CgCtx* c, AstNode* astnode) {
     switch (astnode->kind) {
         case ASTNODE_VARIABLE_DECL: {
             cg_get_llvm_type(c, astnode->typespec);
+            astnode->vard.mangled_name = mangle_name(c, astnode->vard.name);
             astnode->llvmvalue = LLVMAddGlobal(
                 c->llvmmod,
                 astnode->typespec->llvmtype,
-                astnode->vard.name);
+                astnode->vard.mangled_name);
             if (astnode->vard.initializer) {
                 LLVMValueRef initializer_llvmvalue = cg_astnode(c, astnode->vard.initializer, false, astnode->typespec, NULL);
                 LLVMSetInitializer(astnode->llvmvalue, initializer_llvmvalue);
@@ -784,25 +785,25 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
             LLVMBasicBlockRef condbb = LLVMAppendBasicBlock(c->current_func->llvmvalue, "while.cond");
             LLVMBasicBlockRef bodybb = LLVMAppendBasicBlock(c->current_func->llvmvalue, "while.body");
             LLVMBasicBlockRef elsebb = NULL;
-            if (astnode->typespec->kind != TS_void) {
+            if (astnode->whloop.elsebody) {
                 elsebb = LLVMAppendBasicBlock(c->current_func->llvmvalue, "while.else");
             }
 
             LLVMBasicBlockRef endwhileexprbb = LLVMAppendBasicBlock(c->current_func->llvmvalue, "while.end");
-            bufpush(c->while_cond_stack, condbb);
-            bufpush(c->while_end_stack, endwhileexprbb);
+            bufpush(c->loop_cond_stack, condbb);
+            bufpush(c->loop_end_stack, endwhileexprbb);
 
             LLVMBuildBr(c->llvmbuilder, condbb);
             cg_place_builder_at(c, condbb);
             LLVMValueRef cond = cg_astnode(c, astnode->whloop.cond, false, predef_typespecs.bool_type->ty, NULL);
-            cg_build_cond_br(c, cond, bodybb, astnode->typespec->kind == TS_void ? endwhileexprbb : elsebb);
+            cg_build_cond_br(c, cond, bodybb, astnode->whloop.elsebody ? elsebb : endwhileexprbb);
 
             cg_place_builder_at(c, bodybb);
             cg_astnode(c, astnode->whloop.mainbody, false, NULL, NULL);
-            if (astnode->whloop.mainbody->typespec->kind == TS_void) LLVMBuildBr(c->llvmbuilder, condbb);
+            if (astnode->whloop.mainbody->typespec->kind != TS_noreturn) LLVMBuildBr(c->llvmbuilder, condbb);
 
             LLVMValueRef else_llvmvalue = NULL;
-            if (astnode->typespec->kind != TS_void) {
+            if (astnode->whloop.elsebody) {
                 cg_place_builder_at(c, elsebb);
                 else_llvmvalue = cg_astnode(c, astnode->whloop.elsebody, false, astnode->typespec, NULL);
                 if (astnode->whloop.elsebody->typespec->kind != TS_noreturn) {
@@ -828,8 +829,79 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                 astnode->llvmvalue = phi;
             }
 
-            bufpop(c->while_cond_stack);
-            bufpop(c->while_end_stack);
+            bufpop(c->loop_cond_stack);
+            bufpop(c->loop_end_stack);
+        } break;
+
+        case ASTNODE_CFOR: {
+            LLVMBasicBlockRef condbb = LLVMAppendBasicBlock(c->current_func->llvmvalue, "for.cond");
+            LLVMBasicBlockRef bodybb = LLVMAppendBasicBlock(c->current_func->llvmvalue, "for.body");
+            LLVMBasicBlockRef countbb = LLVMAppendBasicBlock(c->current_func->llvmvalue, "for.count");
+            LLVMBasicBlockRef elsebb = NULL;
+            if (astnode->cfor.elsebody) {
+                elsebb = LLVMAppendBasicBlock(c->current_func->llvmvalue, "for.else");
+            }
+
+            LLVMBasicBlockRef endforexprbb = LLVMAppendBasicBlock(c->current_func->llvmvalue, "for.end");
+            // We push `countbb` as condition, because when we `continue`, we always want to first
+            // increment/decrement count variables, and then execute the condition.
+            bufpush(c->loop_cond_stack, countbb);
+            bufpush(c->loop_end_stack, endforexprbb);
+
+            bufloop(astnode->cfor.decls, i) {
+                cg_astnode(c, astnode->cfor.decls[i], false, NULL, NULL);
+            }
+
+            LLVMBuildBr(c->llvmbuilder, condbb);
+            cg_place_builder_at(c, condbb);
+            if (astnode->cfor.cond) {
+                LLVMValueRef cond = cg_astnode(c, astnode->cfor.cond, false, predef_typespecs.bool_type->ty, NULL);
+                cg_build_cond_br(c, cond, bodybb, astnode->cfor.elsebody ? elsebb : endforexprbb);
+            } else {
+                LLVMBuildBr(c->llvmbuilder, bodybb);
+            }
+
+            cg_place_builder_at(c, bodybb);
+            cg_astnode(c, astnode->cfor.mainbody, false, NULL, NULL);
+            if (astnode->cfor.mainbody->typespec->kind != TS_noreturn) LLVMBuildBr(c->llvmbuilder, countbb);
+
+            cg_place_builder_at(c, countbb);
+            bufloop(astnode->cfor.counts, i) {
+                cg_astnode(c, astnode->cfor.counts[i], false, NULL, NULL);
+            }
+            // We don't require a check for `noreturn` (to emit a branch inst) because count exprs cannot be
+            // `noreturn` types directly.
+            LLVMBuildBr(c->llvmbuilder, condbb);
+
+            LLVMValueRef else_llvmvalue = NULL;
+            if (astnode->cfor.elsebody) {
+                cg_place_builder_at(c, elsebb);
+                else_llvmvalue = cg_astnode(c, astnode->cfor.elsebody, false, astnode->typespec, NULL);
+                if (astnode->cfor.elsebody->typespec->kind != TS_noreturn) {
+                    LLVMBuildBr(c->llvmbuilder, endforexprbb);
+                }
+            }
+
+            cg_place_builder_at(c, endforexprbb);
+
+            if (astnode->typespec->kind != TS_void && astnode->typespec->kind != TS_noreturn) {
+                LLVMValueRef phi = LLVMBuildPhi(
+                        c->llvmbuilder,
+                        cg_get_llvm_type(c, astnode->typespec),
+                        "");
+
+                bufloop(astnode->cfor.breaks, i) {
+                    LLVMAddIncoming(phi, &astnode->cfor.breaks[i]->llvmvalue, &astnode->cfor.breaks[i]->brk.llvmbb, 1);
+                }
+
+                if (astnode->cfor.elsebody->typespec->kind != TS_noreturn) {
+                    LLVMAddIncoming(phi, &else_llvmvalue, &elsebb, 1);
+                }
+                astnode->llvmvalue = phi;
+            }
+
+            bufpop(c->loop_cond_stack);
+            bufpop(c->loop_end_stack);
         } break;
 
         case ASTNODE_BREAK: {
@@ -840,11 +912,11 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                 cg_place_builder_at(c, astnode->brk.llvmbb);
                 astnode->llvmvalue = cg_astnode(c, astnode->brk.child, false, astnode->brk.loopref->typespec, NULL);
             }
-            LLVMBuildBr(c->llvmbuilder, c->while_end_stack[buflen(c->while_end_stack)-1]);
+            LLVMBuildBr(c->llvmbuilder, c->loop_end_stack[buflen(c->loop_end_stack)-1]);
         } break;
 
         case ASTNODE_CONTINUE: {
-            astnode->llvmvalue = LLVMBuildBr(c->llvmbuilder, c->while_cond_stack[buflen(c->while_cond_stack)-1]);
+            astnode->llvmvalue = LLVMBuildBr(c->llvmbuilder, c->loop_cond_stack[buflen(c->loop_cond_stack)-1]);
         } break;
 
         case ASTNODE_RETURN: {

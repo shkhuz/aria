@@ -224,7 +224,12 @@ AstNode* astnode_if_new(
     return astnode;
 }
 
-AstNode* astnode_while_new(Token* keyword, AstNode* cond, AstNode* mainbody, AstNode* elsebody, AstNode** breaks) {
+AstNode* astnode_while_new(
+        Token* keyword,
+        AstNode* cond,
+        AstNode* mainbody,
+        AstNode* elsebody,
+        AstNode** breaks) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_WHILE,
         span_from_two(keyword->span, elsebody ? elsebody->span : mainbody->span));
@@ -233,6 +238,27 @@ AstNode* astnode_while_new(Token* keyword, AstNode* cond, AstNode* mainbody, Ast
     astnode->whloop.elsebody = elsebody;
     astnode->whloop.breaks = breaks;
     astnode->whloop.target = NULL;
+    return astnode;
+}
+
+AstNode* astnode_cfor_new(
+        Token* keyword,
+        AstNode** decls,
+        AstNode* cond,
+        AstNode** counts,
+        AstNode* mainbody,
+        AstNode* elsebody,
+        AstNode** breaks) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_CFOR,
+        span_from_two(keyword->span, elsebody ? elsebody->span : mainbody->span));
+    astnode->cfor.decls = decls;
+    astnode->cfor.cond = cond;
+    astnode->cfor.counts = counts;
+    astnode->cfor.mainbody = mainbody;
+    astnode->cfor.elsebody = elsebody;
+    astnode->cfor.breaks = breaks;
+    astnode->cfor.target = NULL;
     return astnode;
 }
 
@@ -489,33 +515,35 @@ AstNode* astnode_struct_new(
 
 char* astnode_get_name(AstNode* astnode) {
     switch (astnode->kind) {
-        case ASTNODE_FUNCTION_DEF: {
+        case ASTNODE_FUNCTION_DEF:
             return astnode_get_name(astnode->funcdef.header);
-        } break;
 
-        case ASTNODE_EXTERN_FUNCTION: {
+        case ASTNODE_EXTERN_FUNCTION:
             return astnode_get_name(astnode->extfunc.header);
-        } break;
 
-        case ASTNODE_FUNCTION_HEADER: {
+        case ASTNODE_FUNCTION_HEADER:
             return astnode->funch.name;
-        } break;
 
-        case ASTNODE_STRUCT: {
+        case ASTNODE_STRUCT:
             return astnode->strct.name;
-        } break;
 
-        case ASTNODE_VARIABLE_DECL: {
+        case ASTNODE_VARIABLE_DECL:
             return astnode->vard.name;
-        } break;
 
-        case ASTNODE_EXTERN_VARIABLE: {
+        case ASTNODE_EXTERN_VARIABLE:
             return astnode->extvar.name;
-        } break;
 
-        case ASTNODE_IMPORT: {
+        case ASTNODE_IMPORT:
             return astnode->import.name;
-        } break;
+
+        case ASTNODE_IF:
+            return "if";
+
+        case ASTNODE_WHILE:
+            return "while";
+
+        case ASTNODE_CFOR:
+            return "for";
 
         default: {
             assert(0);
