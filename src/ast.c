@@ -538,13 +538,7 @@ char* astnode_get_name(AstNode* astnode) {
             return astnode->import.name;
 
         case ASTNODE_ARITH_BINOP:
-            switch (astnode->arthbin.kind) {
-                case ARITH_BINOP_ADD: return "+";
-                case ARITH_BINOP_SUB: return "-";
-                case ARITH_BINOP_MUL: return "*";
-                case ARITH_BINOP_DIV: return "/";
-                case ARITH_BINOP_REM: return "%";
-            }
+            return span_tostring(astnode->short_span);
 
         case ASTNODE_IF:
             return "if";

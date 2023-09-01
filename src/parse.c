@@ -745,13 +745,26 @@ static AstNode* parse_assign_expr(ParseCtx* p) {
         expect_equal(p);
     } else {
         left = parse_boolor_binop_expr(p);
-        if (match(p, TOKEN_EQUAL)) parse_assign = true;
+        if (match(p, TOKEN_EQUAL)
+                || match(p, TOKEN_PLUS_EQUAL)
+                || match(p, TOKEN_MINUS_EQUAL)
+                || match(p, TOKEN_STAR_EQUAL)
+                || match(p, TOKEN_FSLASH_EQUAL)
+                || match(p, TOKEN_PERC_EQUAL))
+            parse_assign = true;
     }
 
     if (parse_assign) {
-        Token* equal = p->prev;
+        Token* op = p->prev;
         AstNode* right = parse_boolor_binop_expr(p);
-        left = astnode_assign_new(equal, left, left ? left->span : underscore->span, right);
+        switch (op->kind) {
+            case TOKEN_PLUS_EQUAL:      right = astnode_arith_binop_new(ARITH_BINOP_ADD, op, left, right); break;
+            case TOKEN_MINUS_EQUAL:     right = astnode_arith_binop_new(ARITH_BINOP_SUB, op, left, right); break;
+            case TOKEN_STAR_EQUAL:      right = astnode_arith_binop_new(ARITH_BINOP_MUL, op, left, right); break;
+            case TOKEN_FSLASH_EQUAL:    right = astnode_arith_binop_new(ARITH_BINOP_DIV, op, left, right); break;
+            case TOKEN_PERC_EQUAL:      right = astnode_arith_binop_new(ARITH_BINOP_REM, op, left, right); break;
+        }
+        left = astnode_assign_new(op, left, left ? left->span : underscore->span, right);
     }
     return left;
 }

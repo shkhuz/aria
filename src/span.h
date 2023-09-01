@@ -18,5 +18,6 @@ Span span_from_two(Span start, Span end);
 
 OptionalSpan span_some(Span span);
 OptionalSpan span_none();
+char* span_tostring(Span span);
 
 #endif

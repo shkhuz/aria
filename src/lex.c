@@ -198,10 +198,10 @@ void lex(LexCtx* l) {
             case '<': push_tok_adv_cond(l, '=', TOKEN_LANGBR_EQUAL, TOKEN_LANGBR); break;
             case '>': push_tok_adv_cond(l, '=', TOKEN_RANGBR_EQUAL, TOKEN_RANGBR); break;
             case '&': push_tok_adv_cond(l, '&', TOKEN_DOUBLE_AMP, TOKEN_AMP); break;
-            case '%': push_tok_adv(l, TOKEN_PERC); break;
-            case '+': push_tok_adv(l, TOKEN_PLUS); break;
-            case '-': push_tok_adv(l, TOKEN_MINUS); break;
-            case '*': push_tok_adv(l, TOKEN_STAR); break;
+            case '%': push_tok_adv_cond(l, '=', TOKEN_PERC_EQUAL, TOKEN_PERC); break;
+            case '+': push_tok_adv_cond(l, '=', TOKEN_PLUS_EQUAL, TOKEN_PLUS); break;
+            case '-': push_tok_adv_cond(l, '=', TOKEN_MINUS_EQUAL, TOKEN_MINUS); break;
+            case '*': push_tok_adv_cond(l, '=', TOKEN_STAR_EQUAL, TOKEN_STAR); break;
             case '@': push_tok_adv(l, TOKEN_AT); break;
             case '$': push_tok_adv(l, TOKEN_DOLLAR); break;
 
@@ -209,7 +209,7 @@ void lex(LexCtx* l) {
                 if (*(l->current+1) == '/') {
                     while (*l->current != '\n' && *l->current != '\0') l->current++;
                 } else {
-                    push_tok_adv(l, TOKEN_FSLASH);
+                    push_tok_adv_cond(l, '=', TOKEN_FSLASH_EQUAL, TOKEN_FSLASH);
                 }
             } break;
 

@@ -63,12 +63,7 @@ bool can_token_start_expr(Token* token) {
 }
 
 char* token_tostring(Token* token) {
-    Span span = token->span;
-    usize len = span.end - span.start;
-    char* buf = malloc(len + 1);
-    memcpy(buf, &span.srcfile->handle.contents[span.start], len);
-    buf[len] = '\0';
-    return buf;
+    return span_tostring(token->span);
 }
 
 char* tokenkind_to_string(TokenKind kind) {
