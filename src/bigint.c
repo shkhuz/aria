@@ -1,6 +1,10 @@
 #include "bigint.h"
 #include "buf.h"
 
+// This biginteger implementation was "inspired" (more like copied) from
+// the fantastic 983/Num bigint library. Thanks 983!
+// Source: https://github.com/983/Num
+
 #define WORD_HALF_MASK 0x00000000ffffffff
 
 bigint BIGINT_ZERO;
@@ -131,7 +135,7 @@ void bigint_sub_unsigned(bigint* a, const bigint* b) {
 }
 
 void bigint_add_signed(bigint* a, bool aneg, const bigint* b, bool bneg) {
-    if (a->neg == b->neg) {
+    if (aneg == bneg) {
         bigint_add_unsigned(a, b);
         a->neg = aneg;
     } else if (bigint_cmp_abs(a, b) >= 0) {
@@ -389,5 +393,12 @@ void test_bigint() {
         bigint_div_mod(&a, &b, &quo, &rem);
         assert(strcmp("900000000000000000000000000000000000", bigint_tostring(&quo)) == 0);
         assert(strcmp("0", bigint_tostring(&rem)) == 0);
+    }
+
+    {
+        bigint a = bigint_new_u64(7);
+        bigint b = bigint_new_u64(3);
+        bigint_sub(&a, &b);
+        assert(a.d[0] == 4);
     }
 }

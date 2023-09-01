@@ -1,8 +1,7 @@
 import "std";
 
 fn main() void {
-    mut a: u32 = 1;
-    if (!(a != 1)) {
-        std.writestring("Hello world");
+    for (mut i: u64 = 0; i < 7-3; i+=1) {
+        std.writeuinteger(i);
     }
 }
