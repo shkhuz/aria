@@ -13,14 +13,14 @@ fn print_board(b: *Board) void {
     for (mut i: u64 = 0; i < 42;) {
         std.writechar(b.cells[i]);
         std.writechar(' ');
-        i = i+1;
+        i += 1;
         if (i % 7 == 0 and i != 1) std.writechar('\n');
     }
 }
 
 fn check_winning_cond_for(b: *Board, player: u8) bool {
-    for (mut j: u64 = 0; j < 6-3; j = j+1) {
-        for (mut i: u64 = 0; i < 7; i = i+1) {
+    for (mut j: u64 = 0; j < 6-3; j += 1) {
+        for (mut i: u64 = 0; i < 7; i += 1) {
             if (getat(b, i, j) == player
                     and getat(b, i, j+1) == player
                     and getat(b, i, j+2) == player
@@ -30,8 +30,8 @@ fn check_winning_cond_for(b: *Board, player: u8) bool {
         }
     }
 
-    for (mut i: u64 = 0; i < 7-3; i = i+1) {
-        for (mut j: u64 = 0; j < 6; j = j+1) {
+    for (mut i: u64 = 0; i < 7-3; i += 1) {
+        for (mut j: u64 = 0; j < 6; j += 1) {
             if (getat(b, i, j) == player
                     and getat(b, i+1, j) == player
                     and getat(b, i+2, j) == player
@@ -41,8 +41,8 @@ fn check_winning_cond_for(b: *Board, player: u8) bool {
         }
     }
 
-    for (mut i: u64 = 3; i < 7; i = i+1) {
-        for (mut j: u64 = 0; j < 6-3; j = j+1) {
+    for (mut i: u64 = 3; i < 7; i += 1) {
+        for (mut j: u64 = 0; j < 6-3; j += 1) {
             if (getat(b, i, j) == player
                     and getat(b, i-1, j+1) == player
                     and getat(b, i-2, j+2) == player
@@ -52,8 +52,8 @@ fn check_winning_cond_for(b: *Board, player: u8) bool {
         }
     }
 
-    for (mut i: u64 = 3; i < 7; i = i+1) {
-        for (mut j: u64 = 3; j < 6; j = j+1) {
+    for (mut i: u64 = 3; i < 7; i += 1) {
+        for (mut j: u64 = 3; j < 6; j += 1) {
             if (getat(b, i, j) == player
                     and getat(b, i-1, j-1) == player
                     and getat(b, i-2, j-2) == player
