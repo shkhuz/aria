@@ -238,40 +238,48 @@ static LLVMValueRef cg_build_cond_br(
 
 LLVMValueRef cg_access_struct_field(
         CgCtx* c,
-        LLVMValueRef ptr_to_struct,
+        LLVMValueRef struct_value,
         LLVMTypeRef struct_ty,
         usize idx,
         bool lvalue,
         LLVMTypeRef field_ty) {
-    LLVMValueRef result = LLVMBuildStructGEP2(
-            c->llvmbuilder,
-            struct_ty,
-            ptr_to_struct,
-            idx,
-            "");
-    if (!lvalue) {
-        result = LLVMBuildLoad2(
+    if (lvalue) {
+        return LLVMBuildStructGEP2(
                 c->llvmbuilder,
-                field_ty,
-                result,
+                struct_ty,
+                struct_value,
+                idx,
+                "");
+    } else {
+        LLVMValueRef loaded_struct_value = struct_value;
+        if (LLVMGetTypeKind(LLVMTypeOf(loaded_struct_value)) == LLVMPointerTypeKind) {
+            loaded_struct_value = LLVMBuildLoad2(
+                    c->llvmbuilder,
+                    struct_ty,
+                    loaded_struct_value,
+                    "");
+        }
+        return LLVMBuildExtractValue(
+                c->llvmbuilder,
+                loaded_struct_value,
+                idx,
                 "");
     }
-    return result;
 }
 
-LLVMValueRef cg_get_elemptr_in_array(
+LLVMValueRef cg_access_array_element(
         CgCtx* c,
-        LLVMValueRef array_ptr,
+        LLVMValueRef array,
         LLVMValueRef index,
-        LLVMTypeRef array_ty) {
-    LLVMValueRef left = array_ptr;
+        LLVMTypeRef array_ty,
+        bool lvalue) {
     LLVMValueRef indices[2];
     indices[0] = LLVMConstInt(LLVMInt64Type(), 0, false);
     indices[1] = index;
     return LLVMBuildGEP2(
             c->llvmbuilder,
             array_ty,
-            left,
+            array,
             indices,
             2,
             "");
@@ -565,11 +573,12 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                     assert(astnode->idx.left->typespec->mulptr.child->kind == TS_ARRAY);
                     LLVMValueRef left = cg_astnode(c, astnode->idx.left, false, target, NULL);
                     LLVMValueRef index = cg_astnode(c, astnode->idx.idx, false, predef_typespecs.u64_type->ty, NULL);
-                    astnode->llvmvalue = cg_get_elemptr_in_array(
+                    astnode->llvmvalue = cg_access_array_element(
                             c,
                             left,
                             index,
-                            cg_get_llvm_type(c, astnode->idx.left->typespec->ptr.child));
+                            cg_get_llvm_type(c, astnode->idx.left->typespec->ptr.child),
+                            lvalue);
                 } break;
 
                 case TS_MULTIPTR: {
@@ -587,11 +596,12 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                 case TS_ARRAY: {
                     LLVMValueRef left = cg_astnode(c, astnode->idx.left, true, target, NULL);
                     LLVMValueRef index = cg_astnode(c, astnode->idx.idx, false, predef_typespecs.u64_type->ty, NULL);
-                    astnode->llvmvalue = cg_get_elemptr_in_array(
+                    astnode->llvmvalue = cg_access_array_element(
                             c,
                             left,
                             index,
-                            cg_get_llvm_type(c, astnode->idx.left->typespec));
+                            cg_get_llvm_type(c, astnode->idx.left->typespec),
+                            lvalue);
                 } break;
             }
 
@@ -633,7 +643,6 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                 }
             } else if (left->kind == TS_STRUCT || left->kind == TS_SLICE) {
                 LLVMValueRef left_llvmvalue = cg_astnode(c, astnode->acc.left, is_ptr ? false : true, NULL, NULL);
-
                 usize field_idx;
                 switch (left->kind) {
                     case TS_STRUCT: {
@@ -654,6 +663,7 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                         field_idx,
                         lvalue,
                         cg_get_llvm_type(c, astnode->typespec));
+                return astnode->llvmvalue;
             }
         } break;
 

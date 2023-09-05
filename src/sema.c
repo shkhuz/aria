@@ -562,15 +562,24 @@ static bool sema_verify_ismod(SemaCtx* s, Typespec* ty, Span error) {
     }
 }
 
-static bool sema_check_is_lvalue(SemaCtx* s, AstNode* astnode) {
-    if (astnode->kind == ASTNODE_ACCESS
-        || astnode->kind == ASTNODE_DEREF
-        || astnode->kind == ASTNODE_INDEX
-        || astnode->kind == ASTNODE_SYMBOL) {
+static bool sema_is_lvalue(SemaCtx* s, AstNode* astnode) {
+    if (astnode->kind == ASTNODE_ACCESS) {
+        return sema_is_lvalue(s, astnode->acc.left);
+    } else if (astnode->kind == ASTNODE_INDEX) {
+        return sema_is_lvalue(s, astnode->idx.left);
+    } else if (astnode->kind == ASTNODE_DEREF
+               || astnode->kind == ASTNODE_SYMBOL) {
         if ((astnode->kind == ASTNODE_SYMBOL)
             && (astnode->typespec->kind == TS_TYPE || astnode->typespec->kind == TS_MODULE)) {
             assert(0 && "Symbol is not lvalue: not a valuetype");
         }
+        return true;
+    }
+    return false;
+}
+
+static bool sema_check_is_lvalue(SemaCtx* s, AstNode* astnode) {
+    if (sema_is_lvalue(s, astnode)) {
         return true;
     } else {
         Msg msg = msg_with_span(
@@ -578,8 +587,8 @@ static bool sema_check_is_lvalue(SemaCtx* s, AstNode* astnode) {
             "expression not an l-value",
             astnode->span);
         msg_emit(s, &msg);
-        return false;
     }
+    return false;
 }
 
 static bool sema_is_lvalue_imm(AstNode* astnode) {

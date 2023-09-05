@@ -1,7 +1,19 @@
 import "std";
 
+struct S {
+    a: u64,
+}
+
+fn get() S {
+    mut s: S;
+    s.a = 17;
+    return s;
+}
+
 fn main() void {
-    for (mut i: u64 = 0; i < 7-3; i+=1) {
-        std.writeuinteger(i);
-    }
+    std.writeuinteger(get().a);
+
+    imm x = get();
+    imm ptr = &x.a;
+    std.writeuinteger(ptr.*);
 }
