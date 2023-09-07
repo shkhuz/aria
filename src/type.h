@@ -78,7 +78,9 @@ typedef struct Typespec {
             struct Typespec* ret_typespec;
         } func;
 
-        struct AstNode* agg;
+        struct {
+            struct AstNode* ref;
+        } agg;
 
         struct Typespec* ty;
 

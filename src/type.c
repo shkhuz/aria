@@ -69,7 +69,7 @@ Typespec* typespec_func_new(Typespec** params, Typespec* ret_typespec) {
 
 Typespec* typespec_struct_new(struct AstNode* astnode) {
     Typespec* ty = typespec_new(TS_STRUCT);
-    ty->agg = astnode;
+    ty->agg.ref = astnode;
     return ty;
 }
 
@@ -163,7 +163,7 @@ static char* tostring(Typespec* ty) {
         } break;
 
         case TS_STRUCT: {
-            return ty->agg->strct.name;
+            return ty->agg.ref->strct.name;
         } break;
 
         case TS_TYPE: {

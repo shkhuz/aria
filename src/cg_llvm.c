@@ -103,7 +103,7 @@ static LLVMTypeRef cg_get_llvm_type(CgCtx* c, Typespec* typespec) {
         };
 
         case TS_STRUCT:
-            typespec->llvmtype = typespec->agg->strct.llvmtype;
+            typespec->llvmtype = typespec->agg.ref->strct.llvmtype;
             break;
 
         default: assert(0 && "cg_get_llvm_type()");

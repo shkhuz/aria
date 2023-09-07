@@ -511,6 +511,8 @@ AstNode* astnode_struct_new(
     astnode->strct.identifier = identifier;
     astnode->strct.name = token_tostring(identifier);
     astnode->strct.fields = fields;
+    astnode->strct.deps_on = NULL;
+    astnode->strct.color = CCWHITE;
     return astnode;
 }
 

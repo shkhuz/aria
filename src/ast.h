@@ -320,12 +320,21 @@ typedef struct {
     AstNode* typespec;
 } AstNodeParamDecl;
 
+typedef enum {
+    CCWHITE,
+    CCGREY,
+    CCBLACK,
+} CycleColor;
+
 typedef struct {
     Token* identifier;
     char* name;
     char* mangled_name;
     AstNode** fields;
     LLVMTypeRef llvmtype;
+    // Used for checking aggregate dependencies.
+    AstNode** deps_on;
+    CycleColor color;
 } AstNodeStruct;
 
 typedef enum {

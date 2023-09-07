@@ -1,19 +1,13 @@
 import "std";
 
-struct S {
-    a: u64,
+struct A {
+    b: B,
 }
 
-fn get() S {
-    mut s: S;
-    s.a = 17;
-    return s;
+struct B {
+    c: C,
 }
 
-fn main() void {
-    std.writeuinteger(get().a);
-
-    imm x = get();
-    imm ptr = &x.a;
-    std.writeuinteger(ptr.*);
+struct C {
+    a: [3]A,
 }

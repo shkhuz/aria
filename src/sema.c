@@ -221,7 +221,7 @@ static bool sema_are_types_exactly_equal(SemaCtx* s, Typespec* from, Typespec* t
             } break;
 
             case TS_STRUCT: {
-                if (from->agg == to->agg) return true;
+                if (from->agg.ref == to->agg.ref) return true;
                 return false;
             } break;
 
@@ -339,7 +339,7 @@ static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Types
             } break;
 
             case TS_STRUCT: {
-                if (from->agg == to->agg) return (TypeComparisonInfo){ .result = TC_OK, .final = to };
+                if (from->agg.ref == to->agg.ref) return (TypeComparisonInfo){ .result = TC_OK, .final = to };
                 else return (TypeComparisonInfo){ .result = TC_MISMATCH, .final = NULL };
             } break;
 
@@ -789,10 +789,45 @@ static void sema_top_level_decls_prec2(SemaCtx* s, AstNode* astnode) {
                 Typespec* field_ty = sema_astnode(s, fieldnode->field.value, NULL);
                 if (field_ty && sema_verify_istype(s, field_ty, AT_STORAGE_TYPE, fieldnode->field.value->span)) {
                     fieldnode->typespec = field_ty->ty;
+
+                    // TODO: make this work with unions too
+                    AstNode* dep_on_agg = NULL;
+                    if (fieldnode->typespec->kind == TS_STRUCT)
+                        dep_on_agg = fieldnode->typespec->agg.ref;
+                    else if (fieldnode->typespec->kind == TS_ARRAY && fieldnode->typespec->array.child->kind == TS_STRUCT)
+                        dep_on_agg = fieldnode->typespec->array.child->agg.ref;
+                    // TODO: add tuple here
+
+                    if (dep_on_agg) {
+                        bufpush(astnode->strct.deps_on, dep_on_agg);
+                    }
                 } else error = true;
             }
         } break;
     }
+}
+
+static AstNode** sema_check_agg_deps(SemaCtx* s, AstNode* astnode) {
+    switch (astnode->kind) {
+        case ASTNODE_STRUCT: {
+            if (astnode->strct.color == CCWHITE) {
+                astnode->strct.color = CCGREY;
+            } else if (astnode->strct.color == CCGREY) {
+                AstNode** ecycle = NULL;
+                bufpush(ecycle, astnode);
+                return ecycle;
+            }
+            bufloop(astnode->strct.deps_on, i) {
+                AstNode** child_ecycle = sema_check_agg_deps(s, astnode->strct.deps_on[i]);
+                if (child_ecycle) {
+                    bufpush(child_ecycle, astnode);
+                    return child_ecycle;
+                }
+            }
+            astnode->strct.color = CCBLACK;
+        } break;
+    }
+    return NULL;
 }
 
 static bool sema_check_bigint_overflow(SemaCtx* s, bigint* b, Span span) {
@@ -827,7 +862,7 @@ static bool sema_access_field_from_type(SemaCtx* s, Typespec* ty, Token* key, As
         }
 
     if (ty->kind == TS_STRUCT) {
-        AstNode** fields = ty->agg->strct.fields;
+        AstNode** fields = ty->agg.ref->strct.fields;
         bufloop(fields, i) {
             if (are_token_lexemes_equal(
                     fields[i]->field.key,
@@ -1706,7 +1741,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                         else result = TC_MISMATCH;
                     } else result = TC_MISMATCH;
                 } else if (left->kind == TS_STRUCT && inright->kind == TS_STRUCT) {
-                    if (left->agg == right->agg) {}
+                    if (left->agg.ref == right->agg.ref) {}
                     else result = TC_MISMATCH;
                 } else if (left->kind == TS_TYPE && inright->kind == TS_TYPE) {
                     assert(0);
@@ -2205,6 +2240,35 @@ bool sema(SemaCtx* sema_ctxs) {
             sema_top_level_decls_prec2(s, s->srcfile->astnodes[j]);
         }
         if (s->error) error = true;
+    }
+    if (error) return true;
+
+    bufloop(sema_ctxs, i) {
+        SemaCtx* s = &sema_ctxs[i];
+        bufloop(s->srcfile->astnodes, j) {
+            if (s->srcfile->astnodes[j]->kind == ASTNODE_STRUCT) {
+                AstNode** ecycle = sema_check_agg_deps(s, s->srcfile->astnodes[j]);
+                if (ecycle) {
+                    Msg msg = msg_with_span(
+                        MSG_ERROR,
+                        "invalid recursive aggregate",
+                        ecycle[0]->span);
+                    bufrevloop(ecycle, k) {
+                        msg_addl_thin(
+                            &msg,
+                            format_string(
+                                k == 0 ? "%s" : (k == buflen(ecycle)-1 ? "%s depends on" : "%s, which depends on"),
+                                ecycle[k]->strct.name));
+                    }
+                    msg_emit(s, &msg);
+                    break;
+                }
+            }
+        }
+        if (s->error) {
+            error = true;
+            break;
+        }
     }
     if (error) return true;
 
