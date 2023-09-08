@@ -1,13 +1,32 @@
 import "std";
 
-struct A {
-    b: B,
+struct State {
+    a: u8,
+    b: u64,
+    c: i64,
+    d: u64,
+    e: Inner,
 }
 
-struct B {
-    c: C,
+struct Inner {
+    a: String,
 }
 
-struct C {
-    a: [3]A,
+struct String {
+    str: [10]u8,
+}
+
+fn get_state(a: u8) State {
+    mut s: State;
+    //s.a[0] = 2;
+    s.a = 2;
+    s.b = 2;
+    s.c = -56;
+    s.d = 2;
+    s.e.a.str[9] = 11;
+    return s;
+}
+
+fn main() void {
+    std.writesinteger(get_state(1).e.a.str[9] as i64 + get_state(1).c);
 }

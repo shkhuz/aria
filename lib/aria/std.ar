@@ -15,7 +15,7 @@ fn writedigit(digit: u8) void {
 
 fn writesinteger(n: i64) void {
     if (n < 0) writechar('-');
-    writeuinteger((n) as u64);
+    writeuinteger((-n) as u64);
 }
 
 fn writeuinteger(n: u64) void {

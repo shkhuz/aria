@@ -335,6 +335,9 @@ typedef struct {
     // Used for checking aggregate dependencies.
     AstNode** deps_on;
     CycleColor color;
+    // Only for immediate children, not
+    // set for nested aggregates.
+    bool contains_array;
 } AstNodeStruct;
 
 typedef enum {

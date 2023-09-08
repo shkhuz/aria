@@ -80,6 +80,7 @@ typedef struct Typespec {
 
         struct {
             struct AstNode* ref;
+            bool pass_by_ref;
         } agg;
 
         struct Typespec* ty;
@@ -111,6 +112,8 @@ bool typespec_is_bool(Typespec* ty);
 bool typespec_is_sized(Typespec* ty);
 bool typespec_is_signed(Typespec* ty);
 bool typespec_is_arrptr(Typespec* ty);
+// Only use after semantic analysis.
+bool typespec_is_pass_by_ref(Typespec* ty);
 u32 typespec_get_bytes(Typespec* ty);
 char* typespec_tostring(Typespec* ty);
 

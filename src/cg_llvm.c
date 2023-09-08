@@ -131,13 +131,21 @@ static void cg_function_header(CgCtx* c, AstNode* header, bool should_mangle) {
         cg_get_llvm_type(c, header->funch.params[i]->typespec);
         bufpush(param_llvmtypes, header->funch.params[i]->typespec->llvmtype);
     }
-    LLVMTypeRef ret_llvmtype = cg_get_llvm_type(c, header->typespec->func.ret_typespec);
+    LLVMTypeRef ret_llvmtype = NULL;
+    bool ret_by_ref = false;
+    if (typespec_is_pass_by_ref(header->typespec->func.ret_typespec)) {
+        ret_by_ref = true;
+        ret_llvmtype = cg_get_llvm_type(c, predef_typespecs.void_type->ty);
+        bufpush(param_llvmtypes, c->llvmptrtype);
+    } else {
+        ret_llvmtype = cg_get_llvm_type(c, header->typespec->func.ret_typespec);
+    }
     header->funch.ret_typespec->typespec->llvmtype = ret_llvmtype;
 
     header->typespec->llvmtype = LLVMFunctionType(
         ret_llvmtype,
         param_llvmtypes,
-        buflen(header->funch.params),
+        ret_by_ref ? buflen(header->funch.params)+1 : buflen(header->funch.params),
         false);
 }
 
@@ -328,6 +336,10 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                 ? astnode->funcc.callee->typespec->ptr.child
                 : astnode->funcc.ref->funcdef.header->typespec;
 
+            bool ret_by_ref = false;
+            if (typespec_is_pass_by_ref(func_ty->func.ret_typespec)) {
+                ret_by_ref = true;
+            }
             LLVMValueRef* arg_llvmvalues = NULL;
             if (buflen(astnode->funcc.args) != 0) {
                 bufloop(astnode->funcc.args, i) {
@@ -339,6 +351,11 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                         NULL));
                 }
             }
+            LLVMValueRef out = NULL;
+            if (ret_by_ref) {
+                out = LLVMBuildAlloca(c->llvmbuilder, cg_get_llvm_type(c, func_ty->func.ret_typespec), "");
+                bufpush(arg_llvmvalues, out);
+            }
 
             astnode->typespec->llvmtype = cg_get_llvm_type(c, func_ty->func.ret_typespec);
             astnode->llvmvalue = LLVMBuildCall2(
@@ -346,8 +363,12 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                 func_ty->llvmtype,
                 callee_llvmvalue,
                 arg_llvmvalues,
-                buflen(astnode->funcc.args),
+                ret_by_ref ? buflen(astnode->funcc.args)+1 : buflen(astnode->funcc.args),
                 "");
+            if (ret_by_ref) {
+                //LLVMBuildLoad2(c->llvmbuilder, astnode->typespec->llvmtype, out, "");
+                astnode->llvmvalue = out;
+            }
         } break;
 
         case ASTNODE_SYMBOL: {
@@ -663,7 +684,6 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                         field_idx,
                         lvalue,
                         cg_get_llvm_type(c, astnode->typespec));
-                return astnode->llvmvalue;
             }
         } break;
 
@@ -960,7 +980,18 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                     false,
                     astnode->ret.ref->typespec->func.ret_typespec,
                     NULL);
-                astnode->llvmvalue = LLVMBuildRet(c->llvmbuilder, child_llvmvalue);
+                AstNode* func = astnode->ret.ref;
+                if (typespec_is_pass_by_ref(func->typespec->func.ret_typespec)) {
+                    astnode->llvmvalue = LLVMBuildStore(
+                        c->llvmbuilder,
+                        child_llvmvalue,
+                        LLVMGetParam(
+                            func->llvmvalue,
+                            buflen(func->typespec->func.params)));
+                    LLVMBuildRetVoid(c->llvmbuilder);
+                } else {
+                    astnode->llvmvalue = LLVMBuildRet(c->llvmbuilder, child_llvmvalue);
+                }
             } else {
                 astnode->llvmvalue = LLVMBuildRetVoid(c->llvmbuilder);
             }
@@ -968,15 +999,21 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
 
         case ASTNODE_FUNCTION_DEF: {
             c->current_func = astnode;
-            AstNodeFunctionHeader* header = &astnode->funcdef.header->funch;
+            AstNode* header = astnode->funcdef.header;
             LLVMBasicBlockRef entry = LLVMAppendBasicBlock(astnode->llvmvalue, "entry");
             cg_place_builder_at(c, entry);
 
-            AstNode** params = header->params;
+            AstNode** params = header->funch.params;
             usize params_len = buflen(params);
+            usize actual_params_len = params_len;
+            bool ret_by_ref = false;
+            if (typespec_is_pass_by_ref(header->typespec->func.ret_typespec)) {
+                actual_params_len++;
+                ret_by_ref = true;
+            }
             LLVMValueRef* param_llvmvalues = NULL;
-            if (params_len != 0) {
-                param_llvmvalues = (LLVMValueRef*)malloc(sizeof(LLVMValueRef) * params_len);
+            if (actual_params_len != 0) {
+                param_llvmvalues = (LLVMValueRef*)malloc(sizeof(LLVMValueRef) * actual_params_len);
                 LLVMGetParams(astnode->llvmvalue, param_llvmvalues);
                 for (usize i = 0; i < params_len; i++) {
                     LLVMSetValueName2(
@@ -985,6 +1022,12 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                         params[i]->paramd.identifier->span.end - params[i]->paramd.identifier->span.start);
                     params[i]->llvmvalue = LLVMBuildAlloca(c->llvmbuilder, params[i]->typespec->llvmtype, strcat(params[i]->paramd.name, ".addr"));
                     LLVMBuildStore(c->llvmbuilder, param_llvmvalues[i], params[i]->llvmvalue);
+                }
+                if (ret_by_ref) {
+                    LLVMSetValueName2(
+                        param_llvmvalues[params_len],
+                        "out",
+                        3);
                 }
             }
 

@@ -801,30 +801,46 @@ static void sema_top_level_decls_prec2(SemaCtx* s, AstNode* astnode) {
                     if (dep_on_agg) {
                         bufpush(astnode->strct.deps_on, dep_on_agg);
                     }
+
+                    if (fieldnode->typespec->kind == TS_ARRAY)
+                        astnode->strct.contains_array = true;
                 } else error = true;
             }
         } break;
     }
 }
 
-static AstNode** sema_check_agg_deps(SemaCtx* s, AstNode* astnode) {
+static AstNode** sema_check_agg_deps(SemaCtx* s, AstNode* astnode, bool* out_contains_array) {
     switch (astnode->kind) {
         case ASTNODE_STRUCT: {
-            if (astnode->strct.color == CCWHITE) {
-                astnode->strct.color = CCGREY;
-            } else if (astnode->strct.color == CCGREY) {
-                AstNode** ecycle = NULL;
-                bufpush(ecycle, astnode);
-                return ecycle;
+            switch (astnode->strct.color) {
+                case CCWHITE: {
+                    astnode->strct.color = CCGREY;
+                    bool contains_array = astnode->strct.contains_array;
+                    bufloop(astnode->strct.deps_on, i) {
+                        bool child_contarray = false;
+                        AstNode** child_ecycle = sema_check_agg_deps(s, astnode->strct.deps_on[i], &child_contarray);
+                        if (child_ecycle) {
+                            bufpush(child_ecycle, astnode);
+                            return child_ecycle;
+                        }
+                        if (child_contarray) contains_array = true;
+                    }
+                    if (out_contains_array) *out_contains_array = contains_array;
+                    astnode->typespec->ty->agg.pass_by_ref = contains_array;
+                    astnode->strct.color = CCBLACK;
+                } break;
+
+                case CCGREY: {
+                    AstNode** ecycle = NULL;
+                    bufpush(ecycle, astnode);
+                    return ecycle;
+                } break;
+
+                case CCBLACK: {
+                    return NULL;
+                } break;
             }
-            bufloop(astnode->strct.deps_on, i) {
-                AstNode** child_ecycle = sema_check_agg_deps(s, astnode->strct.deps_on[i]);
-                if (child_ecycle) {
-                    bufpush(child_ecycle, astnode);
-                    return child_ecycle;
-                }
-            }
-            astnode->strct.color = CCBLACK;
         } break;
     }
     return NULL;
@@ -2247,17 +2263,27 @@ bool sema(SemaCtx* sema_ctxs) {
         SemaCtx* s = &sema_ctxs[i];
         bufloop(s->srcfile->astnodes, j) {
             if (s->srcfile->astnodes[j]->kind == ASTNODE_STRUCT) {
-                AstNode** ecycle = sema_check_agg_deps(s, s->srcfile->astnodes[j]);
+                AstNode** ecycle = sema_check_agg_deps(s, s->srcfile->astnodes[j], NULL);
                 if (ecycle) {
                     Msg msg = msg_with_span(
                         MSG_ERROR,
                         "invalid recursive aggregate",
                         ecycle[0]->span);
+                    // ecycle is reversed, so first element
+                    // is the erroneous aggregate
+                    AstNode* eagg = ecycle[0];
+                    usize actual_start = buflen(ecycle)-1;
                     bufrevloop(ecycle, k) {
+                        if (ecycle[k] != eagg) continue;
+                        actual_start = k;
+                        break;
+                    }
+                    // in reverse, start variable is +1 of starting idx
+                    for (usize k = actual_start+1; k-- > 0;) {
                         msg_addl_thin(
                             &msg,
                             format_string(
-                                k == 0 ? "%s" : (k == buflen(ecycle)-1 ? "%s depends on" : "%s, which depends on"),
+                                k == 0 ? "%s" : "%s, depends on",
                                 ecycle[k]->strct.name));
                     }
                     msg_emit(s, &msg);

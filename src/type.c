@@ -70,6 +70,7 @@ Typespec* typespec_func_new(Typespec** params, Typespec* ret_typespec) {
 Typespec* typespec_struct_new(struct AstNode* astnode) {
     Typespec* ty = typespec_new(TS_STRUCT);
     ty->agg.ref = astnode;
+    ty->agg.pass_by_ref = false;
     return ty;
 }
 
@@ -250,6 +251,16 @@ bool typespec_is_signed(Typespec* ty) {
 
 bool typespec_is_arrptr(Typespec* ty) {
     return ty->kind == TS_PTR && ty->ptr.child->kind == TS_ARRAY;
+}
+
+bool typespec_is_pass_by_ref(Typespec* ty) {
+    switch (ty->kind) {
+        case TS_ARRAY: return true;
+        case TS_STRUCT: return ty->agg.pass_by_ref;
+        case TS_TYPE: return typespec_is_pass_by_ref(ty->ty);
+        default: return false;
+    }
+    return false;
 }
 
 u32 typespec_get_bytes(Typespec* ty) {

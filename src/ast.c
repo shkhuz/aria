@@ -513,6 +513,7 @@ AstNode* astnode_struct_new(
     astnode->strct.fields = fields;
     astnode->strct.deps_on = NULL;
     astnode->strct.color = CCWHITE;
+    astnode->strct.contains_array = false;
     return astnode;
 }
 
