@@ -27,6 +27,11 @@ fn get_state(a: u8) State {
     return s;
 }
 
+fn unreach() noreturn {
+    std.core.exit(1);
+}
+
 fn main() void {
     std.writesinteger(get_state(1).e.a.str[9] as i64 + get_state(1).c);
+    if (false) unreach();
 }

@@ -1882,12 +1882,14 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                         ? astnode->funcdef.body->blk.stmts[buflen(astnode->funcdef.body->blk.stmts)-1]
                         : NULL;
                 if (astnode->typespec->func.ret_typespec->kind != TS_void
-                    && astnode->typespec->func.ret_typespec->kind != TS_noreturn
-                    && (!last_stmt || (last_stmt->kind != ASTNODE_EXPRSTMT || last_stmt->exprstmt->kind != ASTNODE_RETURN))) {
+                        && astnode->typespec->func.ret_typespec->kind != TS_noreturn && (!last_stmt ||
+                        !(last_stmt->kind == ASTNODE_EXPRSTMT && last_stmt->exprstmt->typespec->kind == TS_noreturn))) {
                     Msg msg = msg_with_span(
                         MSG_ERROR,
                         "non-void function does not return a value",
-                        astnode->funcdef.body->blk.rbrace->span);
+                        astnode->span);
+                    msg_addl_thin(&msg, "last statement in a non-void function must be a 'return'");
+                    msg_addl_thin(&msg, "or expression of type 'noreturn'");
                     msg_emit(s, &msg);
                     error = true;
                 }
@@ -2193,7 +2195,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
             Typespec* child = NULL;
             if (astnode->ret.child) {
-                child = sema_astnode(s, astnode->ret.child, NULL);
+                child = sema_astnode(s, astnode->ret.child, func_ret);
                 if (child && sema_verify_isvalue(s, child, AT_DEFAULT_VALUE, astnode->ret.child->span)) {
                 } else return NULL;
             } else child = predef_typespecs.void_type->ty;

@@ -368,6 +368,8 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
             if (ret_by_ref) {
                 //LLVMBuildLoad2(c->llvmbuilder, astnode->typespec->llvmtype, out, "");
                 astnode->llvmvalue = out;
+            } else if (astnode->typespec->kind == TS_noreturn) {
+                LLVMBuildUnreachable(c->llvmbuilder);
             }
         } break;
 
@@ -1046,11 +1048,11 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
             AstNode* last_stmt = astnode->funcdef.body->blk.stmts
                     ? astnode->funcdef.body->blk.stmts[buflen(astnode->funcdef.body->blk.stmts)-1]
                     : NULL;
-            if (astnode->typespec->func.ret_typespec->kind == TS_void
-                && (!last_stmt || (last_stmt->kind != ASTNODE_EXPRSTMT || last_stmt->exprstmt->kind != ASTNODE_RETURN))) {
+            if (astnode->typespec->func.ret_typespec->kind == TS_void && (!last_stmt ||
+                    !(last_stmt->kind == ASTNODE_EXPRSTMT && last_stmt->exprstmt->typespec->kind == TS_noreturn))) {
                 LLVMBuildRetVoid(c->llvmbuilder);
-            }
-            if (astnode->typespec->func.ret_typespec->kind == TS_noreturn) {
+            } else if (astnode->typespec->func.ret_typespec->kind == TS_noreturn && (!last_stmt ||
+                    !(last_stmt->kind == ASTNODE_EXPRSTMT && last_stmt->exprstmt->typespec->kind == TS_noreturn))) {
                 LLVMBuildUnreachable(c->llvmbuilder);
             }
             c->current_func = NULL;
