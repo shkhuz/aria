@@ -1,37 +1,9 @@
 import "std";
 
-struct State {
-    a: u8,
-    b: u64,
-    c: i64,
-    d: u64,
-    e: Inner,
-}
+imm x = [1 as u8, 2, 3];
 
-struct Inner {
-    a: String,
-}
-
-struct String {
-    str: [10]u8,
-}
-
-fn get_state(a: u8) State {
-    mut s: State;
-    //s.a[0] = 2;
-    s.a = 2;
-    s.b = 2;
-    s.c = -56;
-    s.d = 2;
-    s.e.a.str[9] = 11;
-    return s;
-}
-
-fn unreach() noreturn {
-    std.core.exit(1);
-}
+fn integer() u16 { return 2343; }
 
 fn main() void {
-    std.writesinteger(get_state(1).e.a.str[9] as i64 + get_state(1).c);
-    if (false) unreach();
+    std.writeuinteger([1 as u16, x[2], integer()][1]);
 }

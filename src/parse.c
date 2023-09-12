@@ -581,14 +581,7 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
     } else if (match(p, TOKEN_LBRACK)) {
         Token* lbrack = p->prev;
         AstNode** elems = parse_args(p, lbrack, TOKEN_RBRACK, true, false);
-
-        Token* rbrack = p->prev;
-        AstNode* elem_type = NULL;
-        if (can_token_start_typespec(p->current)) {
-            elem_type = parse_typespec(p);
-        }
-        return astnode_array_literal_new(lbrack, elems, elem_type, elem_type ? elem_type->span : rbrack->span);
-
+        return astnode_array_literal_new(lbrack, elems, p->prev->span);
     } else if (match(p, TOKEN_LPAREN)) {
         AstNode* expr = parse_expr(p);
         expect_rparen(p);

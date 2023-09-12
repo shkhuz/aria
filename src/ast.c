@@ -131,12 +131,11 @@ AstNode* astnode_char_literal_new(Token* token) {
     return astnode;
 }
 
-AstNode* astnode_array_literal_new(Token* lbrack, AstNode** elems, AstNode* elem_type, Span end) {
+AstNode* astnode_array_literal_new(Token* lbrack, AstNode** elems, Span end) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_ARRAY_LITERAL,
         span_from_two(lbrack->span, end));
     astnode->arrayl.elems = elems;
-    astnode->arrayl.elem_type = elem_type;
     return astnode;
 }
 

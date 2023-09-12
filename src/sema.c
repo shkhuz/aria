@@ -272,14 +272,25 @@ static TypeComparisonInfo sema_are_types_equal(SemaCtx* s, Typespec* from, Types
                             typespec_is_signed(sized))) {
                             return (TypeComparisonInfo){ .result = TC_OK, .final = sized };
                         } else {
-                            Msg msg = msg_with_span(
-                                MSG_ERROR,
-                                format_string_with_one_type(
-                                    "type `%T` cannot fit integer `%s`",
-                                    sized,
-                                    bigint_tostring(&unsized->prim.integer)),
-                                error);
-                            msg_emit(s, &msg);
+                            if (from == unsized) {
+                                Msg msg = msg_with_span(
+                                    MSG_ERROR,
+                                    format_string_with_one_type(
+                                        "integer `%s` cannot fit into type `%T`",
+                                        to,
+                                        bigint_tostring(&from->prim.integer)),
+                                    error);
+                                msg_emit(s, &msg);
+                            } else {
+                                Msg msg = msg_with_span(
+                                    MSG_ERROR,
+                                    format_string_with_one_type(
+                                        "type `%T` cannot fit value of integer `%s`",
+                                        from,
+                                        bigint_tostring(&to->prim.integer)),
+                                    error);
+                                msg_emit(s, &msg);
+                            }
                             return (TypeComparisonInfo){ .result = TC_ERROR_HANDLED, .final = NULL };
                         }
                     } else if (typespec_is_signed(from) == typespec_is_signed(to)) {
@@ -685,13 +696,20 @@ static Typespec* sema_function_header(SemaCtx* s, AstNodeFunctionHeader* header)
 }
 
 static bool sema_check_astnode_comptime(SemaCtx* s, AstNode* astnode) {
-    bool comptime = false;
     switch (astnode->kind) {
         case ASTNODE_INTEGER_LITERAL:
         case ASTNODE_STRING_LITERAL:
         case ASTNODE_CHAR_LITERAL:
         case ASTNODE_BUILTIN_SYMBOL:
             return true;
+        case ASTNODE_ARRAY_LITERAL: {
+            bufloop(astnode->arrayl.elems, i) {
+                if (!sema_check_astnode_comptime(s, astnode->arrayl.elems[i])) {
+                    return false;
+                }
+            }
+            return true;
+        } break;
         case ASTNODE_ARITH_BINOP: return sema_check_astnode_comptime(s, astnode->arthbin.left) && sema_check_astnode_comptime(s, astnode->arthbin.right);
         case ASTNODE_UNOP: {
             if (astnode->unop.kind == UNOP_NEG) {
@@ -699,16 +717,17 @@ static bool sema_check_astnode_comptime(SemaCtx* s, AstNode* astnode) {
             }
         } break;
         case ASTNODE_CAST: return sema_check_astnode_comptime(s, astnode->cast.left);
+
+        // This case with not return and generate a compile error
+        default: {} break;
     }
 
-    if (!comptime) {
-        Msg msg = msg_with_span(
-            MSG_ERROR,
-            "not a compile-time known value",
-            astnode->span);
-        msg_emit(s, &msg);
-    }
-    return comptime;
+    Msg msg = msg_with_span(
+        MSG_ERROR,
+        "not a compile-time known value",
+        astnode->span);
+    msg_emit(s, &msg);
+    return false;
 }
 
 static Typespec* sema_variable_decl(SemaCtx* s, AstNode* astnode) {
@@ -1301,54 +1320,30 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
         } break;
 
         case ASTNODE_ARRAY_LITERAL: {
-            Typespec* elem_annotated = NULL;
-            if (astnode->arrayl.elem_type) {
-                Typespec* typeof_annotated = sema_astnode(s, astnode->arrayl.elem_type, NULL);
-                if (typeof_annotated && sema_verify_istype(s, typeof_annotated, AT_STORAGE_TYPE, astnode->arrayl.elem_type->span)) {
-                    elem_annotated = typeof_annotated->ty;
-                } else return NULL;
-            } else if (target && target->kind == TS_ARRAY) {
-                elem_annotated = target->array.child;
-            }
-
-            if (buflen(astnode->arrayl.elems) == 0 && !elem_annotated) {
-                Msg msg = msg_with_span(
-                    MSG_ERROR,
-                    "cannot infer type of empty array literal",
-                    astnode->span);
-                msg_emit(s, &msg);
-                return NULL;
-            }
-
+            Typespec* final_elem_type = target && target->kind == TS_ARRAY ? target->array.child : NULL;
             if (buflen(astnode->arrayl.elems) != 0) {
                 bool error = false;
                 AstNode** elems = astnode->arrayl.elems;
                 bool unsized_elems = false;
-                Typespec* final_elem_type = NULL;
 
-                if (elem_annotated)
-                    final_elem_type = elem_annotated;
-                else {
-                    final_elem_type = sema_astnode(s, elems[0], NULL);
-                    if (final_elem_type && sema_verify_isvalue(s, final_elem_type, AT_DEFAULT_VALUE, elems[0]->span)) {
-                        if (!typespec_is_sized(final_elem_type)) unsized_elems = true;
-                    } else error = true;
-                }
-
-                for (usize i = elem_annotated ? 0 : 1; i < buflen(elems); i++) {
+                for (usize i = 0; i < buflen(elems); i++) {
                     Typespec* cur_elem_type = sema_astnode(s, elems[i], final_elem_type);
                     if (cur_elem_type && sema_verify_isvalue(s, cur_elem_type, AT_DEFAULT_VALUE, elems[i]->span)) {
                         if (!typespec_is_sized(cur_elem_type)) unsized_elems = true;
-                        if (sema_check_types_equal(s, cur_elem_type, final_elem_type, false, elems[i]->span)) {
-                            elems[i]->typespec = final_elem_type;
-                        } else error = true;
+                        if (!final_elem_type) final_elem_type = cur_elem_type;
+                        else {
+                            Typespec* final = sema_check_types_equal(s, cur_elem_type, final_elem_type, false, elems[i]->span);
+                            if (final) final_elem_type = final;
+                            else error = true;
+                        }
                     } else error = true;
                 }
+                if (error) return NULL;
 
                 if (unsized_elems && (final_elem_type == NULL || (final_elem_type && !typespec_is_sized(final_elem_type)))) {
                     Msg msg = msg_with_span(
                         MSG_ERROR,
-                        elem_annotated ? "elements and annotated type are unsized" : "elements are unsized and no type annotation provided",
+                        "elements are unsized and no type annotation provided",
                         astnode->span);
                     msg_emit(s, &msg);
                     error = true;
@@ -1358,9 +1353,16 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                 bigint size = bigint_new_u64(buflen(elems));
                 astnode->typespec = typespec_array_new(typespec_unsized_integer_new(size), final_elem_type);
                 return astnode->typespec;
-            } else {
-                astnode->typespec = typespec_array_new(typespec_unsized_integer_new(BIGINT_ZERO), elem_annotated);
+            } else if (final_elem_type) {
+                astnode->typespec = typespec_array_new(typespec_unsized_integer_new(BIGINT_ZERO), final_elem_type);
                 return astnode->typespec;
+            } else {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    "cannot infer type of empty array literal",
+                    astnode->span);
+                msg_emit(s, &msg);
+                return NULL;
             }
         } break;
 

@@ -70,7 +70,6 @@ typedef struct {
 
 typedef struct {
     AstNode** elems;
-    AstNode* elem_type;
 } AstNodeArrayLiteral;
 
 typedef struct {
@@ -462,7 +461,7 @@ AstNode* astnode_field_in_literal_new(Token* start, Token* key, AstNode* value);
 AstNode* astnode_integer_literal_new(Token* token, bigint val);
 AstNode* astnode_string_literal_new(Token* token);
 AstNode* astnode_char_literal_new(Token* token);
-AstNode* astnode_array_literal_new(Token* lbrack, AstNode** elems, AstNode* elem_type, Span end);
+AstNode* astnode_array_literal_new(Token* lbrack, AstNode** elems, Span end);
 AstNode* astnode_tuple_literal_new(Token* start, AstNode** elems, Token* end);
 AstNode* astnode_aggregate_literal_new(AstNode* typespec, AstNode** fields, Token* end);
 

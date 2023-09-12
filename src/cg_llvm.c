@@ -330,6 +330,25 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                     false);
         } break;
 
+        case ASTNODE_ARRAY_LITERAL: {
+            LLVMValueRef array_llvmvalue = LLVMGetUndef(cg_get_llvm_type(c, astnode->typespec));
+            bufloop(astnode->arrayl.elems, i) {
+                LLVMValueRef child = cg_astnode(c, astnode->arrayl.elems[i], false, astnode->typespec->array.child, NULL);
+                array_llvmvalue = LLVMBuildInsertValue(
+                    c->llvmbuilder,
+                    array_llvmvalue,
+                    child,
+                    i,
+                    "");
+            }
+            if (lvalue) {
+                astnode->llvmvalue = LLVMBuildAlloca(c->llvmbuilder, cg_get_llvm_type(c, astnode->typespec), "");
+                LLVMBuildStore(c->llvmbuilder, array_llvmvalue, astnode->llvmvalue);
+            } else {
+                astnode->llvmvalue = array_llvmvalue;
+            }
+        } break;
+
         case ASTNODE_FUNCTION_CALL: {
             LLVMValueRef callee_llvmvalue = cg_astnode(c, astnode->funcc.callee, false, NULL, NULL);
             Typespec* func_ty = astnode->funcc.callee->typespec->kind == TS_PTR
@@ -366,8 +385,10 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                 ret_by_ref ? buflen(astnode->funcc.args)+1 : buflen(astnode->funcc.args),
                 "");
             if (ret_by_ref) {
-                //LLVMBuildLoad2(c->llvmbuilder, astnode->typespec->llvmtype, out, "");
                 astnode->llvmvalue = out;
+                if (!lvalue) {
+                    astnode->llvmvalue = LLVMBuildLoad2(c->llvmbuilder, astnode->typespec->llvmtype, out, "");
+                }
             } else if (astnode->typespec->kind == TS_noreturn) {
                 LLVMBuildUnreachable(c->llvmbuilder);
             }
