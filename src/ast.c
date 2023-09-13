@@ -376,6 +376,28 @@ AstNode* astnode_cmp_binop_new(CmpBinopKind kind, Token* op, AstNode* left, AstN
     return astnode;
 }
 
+AstNode* astnode_bitlg_binop_new(BitLgBinopKind kind, Token* op, AstNode* left, AstNode* right) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_BITLG_BINOP,
+        span_from_two(left->span, right->span));
+    astnode->short_span = op->span;
+    astnode->bitlbin.kind = kind;
+    astnode->bitlbin.left = left;
+    astnode->bitlbin.right = right;
+    return astnode;
+}
+
+AstNode* astnode_bitsh_binop_new(BitShBinopKind kind, Token* op, AstNode* left, AstNode* right) {
+    AstNode* astnode = astnode_alloc(
+        ASTNODE_BITSH_BINOP,
+        span_from_two(left->span, right->span));
+    astnode->short_span = op->span;
+    astnode->bitsbin.kind = kind;
+    astnode->bitsbin.left = left;
+    astnode->bitsbin.right = right;
+    return astnode;
+}
+
 AstNode* astnode_assign_new(Token* equal, AstNode* left, Span left_span, AstNode* right) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_ASSIGN,
@@ -539,7 +561,22 @@ char* astnode_get_name(AstNode* astnode) {
         case ASTNODE_IMPORT:
             return astnode->import.name;
 
+        case ASTNODE_UNOP:
+            return span_tostring(astnode->short_span);
+
         case ASTNODE_ARITH_BINOP:
+            return span_tostring(astnode->short_span);
+
+        case ASTNODE_BOOL_BINOP:
+            return span_tostring(astnode->short_span);
+
+        case ASTNODE_CMP_BINOP:
+            return span_tostring(astnode->short_span);
+
+        case ASTNODE_BITLG_BINOP:
+            return span_tostring(astnode->short_span);
+
+        case ASTNODE_BITSH_BINOP:
             return span_tostring(astnode->short_span);
 
         case ASTNODE_IF:

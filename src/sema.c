@@ -1294,6 +1294,7 @@ static bool sema_check_ctrlflow_for_comptimeonly_val(SemaCtx* s, bool error, Ast
 static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
     switch (astnode->kind) {
         case ASTNODE_INTEGER_LITERAL: {
+            // TODO: check for `target`
             if (sema_check_bigint_overflow(s, &astnode->intl.val, astnode->span)) {
                 return NULL;
             } else {
@@ -1412,6 +1413,22 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                     } else return NULL;
                 } break;
 
+                case UNOP_BITNOT: {
+                    if (child && sema_verify_isvalue(s, child, AT_DEFAULT_VALUE, astnode->unop.child->span)) {
+                        if (typespec_is_sized_integer(child)) {
+                            astnode->typespec = child;
+                            return astnode->typespec;
+                        } else {
+                            Msg msg = msg_with_span(
+                                MSG_ERROR,
+                                format_string_with_one_type("invalid operand to '~': `%T`; expected sized integer", child),
+                                astnode->short_span);
+                            msg_emit(s, &msg);
+                            return NULL;
+                        }
+                    } else return NULL;
+                } break;
+
                 case UNOP_ADDR: {
                     if (child && sema_verify_isvalue(s, child, AT_RUNTIME|AT_FUNC/*TODO: check error handling*/, astnode->unop.child->span)) {
                         if (sema_check_is_lvalue(s, astnode->unop.child)) {
@@ -1491,6 +1508,14 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             return error ? NULL : astnode->typespec;
         } break;
 
+        #define sema_binop_invalid_operands(left, right) { \
+                Msg msg = msg_with_span( \
+                    MSG_ERROR, \
+                    format_string_with_two_types("invalid operands to '%s': `%T` and `%T`", left, right, astnode_get_name(astnode)), \
+                    astnode->short_span); \
+                msg_emit(s, &msg); \
+            }
+
         case ASTNODE_ARITH_BINOP: {
             Typespec* left = sema_astnode(s, astnode->arthbin.left, NULL);
             Typespec* right = sema_astnode(s, astnode->arthbin.right, NULL);
@@ -1504,13 +1529,6 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                     bool right_is_unsized_integer = typespec_is_unsized_integer(right);
                     bool left_is_anyint = left_is_sized_integer || left_is_unsized_integer;
                     bool right_is_anyint = right_is_sized_integer || right_is_unsized_integer;
-
-                    #define sema_arith_binop_invalid_operands(left, right) \
-                        Msg msg = msg_with_span( \
-                            MSG_ERROR, \
-                            format_string_with_two_types("invalid operands to '%s': `%T` and `%T`", left, right, astnode_get_name(astnode)), \
-                            astnode->short_span); \
-                        msg_emit(s, &msg); \
 
                     if (left_is_anyint && right_is_anyint) {
                         if (left_is_sized_integer && right_is_sized_integer) {
@@ -1586,7 +1604,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
                         astnode->typespec = left;
                         return astnode->typespec;
                     } else {
-                        sema_arith_binop_invalid_operands(left, right);
+                        sema_binop_invalid_operands(left, right);
                         return NULL;
                     }
                 }
@@ -1611,7 +1629,6 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
         } break;
 
         case ASTNODE_CMP_BINOP: {
-            // TODO: fix this so it only accepts integers for (</>)=
             Typespec* left = sema_astnode(s, astnode->cmpbin.left, NULL);
             Typespec* right = sema_astnode(s, astnode->cmpbin.right, NULL);
             if (left && right) {
@@ -1683,7 +1700,95 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
                 } else return NULL;
             } else return NULL;
+        } break;
 
+        case ASTNODE_BITLG_BINOP: {
+            Typespec* left = sema_astnode(s, astnode->bitlbin.left, NULL);
+            Typespec* right = sema_astnode(s, astnode->bitlbin.right, NULL);
+            if (left && right) {
+                bool left_valid = sema_verify_isvalue(s, left, AT_DEFAULT_VALUE, astnode->bitlbin.left->span);
+                bool right_valid = sema_verify_isvalue(s, right, AT_DEFAULT_VALUE, astnode->bitlbin.right->span);
+                if (left_valid && right_valid) {
+                    if (typespec_is_integer(left) && typespec_is_integer(right)) {
+                        if (typespec_is_unsized_integer(left) && typespec_is_unsized_integer(right)) {
+                            astnode->typespec = left;
+                        } else if (typespec_is_unsized_integer(left) || typespec_is_unsized_integer(right)) {
+                            astnode->typespec = sema_check_one_unsized_one_sized_integer_operand(
+                                    s,
+                                    left,
+                                    right,
+                                    astnode->short_span);
+                        } else {
+                            astnode->typespec = sema_check_two_sized_integer_operands(
+                                    s,
+                                    left,
+                                    right,
+                                    astnode->short_span);
+                        }
+                    } else sema_binop_invalid_operands(left, right);
+                    return astnode->typespec;
+                } else return NULL;
+            } else return NULL;
+        } break;
+
+        case ASTNODE_BITSH_BINOP: {
+            Typespec* left = sema_astnode(s, astnode->bitsbin.left, target);
+            Typespec* right = sema_astnode(s, astnode->bitsbin.right, NULL);
+            if (left && right) {
+                bool left_valid = sema_verify_isvalue(s, left, AT_DEFAULT_VALUE, astnode->bitsbin.left->span);
+                bool right_valid = sema_verify_isvalue(s, right, AT_DEFAULT_VALUE, astnode->bitsbin.right->span);
+                if (left_valid && right_valid) {
+                    if (typespec_is_integer(left) && typespec_is_integer(right)) {
+                        usize left_bits;
+                        if (typespec_is_sized_integer(left)) {
+                            left_bits = typespec_get_bytes(left) * 8;
+                        } else {
+                            Msg msg = msg_with_span(
+                                MSG_ERROR,
+                                format_string_with_one_type("left operand needs to be a sized integer, got `%T`", left),
+                                astnode->short_span);
+                            msg_emit(s, &msg);
+                            return NULL;
+                        }
+
+                        if (typespec_is_sized_integer(right)) {
+                            if (typespec_is_signed(right)) {
+                                Msg msg = msg_with_span(
+                                    MSG_ERROR,
+                                    format_string_with_one_type("expected unsigned right operand, got `%T`", right),
+                                    astnode->short_span);
+                                msg_emit(s, &msg);
+                                return NULL;
+                            }
+                        } else {
+                            if (right->prim.integer.neg) {
+                                Msg msg = msg_with_span(
+                                    MSG_ERROR,
+                                    format_string("cannot shift by `%s`", bigint_tostring(&right->prim.integer)),
+                                    astnode->short_span);
+                                msg_emit(s, &msg);
+                                return NULL;
+                            } else if (right->prim.integer.d[0] >= left_bits) {
+                                Msg msg = msg_with_span(
+                                    MSG_ERROR,
+                                    "shift value greater/equal to number of bits",
+                                    astnode->short_span);
+                                msg_addl_thin(
+                                    &msg,
+                                    format_string(
+                                        "left operand occupies %lu bits but shifting by %lu",
+                                        left_bits,
+                                        right->prim.integer.d[0]));
+                                msg_emit(s, &msg);
+                                return NULL;
+                            }
+                        }
+
+                        astnode->typespec = left;
+                        return astnode->typespec;
+                    } else sema_binop_invalid_operands(left, right);
+                } else return NULL;
+            } else return NULL;
         } break;
 
         case ASTNODE_ASSIGN: {

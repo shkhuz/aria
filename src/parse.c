@@ -626,12 +626,13 @@ static AstNode* parse_suffix_expr(ParseCtx* p) {
 }
 
 static AstNode* parse_unop_expr(ParseCtx* p) {
-    if (match(p, TOKEN_MINUS) || match(p, TOKEN_BANG) || match(p, TOKEN_AMP)) {
+    if (match(p, TOKEN_MINUS) || match(p, TOKEN_BANG) || match(p, TOKEN_TILDE) || match(p, TOKEN_AMP)) {
         Token* op = p->prev;
         UnopKind kind;
         switch (op->kind) {
             case TOKEN_MINUS: kind = UNOP_NEG; break;
             case TOKEN_BANG:  kind = UNOP_BOOLNOT; break;
+            case TOKEN_TILDE: kind = UNOP_BITNOT; break;
             case TOKEN_AMP:   kind = UNOP_ADDR; break;
         }
         AstNode* child = parse_unop_expr(p);
@@ -683,8 +684,41 @@ static AstNode* parse_arithadd_binop_expr(ParseCtx* p) {
     return left;
 }
 
-static AstNode* parse_cmp_binop_expr(ParseCtx* p) {
+static AstNode* parse_bitshift_binop_expr(ParseCtx* p) {
     AstNode* left = parse_arithadd_binop_expr(p);
+    while (match(p, TOKEN_DOUBLE_LANGBR) || match(p, TOKEN_DOUBLE_RANGBR)) {
+        Token* op = p->prev;
+        BitShBinopKind kind;
+        switch (op->kind) {
+            case TOKEN_DOUBLE_LANGBR: kind = BITSH_BINOP_LEFT; break;
+            case TOKEN_DOUBLE_RANGBR: kind = BITSH_BINOP_RIGHT; break;
+            default: assert(0); break;
+        }
+        AstNode* right = parse_arithadd_binop_expr(p);
+        left = astnode_bitsh_binop_new(kind, op, left, right);
+    }
+    return left;
+}
+
+static AstNode* parse_bitlogic_binop_expr(ParseCtx* p) {
+    AstNode* left = parse_bitshift_binop_expr(p);
+    while (match(p, TOKEN_AMP) || match(p, TOKEN_PIPE) || match(p, TOKEN_CARET)) {
+        Token* op = p->prev;
+        BitLgBinopKind kind;
+        switch (op->kind) {
+            case TOKEN_AMP:   kind = BITLG_BINOP_AND; break;
+            case TOKEN_PIPE:  kind = BITLG_BINOP_OR; break;
+            case TOKEN_CARET: kind = BITLG_BINOP_XOR; break;
+            default: assert(0); break;
+        }
+        AstNode* right = parse_bitshift_binop_expr(p);
+        left = astnode_bitlg_binop_new(kind, op, left, right);
+    }
+    return left;
+}
+
+static AstNode* parse_cmp_binop_expr(ParseCtx* p) {
+    AstNode* left = parse_bitlogic_binop_expr(p);
     while (match(p, TOKEN_DOUBLE_EQUAL)
            || match(p, TOKEN_BANG_EQUAL)
            || match(p, TOKEN_LANGBR)
@@ -702,7 +736,7 @@ static AstNode* parse_cmp_binop_expr(ParseCtx* p) {
             case TOKEN_RANGBR_EQUAL: kind = CMP_BINOP_GE; break;
             default: assert(0); break;
         }
-        AstNode* right = parse_arithadd_binop_expr(p);
+        AstNode* right = parse_bitlogic_binop_expr(p);
         left = astnode_cmp_binop_new(kind, op, left, right);
     }
     return left;
@@ -743,7 +777,12 @@ static AstNode* parse_assign_expr(ParseCtx* p) {
                 || match(p, TOKEN_MINUS_EQUAL)
                 || match(p, TOKEN_STAR_EQUAL)
                 || match(p, TOKEN_FSLASH_EQUAL)
-                || match(p, TOKEN_PERC_EQUAL))
+                || match(p, TOKEN_PERC_EQUAL)
+                || match(p, TOKEN_AMP_EQUAL)
+                || match(p, TOKEN_PIPE_EQUAL)
+                || match(p, TOKEN_CARET_EQUAL)
+                || match(p, TOKEN_DOUBLE_LANGBR_EQUAL)
+                || match(p, TOKEN_DOUBLE_RANGBR_EQUAL))
             parse_assign = true;
     }
 
@@ -751,11 +790,16 @@ static AstNode* parse_assign_expr(ParseCtx* p) {
         Token* op = p->prev;
         AstNode* right = parse_boolor_binop_expr(p);
         switch (op->kind) {
-            case TOKEN_PLUS_EQUAL:      right = astnode_arith_binop_new(ARITH_BINOP_ADD, op, left, right); break;
-            case TOKEN_MINUS_EQUAL:     right = astnode_arith_binop_new(ARITH_BINOP_SUB, op, left, right); break;
-            case TOKEN_STAR_EQUAL:      right = astnode_arith_binop_new(ARITH_BINOP_MUL, op, left, right); break;
-            case TOKEN_FSLASH_EQUAL:    right = astnode_arith_binop_new(ARITH_BINOP_DIV, op, left, right); break;
-            case TOKEN_PERC_EQUAL:      right = astnode_arith_binop_new(ARITH_BINOP_REM, op, left, right); break;
+            case TOKEN_PLUS_EQUAL:          right = astnode_arith_binop_new(ARITH_BINOP_ADD,   op, left, right); break;
+            case TOKEN_MINUS_EQUAL:         right = astnode_arith_binop_new(ARITH_BINOP_SUB,   op, left, right); break;
+            case TOKEN_STAR_EQUAL:          right = astnode_arith_binop_new(ARITH_BINOP_MUL,   op, left, right); break;
+            case TOKEN_FSLASH_EQUAL:        right = astnode_arith_binop_new(ARITH_BINOP_DIV,   op, left, right); break;
+            case TOKEN_PERC_EQUAL:          right = astnode_arith_binop_new(ARITH_BINOP_REM,   op, left, right); break;
+            case TOKEN_AMP_EQUAL:           right = astnode_bitlg_binop_new(BITLG_BINOP_AND,   op, left, right); break;
+            case TOKEN_PIPE_EQUAL:          right = astnode_bitlg_binop_new(BITLG_BINOP_OR,    op, left, right); break;
+            case TOKEN_CARET_EQUAL:         right = astnode_bitlg_binop_new(BITLG_BINOP_XOR,   op, left, right); break;
+            case TOKEN_DOUBLE_LANGBR_EQUAL: right = astnode_bitsh_binop_new(BITSH_BINOP_LEFT,  op, left, right); break;
+            case TOKEN_DOUBLE_RANGBR_EQUAL: right = astnode_bitsh_binop_new(BITSH_BINOP_RIGHT, op, left, right); break;
         }
         left = astnode_assign_new(op, left, left ? left->span : underscore->span, right);
     }

@@ -1,9 +1,7 @@
 import "std";
 
-imm x = [1 as u8, 2, 3];
-
-fn integer() u16 { return 2343; }
-
 fn main() void {
-    std.writeuinteger([1 as u16, x[2], integer()][1]);
+    mut a: u8 = 8;
+    a >>= 8;
+    std.writeuinteger(a);
 }

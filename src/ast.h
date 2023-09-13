@@ -199,6 +199,7 @@ typedef struct {
 typedef enum {
     UNOP_NEG,
     UNOP_BOOLNOT,
+    UNOP_BITNOT,
     UNOP_ADDR,
 } UnopKind;
 
@@ -256,6 +257,27 @@ typedef struct {
     CmpBinopKind kind;
     Typespec* peerres;
 } AstNodeCmpBinop;
+
+typedef enum {
+    BITLG_BINOP_AND,
+    BITLG_BINOP_OR,
+    BITLG_BINOP_XOR,
+} BitLgBinopKind;
+
+typedef struct {
+    AstNode* left, *right;
+    BitLgBinopKind kind;
+} AstNodeBitLgBinop;
+
+typedef enum {
+    BITSH_BINOP_LEFT,
+    BITSH_BINOP_RIGHT,
+} BitShBinopKind;
+
+typedef struct {
+    AstNode* left, *right;
+    BitShBinopKind kind;
+} AstNodeBitShBinop;
 
 typedef struct {
     AstNode* left, *right;
@@ -373,6 +395,8 @@ typedef enum {
     ASTNODE_ARITH_BINOP,
     ASTNODE_BOOL_BINOP,
     ASTNODE_CMP_BINOP,
+    ASTNODE_BITLG_BINOP,
+    ASTNODE_BITSH_BINOP,
     ASTNODE_ASSIGN,
     ASTNODE_CAST,
     ASTNODE_IMPORT,
@@ -428,6 +452,8 @@ struct AstNode {
         AstNodeArithBinop arthbin;
         AstNodeBoolBinop boolbin;
         AstNodeCmpBinop cmpbin;
+        AstNodeBitLgBinop bitlbin;
+        AstNodeBitShBinop bitsbin;
         AstNodeAssign assign;
         AstNodeCast cast;
         AstNodeImport import;
@@ -509,6 +535,8 @@ AstNode* astnode_index_new(AstNode* left, AstNode* idx, Token* end);
 AstNode* astnode_arith_binop_new(ArithBinopKind kind, Token* op, AstNode* left, AstNode* right);
 AstNode* astnode_bool_binop_new(BoolBinopKind kind, Token* op, AstNode* left, AstNode* right);
 AstNode* astnode_cmp_binop_new(CmpBinopKind kind, Token* op, AstNode* left, AstNode* right);
+AstNode* astnode_bitlg_binop_new(BitLgBinopKind kind, Token* op, AstNode* left, AstNode* right);
+AstNode* astnode_bitsh_binop_new(BitShBinopKind kind, Token* op, AstNode* left, AstNode* right);
 AstNode* astnode_assign_new(Token* equal, AstNode* left, Span left_span, AstNode* right);
 AstNode* astnode_cast_new(Token* op, AstNode* left, AstNode* right);
 

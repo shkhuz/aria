@@ -295,7 +295,16 @@ LLVMValueRef cg_access_array_element(
 
 LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* target, void* addl_info) {
     assert(astnode->typespec);
-    if (typespec_is_unsized_integer(astnode->typespec) && target && astnode->kind != ASTNODE_IF_BRANCH) {
+    if (typespec_is_unsized_integer(astnode->typespec)
+        && target
+        && astnode->kind != ASTNODE_IF_BRANCH
+        // We don't yet compute bitwise operators at compile-time (some error
+        // messages might be weird because of it), so we don't have the computed result to
+        // return here. Therefore we make LLVM compute it for now, by disallowing
+        // this branch to happen.
+        // TODO: compute bitwise operators at compile-time
+        && astnode->kind != ASTNODE_BITLG_BINOP
+        && astnode->kind != ASTNODE_BITSH_BINOP) {
         astnode->llvmvalue = LLVMConstInt(
                 typespec_is_sized_integer(target) ? cg_get_llvm_type(c, target) : LLVMInt64Type(),
                 astnode->typespec->prim.integer.neg ? (-astnode->typespec->prim.integer.d[0]) : astnode->typespec->prim.integer.d[0],
@@ -305,10 +314,10 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
 
     switch (astnode->kind) {
         case ASTNODE_INTEGER_LITERAL: {
-//            astnode->llvmvalue = LLVMConstInt(
-//                    LLVMIntType(64),
-//                    astnode->intl.val.neg ? (-astnode->intl.val.d[0]) : astnode->intl.val.d[0],
-//                    astnode->intl.val.neg);
+            astnode->llvmvalue = LLVMConstInt(
+                    LLVMIntType(64),
+                    astnode->intl.val.neg ? (-astnode->intl.val.d[0]) : astnode->intl.val.d[0],
+                    astnode->intl.val.neg);
         } break;
 
         case ASTNODE_STRING_LITERAL: {
@@ -562,8 +571,8 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
         } break;
 
         case ASTNODE_CMP_BINOP: {
-            cg_get_llvm_type(c, astnode->typespec);
             cg_get_llvm_type(c, astnode->cmpbin.peerres);
+            cg_get_llvm_type(c, astnode->typespec);
             LLVMValueRef left = cg_astnode(c, astnode->cmpbin.left, false, astnode->cmpbin.peerres, NULL);
             LLVMValueRef right = cg_astnode(c, astnode->cmpbin.right, false, astnode->cmpbin.peerres, NULL);
             LLVMIntPredicate op;
@@ -592,12 +601,51 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                     "");
         } break;
 
+        case ASTNODE_BITLG_BINOP: {
+            cg_get_llvm_type(c, astnode->typespec);
+            LLVMValueRef left = cg_astnode(c, astnode->bitlbin.left, false, astnode->typespec, NULL);
+            LLVMValueRef right = cg_astnode(c, astnode->bitlbin.right, false, astnode->typespec, NULL);
+            LLVMOpcode op;
+            switch (astnode->bitlbin.kind) {
+                case BITLG_BINOP_AND: op = LLVMAnd; break;
+                case BITLG_BINOP_OR:  op = LLVMOr; break;
+                case BITLG_BINOP_XOR: op = LLVMXor; break;
+                default: assert(0); break;
+            }
+            astnode->llvmvalue = LLVMBuildBinOp(c->llvmbuilder, op, left, right, "");
+        } break;
+
+        case ASTNODE_BITSH_BINOP: {
+            cg_get_llvm_type(c, astnode->typespec);
+            LLVMValueRef left = cg_astnode(c, astnode->bitsbin.left, false, astnode->typespec, NULL);
+            // Here, we need to make the right operand type in LLVM equal to left operand type,
+            // otherwise LLVM will complain.
+            LLVMValueRef right = cg_astnode(
+                c,
+                astnode->bitsbin.right,
+                false,
+                get_predef_integer_type(typespec_get_bytes(astnode->typespec), typespec_is_signed(astnode->bitsbin.right->typespec))->ty,
+                NULL);
+            LLVMOpcode op;
+            switch (astnode->bitsbin.kind) {
+                case BITSH_BINOP_LEFT:  op = LLVMShl; break;
+                case BITSH_BINOP_RIGHT: op = LLVMLShr; break;
+                default: assert(0); break;
+            }
+            astnode->llvmvalue = LLVMBuildBinOp(c->llvmbuilder, op, left, right, "");
+        } break;
+
         case ASTNODE_UNOP: {
             cg_get_llvm_type(c, astnode->typespec);
             switch (astnode->unop.kind) {
                 case UNOP_NEG: {
                     LLVMValueRef child_llvmvalue = cg_astnode(c, astnode->unop.child, false, astnode->typespec, NULL);
                     astnode->llvmvalue = LLVMBuildNeg(c->llvmbuilder, child_llvmvalue, "");
+                } break;
+
+                case UNOP_BITNOT: {
+                    LLVMValueRef child_llvmvalue = cg_astnode(c, astnode->unop.child, false, astnode->typespec, NULL);
+                    astnode->llvmvalue = LLVMBuildNot(c->llvmbuilder, child_llvmvalue, "");
                 } break;
 
                 case UNOP_BOOLNOT: {
@@ -1090,7 +1138,7 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
     // Integer implicit casting
     if (target
         && typespec_is_sized_integer(target)
-        && typespec_is_sized_integer(astnode->typespec)
+        && typespec_is_integer(astnode->typespec)
         && typespec_is_signed(target) == typespec_is_signed(astnode->typespec)) {
         if (typespec_get_bytes(target) > typespec_get_bytes(astnode->typespec)) {
             if (typespec_is_signed(target)) {

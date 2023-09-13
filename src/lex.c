@@ -45,6 +45,14 @@ static Span span_to_current_from(LexCtx* l, const char* from) {
         l->current - l->srcfile->handle.contents);
 }
 
+static bool match(LexCtx* l, char c) {
+    if (*l->current == c) {
+        l->current++;
+        return true;
+    }
+    return false;
+}
+
 static void push_tok(LexCtx* l, TokenKind kind) {
     Token* t = token_new(kind, span_from_start_to_current(l));
     bufpush(l->srcfile->tokens, t);
@@ -56,11 +64,11 @@ static void push_tok_adv(LexCtx* l, TokenKind kind) {
 }
 
 static void push_tok_adv_cond(LexCtx* l, char c, TokenKind matched, TokenKind not_matched) {
-    if (*(l->current+1) == c) {
-        l->current++;
+    l->current++;
+    if (*l->current == c) {
         push_tok_adv(l, matched);
     } else {
-        push_tok_adv(l, not_matched);
+        push_tok(l, not_matched);
     }
 }
 
@@ -195,15 +203,34 @@ void lex(LexCtx* l) {
             case ':': push_tok_adv_cond(l, ':', TOKEN_DOUBLE_COLON, TOKEN_COLON); break;
             case '=': push_tok_adv_cond(l, '=', TOKEN_DOUBLE_EQUAL, TOKEN_EQUAL); break;
             case '!': push_tok_adv_cond(l, '=', TOKEN_BANG_EQUAL, TOKEN_BANG); break;
-            case '<': push_tok_adv_cond(l, '=', TOKEN_LANGBR_EQUAL, TOKEN_LANGBR); break;
-            case '>': push_tok_adv_cond(l, '=', TOKEN_RANGBR_EQUAL, TOKEN_RANGBR); break;
-            case '&': push_tok_adv_cond(l, '&', TOKEN_DOUBLE_AMP, TOKEN_AMP); break;
+            case '&': push_tok_adv_cond(l, '=', TOKEN_AMP_EQUAL, TOKEN_AMP); break;
+            case '|': push_tok_adv_cond(l, '=', TOKEN_PIPE_EQUAL, TOKEN_PIPE); break;
+            case '^': push_tok_adv_cond(l, '=', TOKEN_CARET_EQUAL, TOKEN_CARET); break;
+            case '~': push_tok_adv(l, TOKEN_TILDE); break;
             case '%': push_tok_adv_cond(l, '=', TOKEN_PERC_EQUAL, TOKEN_PERC); break;
             case '+': push_tok_adv_cond(l, '=', TOKEN_PLUS_EQUAL, TOKEN_PLUS); break;
             case '-': push_tok_adv_cond(l, '=', TOKEN_MINUS_EQUAL, TOKEN_MINUS); break;
             case '*': push_tok_adv_cond(l, '=', TOKEN_STAR_EQUAL, TOKEN_STAR); break;
             case '@': push_tok_adv(l, TOKEN_AT); break;
             case '$': push_tok_adv(l, TOKEN_DOLLAR); break;
+
+            case '<': {
+                l->current++;
+                if (match(l, '<')) {
+                    if (match(l, '=')) push_tok(l, TOKEN_DOUBLE_LANGBR_EQUAL);
+                    else push_tok(l, TOKEN_DOUBLE_LANGBR);
+                } else if (match(l, '=')) push_tok(l, TOKEN_LANGBR_EQUAL);
+                else push_tok(l, TOKEN_LANGBR);
+            } break;
+
+            case '>': {
+                l->current++;
+                if (match(l, '>')) {
+                    if (match(l, '=')) push_tok(l, TOKEN_DOUBLE_RANGBR_EQUAL);
+                    else push_tok(l, TOKEN_DOUBLE_RANGBR);
+                } else if (match(l, '=')) push_tok(l, TOKEN_RANGBR_EQUAL);
+                else push_tok(l, TOKEN_RANGBR);
+            } break;
 
             case '/': {
                 if (*(l->current+1) == '/') {

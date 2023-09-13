@@ -90,6 +90,26 @@ void init_global_compiler_state() {
     }
 }
 
+Typespec* get_predef_integer_type(int bytes, bool signd) {
+    if (signd) {
+        switch (bytes) {
+            case 1: return predef_typespecs.i8_type;
+            case 2: return predef_typespecs.i16_type;
+            case 4: return predef_typespecs.i32_type;
+            case 8: return predef_typespecs.i64_type;
+        }
+    } else {
+        switch (bytes) {
+            case 1: return predef_typespecs.u8_type;
+            case 2: return predef_typespecs.u16_type;
+            case 4: return predef_typespecs.u32_type;
+            case 8: return predef_typespecs.u64_type;
+        }
+    }
+    assert(0);
+    return NULL;
+}
+
 CompileCtx compile_new_context(const char* target_triple) {
     CompileCtx c;
     c.mod_tys = NULL;

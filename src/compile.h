@@ -45,6 +45,8 @@ extern StringTokenKindTup* keywords;
 extern StringBuiltinSymbolKindTup* builtin_symbols;
 extern PredefTypespecs predef_typespecs;
 
+Typespec* get_predef_integer_type(int bytes, bool signd);
+
 typedef struct CompileCtx CompileCtx;
 typedef struct Srcfile Srcfile;
 
