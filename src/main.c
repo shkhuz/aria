@@ -45,13 +45,15 @@ int main(int argc, char* argv[]) {
     init_global_compiler_state();
     init_bigint();
 
-    const char* outpath = "a.out";
+    const char* outpath = NULL;
     const char* target_triple = NULL;
+    bool naked = false;
 
     struct option options[] = {
         { "output", required_argument, 0, 'o' },
         { "target", required_argument, 0, 't' },
-        { "help", no_argument, 0, 'h' },
+        { "naked",  no_argument, 0, 0 },
+        { "help",   no_argument, 0, 'h' },
         { 0, 0, 0, 0 },
     };
 
@@ -69,6 +71,10 @@ int main(int argc, char* argv[]) {
                 target_triple = optarg;
             } break;
 
+            case 0: {
+                naked = true;
+            } break;
+
             case 'h': {
                 printf(
                         "Aria language compiler\n"
@@ -76,7 +82,8 @@ int main(int argc, char* argv[]) {
                         "\n"
                         "Options:\n"
                         "  -o, --output=<file>        Place the output into <file>\n"
-                        "  --target=<triple>          Specify a target triple for cross compilation\n"
+                        "  -t, --target=<triple>      Specify a target triple for cross compilation\n"
+                        "  --naked                    Emit an object file, instead of an executable, with no runtime\n"
                         "  --help                     Display this help and exit\n"
                         "\n"
                         );
@@ -92,7 +99,10 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    CompileCtx compile_ctx = compile_new_context(target_triple);
+    CompileCtx compile_ctx = compile_new_context(
+        outpath,
+        target_triple,
+        naked);
     compile_ctx.print_ast = false;
 
     if (optind == argc) {
@@ -104,6 +114,11 @@ int main(int argc, char* argv[]) {
     bool read_error = false;
     for (int i = optind; i < argc; i++) {
         if (strstr(argv[i], ".o") != NULL) {
+            if (naked) {
+                Msg msg = msg_with_no_span(MSG_ERROR, "object files supplied when '--naked' set");
+                _msg_emit(&msg, &compile_ctx);
+                terminate_compilation(&compile_ctx);
+            }
             bufpush(compile_ctx.other_obj_files, argv[i]);
         } else {
             Typespec* mod = read_srcfile(argv[i], NULL, span_none(), &compile_ctx);
@@ -113,12 +128,14 @@ int main(int argc, char* argv[]) {
             }
         }
     }
-    {
+
+    if (!naked) {
         Typespec* mod = read_srcfile("core", "core", span_none(), &compile_ctx);
         if (!mod) {
             read_error = true;
         }
     }
+
     if (read_error) terminate_compilation(&compile_ctx);
 
     compile(&compile_ctx);

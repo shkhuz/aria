@@ -1,7 +1,4 @@
 import "std";
 
 fn main() void {
-    mut a: u8 = 8;
-    a >>= 8;
-    std.writeuinteger(a);
 }

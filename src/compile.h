@@ -52,8 +52,11 @@ typedef struct Srcfile Srcfile;
 
 struct CompileCtx {
     struct Typespec** mod_tys;
-    const char* target_triple;
     char** other_obj_files;
+
+    const char* outpath;
+    const char* target_triple;
+    bool naked;
 
     Msg* msgs;
     bool parsing_error;
@@ -70,7 +73,10 @@ struct CompileCtx {
 
 void init_global_compiler_state();
 
-CompileCtx compile_new_context(const char* target_triple);
+CompileCtx compile_new_context(
+    const char* outpath,
+    const char* target_triple,
+    bool naked);
 void register_msg(CompileCtx* c, Msg msg);
 void compile(CompileCtx* c);
 

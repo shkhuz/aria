@@ -2191,6 +2191,8 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
             Typespec* cond_ty = sema_astnode(s, astnode->whloop.cond, predef_typespecs.bool_type->ty);
             if (cond_ty && sema_verify_isvalue(s, cond_ty, AT_DEFAULT_VALUE, astnode->whloop.cond->span)) {
+                if (sema_check_types_equal(s, cond_ty, predef_typespecs.bool_type->ty, false, astnode->whloop.cond->span)) {
+                } else error = true;
             } else error = true;
 
             Typespec* mainbody_ty = sema_astnode(s, astnode->whloop.mainbody, NULL);
@@ -2225,6 +2227,8 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
             if (astnode->cfor.cond) {
                 Typespec* cond_ty = sema_astnode(s, astnode->cfor.cond, predef_typespecs.bool_type->ty);
                 if (cond_ty && sema_verify_isvalue(s, cond_ty, AT_DEFAULT_VALUE, astnode->cfor.cond->span)) {
+                    if (sema_check_types_equal(s, cond_ty, predef_typespecs.bool_type->ty, false, astnode->cfor.cond->span)) {
+                    } else error = true;
                 } else error = true;
             }
 

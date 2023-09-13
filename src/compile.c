@@ -110,10 +110,15 @@ Typespec* get_predef_integer_type(int bytes, bool signd) {
     return NULL;
 }
 
-CompileCtx compile_new_context(const char* target_triple) {
+CompileCtx compile_new_context(
+        const char* outpath,
+        const char* target_triple,
+        bool naked) {
     CompileCtx c;
     c.mod_tys = NULL;
+    c.outpath = outpath;
     c.target_triple = target_triple;
+    c.naked = naked;
     c.other_obj_files = NULL;
     c.msgs = NULL;
     c.parsing_error = false;
@@ -239,56 +244,62 @@ void compile(CompileCtx* c) {
     c->cg_error = cg(&cg_ctx);
     if (c->cg_error) return;
 
+    if (!c->naked) {
 #if defined(PLATFORM_AMD64)
-    const char* startfile = "_start-x86_64.S";
+        const char* startfile = "_start-x86_64.S";
 #elif defined(PLATFORM_AARCH64)
-    const char* startfile = "_start-aarch64.S";
+        const char* startfile = "_start-aarch64.S";
 #else
-    Msg msg = msg_with_no_span(
-        MSG_ERROR,
-        "unknown platform: no startfile found");
-    _msg_emit(&msg, c);
-    c->cg_error = true;
-    return;
-#endif
-
-    char* startfile_path = NULL;
-    bufstrexpandpush(startfile_path, g_lib_path);
-    bufstrexpandpush(startfile_path, startfile);
-    bufpush(startfile_path, '\0');
-    if (!file_exists(startfile_path)) {
         Msg msg = msg_with_no_span(
             MSG_ERROR,
-            format_string("startfile '%s' not found", startfile_path));
-        msg_emit(c, &msg);
+            "unknown platform: no startfile found");
+        _msg_emit(&msg, c);
+        c->cg_error = true;
         return;
-    }
+#endif
 
-    char** asopts = NULL;
-    bufpush(asopts, "as");
-    bufpush(asopts, "-g");
-    bufpush(asopts, "-o");
-    bufpush(asopts, "_start.o");
-    bufpush(asopts, startfile_path);
-    bufpush(asopts, NULL);
-    if (!run_external_program(c, "as", asopts, "assembler")) return;
-    buffree(asopts);
+        char* startfile_path = NULL;
+        bufstrexpandpush(startfile_path, g_lib_path);
+        bufstrexpandpush(startfile_path, startfile);
+        bufpush(startfile_path, '\0');
+        if (!file_exists(startfile_path)) {
+            Msg msg = msg_with_no_span(
+                MSG_ERROR,
+                format_string("startfile '%s' not found", startfile_path));
+            msg_emit(c, &msg);
+            return;
+        }
 
-    char** ldopts = NULL;
-    bufpush(ldopts, "ld");
-    bufpush(ldopts, "mod.o");
-    bufpush(ldopts, "_start.o");
-    bufloop(c->other_obj_files, i) {
-        bufpush(ldopts, c->other_obj_files[i]);
+        char** asopts = NULL;
+        bufpush(asopts, "as");
+        bufpush(asopts, "-g");
+        bufpush(asopts, "-o");
+        bufpush(asopts, "_start.o");
+        bufpush(asopts, startfile_path);
+        bufpush(asopts, NULL);
+        if (!run_external_program(c, "as", asopts, "assembler")) return;
+        buffree(asopts);
+
+        char** ldopts = NULL;
+        bufpush(ldopts, "ld");
+        if (c->outpath) {
+            bufpush(ldopts, "-o");
+            bufpush(ldopts, (char*)c->outpath);
+        }
+        bufpush(ldopts, "mod.o");
+        bufpush(ldopts, "_start.o");
+        bufloop(c->other_obj_files, i) {
+            bufpush(ldopts, c->other_obj_files[i]);
+        }
+        bufpush(ldopts, NULL);
+        if (!run_external_program(c, "ld", ldopts, "linker")) return;
+        buffree(ldopts);
     }
-    bufpush(ldopts, NULL);
-    if (!run_external_program(c, "ld", ldopts, "linker")) return;
-    buffree(ldopts);
 
     char** rmopts = NULL;
     bufpush(rmopts, "rm");
     bufpush(rmopts, "-f");
-    bufpush(rmopts, "mod.o");
+    if (!c->naked || (c->outpath && strcmp(c->outpath, "mod.o") != 0)) bufpush(rmopts, "mod.o");
     bufpush(rmopts, "_start.o");
     bufpush(rmopts, NULL);
     if (!run_external_program(c, "rm", rmopts, NULL)) return;

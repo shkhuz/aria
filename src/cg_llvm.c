@@ -323,7 +323,7 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
         case ASTNODE_STRING_LITERAL: {
             LLVMValueRef llvmstr = LLVMConstString(
                     astnode->strl.token->str,
-                    buflen(astnode->strl.token->str)-1,
+                    buflen(astnode->strl.token->str),
                     true);
             LLVMValueRef llvmstrloc = LLVMAddGlobal(c->llvmmod, LLVMTypeOf(llvmstr), "");
             LLVMSetLinkage(llvmstrloc, LLVMPrivateLinkage);
@@ -1205,14 +1205,14 @@ static bool init_cg(CgCtx* c) {
     errors = NULL;
     if (error) return true;
 
-    //printf(
-    //        "======== MACHINE INFO ========\n"
-    //        "target: %s, [%s], %d, %d\n",
-    //        LLVMGetTargetName(c->llvmtarget),
-    //        LLVMGetTargetDescription(c->llvmtarget),
-    //        LLVMTargetHasJIT(c->llvmtarget),
-    //        LLVMTargetHasTargetMachine(c->llvmtarget));
-    //printf("host triple: %s\n", LLVMGetDefaultTargetTriple());
+    printf(
+            "======== MACHINE INFO ========\n"
+            "target: %s, [%s], %d, %d\n",
+            LLVMGetTargetName(c->llvmtarget),
+            LLVMGetTargetDescription(c->llvmtarget),
+            LLVMTargetHasJIT(c->llvmtarget),
+            LLVMTargetHasTargetMachine(c->llvmtarget));
+    printf("host triple: %s\n", LLVMGetDefaultTargetTriple());
 
     c->llvmtargetmachine = LLVMCreateTargetMachine(
             c->llvmtarget,
@@ -1296,11 +1296,12 @@ bool cg(CgCtx* c) {
         LLVMObjectFile,
         NULL,
         &objbuf);
-    if (write_bin_file("mod.o", LLVMGetBufferStart(objbuf), LLVMGetBufferSize(objbuf)) != FILEIO_SUCCESS) {
+    const char* outpath = c->compile_ctx->naked && c->compile_ctx->outpath ? c->compile_ctx->outpath : "mod.o";
+    if (write_bin_file(outpath, LLVMGetBufferStart(objbuf), LLVMGetBufferSize(objbuf)) != FILEIO_SUCCESS) {
         Msg msg = msg_with_no_span(
             MSG_ERROR,
-            "cannot emit compiled binary");
-        msg_addl_thin(&msg, "filesystem error in opening file 'mod.o' for writing");
+            "cannot emit compiled object file");
+        msg_addl_thin(&msg, format_string("filesystem error in opening file '%s' for writing", outpath));
         msg_emit(c, &msg);
     }
     LLVMDisposeMemoryBuffer(objbuf);
