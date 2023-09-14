@@ -21,6 +21,12 @@ usize get_bits_for_value(u128 n) {
     return count;
 }
 
+int char_to_digit(char c) {
+    if ('0' <= c && c <= '9') return c - '0';
+    assert(isxdigit(c));
+    return tolower(c) - 'a' + 10;
+}
+
 u64 maxinteger_unsigned(int bytes) {
     switch (bytes) {
         case 1: return UINT8_MAX;

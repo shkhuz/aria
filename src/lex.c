@@ -53,6 +53,10 @@ static bool match(LexCtx* l, char c) {
     return false;
 }
 
+static char peek(LexCtx* l) {
+    return *(l->current+1);
+}
+
 static void push_tok(LexCtx* l, TokenKind kind) {
     Token* t = token_new(kind, span_from_start_to_current(l));
     bufpush(l->srcfile->tokens, t);
@@ -76,12 +80,7 @@ static Token* last_tok(LexCtx* l) {
     return l->srcfile->tokens[buflen(l->srcfile->tokens)-1];
 }
 
-static inline int char_to_digit(char c) {
-    return c - 48;
-}
-
-static bool is_octal_char(LexCtx* l) {
-    char c = *l->current;
+static bool is_octal_digit(char c) {
     if ('0' <= c && c <= '7') {
         return true;
     }
@@ -90,10 +89,10 @@ static bool is_octal_char(LexCtx* l) {
 
 static unsigned char lex_read_octal_escaped_char(LexCtx* l, char c) {
     char r = c - '0';
-    if (!is_octal_char(l)) return r;
+    if (!is_octal_digit(*l->current)) return r;
     r = (r << 3) | (*l->current - '0');
     l->current++;
-    if (!is_octal_char(l)) return r;
+    if (!is_octal_digit(*l->current)) return r;
     r = (r << 3) | (*l->current - '0');
     l->current++;
     return r;
@@ -178,11 +177,54 @@ void lex(LexCtx* l) {
 
             case '0': case '1': case '2': case '3': case '4':
             case '5': case '6': case '7': case '8': case '9': {
-                while (isdigit(*l->current) || *l->current == '_') {
-                    if (*l->current == '_' && !isdigit(*(l->current+1))) break;
-                    l->current++;
+                // '0' = base 10
+                // 'x' = base 16
+                // 'o' = base 8
+                // 'b' = base 2
+                char base = '0';
+                if (*l->current == '0') {
+                    char next = peek(l);
+                    if (next == 'x' || next == 'o' || next == 'b') {
+                        base = next;
+                        l->current += 2;
+                    }
                 }
-                push_tok(l, TOKEN_INTEGER_LITERAL);
+
+                // We don't parse the number into a bigint here because
+                // then we will need to store it inside the token: and because
+                // we store the struct instead of a pointer, bigint maybe
+                // arbitrarily large (larger than 8 bytes needed to store a
+                // pointer) and will waste memory because all other tokens
+                // will also be of the same size, so we defer the parsing to
+                // the parser.
+                // What we do it store the value of the base of the
+                // literal, which can fit into a byte.
+
+                switch (base) {
+                    case '0': {
+                        while (isdigit(*l->current)) l->current++;
+                        push_tok(l, TOKEN_INTEGER_LITERAL);
+                        last_tok(l)->base = 10;
+                    } break;
+
+                    case 'x': {
+                        while (isxdigit(*l->current)) l->current++;
+                        push_tok(l, TOKEN_INTEGER_LITERAL);
+                        last_tok(l)->base = 16;
+                    } break;
+
+                    case 'o': {
+                        while (is_octal_digit(*l->current)) l->current++;
+                        push_tok(l, TOKEN_INTEGER_LITERAL);
+                        last_tok(l)->base = 8;
+                    } break;
+
+                    case 'b': {
+                        while (*l->current == '0' || *l->current == '1') l->current++;
+                        push_tok(l, TOKEN_INTEGER_LITERAL);
+                        last_tok(l)->base = 2;
+                    } break;
+                }
             } break;
 
             case '\"': {
@@ -277,7 +319,7 @@ void lex(LexCtx* l) {
             } break;
 
             case '/': {
-                if (*(l->current+1) == '/') {
+                if (peek(l) == '/') {
                     while (*l->current != '\n' && *l->current != '\0') l->current++;
                 } else {
                     push_tok_adv_cond(l, '=', TOKEN_FSLASH_EQUAL, TOKEN_FSLASH);

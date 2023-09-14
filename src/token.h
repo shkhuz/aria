@@ -91,6 +91,7 @@ typedef struct {
     union {
         char c;
         char* str;
+        int base;
     };
 } Token;
 

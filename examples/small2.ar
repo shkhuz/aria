@@ -1,6 +1,6 @@
 import "std";
 
 fn main() void {
-    mut ptr: [*]*fn() void;
-    "\x2F\10";
+    imm slice: []imm u8 = "Hello world";
+    slice.ptr[0];
 }

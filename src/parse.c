@@ -541,13 +541,13 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         Token* token = p->prev;
         bigint val = bigint_new();
         // TODO: move so that these are only initialized once
-        bigint base = bigint_new_u64(10);
+        bigint base = bigint_new_u64(token->base);
         bigint digit = bigint_new();
 
-        for (usize i = token->span.start; i < token->span.end; i++) {
+        for (usize i = token->base == 10 ? token->span.start : token->span.start+2; i < token->span.end; i++) {
             char c = token->span.srcfile->handle.contents[i];
             if (c != '_') {
-                int d = c - '0';
+                int d = char_to_digit(c);
                 bigint_set_u64(&digit, (u64)d);
                 bigint_mul(&val, &base);
                 bigint_add(&val, &digit);
@@ -556,7 +556,6 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
 
         bigint_free(&digit);
         bigint_free(&base);
-
         return astnode_integer_literal_new(token, val);
 
     } else if (match(p, TOKEN_STRING_LITERAL)) {
@@ -582,6 +581,7 @@ static AstNode* parse_atom_expr(ParseCtx* p) {
         Token* lbrack = p->prev;
         AstNode** elems = parse_args(p, lbrack, TOKEN_RBRACK, true, false);
         return astnode_array_literal_new(lbrack, elems, p->prev->span);
+
     } else if (match(p, TOKEN_LPAREN)) {
         AstNode* expr = parse_expr(p);
         expect_rparen(p);

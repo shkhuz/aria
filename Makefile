@@ -30,7 +30,7 @@ CC := clang
 LD := clang
 
 run: $(EXE_PATH)
-	./$^ -o build/app $(AR_FILE)
+	./$^ $(AR_FILE)
 
 $(EXE_PATH): $(COMPILER_OBJ_FILES)
 	@mkdir -p $(dir $@)

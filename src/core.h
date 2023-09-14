@@ -74,6 +74,7 @@ typedef ssize_t isize;
 usize align_to_pow2(size_t n, size_t pow2);
 usize u64_bitlength(u64 n);
 usize get_bits_for_value(u128 n);
+int char_to_digit(char c);
 u64 maxinteger_unsigned(int bytes);
 u64 maxinteger_signed(int bytes);
 // Checks if a slice is equal in contents to a string, NOT VICE VERSA.
