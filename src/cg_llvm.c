@@ -202,7 +202,7 @@ static void cg_top_level_decls_prec2(CgCtx* c, AstNode* astnode) {
                 astnode->strct.llvmtype,
                 field_llvmtypes,
                 buflen(field_llvmtypes),
-                false);
+                astnode->strct.packed);
         } break;
     }
 }

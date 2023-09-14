@@ -1023,8 +1023,15 @@ static AstNode* parse_astnode_root(ParseCtx* p) {
                 p->current->span);
             msg_emit(p, &msg);
         }
-    } else if (match(p, TOKEN_KEYWORD_STRUCT)) {
-        Token* keyword = p->prev;
+    } else if (match(p, TOKEN_KEYWORD_PACKED) || match(p, TOKEN_KEYWORD_STRUCT)) {
+        Token* packed = NULL;
+        Token* keyword = NULL;
+        if (p->prev->kind == TOKEN_KEYWORD_PACKED) {
+            packed = p->prev;
+            keyword = expect(p, TOKEN_KEYWORD_STRUCT, "expected keyword 'struct'");
+        } else {
+            keyword = p->prev;
+        }
         Token* identifier = expect_identifier(p, "expected identifier");
         Token* lbrace = expect_lbrace(p);
 
@@ -1064,7 +1071,7 @@ static AstNode* parse_astnode_root(ParseCtx* p) {
                 msg_emit(p, &msg);
             }
         }
-        return astnode_struct_new(keyword, identifier, fields, p->prev);
+        return astnode_struct_new(packed, keyword, identifier, fields, p->prev);
     } else if (match(p, TOKEN_KEYWORD_IMM) || match(p, TOKEN_KEYWORD_MUT)) {
         return parse_variable_decl(p, true, true);
     } else if (match(p, TOKEN_KEYWORD_IMPORT)) {

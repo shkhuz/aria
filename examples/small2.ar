@@ -1,9 +1,17 @@
 import "std";
 
+packed struct Game {
+    a: u8,
+    b: u16,
+    c: u8,
+    d: u16,
+}
+
 fn main() void {
     imm arr = ['H', 'e', 'l', 'l', 'o'];
     imm ptr = &arr as []imm u8;
     imm ptrfirst = &ptr[0];
     std.writechar(ptrfirst.*);
     std.writeuinteger(ptr.len);
+    mut g: Game;
 }

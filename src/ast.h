@@ -352,6 +352,7 @@ typedef struct {
     char* name;
     char* mangled_name;
     AstNode** fields;
+    bool packed;
     LLVMTypeRef llvmtype;
     // Used for checking aggregate dependencies.
     AstNode** deps_on;
@@ -564,6 +565,7 @@ AstNode* astnode_extern_variable_new(
 AstNode* astnode_param_new(Token* identifier, AstNode* typespec);
 AstNode* astnode_exprstmt_new(AstNode* expr);
 AstNode* astnode_struct_new(
+    Token* packed,
     Token* keyword,
     Token* identifier,
     AstNode** fields,

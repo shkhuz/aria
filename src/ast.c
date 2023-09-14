@@ -522,16 +522,18 @@ AstNode* astnode_exprstmt_new(AstNode* expr) {
 }
 
 AstNode* astnode_struct_new(
-    Token* keyword,
-    Token* identifier,
-    AstNode** fields,
-    Token* rbrace) {
+        Token* packed,
+        Token* keyword,
+        Token* identifier,
+        AstNode** fields,
+        Token* rbrace) {
     AstNode* astnode = astnode_alloc(
         ASTNODE_STRUCT,
-        span_from_two(keyword->span, rbrace->span));
+        span_from_two(packed ? packed->span : keyword->span, rbrace->span));
     astnode->strct.identifier = identifier;
     astnode->strct.name = token_tostring(identifier);
     astnode->strct.fields = fields;
+    astnode->strct.packed = packed ? true : false;
     astnode->strct.deps_on = NULL;
     astnode->strct.color = CCWHITE;
     astnode->strct.contains_array = false;
