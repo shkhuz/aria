@@ -60,6 +60,19 @@ static bool sema_scope_declare(SemaCtx* s, char* identifier, AstNode* value, Spa
     }
 
     if (found) return false;
+    bufloop(builtin_symbols, i) {
+        if (strcmp(builtin_symbols[i].k, identifier) == 0) {
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                "builtin symbol is redeclared",
+                span);
+            msg_emit(s, &msg);
+            found = true;
+            break;
+        }
+    }
+
+    if (found) return false;
     else {
         bufpush(sema_curscope(s)->decls, (TokenAstNodeTup){
             .key = identifier,
