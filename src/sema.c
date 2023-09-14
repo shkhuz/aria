@@ -1929,7 +1929,7 @@ static Typespec* sema_astnode(SemaCtx* s, AstNode* astnode, Typespec* target) {
 
         case ASTNODE_TYPESPEC_MULTIPTR: {
             Typespec* child = sema_astnode(s, astnode->typemulptr.child, NULL);
-            if (child && sema_verify_istype(s, child, AT_RUNTIME|AT_VOID|AT_FUNC, astnode->typeptr.child->span)) {
+            if (child && sema_verify_istype(s, child, AT_RUNTIME, astnode->typeptr.child->span)) {
                 astnode->typespec = typespec_type_new(typespec_multiptr_new(astnode->typemulptr.immutable, child->ty));
                 return astnode->typespec;
             } else return NULL;

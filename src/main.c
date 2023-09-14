@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
                         "\n"
                         "Options:\n"
                         "  -o, --output=<file>        Place the output into <file>\n"
-                        "  -t, --target=<triple>      Specify a target triple for cross compilation\n"
+                        "  --target=<triple>          Specify a target triple for cross compilation\n"
                         "  --naked                    Emit an object file, instead of an executable, with no runtime\n"
                         "  --help                     Display this help and exit\n"
                         "\n"

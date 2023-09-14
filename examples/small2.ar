@@ -1,4 +1,5 @@
 import "std";
 
 fn main() void {
+    mut ptr: [*]*fn() void;
 }
