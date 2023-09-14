@@ -80,7 +80,49 @@ static inline int char_to_digit(char c) {
     return c - 48;
 }
 
-static char lex_escaped_char(LexCtx* l) {
+static bool is_octal_char(LexCtx* l) {
+    char c = *l->current;
+    if ('0' <= c && c <= '7') {
+        return true;
+    }
+    return false;
+}
+
+static unsigned char lex_read_octal_escaped_char(LexCtx* l, char c) {
+    char r = c - '0';
+    if (!is_octal_char(l)) return r;
+    r = (r << 3) | (*l->current - '0');
+    l->current++;
+    if (!is_octal_char(l)) return r;
+    r = (r << 3) | (*l->current - '0');
+    l->current++;
+    return r;
+}
+
+static unsigned char lex_read_hex_escaped_char(LexCtx* l) {
+    const char* pos = l->current-2;
+    unsigned char c = *l->current;
+    if (!isxdigit(c)) {
+        l->current++;
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            format_string("'\\x' is followed by '%c' which is not a hex digit", c),
+            span_to_current_from(l, pos));
+        fatal_msg_emit(l, &msg);
+    }
+    unsigned char r = 0;
+    for (;; c = *l->current) {
+        l->current++;
+        switch (c) {
+            case '0' ... '9': r = (r << 4) | (c - '0'); continue;
+            case 'a' ... 'f': r = (r << 4) | (c - 'a' + 10); continue;
+            case 'A' ... 'F': r = (r << 4) | (c - 'A' + 10); continue;
+            default: l->current--; return r;
+        }
+    }
+}
+
+static unsigned char lex_escaped_char(LexCtx* l) {
     const char* pos = l->current-1;
     char c = *l->current;
     l->current++;
@@ -94,6 +136,8 @@ static char lex_escaped_char(LexCtx* l) {
         case 'r': return '\r';
         case 't': return '\t';
         case 'v': return '\v';
+        case 'x': return lex_read_hex_escaped_char(l);
+        case '0' ... '7': return lex_read_octal_escaped_char(l, c);
     }
     Msg msg = msg_with_span(
         MSG_ERROR,
@@ -156,7 +200,7 @@ void lex(LexCtx* l) {
 
                     if (*l->current == '\\') {
                         l->current++;
-                        char c = lex_escaped_char(l);
+                        unsigned char c = lex_escaped_char(l);
                         bufpush(str, c);
                     } else {
                         bufpush(str, *l->current);
