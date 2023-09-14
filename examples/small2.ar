@@ -1,6 +1,9 @@
 import "std";
 
 fn main() void {
-    imm slice: []imm u8 = "Hello world";
-    slice.ptr[0];
+    imm arr = ['H', 'e', 'l', 'l', 'o'];
+    imm ptr = &arr as []imm u8;
+    imm ptrfirst = &ptr[0];
+    std.writechar(ptrfirst.*);
+    std.writeuinteger(ptr.len);
 }

@@ -663,7 +663,7 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
             switch (astnode->idx.left->typespec->kind) {
                 case TS_PTR: {
                     assert(astnode->idx.left->typespec->mulptr.child->kind == TS_ARRAY);
-                    LLVMValueRef left = cg_astnode(c, astnode->idx.left, false, target, NULL);
+                    LLVMValueRef left = cg_astnode(c, astnode->idx.left, false, NULL, NULL);
                     LLVMValueRef index = cg_astnode(c, astnode->idx.idx, false, predef_typespecs.u64_type->ty, NULL);
                     astnode->llvmvalue = cg_access_array_element(
                             c,
@@ -674,7 +674,7 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                 } break;
 
                 case TS_MULTIPTR: {
-                    LLVMValueRef left = cg_astnode(c, astnode->idx.left, false, target, NULL);
+                    LLVMValueRef left = cg_astnode(c, astnode->idx.left, false, NULL, NULL);
                     LLVMValueRef index = cg_astnode(c, astnode->idx.idx, false, predef_typespecs.u64_type->ty, NULL);
                     astnode->llvmvalue = LLVMBuildGEP2(
                             c->llvmbuilder,
@@ -685,8 +685,25 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                             "");
                 } break;
 
+                case TS_SLICE: {
+                    LLVMValueRef left = cg_astnode(c, astnode->idx.left, false, NULL, NULL);
+                    LLVMValueRef index = cg_astnode(c, astnode->idx.idx, false, predef_typespecs.u64_type->ty, NULL);
+                    LLVMValueRef ptr = LLVMBuildExtractValue(
+                            c->llvmbuilder,
+                            left,
+                            0,
+                            "");
+                    astnode->llvmvalue = LLVMBuildGEP2(
+                            c->llvmbuilder,
+                            cg_get_llvm_type(c, astnode->typespec),
+                            ptr,
+                            &index,
+                            1,
+                            "");
+                } break;
+
                 case TS_ARRAY: {
-                    LLVMValueRef left = cg_astnode(c, astnode->idx.left, true, target, NULL);
+                    LLVMValueRef left = cg_astnode(c, astnode->idx.left, true, NULL, NULL);
                     LLVMValueRef index = cg_astnode(c, astnode->idx.idx, false, predef_typespecs.u64_type->ty, NULL);
                     astnode->llvmvalue = cg_access_array_element(
                             c,
@@ -695,6 +712,8 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
                             cg_get_llvm_type(c, astnode->idx.left->typespec),
                             lvalue);
                 } break;
+
+                default: assert(0); break;
             }
 
             if (!lvalue) {
