@@ -100,7 +100,7 @@ static LLVMTypeRef cg_get_llvm_type(CgCtx* c, Typespec* typespec) {
                 param_llvmtypes,
                 buflen(params),
                 false);
-        };
+        } break;
 
         case TS_STRUCT:
             typespec->llvmtype = typespec->agg.ref->strct.llvmtype;
@@ -388,7 +388,7 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
             astnode->typespec->llvmtype = cg_get_llvm_type(c, func_ty->func.ret_typespec);
             astnode->llvmvalue = LLVMBuildCall2(
                 c->llvmbuilder,
-                func_ty->llvmtype,
+                cg_get_llvm_type(c, func_ty),
                 callee_llvmvalue,
                 arg_llvmvalues,
                 ret_by_ref ? buflen(astnode->funcc.args)+1 : buflen(astnode->funcc.args),

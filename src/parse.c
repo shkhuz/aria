@@ -268,7 +268,7 @@ static AstNode* parse_atom_typespec(ParseCtx* p) {
     } else if (match(p, TOKEN_KEYWORD_FN)) {
         Token* start = p->prev;
         Token* lparen = expect_lparen(p);
-        AstNode** params = parse_args(p, lparen, TOKEN_RPAREN, true, false);
+        AstNode** params = parse_args(p, lparen, TOKEN_RPAREN, false, false);
         AstNode* ret_typespec = parse_typespec(p);
         return astnode_typespec_func_new(start, params, ret_typespec);
     }
