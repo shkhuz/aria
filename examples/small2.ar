@@ -1,7 +1,4 @@
-import "std";
-
-fn get() u8 { return 0; }
-
 fn main() void {
-    std.writeuinteger(3/get());
+    mut i: u32 = 64;
+    i >>= 3;
 }

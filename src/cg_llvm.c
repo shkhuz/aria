@@ -629,7 +629,7 @@ LLVMValueRef cg_astnode(CgCtx* c, AstNode* astnode, bool lvalue, Typespec* targe
             LLVMOpcode op;
             switch (astnode->bitsbin.kind) {
                 case BITSH_BINOP_LEFT:  op = LLVMShl; break;
-                case BITSH_BINOP_RIGHT: op = LLVMLShr; break;
+                case BITSH_BINOP_RIGHT: op = typespec_is_signed(astnode->bitsbin.left->typespec) ? LLVMAShr : LLVMLShr; break;
                 default: assert(0); break;
             }
             astnode->llvmvalue = LLVMBuildBinOp(c->llvmbuilder, op, left, right, "");
