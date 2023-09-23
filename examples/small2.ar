@@ -1,4 +1,2 @@
 fn main() void {
-    mut i: u32 = 64;
-    i >>= 3;
 }

@@ -34,7 +34,7 @@ run: $(EXE_PATH)
 
 $(EXE_PATH): $(COMPILER_OBJ_FILES)
 	@mkdir -p $(dir $@)
-	$(LD) -o $@ $(LDFLAGS) $^
+	$(LD) -o $@ $(LDFLAGS) $(CFLAGS_OPTIMIZE) $^
 
 test: build/test
 	./$^

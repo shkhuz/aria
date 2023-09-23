@@ -1,0 +1,26 @@
+// -----------------------------------------------------------------------------
+// Compile-time code execution
+// -----------------------------------------------------------------------------
+// For denoting compile-time code execution, the keyword `ct` could be used
+// in front of the expression. For eg:
+fn main() void {
+    // Only this code will be run at compile-time.
+    ct if (aria.target.arch == .sparc) {
+        // Code here will not be run at compile-time. Instead, it
+        // will be inserted into the executable depending on the parent block.
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Built-in directives
+// -----------------------------------------------------------------------------
+// import statements are not directives. Neither as cast expression, bitwise
+// expressions, etc.
+// Instead, directives are very specific functions which are not frequently used.
+// If they are used frequently, they are more likely to be part of the main
+// language itself.
+// For eg. addition with overflow, or emitting a compile error.
+
+type BootServices = struct {
+
+};
