@@ -6,7 +6,7 @@
 #include <llvm-c/Core.h>
 #include <llvm-c/TargetMachine.h>
 #include <llvm-c/Analysis.h>
-#include <llvm-c/Transforms/Utils.h>
+#include <llvm-c/Transforms/PassBuilder.h>
 
 struct Typespec;
 struct CompileCtx;
@@ -28,7 +28,6 @@ typedef struct {
     LLVMTargetRef llvmtarget;
     LLVMTargetMachineRef llvmtargetmachine;
     LLVMTargetDataRef llvmtargetdatalayout;
-    LLVMPassManagerRef llvmpm;
 
     LLVMTypeRef llvmptrtype;
 } CgCtx;

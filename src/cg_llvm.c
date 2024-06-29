@@ -1243,9 +1243,6 @@ static bool init_cg(CgCtx* c) {
             LLVMCodeModelDefault);
     c->llvmtargetdatalayout = LLVMCreateTargetDataLayout(c->llvmtargetmachine);
 
-    c->llvmpm = LLVMCreatePassManager();
-    LLVMAddPromoteMemoryToRegisterPass(c->llvmpm);
-
     return false;
 }
 
@@ -1303,10 +1300,11 @@ bool cg(CgCtx* c) {
         return c->error;
     }
 
-    //LLVMRunPassManager(c->llvmpm, c->llvmmod);
-    //printf("\n======= Optimized LLVM IR Start =======\n");
-    //LLVMDumpModule(c->llvmmod);
-    //printf("\n======= Optimized LLVM IR End =======\n");
+    LLVMRunPasses(c->llvmmod, "mem2reg", c->llvmtargetmachine, LLVMCreatePassBuilderOptions());
+
+    printf("\n======= Optimized LLVM IR Start =======\n");
+    LLVMDumpModule(c->llvmmod);
+    printf("\n======= Optimized LLVM IR End =======\n");
 
     LLVMMemoryBufferRef objbuf = NULL;
     LLVMTargetMachineEmitToMemoryBuffer(
