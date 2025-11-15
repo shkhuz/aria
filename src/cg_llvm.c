@@ -1277,9 +1277,9 @@ bool cg(CgCtx* c) {
         }
     }
 
-    printf("\n======= Raw LLVM IR Start =======\n");
-    printf("%s", LLVMPrintModuleToString(c->llvmmod));
-    printf("\n======= Raw LLVM IR End =======\n");
+    // printf("\n======= Raw LLVM IR Start =======\n");
+    // printf("%s", LLVMPrintModuleToString(c->llvmmod));
+    // printf("\n======= Raw LLVM IR End =======\n");
 
     bool error = false;
     char* errors = NULL;
@@ -1302,9 +1302,9 @@ bool cg(CgCtx* c) {
 
     LLVMRunPasses(c->llvmmod, "mem2reg", c->llvmtargetmachine, LLVMCreatePassBuilderOptions());
 
-    printf("\n======= Optimized LLVM IR Start =======\n");
-    LLVMDumpModule(c->llvmmod);
-    printf("\n======= Optimized LLVM IR End =======\n");
+    // printf("\n======= Optimized LLVM IR Start =======\n");
+    // LLVMDumpModule(c->llvmmod);
+    // printf("\n======= Optimized LLVM IR End =======\n");
 
     LLVMMemoryBufferRef objbuf = NULL;
     LLVMTargetMachineEmitToMemoryBuffer(

@@ -1,2 +1,6 @@
+import "std";
+
 fn main() void {
+    std.writestring("Hello world!");
+    "why";
 }

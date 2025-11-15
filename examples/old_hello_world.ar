@@ -1,4 +1,39 @@
-main :: fn u8 {
+
+import "file.ar";
+
+a :: 1.0;
+b: u32 = 1;
+c := new_game();
+pointer: *u32 : &b;
+value :: pointer.*;
+
+arrlit :: .[u32]{a, b, 1, 2};
+strlit :: .{.a = 1, .b = 2};
+
+anumber :: @to(u8, 1);
+while (a.next()) |a| {}
+switch (a) {
+    1, 2, 3 => {
+        yield a;
+    }
+}
+
+fn main() {
+    mut b: u64 = 1;
+}
+
+const un = union(enum) {
+    a: f32, 
+    b: u32,
+}
+const val = un{ .a = 1 };
+
+comp switch (val) {
+    .a |val| => {},
+    .b |val| => {},
+}
+
+main :: fn (u8) {
     stdout :: std.get_stdout();
     stderr :: std.get_stderr();
 
@@ -12,9 +47,16 @@ main :: fn u8 {
     stderr.write(453.55);
 }
 
+GameObject :: struct {
+    a: u32, 
+    b: f32,
+};
+
 std :: mod {
     writer :: trait {
-        write :: fn (bytes: [u8]) result<u64, error>;
+        write :: fn (bytes: []u8) !void {
+            syscalls.write("", .{@typeof(bytes)});
+        }
     }
 
     stdout :: struct;
@@ -38,7 +80,7 @@ std :: mod {
     // example "
 
     alloc :: fn<T> (obj: T) [T] {
-        memory: [T]: malloc(#sizeof(obj));
+        memory: [T]: malloc(@sizeof(obj));
         *memory = obj;
         memory
     }
