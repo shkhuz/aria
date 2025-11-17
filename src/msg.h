@@ -1,7 +1,7 @@
 #ifndef MSG_H
 #define MSG_H
 
-#include "span.h"
+#include "srcfile.h"
 
 typedef struct {
     usize line;

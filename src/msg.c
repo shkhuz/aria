@@ -1,7 +1,5 @@
 #include "msg.h"
 #include "core.h"
-#include "cmd.h"
-#include "buf.h"
 #include "compile.h"
 
 Msg msg_with_span(MsgKind kind, const char* msg, Span span) {

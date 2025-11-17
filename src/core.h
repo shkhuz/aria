@@ -68,13 +68,13 @@ typedef ssize_t isize;
 #define COMBINE(X,Y) COMBINE1(X,Y)
 #define STRINGIFY1(X) #X
 #define STRINGIFY(X) STRINGIFY1(X)
-
-#define alloc_obj(type) (type*)malloc(sizeof(type))
+#define ALLOC_OBJ(type) (type*)malloc(sizeof(type))
 
 usize align_to_pow2(size_t n, size_t pow2);
 usize u64_bitlength(u64 n);
 usize get_bits_for_value(u128 n);
 int char_to_digit(char c);
+bool is_octal_digit(char c);
 u64 maxinteger_unsigned(int bytes);
 u64 maxinteger_signed(int bytes);
 // Checks if a slice is equal in contents to a string, NOT VICE VERSA.
@@ -91,7 +91,136 @@ bool slice_eql_to_str(const char* slice, int slicelen, const char* str);
 char* format_string(const char* fmt, ...);
 u64 hash_string(const char* str);
 
-extern char g_exec_path[PATH_MAX+1];
-extern char* g_lib_path;
+// =============================================================================
+// BUFFER
+// =============================================================================
+
+typedef struct {
+    usize cap;
+    usize len;
+    char data[];
+} bufhdr;
+
+#define _bufhdr(b) ((bufhdr*)((char*)(b) - offsetof(bufhdr, data)))
+#define bufend(b) ((b) + buflen(b))
+#define buflast(b) (buflen((b)) == 0 ? (NULL) : (bufend((b))-1))
+
+#define buffit(b, n) (bufcap(b) >= n ? 0 : \
+    ((b) = _bufgrow((b), (n), sizeof(*(b)))))
+
+#define bufpush(b, ...) (buffit((b), 1 + buflen((b))), \
+    ((b)[_bufhdr((b))->len++] = __VA_ARGS__))
+
+// This macro takes a char buffer and a string, and pushes the string content
+// into the buffer, not the pointer to the string.
+#define bufstrexpandpush(b, e) {usize COMBINE(__tmpsize, __LINE__) = strlen((e)); \
+    (buffit((b), (COMBINE(__tmpsize, __LINE__)) + buflen((b))), \
+    (memcpy(&((b)[_bufhdr((b))->len]), (e), (COMBINE(__tmpsize, __LINE__)))), \
+    (_bufhdr((b))->len += (COMBINE(__tmpsize, __LINE__))));}
+
+#define bufpop(b) (buflen(b) > 0 ? (_bufhdr((b))->len--) : 0)
+
+#define buffree(b) ((b) ? (free(_bufhdr(b)), b=NULL) : 0)
+
+#define bufloop(b, c) for (usize c = 0; c < buflen(b); c++)
+#define bufrevloop(b, c) for (usize c = buflen(b); c-- > 0 ;)
+
+#define bufinsert(b, i, ...) (buffit((b), 1 + buflen((b))), \
+    memmove((b+i+1), (b+i), (_bufhdr((b))->len-i) * sizeof(*b)), \
+    ((b)[i] = __VA_ARGS__), \
+    _bufhdr((b))->len++)
+#define bufclear(b) ((b) ? _bufhdr((b))->len = 0 : 0)
+
+usize buflen(const void* buf);
+usize bufcap(const void* buf);
+void* _bufgrow(const void* buf, usize new_len, usize elem_size);
+
+// =============================================================================
+// FILE IO
+// =============================================================================
+
+typedef struct {
+    const char* path;
+    const char* abs_path;
+    const char* contents;
+    usize len;
+} File;
+
+typedef enum {
+    FILEIO_FAILURE,
+    FILEIO_SUCCESS,
+    FILEIO_DIRECTORY,
+} FileOpResult;
+
+typedef struct {
+    File handle;
+    FileOpResult status;
+} FileOrError;
+
+bool file_exists(const char* path);
+int is_dir(const char* path);
+FileOrError read_file(const char* path);
+FileOpResult write_bin_file(const char* path, const char* contents, u64 bytes);
+const char* file_get_line_ptr(const File* handle, usize line);
+
+// =============================================================================
+// CLI COLORS
+// =============================================================================
+
+#define EC_8BITCOLOR(colorstr, boldstr) \
+    "\x1B[" boldstr ";38;5;" colorstr "m"
+
+extern char* g_green_color;
+extern char* g_bold_green_color;
+extern char* g_red_color;
+extern char* g_bold_red_color;
+extern char* g_error_color;
+extern char* g_warning_color;
+extern char* g_note_color;
+extern char* g_bold_color;
+extern char* g_bold_grey_color;
+extern char* g_grey_color;
+extern char* g_reset_color;
+extern char* g_bold_cornflower_blue_color;
+
+// =============================================================================
+// BIGINT
+// =============================================================================
+
+typedef struct {
+    u64* d;
+    bool neg;
+} bigint;
+
+extern bigint BIGINT_ZERO;
+
+bigint bigint_new();
+bigint bigint_new_u64(u64 num);
+void bigint_clear(bigint* a);
+void bigint_normalize(bigint* a);
+void bigint_set_u64(bigint* a, u64 num);
+usize bigint_bitlength(const bigint* a);
+void bigint_copy(bigint* dest, const bigint* src);
+void bigint_free(bigint* a);
+int bigint_cmp_abs(const bigint* a, const bigint* b);
+int bigint_cmp(const bigint* a, const bigint* b);
+void bigint_neg(bigint* a);
+void bigint_add_unsigned(bigint* a, const bigint* b);
+void bigint_sub_unsigned(bigint* a, const bigint* b);
+void bigint_add_signed(bigint* a, bool aneg, const bigint* b, bool bneg);
+void bigint_add(bigint* a, const bigint* b);
+void bigint_sub(bigint* a, const bigint* b);
+void bigint_shl(bigint* a);
+void bigint_shln(bigint* a, usize n);
+void bigint_shr(bigint* a);
+void bigint_shrn(bigint* a, usize n);
+void bigint_set_bit(bigint* a, usize bit, bool set);
+void bigint_mul(bigint* a, const bigint* b);
+void bigint_div_mod(const bigint* num, const bigint* den, bigint* quo, bigint* rem);
+bool bigint_fits(const bigint* a, int bytes, bool signd);
+char* bigint_tostring(const bigint* a);
+void test_bigint();
+
+void init_core();
 
 #endif
