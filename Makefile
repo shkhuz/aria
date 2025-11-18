@@ -6,8 +6,10 @@ ALL_TEST_C_FILES := $(shell find src -type f -name "*.c" -not -path "src/main.c"
 TEST_C_FILES := $(ALL_TEST_C_FILES)
 TEST_OBJ_FILES := $(addprefix build/obj/, $(addsuffix .o, $(TEST_C_FILES)))
 
-CFLAGS := -std=c99 -Ivendor -I. `llvm-config --cflags` -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings -Wno-switch-bool -Wno-varargs
-LDFLAGS := `llvm-config --ldflags --libs`
+# CFLAGS := -std=c99 -Ivendor -I. `llvm-config --cflags` -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings -Wno-switch-bool -Wno-varargs
+CFLAGS := -std=c99 -Ivendor -I. -Wall -Wextra -Wshadow -Wno-switch -Wno-unused-function -Wno-unused-parameter -Wno-write-strings -Wno-switch-bool -Wno-varargs
+# LDFLAGS := `llvm-config --ldflags --libs`
+LDFLAGS := 
 
 PREFIX := /usr
 EXE_PATH := build/aria

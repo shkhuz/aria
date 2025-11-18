@@ -1,6 +1,8 @@
 #ifndef LEX_H
 #define LEX_H
 
+#include "core.h"
+
 struct CompileCtx;
 struct Srcfile;
 
@@ -13,6 +15,10 @@ typedef struct {
 
     // Used to prevent multiple "invalid char" errors
     bool ascii_error_table[128];
+
+    // Used at the of lexing to add a note
+    // reminding that each invalid character error
+    // is only shown once.
     bool invalid_char_error;
 } LexCtx;
 

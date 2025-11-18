@@ -1,7 +1,9 @@
 #include <stdio.h>
-#include "core.h"
+
+#include "compile.h"
+
 int main() {
-    int* buf = NULL;
-    bufpush(buf, 42);
-    printf("%d", buflen(buf));
+    CompileCtx c = compilectx_from_stream("const; wow; fn main");
+    compile(&c);
+    if (c.parsing_error) compile_terminate(&c);
 }

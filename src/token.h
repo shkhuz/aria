@@ -15,10 +15,17 @@ typedef enum {
     TK_EOF,
 } TokenKind;
 
-typedef struct {
+typedef struct Token {
     TokenKind kind;
     Span span;
 } Token;
+
+typedef struct {
+    char* k;
+    TokenKind v;
+} StringTokenKindTup;
+extern const StringTokenKindTup keywords[];
+extern const usize KEYWORDS_LEN;
 
 Token* token_new(TokenKind kind, Span span);
 bool   token_lexeme_eqlto(Token* token, const char* string);

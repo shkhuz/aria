@@ -185,6 +185,6 @@ void _msg_emit_no_register(Msg* msg, CompileCtx* compile_ctx) {
 }
 
 void _msg_emit(Msg* msg, CompileCtx* compile_ctx) {
-    register_msg(compile_ctx, *msg);
+    compile_register_msg(compile_ctx, *msg);
     _msg_emit_no_register(msg, compile_ctx);
 }

@@ -3,10 +3,12 @@
 
 #include "core.h"
 
+struct Token;
+
 typedef struct Srcfile {
     u64 id;
     File handle;
-    Token** tokens;
+    struct Token** tokens;
     struct AstNode** astnodes;
 } Srcfile;
 

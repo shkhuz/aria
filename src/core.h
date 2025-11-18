@@ -61,14 +61,14 @@ typedef ssize_t isize;
 #define CLAMP_MIN(x, min) (MAX(x, min))
 #define CLAMP_MAX(x, max) (MIN(x, max))
 
-#define STCK_ARR_LEN(arr) sizeof(arr) / sizeof(arr[0])
+#define ARRAY_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 #define SIZEOF_IN_BITS(x) ((size_t)8 * sizeof(x))
 #define SWAP_VARS(t, a, b) do { t _c = a; a = b; b = _c; } while (0)
 #define COMBINE1(X, Y) X##Y
 #define COMBINE(X,Y) COMBINE1(X,Y)
 #define STRINGIFY1(X) #X
 #define STRINGIFY(X) STRINGIFY1(X)
-#define ALLOC_OBJ(type) (type*)malloc(sizeof(type))
+#define ALLOC_OBJ(type) ((type*)malloc(sizeof(type)))
 
 usize align_to_pow2(size_t n, size_t pow2);
 usize u64_bitlength(u64 n);

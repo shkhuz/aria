@@ -2,8 +2,9 @@
 #define COMPILE_H
 
 #include "core.h"
+#include "msg.h"
 
-typedef struct {
+typedef struct CompileCtx {
     Msg* msgs;
     bool print_msg_to_stderr;
     bool did_msg;
@@ -14,8 +15,10 @@ typedef struct {
     u64 next_srcfile_id;
 } CompileCtx;
 
-CompileCtx compilectx_new();
-void compile_from_stream(CompileCtx* c, const char* stream);
-// void compile_from_file(CompileCtx* c, const char* path);
+CompileCtx compilectx_from_stream(const char* stream);
+//CompileCtx compilectx_from_path(const char* path);
+void compile(CompileCtx* c);
+void compile_register_msg(CompileCtx* c, Msg msg);
+void compile_terminate(CompileCtx* c);
 
 #endif

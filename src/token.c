@@ -1,5 +1,13 @@
 #include "token.h"
 
+const StringTokenKindTup keywords[] = {
+    { "const",      TK_KW_CONST },
+    { "mut",        TK_KW_MUT },
+    { "fn",         TK_KW_FN },
+    { "struct",     TK_KW_STRUCT },
+};
+const usize KEYWORDS_LEN = ARRAY_LEN(keywords);
+
 Token* token_new(TokenKind kind, Span span) {
     Token* token = ALLOC_OBJ(Token);
     token->kind = kind;
@@ -23,7 +31,7 @@ bool token_lexeme_eql(Token* a, Token* b) {
          ia++, ib++
     ) {
         if (a->span.srcfile->handle.contents[ia] != 
-            b->span.srcfile->handle.contents) {
+            b->span.srcfile->handle.contents[ib]) {
             return false;
         }
     }

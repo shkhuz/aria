@@ -1,4 +1,5 @@
 #include "compile.h"
+#include "lex.h"
 
 CompileCtx _compilectx_new() {
     CompileCtx c;
@@ -6,6 +7,7 @@ CompileCtx _compilectx_new() {
     c.print_msg_to_stderr = true;
     c.did_msg = false;
     c.parsing_error = false;
+    return c;
 }
 
 CompileCtx compilectx_from_stream(const char* stream) {
@@ -47,4 +49,14 @@ void compile(CompileCtx* c) {
     //     // else if (c->print_ast) ast_print(c->srcfile.astnodes);
     // }
     // else c->parsing_error = true;
+    
+    if (c->parsing_error) return;
+}
+
+void compile_register_msg(CompileCtx* c, Msg msg) {
+    bufpush(c->msgs, msg);
+}
+
+void compile_terminate(CompileCtx* c) {
+    exit(1);
 }
