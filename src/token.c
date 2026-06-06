@@ -1,9 +1,9 @@
 #include "token.h"
 
 const StringTokenKindTup keywords[] = {
-    { "const",      TK_KW_CONST },
-    { "mut",        TK_KW_MUT },
-    { "fn",         TK_KW_FN },
+    { "const",      TK_KW_CONSTANT },
+    { "mut",        TK_KW_MUTABLE },
+    { "fn",         TK_KW_FUNCTION },
     { "struct",     TK_KW_STRUCT },
 };
 const usize KEYWORDS_LEN = ARRAY_LEN(keywords);

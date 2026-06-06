@@ -5,9 +5,9 @@
 #include "srcfile.h"
 
 typedef enum {
-    TK_KW_CONST,
-    TK_KW_MUT,
-    TK_KW_FN,
+    TK_KW_CONSTANT,
+    TK_KW_MUTABLE,
+    TK_KW_FUNCTION,
     TK_KW_STRUCT,
     TK_IDENT,
     TK_STRINGLIT,
