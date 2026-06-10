@@ -1,5 +1,6 @@
 #include "compile.h"
 #include "lex.h"
+#include "debug.h"
 
 CompileCtx _compilectx_new() {
     CompileCtx c;
@@ -18,6 +19,7 @@ CompileCtx compilectx_from_stream(const char* stream) {
             .path = "<stream>", 
             .abs_path = "<stream>", 
             .contents = stream,
+            .len = strlen(stream)
         },
         .tokens = NULL,
         .astnodes = NULL,
@@ -35,7 +37,7 @@ void compile(CompileCtx* c) {
         if (l.error) {
             c->parsing_error = true;
             //continue;
-        }
+        } else print_tokens(l.srcfile->tokens);
     } 
     else {
         c->parsing_error = true;

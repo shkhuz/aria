@@ -68,6 +68,8 @@ typedef ssize_t isize;
 #define COMBINE(X,Y) COMBINE1(X,Y)
 #define STRINGIFY1(X) #X
 #define STRINGIFY(X) STRINGIFY1(X)
+#define ENUM_GEN(ENUM) ENUM,
+#define STRING_GEN(STRING) #STRING,
 #define ALLOC_OBJ(type) ((type*)malloc(sizeof(type)))
 
 usize align_to_pow2(size_t n, size_t pow2);

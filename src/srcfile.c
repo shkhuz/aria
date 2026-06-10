@@ -28,9 +28,11 @@ OptionalSpan span_none() {
     };
 }
 
+char TOSTRING_BUF[1024];
+
 char* span_tostring(Span span) {
     usize len = span.end - span.start;
-    char* buf = malloc(len + 1);
+    char* buf = TOSTRING_BUF;
     memcpy(buf, &span.srcfile->handle.contents[span.start], len);
     buf[len] = '\0';
     return buf;

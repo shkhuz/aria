@@ -1,7 +1,11 @@
 #include "token.h"
 
+const char* tokenkind_strs[] = {
+    FOREACH_TOKENKIND(STRING_GEN)
+};
+
 const StringTokenKindTup keywords[] = {
-    { "const",      TK_KW_CONSTANT },
+    { "imm",        TK_KW_IMMUT },
     { "mut",        TK_KW_MUTABLE },
     { "fn",         TK_KW_FUNCTION },
     { "struct",     TK_KW_STRUCT },

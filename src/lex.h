@@ -9,8 +9,8 @@ struct Srcfile;
 typedef struct {
     struct Srcfile* srcfile;
     const char* start, *current, *lastnl;
-    bool error;
     struct CompileCtx* compilectx;
+    bool error;
     jmp_buf* error_handler_pos;
 
     // Used to prevent multiple "invalid char" errors
