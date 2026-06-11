@@ -1,5 +1,6 @@
 #include "compile.h"
 #include "lex.h"
+#include "parse.h"
 #include "debug.h"
 
 CompileCtx _compilectx_new() {
@@ -37,20 +38,22 @@ void compile(CompileCtx* c) {
         if (l.error) {
             c->parsing_error = true;
             //continue;
+            return;
         } else print_tokens(l.srcfile->tokens);
     } 
     else {
         c->parsing_error = true;
         //continue;
+        return;
     }
 
-    // ParseCtx p = parsectx_new(&c->srcfile, c, &parse_error_handler_pos);
-    // if (!setjmp(parse_error_handler_pos)) {
-    //     parse(&p);
-    //     if (p.error) c->parsing_error = true;
-    //     // else if (c->print_ast) ast_print(c->srcfile.astnodes);
-    // }
-    // else c->parsing_error = true;
+    ParseCtx p = parsectx_new(&c->srcfile, c, &parse_error_handler_pos);
+    if (!setjmp(parse_error_handler_pos)) {
+        parse(&p);
+        if (p.error) c->parsing_error = true;
+        // else if (c->print_ast) ast_print(c->srcfile.astnodes);
+    }
+    else c->parsing_error = true;
     
     if (c->parsing_error) return;
 }

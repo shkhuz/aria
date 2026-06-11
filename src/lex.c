@@ -120,6 +120,8 @@ void lex(LexCtx* l) {
                 push_tok(l, kind);
             } break;
 
+            case ';': push_tok_adv(l, TK_SEMICOLON); break;
+
             case ' ':
             case '\t':
             case '\r': {

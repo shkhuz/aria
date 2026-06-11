@@ -5,12 +5,12 @@ const char* tokenkind_strs[] = {
 };
 
 const StringTokenKindTup keywords[] = {
-    { "imm",        TK_KW_IMMUT },
-    { "mut",        TK_KW_MUTABLE },
-    { "fn",         TK_KW_FUNCTION },
+    { "imm",        TK_KW_IMM },
+    { "mut",        TK_KW_MUT },
+    { "fn",         TK_KW_FN },
     { "struct",     TK_KW_STRUCT },
 };
-const usize KEYWORDS_LEN = ARRAY_LEN(keywords);
+const int KEYWORDS_LEN = (int)ARRAY_LEN(keywords);
 
 Token* token_new(TokenKind kind, Span span) {
     Token* token = ALLOC_OBJ(Token);

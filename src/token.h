@@ -5,13 +5,14 @@
 #include "srcfile.h"
 
 #define FOREACH_TOKENKIND(WRAP)\
-    WRAP(TK_KW_IMMUT)\
-    WRAP(TK_KW_MUTABLE)\
-    WRAP(TK_KW_FUNCTION)\
+    WRAP(TK_KW_IMM)\
+    WRAP(TK_KW_MUT)\
+    WRAP(TK_KW_FN)\
     WRAP(TK_KW_STRUCT)\
     WRAP(TK_IDENT)\
-    WRAP(TK_STRINGLIT)\
-    WRAP(TK_INTEGERLIT)\
+    WRAP(TK_STRLIT)\
+    WRAP(TK_INTLIT)\
+    WRAP(TK_SEMICOLON)\
     WRAP(TK_EOF)\
     WRAP(TK_LEN)
 
@@ -31,7 +32,7 @@ typedef struct {
     TokenKind v;
 } StringTokenKindTup;
 extern const StringTokenKindTup keywords[];
-extern const usize KEYWORDS_LEN;
+extern const int KEYWORDS_LEN;
 
 Token* token_new(TokenKind kind, Span span);
 bool   token_lexeme_eqlto(Token* token, const char* string);

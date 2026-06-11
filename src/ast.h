@@ -1,6 +1,8 @@
 #ifndef AST_H 
 #define AST_H
 
+#include "srcfile.h"
+
 typedef struct Token Token;
 typedef struct Astnode Astnode;
 

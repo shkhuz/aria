@@ -5,7 +5,7 @@
 
 int main() {
     init_core();
-    CompileCtx c = compilectx_from_stream("imm 903 wow fn main");
+    CompileCtx c = compilectx_from_stream("imm a;");
     compile(&c);
     if (c.parsing_error) compile_terminate(&c);
 }
