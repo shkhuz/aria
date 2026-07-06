@@ -5,7 +5,10 @@
 
 int main() {
     init_core();
-    CompileCtx c = compilectx_from_stream("imm a;");
+    CompileCtx c = compilectx_from_stream(
+            "imm a = some;\n"
+            "imm b = struct(\"hiya\");\n"
+            );
     compile(&c);
     if (c.parsing_error) compile_terminate(&c);
 }

@@ -11,7 +11,7 @@ ParseCtx parsectx_new(
 ) {
     ParseCtx p;
     p.srcfile = srcfile;
-    p.srcfile->astnodes = NULL;
+    p.srcfile->ast = NULL;
     p.current = p.srcfile->tokens[0];
     p.prev = NULL;
     p.token_idx = 0;
@@ -85,8 +85,44 @@ static Token* expect(ParseCtx* p, TokenKind kind, const char* msgstr) {
     return p->prev;
 }
 
+static Token* expect_rparen(ParseCtx* p) {
+    return expect(p, TK_RPAREN, "expected `)`");
+}
+
 static inline Token* expect_semicolon(ParseCtx* p) {
     return expect(p, TK_SEMICOLON, "expected `;`");
+}
+
+static Astnode* parse_atom_expr(ParseCtx* p) {
+    if (match(p, TK_IDENT)) {
+        Astnode* left = astnode_symbol_new(p->prev);
+        return left;
+    }
+    else if (match(p, TK_KW_STRUCT)) {
+        if (match(p, TK_LPAREN)) {
+            Token* paren = p->prev;
+            Token* path = expect(
+                p, 
+                TK_STRLIT, 
+                "expected a string literal path"
+            );
+            expect_rparen(p);
+            return astnode_struct_import_new(path);
+        } 
+        else if (match(p, TK_LBRACE)) {
+
+        }
+    }
+
+    Msg msg = msg_with_span(
+        MSG_ERROR,
+        p->current->kind == TK_SEMICOLON
+            ? "unexpected `;`"
+            : "expected expression",
+        p->current->span
+    );
+    msg_emit(p, &msg);
+    return NULL;
 }
 
 static Astnode* parse_vardecl(ParseCtx* p) {
@@ -94,13 +130,17 @@ static Astnode* parse_vardecl(ParseCtx* p) {
     bool imm = true;
     if (keyword->kind == TK_KW_MUT) imm = false;
     Token* ident = expect(p, TK_IDENT, "expected variable name");
+    Astnode* initializer = NULL;
+    if (match(p, TK_EQUAL)) {
+        initializer = parse_atom_expr(p);
+    }
     expect_semicolon(p);
     return astnode_vardecl_new(
         keyword, 
         ident,
         NULL,
         NULL,
-        NULL
+        initializer
     );
 }
 
@@ -113,6 +153,6 @@ static Astnode* parse_astnode_root(ParseCtx* p) {
 void parse(ParseCtx* p) {
     while (p->current->kind != TK_EOF) {
         Astnode* astnode = parse_astnode_root(p);
-        if (astnode) bufpush(p->srcfile->astnodes, astnode);
+        if (astnode) bufpush(p->srcfile->ast, astnode);
     }
 }

@@ -5,15 +5,20 @@
 #include "srcfile.h"
 
 #define FOREACH_TOKENKIND(WRAP)\
+    WRAP(TK_EOF)\
+    WRAP(TK_EQUAL)\
+    WRAP(TK_IDENT)\
+    WRAP(TK_INTLIT)\
+    WRAP(TK_KW_FN)\
     WRAP(TK_KW_IMM)\
     WRAP(TK_KW_MUT)\
-    WRAP(TK_KW_FN)\
     WRAP(TK_KW_STRUCT)\
-    WRAP(TK_IDENT)\
-    WRAP(TK_STRLIT)\
-    WRAP(TK_INTLIT)\
+    WRAP(TK_LBRACE)\
+    WRAP(TK_LPAREN)\
+    WRAP(TK_RBRACE)\
+    WRAP(TK_RPAREN)\
     WRAP(TK_SEMICOLON)\
-    WRAP(TK_EOF)\
+    WRAP(TK_STRLIT)\
     WRAP(TK_LEN)
 
 typedef enum {
@@ -25,7 +30,9 @@ extern const char* tokenkind_strs[];
 typedef struct Token {
     TokenKind kind;
     Span span;
+    int extra;
 } Token;
+extern const char** token_strlit_data;
 
 typedef struct {
     char* k;

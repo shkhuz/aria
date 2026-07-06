@@ -120,7 +120,42 @@ void lex(LexCtx* l) {
                 push_tok(l, kind);
             } break;
 
+            case '=': push_tok_adv(l, TK_EQUAL); break;
+            case '{': push_tok_adv(l, TK_LBRACE); break;
+            case '(': push_tok_adv(l, TK_LPAREN); break;
+            case '}': push_tok_adv(l, TK_RBRACE); break;
+            case ')': push_tok_adv(l, TK_RPAREN); break;
             case ';': push_tok_adv(l, TK_SEMICOLON); break;
+
+            case '\"': {
+                char* str = NULL;
+                l->current++;
+                while (*l->current != '\"') {
+                    if (*l->current == '\n' || *l->current == '\0') {
+                        Msg msg = msg_with_span(
+                            MSG_ERROR,
+                            "unterminated string literal",
+                            span_from_start_to_current(l)
+                        );
+                        fatal_msg_emit(l, &msg);
+                    }
+
+                    if (*l->current == '\\') {
+                        l->current++;
+                        // unsigned char c = escape_char(l);
+                        // bufpush(str, c);
+                    }
+                    else {
+                        bufpush(str, *l->current);
+                        l->current++;
+                    }
+                }
+                bufpush(str, '\0');
+                bufpush(token_strlit_data, str);
+
+                push_tok_adv(l, TK_STRLIT);
+                last_tok(l)->extra = buflen(token_strlit_data)-1;
+            } break;
 
             case ' ':
             case '\t':

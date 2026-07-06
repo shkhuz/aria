@@ -1,7 +1,7 @@
 #include "compile.h"
 #include "lex.h"
 #include "parse.h"
-#include "debug.h"
+#include "dbg.h"
 
 CompileCtx _compilectx_new() {
     CompileCtx c;
@@ -23,7 +23,7 @@ CompileCtx compilectx_from_stream(const char* stream) {
             .len = strlen(stream)
         },
         .tokens = NULL,
-        .astnodes = NULL,
+        .ast = NULL,
     };
     return c;
 }
@@ -39,7 +39,7 @@ void compile(CompileCtx* c) {
             c->parsing_error = true;
             //continue;
             return;
-        } else print_tokens(l.srcfile->tokens);
+        } else dbg_print_tokens(l.srcfile->tokens);
     } 
     else {
         c->parsing_error = true;
@@ -51,6 +51,7 @@ void compile(CompileCtx* c) {
     if (!setjmp(parse_error_handler_pos)) {
         parse(&p);
         if (p.error) c->parsing_error = true;
+        else dbg_print_ast(c->srcfile.ast);
         // else if (c->print_ast) ast_print(c->srcfile.astnodes);
     }
     else c->parsing_error = true;

@@ -14,7 +14,7 @@ LDFLAGS :=
 PREFIX := /usr
 EXE_PATH := build/aria
 
-AR_FILE := examples/small2.ar
+AR_FILE := 
 
 ifeq ($(prod), y)
 	CFLAGS_OPTIMIZE := -O3

@@ -10,7 +10,7 @@ typedef struct Srcfile {
     u64 id;
     File handle;
     Token** tokens;
-    Astnode** astnodes;
+    Astnode** ast;
 } Srcfile;
 
 typedef struct {
