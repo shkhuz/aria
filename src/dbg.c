@@ -32,19 +32,18 @@ static void print_astnode(Astnode* n) {
 
     switch (n->kind) {
         case AST_VARDECL:
+        case AST_FIELD:
             printf("\n");
             break;
         default: break;
     }
 
     switch (n->kind) {
-        case AST_VARDECL: {
-            printf("(vardecl ");
-            print_token(n->vardecl.ident);
-            if (n->vardecl.initializer) {
-                printf(" = ");
-                print_astnode(n->vardecl.initializer);
-            }
+        case AST_FIELD: {
+            printf("(field ");
+            print_token(n->field.ident);
+            printf(" : ");
+            print_astnode(n->field.type);
             printf(")");
         } break;
 
@@ -59,6 +58,20 @@ static void print_astnode(Astnode* n) {
         case AST_SYM: {
             printf("(sym ");
             print_token(n->sym.ident);
+            printf(")");
+        } break;
+
+        case AST_VARDECL: {
+            printf("(vardecl ");
+            print_token(n->vardecl.ident);
+            if (n->vardecl.type) {
+                printf(" : ");
+                print_astnode(n->vardecl.type);
+            }
+            if (n->vardecl.init) {
+                printf(" = ");
+                print_astnode(n->vardecl.init);
+            }
             printf(")");
         } break;
     }

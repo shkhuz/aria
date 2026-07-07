@@ -7,6 +7,8 @@ int main() {
     init_core();
     CompileCtx c = compilectx_from_stream(
             "imm a = some;\n"
+            "a:a,\n"
+            "hi:struct(\"name\"),\n"
             "imm b = struct(\"hiya\");\n"
             );
     compile(&c);

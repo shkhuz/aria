@@ -7,9 +7,10 @@ typedef struct Token Token;
 typedef struct Astnode Astnode;
 
 typedef enum {
-    AST_VARDECL,
+    AST_FIELD,
     AST_STRUCT,
     AST_SYM,
+    AST_VARDECL,
 } AstnodeKind;
 
 struct Astnode {
@@ -19,11 +20,9 @@ struct Astnode {
 
     union {
         struct {
-            Token* ident; 
-            Astnode* typespec;
-            Token* equal;
-            Astnode* initializer;
-        } vardecl;
+            Token* ident;
+            Astnode* type;
+        } field;
 
         struct {
             bool import;
@@ -41,18 +40,30 @@ struct Astnode {
         struct {
             Token* ident;
         } sym;
+
+        struct {
+            Token* ident; 
+            Astnode* type;
+            Token* equal;
+            Astnode* init;
+        } vardecl;
     };
 };
 
+Astnode* astnode_field_new(Token* ident, Astnode* type);
+Astnode* astnode_struct_import_new(
+    Token* start, 
+    Token* path, 
+    Token* end
+);
+Astnode* astnode_struct_inline_new(Astnode** ast);
+Astnode* astnode_symbol_new(Token* ident);
 Astnode* astnode_vardecl_new(
     Token* start, 
     Token* ident,
-    Astnode* typespec,
+    Astnode* type,
     Token* equal,
-    Astnode* initializer
+    Astnode* init
 );
-Astnode* astnode_struct_import_new(Token* path);
-Astnode* astnode_struct_inline_new(Astnode** ast);
-Astnode* astnode_symbol_new(Token* ident);
 
 #endif

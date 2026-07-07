@@ -44,6 +44,12 @@ static void goto_next_token(ParseCtx* p) {
     }
 }
 
+static void goto_prev_token(ParseCtx* p) {
+    if (p->token_idx > 0) {
+        p->token_idx--;
+    }
+}
+
 static void check_eof(ParseCtx* p, Token* pair) {
     if (p->current->kind == TK_EOF) {
         Msg msg = msg_with_span(
@@ -93,12 +99,17 @@ static inline Token* expect_semicolon(ParseCtx* p) {
     return expect(p, TK_SEMICOLON, "expected `;`");
 }
 
+static inline Token* expect_comma(ParseCtx* p) {
+    return expect(p, TK_COMMA, "expected `,`");
+}
+
 static Astnode* parse_atom_expr(ParseCtx* p) {
     if (match(p, TK_IDENT)) {
         Astnode* left = astnode_symbol_new(p->prev);
         return left;
     }
     else if (match(p, TK_KW_STRUCT)) {
+        Token* keyword = p->prev;
         if (match(p, TK_LPAREN)) {
             Token* paren = p->prev;
             Token* path = expect(
@@ -107,7 +118,7 @@ static Astnode* parse_atom_expr(ParseCtx* p) {
                 "expected a string literal path"
             );
             expect_rparen(p);
-            return astnode_struct_import_new(path);
+            return astnode_struct_import_new(keyword, path, p->prev);
         } 
         else if (match(p, TK_LBRACE)) {
 
@@ -147,6 +158,35 @@ static Astnode* parse_vardecl(ParseCtx* p) {
 static Astnode* parse_astnode_root(ParseCtx* p) {
     if (match(p, TK_KW_IMM) || match(p, TK_KW_MUT)) {
         return parse_vardecl(p);
+    } 
+    else if (match(p, TK_IDENT)) {
+        Token* ident = p->prev;
+        if (match(p, TK_COLON)) {
+            Astnode* type = parse_atom_expr(p);
+            if (p->current->kind != TK_RBRACE) {
+                expect_comma(p);
+            }
+            return astnode_field_new(ident, type);
+        }
+        else {
+            Msg msg = msg_with_span(
+                MSG_ERROR,
+                "expected `:` for field declaration",
+                p->current->span
+            );
+            msg_emit(p, &msg);
+            // Not needed because we fatally exit.
+            // But just for completeness.
+            goto_prev_token(p);
+        }
+    }
+    else {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            "expected top-level declaration",
+            p->current->span
+        );
+        msg_emit(p, &msg);
     }
 }
 

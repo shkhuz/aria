@@ -286,7 +286,8 @@ int bigint_cmp_abs(const bigint* a, const bigint* b) {
             }
         }
         return 0;
-    } else {
+    } 
+    else {
         return na > nb ? 1 : -1;
     }
 }
@@ -350,10 +351,12 @@ void bigint_add_signed(bigint* a, bool aneg, const bigint* b, bool bneg) {
     if (aneg == bneg) {
         bigint_add_unsigned(a, b);
         a->neg = aneg;
-    } else if (bigint_cmp_abs(a, b) >= 0) {
+    } 
+    else if (bigint_cmp_abs(a, b) >= 0) {
         bigint_sub_unsigned(a, b);
         a->neg = aneg;
-    } else {
+    } 
+    else {
         bigint c = bigint_new();
         bigint_copy(&c, b);
         bigint_sub_unsigned(&c, a);
@@ -500,11 +503,13 @@ bool bigint_fits(const bigint* a, int bytes, bool signd) {
         if (a->neg) {
             if (a->d[0] > max+1) return false;
             else return true;
-        } else {
+        } 
+        else {
             if (a->d[0] > max) return false;
             else return true;
         }
-    } else {
+    } 
+    else {
         if (u64_bitlength(a->d[0]) > (u64)(bytes*8)) return false;
         else return true;
     }
@@ -514,7 +519,8 @@ char* bigint_tostring(const bigint* a) {
     char* str = NULL;
     if (buflen(a->d) == 0) {
         bufpush(str, '0');
-    } else {
+    } 
+    else {
         bigint tmp = bigint_new();
         bigint_copy(&tmp, a);
         bigint quo = bigint_new();

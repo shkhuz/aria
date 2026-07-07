@@ -39,7 +39,8 @@ void compile(CompileCtx* c) {
             c->parsing_error = true;
             //continue;
             return;
-        } else dbg_print_tokens(l.srcfile->tokens);
+        } 
+        else dbg_print_tokens(l.srcfile->tokens);
     } 
     else {
         c->parsing_error = true;

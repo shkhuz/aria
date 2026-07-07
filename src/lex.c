@@ -107,7 +107,7 @@ void lex(LexCtx* l) {
                 while (isalnum(*l->current) || *l->current == '_')
                     l->current++;
 
-                for (usize i = 0; i < KEYWORDS_LEN; i++) {
+                for (int i = 0; i < KEYWORDS_LEN; i++) {
                     if (slice_eql_to_str(
                         l->start, 
                         l->current-l->start, 
@@ -120,6 +120,8 @@ void lex(LexCtx* l) {
                 push_tok(l, kind);
             } break;
 
+            case ':': push_tok_adv(l, TK_COLON); break;
+            case ',': push_tok_adv(l, TK_COMMA); break;
             case '=': push_tok_adv(l, TK_EQUAL); break;
             case '{': push_tok_adv(l, TK_LBRACE); break;
             case '(': push_tok_adv(l, TK_LPAREN); break;

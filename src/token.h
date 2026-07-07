@@ -5,6 +5,8 @@
 #include "srcfile.h"
 
 #define FOREACH_TOKENKIND(WRAP)\
+    WRAP(TK_COLON)\
+    WRAP(TK_COMMA)\
     WRAP(TK_EOF)\
     WRAP(TK_EQUAL)\
     WRAP(TK_IDENT)\
