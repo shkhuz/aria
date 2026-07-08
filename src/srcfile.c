@@ -28,6 +28,7 @@ OptionalSpan span_none() {
     };
 }
 
+// TODO: maybe remove these two?
 char TOSTRING_BUF[1024];
 
 char* span_tostring(Span span) {

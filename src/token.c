@@ -12,7 +12,7 @@ const StringTokenKindTup keywords[] = {
 };
 const int KEYWORDS_LEN = (int)ARRAY_LEN(keywords);
 
-const char** token_strlit_data = NULL;
+StrlitData* token_strlit_data = NULL;
 
 Token* token_new(TokenKind kind, Span span) {
     Token* token = ALLOC_OBJ(Token);

@@ -29,6 +29,7 @@ struct Astnode {
             union {
                 struct {
                     Token* path;
+                    Srcfile* srcfile;
                 } imp;
 
                 struct {
@@ -54,7 +55,8 @@ Astnode* astnode_field_new(Token* ident, Astnode* type);
 Astnode* astnode_struct_import_new(
     Token* start, 
     Token* path, 
-    Token* end
+    Token* end,
+    Srcfile* srcfile
 );
 Astnode* astnode_struct_inline_new(Astnode** ast);
 Astnode* astnode_symbol_new(Token* ident);

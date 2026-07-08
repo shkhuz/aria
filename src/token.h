@@ -34,7 +34,12 @@ typedef struct Token {
     Span span;
     int extra;
 } Token;
-extern const char** token_strlit_data;
+
+typedef struct {
+    const char* str;
+    int len;
+} StrlitData;
+extern StrlitData* token_strlit_data;
 
 typedef struct {
     char* k;

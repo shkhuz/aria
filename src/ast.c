@@ -24,7 +24,8 @@ Astnode* astnode_field_new(Token* ident, Astnode* type) {
 Astnode* astnode_struct_import_new(
     Token* start, 
     Token* path, 
-    Token* end
+    Token* end,
+    Srcfile* srcfile
 ) {
     Astnode* n = astnode_new(
         AST_STRUCT, 
@@ -33,6 +34,7 @@ Astnode* astnode_struct_import_new(
     );
     n->strct.import = true;
     n->strct.imp.path = path;
+    n->strct.imp.srcfile = srcfile;
     return n;
 }
 

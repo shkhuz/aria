@@ -153,7 +153,7 @@ void lex(LexCtx* l) {
                     }
                 }
                 bufpush(str, '\0');
-                bufpush(token_strlit_data, str);
+                bufpush(token_strlit_data, (StrlitData){ str, buflen(str)-1 });
 
                 push_tok_adv(l, TK_STRLIT);
                 last_tok(l)->extra = buflen(token_strlit_data)-1;

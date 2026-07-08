@@ -3,6 +3,7 @@
 #include "msg.h"
 #include "token.h"
 #include "ast.h"
+#include "compile.h"
 
 ParseCtx parsectx_new(
     struct Srcfile* srcfile,
@@ -118,7 +119,45 @@ static Astnode* parse_atom_expr(ParseCtx* p) {
                 "expected a string literal path"
             );
             expect_rparen(p);
-            return astnode_struct_import_new(keyword, path, p->prev);
+
+            if (token_lexeme_eqlto(path, "\"\"")) {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    "empty path",
+                    path->span
+                );
+                msg_emit_non_fatal(p, &msg);
+                return NULL;
+            }
+
+            StrlitData* data = &token_strlit_data[path->extra];
+            // char* path_wf = tmp_copy(data->str);
+            // int path_wf_len = data->len;
+
+            char path_wc[1024];
+            const char* this_path = p->srcfile->handle.path;
+            const char* last_fslash = strrchr(this_path, '/');
+            if (last_fslash) {
+                memcpy(path_wc, this_path, last_fslash - this_path + 1);
+            }
+            memcpy(
+                &path_wc[last_fslash - this_path + 1],
+                data->str,
+                data->len
+            );
+            path_wc[last_fslash - this_path + 1 + data->len] = '\0';
+            printf("to read: %s", path_wc);
+            Srcfile* src = read_srcfile(
+                p->compilectx,
+                path_wc,
+                span_some(path->span)
+            );
+            return astnode_struct_import_new(
+                keyword, 
+                path, 
+                p->prev, 
+                src
+            );
         } 
         else if (match(p, TK_LBRACE)) {
 
@@ -141,6 +180,10 @@ static Astnode* parse_vardecl(ParseCtx* p) {
     bool imm = true;
     if (keyword->kind == TK_KW_MUT) imm = false;
     Token* ident = expect(p, TK_IDENT, "expected variable name");
+    Astnode* type = NULL;
+    if (match(p, TK_COLON)) {
+        type = parse_atom_expr(p);
+    }
     Astnode* initializer = NULL;
     if (match(p, TK_EQUAL)) {
         initializer = parse_atom_expr(p);
@@ -149,7 +192,7 @@ static Astnode* parse_vardecl(ParseCtx* p) {
     return astnode_vardecl_new(
         keyword, 
         ident,
-        NULL,
+        type,
         NULL,
         initializer
     );
