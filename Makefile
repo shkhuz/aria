@@ -28,8 +28,8 @@ else
 	TEST_CFLAGS :=
 endif
 
-CC := gcc
-LD := gcc
+CC := clang
+LD := clang
 
 run: $(EXE_PATH)
 	./$^ $(AR_FILE)

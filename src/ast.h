@@ -1,10 +1,8 @@
 #ifndef AST_H 
 #define AST_H
 
+#include "types.h"
 #include "srcfile.h"
-
-typedef struct Token Token;
-typedef struct Astnode Astnode;
 
 typedef enum {
     AST_FIELD,

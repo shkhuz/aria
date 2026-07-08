@@ -1,6 +1,7 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
+#include "types.h"
 #include "core.h"
 #include "srcfile.h"
 
@@ -29,11 +30,11 @@ typedef enum {
 
 extern const char* tokenkind_strs[];
 
-typedef struct Token {
+struct Token {
     TokenKind kind;
     Span span;
     int extra;
-} Token;
+};
 
 typedef struct {
     const char* str;

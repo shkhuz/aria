@@ -6,12 +6,12 @@
 void dbg_print_tokens(Token** tokens) {
     bufloop(tokens, i) {
         printf(
-            "%20s %s\n", 
+            "\n%20s %s", 
             tokenkind_strs[tokens[i]->kind], 
             span_tostring(tokens[i]->span)
         );
     }
-    printf("tokens: %lu\n", buflen(tokens));
+    printf("\ntokens: %lu", buflen(tokens));
 }
 
 static int indent;
@@ -81,4 +81,5 @@ void dbg_print_ast(Astnode** ast) {
     bufloop(ast, i) {
         print_astnode(ast[i]);
     }
+    printf("\n");
 }

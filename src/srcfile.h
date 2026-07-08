@@ -1,17 +1,15 @@
 #ifndef SRCFILE_H
 #define SRCFILE_H
 
+#include "types.h"
 #include "core.h"
 
-typedef struct Token Token;
-typedef struct Astnode Astnode;
-
-typedef struct Srcfile {
+struct Srcfile {
     u64 id;
     File handle;
-    Token** tokens;
+    struct Token** tokens;
     Astnode** ast;
-} Srcfile;
+};
 
 typedef struct {
     struct Srcfile* srcfile;

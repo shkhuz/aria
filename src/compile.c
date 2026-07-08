@@ -93,6 +93,7 @@ void compile(CompileCtx* c) {
     jmp_buf parse_error_handler_pos;
 
     for (usize i = 0; i < buflen(c->srcfiles); i++) {
+        printf("\n:: Compiling %s", c->srcfiles[i].handle.path);
         LexCtx l = lexctx_new(
             &c->srcfiles[i], 
             c, 

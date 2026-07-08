@@ -137,16 +137,17 @@ static Astnode* parse_atom_expr(ParseCtx* p) {
             char path_wc[1024];
             const char* this_path = p->srcfile->handle.path;
             const char* last_fslash = strrchr(this_path, '/');
+            int start = 0;
             if (last_fslash) {
-                memcpy(path_wc, this_path, last_fslash - this_path + 1);
+                start = last_fslash - this_path + 1;
+                memcpy(path_wc, this_path, start);
             }
             memcpy(
-                &path_wc[last_fslash - this_path + 1],
+                &path_wc[start],
                 data->str,
                 data->len
             );
-            path_wc[last_fslash - this_path + 1 + data->len] = '\0';
-            printf("to read: %s", path_wc);
+            path_wc[start + data->len] = '\0';
             Srcfile* src = read_srcfile(
                 p->compilectx,
                 path_wc,
