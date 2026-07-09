@@ -38,8 +38,19 @@ Astnode* astnode_struct_import_new(
     return n;
 }
 
-Astnode* astnode_struct_inline_new(Astnode** ast) {
-
+Astnode* astnode_struct_inline_new(
+    Token* start, 
+    Astnode** ast, 
+    Token* end
+) {
+    Astnode* n = astnode_new(
+        AST_STRUCT,
+        span_from_two(start->span, end->span),
+        start->span
+    );
+    n->strct.import = false;
+    n->strct.inl.ast = ast;
+    return n;
 }
 
 Astnode* astnode_symbol_new(Token* ident) {

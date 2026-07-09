@@ -56,7 +56,11 @@ Astnode* astnode_struct_import_new(
     Token* end,
     Srcfile* srcfile
 );
-Astnode* astnode_struct_inline_new(Astnode** ast);
+Astnode* astnode_struct_inline_new(
+    Token* start, 
+    Astnode** ast, 
+    Token* end
+);
 Astnode* astnode_symbol_new(Token* ident);
 Astnode* astnode_vardecl_new(
     Token* start, 

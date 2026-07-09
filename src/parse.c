@@ -5,6 +5,8 @@
 #include "ast.h"
 #include "compile.h"
 
+static Astnode* parse_astnode_root(ParseCtx* p);
+
 ParseCtx parsectx_new(
     struct Srcfile* srcfile,
     struct CompileCtx* compilectx, 
@@ -81,7 +83,10 @@ static Token* expect(ParseCtx* p, TokenKind kind, const char* msgstr) {
         if (kind == TK_IDENT) {
             for (int i = 0; i < KEYWORDS_LEN; i++) {
                 if (token_lexeme_eqlto(p->current, keywords[i].k)) {
-                    msg_addl_thin(&msg, format_string("`%s` is a keyword", keywords[i].k));
+                    msg_addl_thin(
+                        &msg, 
+                        format_string("`%s` is a keyword", keywords[i].k)
+                    );
                     break;
                 }
             }
@@ -112,7 +117,6 @@ static Astnode* parse_atom_expr(ParseCtx* p) {
     else if (match(p, TK_KW_STRUCT)) {
         Token* keyword = p->prev;
         if (match(p, TK_LPAREN)) {
-            Token* paren = p->prev;
             Token* path = expect(
                 p, 
                 TK_STRLIT, 
@@ -161,7 +165,18 @@ static Astnode* parse_atom_expr(ParseCtx* p) {
             );
         } 
         else if (match(p, TK_LBRACE)) {
-
+            Token* lbrace = p->prev;
+            Astnode** ast = NULL;
+            while (!match(p, TK_RBRACE)) {
+                check_eof(p, lbrace);
+                Astnode* n = parse_astnode_root(p);
+                if (n) bufpush(ast, n);
+            }
+            return astnode_struct_inline_new(
+                keyword,
+                ast,
+                p->prev
+            );
         }
     }
 

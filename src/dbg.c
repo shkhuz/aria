@@ -34,6 +34,9 @@ static void print_astnode(Astnode* n) {
         case AST_VARDECL:
         case AST_FIELD:
             printf("\n");
+            for (int i = 0; i < indent; i++) {
+                printf("    ");
+            }
             break;
         default: break;
     }
@@ -48,9 +51,18 @@ static void print_astnode(Astnode* n) {
         } break;
 
         case AST_STRUCT: {
-            printf("(struct-import ");
             if (n->strct.import) {
+                printf("(struct-import ");
                 print_token(n->strct.imp.path);
+                printf(")");
+            }
+            else {
+                printf("(struct ");
+                indent++;
+                bufloop(n->strct.inl.ast, i) {
+                    print_astnode(n->strct.inl.ast[i]);
+                }
+                indent--;
                 printf(")");
             }
         } break;
