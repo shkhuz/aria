@@ -10,6 +10,28 @@ Astnode* astnode_new(AstnodeKind kind, Span span, Span short_span) {
     return n;
 }
 
+Astnode* astnode_block_new(
+    Token* start, 
+    Astnode** ast, 
+    Astnode* value,
+    Token* end
+) {
+    Astnode* n = astnode_new(
+        AST_BLOCK,
+        span_from_two(start->span, end->span),
+        start->span
+    );
+    n->block.ast = ast;
+    n->block.value = value;
+    return n;
+}
+
+Astnode* astnode_exprstmt_new(Astnode* expr) {
+    Astnode* n = astnode_new(AST_EXPRSTMT, expr->span, expr->span);
+    n->exprstmt.expr = expr;
+    return n;
+}
+
 Astnode* astnode_field_new(Token* ident, Astnode* type) {
     Astnode* n = astnode_new(
         AST_FIELD, 
@@ -18,6 +40,36 @@ Astnode* astnode_field_new(Token* ident, Astnode* type) {
     );
     n->field.ident = ident;
     n->field.type = type;
+    return n;
+}
+
+Astnode* astnode_func_new(
+    Token* start,
+    Token* ident,
+    Astnode** params,
+    Astnode* returntype,
+    Astnode* body
+) {
+    Astnode* n = astnode_new(
+        AST_FUNC,
+        span_from_two(start->span, body->span),
+        ident->span
+    );
+    n->func.ident = ident;
+    n->func.params = params;
+    n->func.returntype = returntype;
+    n->func.body = body;
+    return n;
+}
+
+Astnode* astnode_param_new(Token* ident, Astnode* type) {
+    Astnode* n = astnode_new(
+        AST_PARAM,
+        span_from_two(ident->span, type->span),
+        ident->span
+    );
+    n->param.ident = ident;
+    n->param.type = type;
     return n;
 }
 

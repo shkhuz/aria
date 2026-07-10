@@ -102,12 +102,10 @@ static void print_source_line(Span span, const char* color, bool print_srcloc) {
             i++;
             end_of_span = i;
             break;
-        }
-        else if (handle->contents[i] == '\t') {
+        } else if (handle->contents[i] == '\t') {
             if (i >= span.start) disp_chcount += 3;
             fprintf(stderr, "\x20\x20\x20\x20");
-        }
-        else {
+        } else {
             fprintf(stderr, "%c", handle->contents[i]);
         }
     }

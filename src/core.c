@@ -109,8 +109,7 @@ void* _bufgrow(const void* buf, usize new_len, usize elem_size) {
     bufhdr* new_hdr;
     if (buf) {
         new_hdr = (bufhdr*)realloc(_bufhdr(buf), mem_to_alloc);
-    }
-    else {
+    } else {
         new_hdr = (bufhdr*)malloc(mem_to_alloc);
         new_hdr->len = 0;
     }
@@ -158,18 +157,23 @@ FileOrError read_file(const char* path) {
     if (realpath(path, abs_path_buf)) {
         usize abs_path_len = strlen(abs_path_buf);
         abs_path = (char*)malloc(abs_path_len + 1);
-        memcpy(abs_path, abs_path_buf, abs_path_len+1); // including '\0'
+        // including '\0'
+        memcpy(abs_path, abs_path_buf, abs_path_len+1); 
     }
 
     File handle;
-    handle.path = path;
+    handle.path = strdup(path);
     handle.abs_path = abs_path;
     handle.contents = contents;
     handle.len = size;
     return (FileOrError){ handle, FILEIO_SUCCESS };
 }
 
-FileOpResult write_bin_file(const char* path, const char* contents, u64 bytes) {
+FileOpResult write_bin_file(
+    const char* path, 
+    const char* contents, 
+    u64 bytes
+) {
     FILE* raw = fopen(path, "w");
     if (!raw) {
         return FILEIO_FAILURE;
@@ -286,8 +290,7 @@ int bigint_cmp_abs(const bigint* a, const bigint* b) {
             }
         }
         return 0;
-    } 
-    else {
+    } else {
         return na > nb ? 1 : -1;
     }
 }
@@ -351,12 +354,10 @@ void bigint_add_signed(bigint* a, bool aneg, const bigint* b, bool bneg) {
     if (aneg == bneg) {
         bigint_add_unsigned(a, b);
         a->neg = aneg;
-    } 
-    else if (bigint_cmp_abs(a, b) >= 0) {
+    } else if (bigint_cmp_abs(a, b) >= 0) {
         bigint_sub_unsigned(a, b);
         a->neg = aneg;
-    } 
-    else {
+    } else {
         bigint c = bigint_new();
         bigint_copy(&c, b);
         bigint_sub_unsigned(&c, a);
@@ -503,13 +504,11 @@ bool bigint_fits(const bigint* a, int bytes, bool signd) {
         if (a->neg) {
             if (a->d[0] > max+1) return false;
             else return true;
-        } 
-        else {
+        } else {
             if (a->d[0] > max) return false;
             else return true;
         }
-    } 
-    else {
+    } else {
         if (u64_bitlength(a->d[0]) > (u64)(bytes*8)) return false;
         else return true;
     }
@@ -519,8 +518,7 @@ char* bigint_tostring(const bigint* a) {
     char* str = NULL;
     if (buflen(a->d) == 0) {
         bufpush(str, '0');
-    } 
-    else {
+    } else {
         bigint tmp = bigint_new();
         bigint_copy(&tmp, a);
         bigint quo = bigint_new();

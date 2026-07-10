@@ -6,9 +6,11 @@
 void dbg_print_tokens(Token** tokens) {
     bufloop(tokens, i) {
         printf(
-            "\n%20s %s", 
+            "\n%20s %20s %lu,%lu", 
             tokenkind_strs[tokens[i]->kind], 
-            span_tostring(tokens[i]->span)
+            span_tostring(tokens[i]->span),
+            tokens[i]->span.start,
+            tokens[i]->span.end
         );
     }
     printf("\ntokens: %lu", buflen(tokens));
@@ -24,6 +26,13 @@ static void print_token(Token* token) {
     );
 }
 
+static void format() {
+    printf("\n");
+    for (int i = 0; i < indent; i++) {
+        printf("    ");
+    }
+}
+
 static void print_astnode(Astnode* n) {
     if (!n) {
         printf("nil");
@@ -31,17 +40,36 @@ static void print_astnode(Astnode* n) {
     }
 
     switch (n->kind) {
-        case AST_VARDECL:
+        case AST_BLOCK:
         case AST_FIELD:
-            printf("\n");
-            for (int i = 0; i < indent; i++) {
-                printf("    ");
-            }
+        case AST_FUNC:
+        case AST_VARDECL:
+            format();
             break;
         default: break;
     }
 
     switch (n->kind) {
+        case AST_BLOCK: {
+            printf("(block ");
+            indent++;
+            bufloop(n->block.ast, i) {
+                print_astnode(n->block.ast[i]);
+            }
+            format();
+            printf("(yield ");
+            print_astnode(n->block.value);
+            printf(")");
+            indent--;
+            printf(")");
+        } break;
+
+        case AST_EXPRSTMT: {
+            printf("(exprstmt ");
+            print_astnode(n->exprstmt.expr);
+            printf(")");
+        } break;
+
         case AST_FIELD: {
             printf("(field ");
             print_token(n->field.ident);
@@ -50,13 +78,37 @@ static void print_astnode(Astnode* n) {
             printf(")");
         } break;
 
+        case AST_FUNC: {
+            printf("(func ");  
+            print_token(n->func.ident);
+            printf(" (");
+            bufloop(n->func.params, i) {
+                if (i != 0) printf(", ");
+                print_astnode(n->func.params[i]);
+            }
+            printf(") ");
+            print_astnode(n->func.returntype);
+
+            printf(" ");
+            print_astnode(n->func.body);
+
+            printf(")");
+        } break;
+
+        case AST_PARAM: {
+            printf("(");
+            print_token(n->param.ident);
+            printf(" : ");
+            print_astnode(n->param.type);
+            printf(")");
+        } break;
+
         case AST_STRUCT: {
             if (n->strct.import) {
                 printf("(struct-import ");
                 print_token(n->strct.imp.path);
                 printf(")");
-            }
-            else {
+            } else {
                 printf("(struct ");
                 indent++;
                 bufloop(n->strct.inl.ast, i) {

@@ -53,8 +53,7 @@ Srcfile* read_srcfile(
                     span.span
                 );
                 _msg_emit(&msg, c);
-            }
-            else {
+            } else {
                 Msg msg = msg_with_no_span(
                     MSG_ERROR,
                     error_msg
@@ -104,10 +103,8 @@ void compile(CompileCtx* c) {
             if (l.error) {
                 c->parsing_error = true;
                 continue;
-            } 
-            else dbg_print_tokens(l.srcfile->tokens);
-        } 
-        else {
+            } else dbg_print_tokens(l.srcfile->tokens);
+        } else {
             c->parsing_error = true;
             continue;
         }
@@ -121,8 +118,7 @@ void compile(CompileCtx* c) {
             parse(&p);
             if (p.error) c->parsing_error = true;
             else /*if (c->print_ast)*/ dbg_print_ast(c->srcfiles[i].ast);
-        }
-        else {
+        } else {
             c->parsing_error = true;
             continue;
         }

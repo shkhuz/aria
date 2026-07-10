@@ -5,7 +5,11 @@
 #include "srcfile.h"
 
 typedef enum {
+    AST_BLOCK,
+    AST_EXPRSTMT,
     AST_FIELD,
+    AST_FUNC,
+    AST_PARAM,
     AST_STRUCT,
     AST_SYM,
     AST_VARDECL,
@@ -18,9 +22,30 @@ struct Astnode {
 
     union {
         struct {
+            Astnode** ast;
+            Astnode* value;
+        } block;
+
+        struct {
+            Astnode* expr;
+        } exprstmt;
+
+        struct {
             Token* ident;
             Astnode* type;
         } field;
+
+        struct {
+            Token* ident;
+            Astnode** params;
+            Astnode* returntype;
+            Astnode* body;
+        } func;
+
+        struct {
+            Token* ident;
+            Astnode* type;
+        } param;
 
         struct {
             bool import;
@@ -49,7 +74,23 @@ struct Astnode {
     };
 };
 
+Astnode* astnode_block_new(
+    Token* start, 
+    Astnode** ast, 
+    Astnode* value,
+    Token* end
+);
+Astnode* astnode_exprstmt_new(Astnode* expr);
 Astnode* astnode_field_new(Token* ident, Astnode* type);
+Astnode* astnode_func_new(
+    Token* start,
+    Token* ident,
+    Astnode** params,
+    Astnode* returntype,
+    Astnode* body
+);
+Astnode* astnode_param_new(Token* ident, Astnode* type);
+
 Astnode* astnode_struct_import_new(
     Token* start, 
     Token* path, 

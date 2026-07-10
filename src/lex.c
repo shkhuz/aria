@@ -146,8 +146,7 @@ void lex(LexCtx* l) {
                         l->current++;
                         // unsigned char c = escape_char(l);
                         // bufpush(str, c);
-                    }
-                    else {
+                    } else {
                         bufpush(str, *l->current);
                         l->current++;
                     }
@@ -157,6 +156,13 @@ void lex(LexCtx* l) {
 
                 push_tok_adv(l, TK_STRLIT);
                 last_tok(l)->extra = buflen(token_strlit_data)-1;
+            } break;
+
+            case '/': {
+                if (peek(l) == '/') {
+                    while (*l->current != '\n' && *l->current != '\0') 
+                        l->current++;
+                }
             } break;
 
             case ' ':

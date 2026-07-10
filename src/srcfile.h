@@ -23,6 +23,7 @@ typedef struct {
 
 Span span_new(Srcfile* srcfile, usize start, usize end);
 Span span_from_two(Span start, Span end);
+Span span_only_firstchar(Span span);
 
 OptionalSpan span_some(Span span);
 OptionalSpan span_none();

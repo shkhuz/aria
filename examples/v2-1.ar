@@ -5,3 +5,11 @@ imm S = struct {
 
     imm new: Mod = super;
 };
+
+fun main() void {
+    fun cool() {
+    }
+    {
+        yield hi;
+    }
+}

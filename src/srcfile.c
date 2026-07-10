@@ -14,6 +14,10 @@ Span span_from_two(Span start, Span end) {
     return span_new(start.srcfile, start.start, end.end);
 }
 
+Span span_only_firstchar(Span span) {
+    return span_new(span.srcfile, span.start, span.start+1);
+}
+
 OptionalSpan span_some(Span span) {
     return (OptionalSpan){
         span,

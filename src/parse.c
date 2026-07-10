@@ -6,6 +6,7 @@
 #include "compile.h"
 
 static Astnode* parse_astnode_root(ParseCtx* p);
+static Astnode* parse_block(ParseCtx* p);
 
 ParseCtx parsectx_new(
     struct Srcfile* srcfile,
@@ -97,8 +98,20 @@ static Token* expect(ParseCtx* p, TokenKind kind, const char* msgstr) {
     return p->prev;
 }
 
+static Token* expect_lparen(ParseCtx* p) {
+    return expect(p, TK_LPAREN, "expected `(`");
+}
+
 static Token* expect_rparen(ParseCtx* p) {
     return expect(p, TK_RPAREN, "expected `)`");
+}
+
+static Token* expect_lbrace(ParseCtx* p) {
+    return expect(p, TK_LBRACE, "expected `{`");
+}
+
+static inline Token* expect_colon(ParseCtx* p) {
+    return expect(p, TK_COLON, "expected `:`");
 }
 
 static inline Token* expect_semicolon(ParseCtx* p) {
@@ -113,8 +126,7 @@ static Astnode* parse_atom_expr(ParseCtx* p) {
     if (match(p, TK_IDENT)) {
         Astnode* left = astnode_symbol_new(p->prev);
         return left;
-    }
-    else if (match(p, TK_KW_STRUCT)) {
+    } else if (match(p, TK_KW_STRUCT)) {
         Token* keyword = p->prev;
         if (match(p, TK_LPAREN)) {
             Token* path = expect(
@@ -163,8 +175,7 @@ static Astnode* parse_atom_expr(ParseCtx* p) {
                 p->prev, 
                 src
             );
-        } 
-        else if (match(p, TK_LBRACE)) {
+        } else if (match(p, TK_LBRACE)) {
             Token* lbrace = p->prev;
             Astnode** ast = NULL;
             while (!match(p, TK_RBRACE)) {
@@ -178,6 +189,8 @@ static Astnode* parse_atom_expr(ParseCtx* p) {
                 p->prev
             );
         }
+    } else if (p->current->kind == TK_LBRACE) {
+        return parse_block(p);
     }
 
     Msg msg = msg_with_span(
@@ -214,11 +227,55 @@ static Astnode* parse_vardecl(ParseCtx* p) {
     );
 }
 
+static Astnode* parse_func(ParseCtx* p) {
+    Token* keyword = p->prev;
+    Token* ident = expect(p, TK_IDENT, "expected function name");
+    Token* lparen = expect_lparen(p);
+    Astnode** params = NULL;
+    while (!match(p, TK_RPAREN)) {
+        check_eof(p, lparen);
+        Token* pident = expect(
+            p, 
+            TK_IDENT, 
+            "expected parameter name"
+        );
+        expect_colon(p);
+        Astnode* ptype = parse_atom_expr(p);
+        bufpush(params, astnode_param_new(pident, ptype));
+        if (p->current->kind != TK_RPAREN) {
+            expect_comma(p);
+        }
+    }
+    Astnode* returntype = parse_atom_expr(p);
+    if (p->current->kind != TK_LBRACE && returntype->kind == AST_BLOCK) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            "expected `{` for function body",
+            p->current->span
+        );
+        msg_addl_fat(
+            &msg, 
+            "perhaps you forgot the return type?", 
+            span_only_firstchar(returntype->span)
+        );
+        msg_emit(p, &msg);
+    }
+    Astnode* body = parse_block(p);
+    return astnode_func_new(
+        keyword,
+        ident,
+        params,
+        returntype,
+        body
+    );
+}
+
 static Astnode* parse_astnode_root(ParseCtx* p) {
     if (match(p, TK_KW_IMM) || match(p, TK_KW_MUT)) {
         return parse_vardecl(p);
-    } 
-    else if (match(p, TK_IDENT)) {
+    } else if (match(p, TK_KW_FUN)) {
+        return parse_func(p); 
+    } else if (match(p, TK_IDENT)) {
         Token* ident = p->prev;
         if (match(p, TK_COLON)) {
             Astnode* type = parse_atom_expr(p);
@@ -226,8 +283,7 @@ static Astnode* parse_astnode_root(ParseCtx* p) {
                 expect_comma(p);
             }
             return astnode_field_new(ident, type);
-        }
-        else {
+        } else {
             Msg msg = msg_with_span(
                 MSG_ERROR,
                 "expected `:` for field declaration",
@@ -238,8 +294,7 @@ static Astnode* parse_astnode_root(ParseCtx* p) {
             // But just for completeness.
             goto_prev_token(p);
         }
-    }
-    else {
+    } else {
         Msg msg = msg_with_span(
             MSG_ERROR,
             "expected top-level declaration",
@@ -247,6 +302,58 @@ static Astnode* parse_astnode_root(ParseCtx* p) {
         );
         msg_emit(p, &msg);
     }
+}
+
+static Astnode* parse_block(ParseCtx* p) {
+    Token* lbrace = expect_lbrace(p);
+    Astnode** ast = NULL;
+    Astnode* value = NULL;
+
+    while (!match(p, TK_RBRACE)) {
+        check_eof(p, lbrace);
+        Astnode* child = NULL;
+        if (match(p, TK_KW_IMM) || match(p, TK_KW_MUT)) {
+            child = parse_vardecl(p); 
+        } else if (match(p, TK_KW_FUN)) {
+            child = parse_func(p);
+        } else if (match(p, TK_KW_YIELD)) {
+            value = parse_atom_expr(p);
+            expect_semicolon(p);
+            if (!match(p, TK_RBRACE)) {
+                Msg msg = msg_with_span(
+                    MSG_ERROR,
+                    "expected `}`",
+                    p->current->span
+                );
+                msg_addl_thin(&msg, "`yield` must be last in a block");
+                msg_emit(p, &msg);
+            }
+            break;
+        } else {
+            Astnode* n = parse_atom_expr(p);
+            if (n->kind == AST_BLOCK) {
+            } else {
+                if (p->current->kind == TK_COLON) {
+                    expect(
+                        p, 
+                        TK_SEMICOLON, 
+                        "field cannot be declared in a block"
+                    );
+                } else {
+                    expect_semicolon(p);
+                }
+            }
+            child = astnode_exprstmt_new(n);
+        }
+
+        if (child) bufpush(ast, child);
+    }
+    return astnode_block_new(
+        lbrace,
+        ast,
+        value,
+        p->prev
+    );
 }
 
 void parse(ParseCtx* p) {

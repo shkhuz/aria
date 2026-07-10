@@ -6,9 +6,10 @@ const char* tokenkind_strs[] = {
 
 const StringTokenKindTup keywords[] = {
     { "imm",        TK_KW_IMM },
-    { "fn",         TK_KW_FN },
+    { "fun",        TK_KW_FUN },
     { "mut",        TK_KW_MUT },
     { "struct",     TK_KW_STRUCT },
+    { "yield",      TK_KW_YIELD },
 };
 const int KEYWORDS_LEN = (int)ARRAY_LEN(keywords);
 
