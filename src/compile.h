@@ -22,13 +22,13 @@ CompileCtx compilectx_new();
 Srcfile* read_srcfile(
     CompileCtx* c, 
     const char* path, 
-    OptionalSpan span
+    Span span,
+    Srcfile* spansrc
 );
 void compilectx_init_stream(CompileCtx* c, const char* stream);
 bool compilectx_init_path(
     CompileCtx* c, 
-    const char* path, 
-    OptionalSpan span
+    const char* path
 );
 void compile(CompileCtx* c);
 void compile_register_msg(CompileCtx* c, Msg msg);

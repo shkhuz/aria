@@ -1,44 +1,28 @@
 #include "srcfile.h"
 #include "compile.h"
 
-Span span_new(Srcfile* srcfile, usize start, usize end) {
+Span span_new(int start, int end) {
     return (Span){
-        srcfile,
         start,
         end
     };
 }
 
 Span span_from_two(Span start, Span end) {
-    if (start.srcfile != end.srcfile) assert(0);
-    return span_new(start.srcfile, start.start, end.end);
+    return span_new(start.start, end.end);
 }
 
 Span span_only_firstchar(Span span) {
-    return span_new(span.srcfile, span.start, span.start+1);
-}
-
-OptionalSpan span_some(Span span) {
-    return (OptionalSpan){
-        span,
-        true
-    };
-}
-
-OptionalSpan span_none() {
-    return (OptionalSpan){
-        (Span){ 0 },
-        false
-    };
+    return span_new(span.start, span.start+1);
 }
 
 // TODO: maybe remove these two?
 char TOSTRING_BUF[1024];
 
-char* span_tostring(Span span) {
-    usize len = span.end - span.start;
+char* span_tostring(Span span, Srcfile* srcfile) {
+    int len = span.end - span.start;
     char* buf = TOSTRING_BUF;
-    memcpy(buf, &span.srcfile->handle.contents[span.start], len);
+    memcpy(buf, &srcfile->handle.contents[span.start], len);
     buf[len] = '\0';
     return buf;
 }

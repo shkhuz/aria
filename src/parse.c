@@ -8,15 +8,18 @@
 static Astnode* parse_astnode_root(ParseCtx* p);
 static Astnode* parse_block(ParseCtx* p);
 
+#define msg_with_span(kind, msg, span) _msg_with_span(kind, msg, span, p->src)
+#define msg_addl_fat(m, msg, span) _msg_addl_fat(m, msg, span, p->src)
+
 ParseCtx parsectx_new(
-    struct Srcfile* srcfile,
+    struct Srcfile* src,
     struct CompileCtx* compilectx, 
     jmp_buf* error_handler_pos
 ) {
     ParseCtx p;
-    p.srcfile = srcfile;
-    p.srcfile->ast = NULL;
-    p.current = p.srcfile->tokens[0];
+    p.src = src;
+    p.src->ast = NULL;
+    p.current = p.src->tokens[0];
     p.prev = NULL;
     p.token_idx = 0;
     p.compilectx = compilectx;
@@ -41,10 +44,10 @@ static inline void msg_emit_non_fatal(ParseCtx* p, Msg* msg) {
 }
 
 static void goto_next_token(ParseCtx* p) {
-    if (p->token_idx < buflen(p->srcfile->tokens)) {
+    if (p->token_idx < buflen(p->src->tokens)) {
         p->token_idx++;
         p->prev = p->current;
-        p->current = p->srcfile->tokens[p->token_idx];
+        p->current = p->src->tokens[p->token_idx];
     }
 }
 
@@ -83,7 +86,7 @@ static Token* expect(ParseCtx* p, TokenKind kind, const char* msgstr) {
         );
         if (kind == TK_IDENT) {
             for (int i = 0; i < KEYWORDS_LEN; i++) {
-                if (token_lexeme_eqlto(p->current, keywords[i].k)) {
+                if (token_lexeme_eqlto(p->current, p->src, keywords[i].k)) {
                     msg_addl_thin(
                         &msg, 
                         format_string("`%s` is a keyword", keywords[i].k)
@@ -140,7 +143,7 @@ static Astnode* parse_atom_expr(ParseCtx* p) {
             );
             expect_rparen(p);
 
-            if (token_lexeme_eqlto(path, "\"\"")) {
+            if (token_lexeme_eqlto(path, p->src, "\"\"")) {
                 Msg msg = msg_with_span(
                     MSG_ERROR,
                     "empty path",
@@ -152,7 +155,7 @@ static Astnode* parse_atom_expr(ParseCtx* p) {
 
             StrlitData* data = &token_strlit_data[path->extra];
             char path_wc[1024];
-            const char* this_path = p->srcfile->handle.path;
+            const char* this_path = p->src->handle.path;
             const char* last_fslash = strrchr(this_path, '/');
             int start = 0;
             if (last_fslash) {
@@ -168,7 +171,8 @@ static Astnode* parse_atom_expr(ParseCtx* p) {
             Srcfile* src = read_srcfile(
                 p->compilectx,
                 path_wc,
-                span_some(path->span)
+                path->span,
+                p->src
             );
             return astnode_struct_import_new(
                 keyword, 
@@ -366,6 +370,6 @@ static Astnode* parse_block(ParseCtx* p) {
 void parse(ParseCtx* p) {
     while (p->current->kind != TK_EOF) {
         Astnode* astnode = parse_astnode_root(p);
-        if (astnode) bufpush(p->srcfile->ast, astnode);
+        if (astnode) bufpush(p->src->ast, astnode);
     }
 }

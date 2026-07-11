@@ -57,7 +57,7 @@ struct Astnode {
             union {
                 struct {
                     Token* path;
-                    Srcfile* srcfile;
+                    Srcfile* src;
                 } imp;
 
                 struct {
@@ -100,7 +100,7 @@ Astnode* astnode_struct_import_new(
     Token* start, 
     Token* path, 
     Token* end,
-    Srcfile* srcfile
+    Srcfile* src
 );
 Astnode* astnode_struct_inline_new(
     Token* start, 

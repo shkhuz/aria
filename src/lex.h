@@ -7,7 +7,7 @@ struct CompileCtx;
 struct Srcfile;
 
 typedef struct {
-    struct Srcfile* srcfile;
+    struct Srcfile* src;
     const char* start, *current, *lastnl;
     struct CompileCtx* compilectx;
     bool error;
@@ -23,7 +23,7 @@ typedef struct {
 } LexCtx;
 
 LexCtx lexctx_new(
-    struct Srcfile* srcfile,
+    struct Srcfile* src,
     struct CompileCtx* compilectx, 
     jmp_buf* error_handler_pos
 );

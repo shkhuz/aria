@@ -86,7 +86,7 @@ Astnode* astnode_struct_import_new(
     Token* start, 
     Token* path, 
     Token* end,
-    Srcfile* srcfile
+    Srcfile* src
 ) {
     Astnode* n = astnode_new(
         AST_STRUCT, 
@@ -95,7 +95,7 @@ Astnode* astnode_struct_import_new(
     );
     n->strct.import = true;
     n->strct.imp.path = path;
-    n->strct.imp.srcfile = srcfile;
+    n->strct.imp.src = src;
     return n;
 }
 

@@ -5,28 +5,19 @@
 #include "core.h"
 
 struct Srcfile {
-    u64 id;
+    int id;
     File handle;
     struct Token** tokens;
     Astnode** ast;
 };
 
 typedef struct {
-    struct Srcfile* srcfile;
-    usize start, end;
+    int start, end;
 } Span;
 
-typedef struct {
-    Span span;
-    bool exists;
-} OptionalSpan;
-
-Span span_new(Srcfile* srcfile, usize start, usize end);
+Span span_new(int start, int end);
 Span span_from_two(Span start, Span end);
 Span span_only_firstchar(Span span);
-
-OptionalSpan span_some(Span span);
-OptionalSpan span_none();
-char* span_tostring(Span span);
+char* span_tostring(Span span, Srcfile* srcfile);
 
 #endif

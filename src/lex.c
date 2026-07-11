@@ -4,14 +4,14 @@
 #include "token.h"
 
 LexCtx lexctx_new(
-    struct Srcfile* srcfile,
+    struct Srcfile* src,
     struct CompileCtx* compilectx, 
     jmp_buf* error_handler_pos
 ) {
     LexCtx l;
-    l.srcfile = srcfile;
-    l.srcfile->tokens = NULL;
-    l.start = srcfile->handle.contents;
+    l.src = src;
+    l.src->tokens = NULL;
+    l.start = src->handle.contents;
     l.current = l.start;
     l.lastnl = l.start;
     l.error = false;
@@ -21,6 +21,9 @@ LexCtx lexctx_new(
     l.invalid_char_error = false;
     return l;
 }
+
+#define msg_with_span(kind, msg, span) _msg_with_span(kind, msg, span, l->src)
+#define msg_addl_fat(m, msg, span) _msg_addl_fat(m, msg, span, l->src)
 
 static inline void msg_emit(LexCtx* l, Msg* msg) {
     _msg_emit(msg, l->compilectx);
@@ -37,17 +40,15 @@ static inline void fatal_msg_emit(LexCtx* l, Msg* msg) {
 
 static inline Span span_from_start_to_current(LexCtx* l) {
     return span_new(
-        l->srcfile,
-        l->start - l->srcfile->handle.contents,
-        l->current - l->srcfile->handle.contents
+        l->start - l->src->handle.contents,
+        l->current - l->src->handle.contents
     );
 }
 
 static inline Span span_to_current_from(LexCtx* l, const char* from) {
     return span_new(
-        l->srcfile,
-        from - l->srcfile->handle.contents,
-        l->current - l->srcfile->handle.contents
+        from - l->src->handle.contents,
+        l->current - l->src->handle.contents
     );
 }
 
@@ -65,7 +66,7 @@ static inline char peek(LexCtx* l) {
 
 static void push_tok(LexCtx* l, TokenKind kind) {
     Token* t = token_new(kind, span_from_start_to_current(l));
-    bufpush(l->srcfile->tokens, t);
+    bufpush(l->src->tokens, t);
 }
 
 static inline void push_tok_adv(LexCtx* l, TokenKind kind) {   
@@ -85,7 +86,7 @@ static void push_tok_adv_cond(
 }
 
 static inline Token* last_tok(LexCtx* l) {
-    return l->srcfile->tokens[buflen(l->srcfile->tokens)-1];
+    return l->src->tokens[buflen(l->src->tokens)-1];
 }
 
 void lex(LexCtx* l) {

@@ -15,8 +15,7 @@ int main() {
     // );
     compilectx_init_path(
         &c,
-        "examples/v2-1.ar",
-        span_none()
+        "examples/v2-1.ar"
     );
     compile(&c);
     if (c.parsing_error) compile_terminate(&c);

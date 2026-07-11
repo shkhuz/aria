@@ -16,7 +16,8 @@ CompileCtx compilectx_new() {
 Srcfile* read_srcfile(
     CompileCtx* c, 
     const char* path, 
-    OptionalSpan span
+    Span span,
+    Srcfile* spansrc
 ) {
     FileOrError efile = read_file(path);
     switch (efile.status) {
@@ -46,11 +47,12 @@ Srcfile* read_srcfile(
                 "cannot read file '%s'",
                 path
             );
-            if (span.exists) {
-                Msg msg = msg_with_span(
+            if (spansrc) {
+                Msg msg = _msg_with_span(
                     MSG_ERROR,
                     error_msg,
-                    span.span
+                    span,
+                    spansrc
                 );
                 _msg_emit(&msg, c);
             } else {
@@ -80,10 +82,9 @@ void compilectx_init_stream(CompileCtx* c, const char* stream) {
 
 bool compilectx_init_path(
     CompileCtx* c, 
-    const char* path, 
-    OptionalSpan span
+    const char* path
 ) {
-    Srcfile* src = read_srcfile(c, path, span);
+    Srcfile* src = read_srcfile(c, path, (Span){}, NULL);
     return src != NULL;
 }
 
@@ -118,7 +119,7 @@ void compile(CompileCtx* c) {
         if (!setjmp(parse_error_handler_pos)) {
             parse(&p);
             if (p.error) c->parsing_error = true;
-            else /*if (c->print_ast)*/ dbg_print_ast(c->srcfiles[i].ast);
+            else /*if (c->print_ast)*/ dbg_print_ast(c->srcfiles[i].ast, &c->srcfiles[i]);
         } else {
             c->parsing_error = true;
             continue;

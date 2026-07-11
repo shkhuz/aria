@@ -8,7 +8,7 @@ struct Srcfile;
 struct Token;
 
 typedef struct {
-    struct Srcfile* srcfile;
+    struct Srcfile* src;
     struct Token* current, *prev;
     usize token_idx;
     struct CompileCtx* compilectx;
@@ -17,7 +17,7 @@ typedef struct {
 } ParseCtx;
 
 ParseCtx parsectx_new(
-    struct Srcfile* srcfile,
+    struct Srcfile* src,
     struct CompileCtx* compile_ctx,
     jmp_buf* error_handler_pos
 );

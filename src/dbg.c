@@ -3,12 +3,16 @@
 #include "dbg.h"
 #include "ast.h"
 
-void dbg_print_tokens(Token** tokens) {
+static Srcfile* cursrc;
+static int indent;
+
+void dbg_print_tokens(Token** tokens, Srcfile* src) {
+    cursrc = src;
     bufloop(tokens, i) {
         printf(
-            "\n%20s %20s %lu,%lu", 
+            "\n%20s %20s %d,%d", 
             tokenkind_strs[tokens[i]->kind], 
-            span_tostring(tokens[i]->span),
+            span_tostring(tokens[i]->span, cursrc),
             tokens[i]->span.start,
             tokens[i]->span.end
         );
@@ -16,13 +20,11 @@ void dbg_print_tokens(Token** tokens) {
     printf("\ntokens: %lu", buflen(tokens));
 }
 
-static int indent;
-
 static void print_token(Token* token) {
     printf(
         "%.*s",
         (int)(token->span.end - token->span.start),
-        &token->span.srcfile->handle.contents[token->span.start]
+        &cursrc->handle.contents[token->span.start]
     );
 }
 
@@ -147,7 +149,8 @@ static void print_astnode(Astnode* n) {
     }
 }
 
-void dbg_print_ast(Astnode** ast) {
+void dbg_print_ast(Astnode** ast, Srcfile* src) {
+    cursrc = src;
     bufloop(ast, i) {
         print_astnode(ast[i]);
     }

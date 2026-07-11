@@ -52,9 +52,17 @@ extern const StringTokenKindTup keywords[];
 extern const int KEYWORDS_LEN;
 
 Token* token_new(TokenKind kind, Span span);
-bool   token_lexeme_eqlto(Token* token, const char* string);
-bool   token_lexeme_eql(Token* a, Token* b);
-char*  token_tostring(Token* token);
+bool token_lexeme_eqlto(
+    Token* token, 
+    Srcfile* src, 
+    const char* string
+);
+bool token_lexeme_eql(
+    Token* a, 
+    Token* b, 
+    Srcfile* src
+);
+char* token_tostring(Token* token, Srcfile* src);
 char*  tokenkind_tostring(TokenKind kind);
 
 #endif

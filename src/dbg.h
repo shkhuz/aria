@@ -1,7 +1,9 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-void dbg_print_tokens(struct Token** tokens);
-void dbg_print_ast(struct Astnode** ast);
+#include "types.h"
+
+void dbg_print_tokens(Token** tokens, Srcfile* src);
+void dbg_print_ast(Astnode** ast, Srcfile* src);
 
 #endif

@@ -22,6 +22,7 @@ typedef enum {
 typedef struct {
     const char* msg;
     Span span;
+    Srcfile* src;
 } SubMsgFat;
 
 typedef struct {
@@ -31,16 +32,17 @@ typedef struct {
 typedef struct {
     MsgKind kind;
     const char* msg;
-    OptionalSpan span;
+    Srcfile* src;
+    Span span;
     SubMsgFat* addl_fat;
     SubMsgThin* addl_thin;
 } Msg;
 
-Msg msg_with_span(MsgKind kind, const char* msg, Span span);
+Msg _msg_with_span(MsgKind kind, const char* msg, Span span, Srcfile* src);
 Msg msg_with_no_span(MsgKind kind, const char* msg);
-void msg_addl_fat(Msg* m, const char* msg, Span span);
+void _msg_addl_fat(Msg* m, const char* msg, Span span, Srcfile* src);
 void msg_addl_thin(Msg* m, const char* msg);
-SrcLoc compute_srcloc_from_span(Span span);
+SrcLoc compute_srcloc_from_span(Span span, Srcfile* src);
 struct CompileCtx;
 void _msg_emit_no_register(Msg* msg, struct CompileCtx* compile_ctx);
 // This function is not to be used directly. The module in which it is called
