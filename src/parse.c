@@ -126,6 +126,10 @@ static Astnode* parse_atom_expr(ParseCtx* p) {
     if (match(p, TK_IDENT)) {
         Astnode* left = astnode_symbol_new(p->prev);
         return left;
+    } else if (match(p, TK_KW_COMP)) {
+        Token* keyword = p->prev;
+        Astnode* child = parse_atom_expr(p);
+        return astnode_comp_new(keyword, child);
     } else if (match(p, TK_KW_STRUCT)) {
         Token* keyword = p->prev;
         if (match(p, TK_LPAREN)) {
@@ -147,9 +151,6 @@ static Astnode* parse_atom_expr(ParseCtx* p) {
             }
 
             StrlitData* data = &token_strlit_data[path->extra];
-            // char* path_wf = tmp_copy(data->str);
-            // int path_wf_len = data->len;
-
             char path_wc[1024];
             const char* this_path = p->srcfile->handle.path;
             const char* last_fslash = strrchr(this_path, '/');
@@ -331,7 +332,13 @@ static Astnode* parse_block(ParseCtx* p) {
             break;
         } else {
             Astnode* n = parse_atom_expr(p);
-            if (n->kind == AST_BLOCK) {
+            // The type of AST that warrants skipping the semicolon 
+            // should have a child of kind AST_BLOCK or itself be AST_BLOCK.
+            // Nodes having child at the end:
+            // - AST_COMP
+            // - AST_IF
+            if (n->kind == AST_BLOCK
+                || (n->kind == AST_COMP && n->comp.child->kind == AST_BLOCK)) {
             } else {
                 if (p->current->kind == TK_COLON) {
                     expect(

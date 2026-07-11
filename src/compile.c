@@ -103,7 +103,8 @@ void compile(CompileCtx* c) {
             if (l.error) {
                 c->parsing_error = true;
                 continue;
-            } else dbg_print_tokens(l.srcfile->tokens);
+            } 
+            // else dbg_print_tokens(l.srcfile->tokens);
         } else {
             c->parsing_error = true;
             continue;

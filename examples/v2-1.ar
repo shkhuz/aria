@@ -10,6 +10,11 @@ fun main() void {
     fun cool() {
     }
     {
+        comp {
+            new;
+        }
         yield hi;
     }
+
+    fun nice() void {}
 }

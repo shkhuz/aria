@@ -70,7 +70,7 @@ typedef ssize_t isize;
 #define STRINGIFY(X) STRINGIFY1(X)
 #define ENUM_GEN(ENUM) ENUM,
 #define STRING_GEN(STRING) #STRING,
-#define ALLOC_OBJ(type) ((type*)malloc(sizeof(type)))
+#define ALLOC_OBJ(type) ((type*)xmalloc(sizeof(type)))
 
 usize align_to_pow2(size_t n, size_t pow2);
 usize u64_bitlength(u64 n);
@@ -222,6 +222,35 @@ void bigint_div_mod(const bigint* num, const bigint* den, bigint* quo, bigint* r
 bool bigint_fits(const bigint* a, int bytes, bool signd);
 char* bigint_tostring(const bigint* a);
 void test_bigint();
+
+// =============================================================================
+// MEM_STATS
+// =============================================================================
+
+void* tracked_malloc(
+    usize size, 
+    const char* file, 
+    int line
+);
+void tracked_free(void* user_ptr);
+void* tracked_realloc(
+    void* user_ptr, 
+    usize new_size, 
+    const char* file, 
+    int line
+);
+void* tracked_calloc(
+    usize num, 
+    usize size, 
+    const char* file, 
+    int line
+);
+void print_mem_stats();
+
+#define xmalloc(s)      tracked_malloc(s, __FILE__, __LINE__)
+#define xcalloc(n, s)   tracked_calloc(n, s, __FILE__, __LINE__)
+#define xrealloc(p, s)  tracked_realloc(p, s, __FILE__, __LINE__)
+#define xfree(p)        tracked_free(p)
 
 void init_core();
 

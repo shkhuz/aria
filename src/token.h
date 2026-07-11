@@ -12,6 +12,7 @@
     WRAP(TK_EQUAL)\
     WRAP(TK_IDENT)\
     WRAP(TK_INTLIT)\
+    WRAP(TK_KW_COMP)\
     WRAP(TK_KW_FUN)\
     WRAP(TK_KW_IMM)\
     WRAP(TK_KW_MUT)\

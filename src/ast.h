@@ -6,6 +6,7 @@
 
 typedef enum {
     AST_BLOCK,
+    AST_COMP,
     AST_EXPRSTMT,
     AST_FIELD,
     AST_FUNC,
@@ -27,7 +28,11 @@ struct Astnode {
         } block;
 
         struct {
-            Astnode* expr;
+            Astnode* child;
+        } comp;
+
+        struct {
+            Astnode* child;
         } exprstmt;
 
         struct {
@@ -80,7 +85,8 @@ Astnode* astnode_block_new(
     Astnode* value,
     Token* end
 );
-Astnode* astnode_exprstmt_new(Astnode* expr);
+Astnode* astnode_comp_new(Token* start, Astnode* child);
+Astnode* astnode_exprstmt_new(Astnode* child);
 Astnode* astnode_field_new(Token* ident, Astnode* type);
 Astnode* astnode_func_new(
     Token* start,
@@ -90,7 +96,6 @@ Astnode* astnode_func_new(
     Astnode* body
 );
 Astnode* astnode_param_new(Token* ident, Astnode* type);
-
 Astnode* astnode_struct_import_new(
     Token* start, 
     Token* path, 

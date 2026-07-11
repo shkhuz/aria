@@ -108,9 +108,9 @@ void* _bufgrow(const void* buf, usize new_len, usize elem_size) {
     usize mem_to_alloc = new_cap * elem_size + offsetof(bufhdr, data);
     bufhdr* new_hdr;
     if (buf) {
-        new_hdr = (bufhdr*)realloc(_bufhdr(buf), mem_to_alloc);
+        new_hdr = (bufhdr*)xrealloc(_bufhdr(buf), mem_to_alloc);
     } else {
-        new_hdr = (bufhdr*)malloc(mem_to_alloc);
+        new_hdr = (bufhdr*)xmalloc(mem_to_alloc);
         new_hdr->len = 0;
     }
 
@@ -147,7 +147,7 @@ FileOrError read_file(const char* path) {
     usize size = ftell(raw);
     rewind(raw);
 
-    char* contents = (char*)malloc(size + 1);
+    char* contents = (char*)xmalloc(size + 1);
     fread(contents, sizeof(char), size, raw);
     fclose(raw);
     contents[size] = '\0';
@@ -156,7 +156,7 @@ FileOrError read_file(const char* path) {
     char* abs_path = NULL;
     if (realpath(path, abs_path_buf)) {
         usize abs_path_len = strlen(abs_path_buf);
-        abs_path = (char*)malloc(abs_path_len + 1);
+        abs_path = (char*)xmalloc(abs_path_len + 1);
         // including '\0'
         memcpy(abs_path, abs_path_buf, abs_path_len+1); 
     }
@@ -635,5 +635,112 @@ void init_core() {
         g_bold_cornflower_blue_color = "";
     }
     BIGINT_ZERO = bigint_new_u64(0);
+    atexit(print_mem_stats);
 }
 
+// =============================================================================
+// MEM_STATS
+// =============================================================================
+
+static usize curalloc = 0;
+static usize peakalloc = 0;
+
+static inline void* get_raw_ptr(void* user_ptr) {
+    return (char*)user_ptr - sizeof(usize);
+}
+
+static inline usize get_block_size(void* user_ptr) {
+    return *(usize*)get_raw_ptr(user_ptr);
+}
+
+void* tracked_malloc(
+    usize size, 
+    const char* file, 
+    int line
+) {
+    usize total_size = size + sizeof(usize);
+    void* raw_ptr = malloc(total_size);
+    
+    if (!raw_ptr) {
+        fprintf(stderr, "[MEM ERROR] Out of memory at %s:%d\n", file, line);
+        return NULL;
+    }
+
+    *(usize*)raw_ptr = size;
+    void* user_ptr = (char*)raw_ptr + sizeof(usize);
+
+    curalloc += size;
+    if (curalloc > peakalloc) {
+        peakalloc = curalloc;
+    }
+
+    return user_ptr;
+}
+
+void tracked_free(void* user_ptr) {
+    if (!user_ptr) return;
+
+    void* raw_ptr = get_raw_ptr(user_ptr);
+    usize size = *(usize*)raw_ptr;
+
+    curalloc -= size;
+    free(raw_ptr);
+}
+
+void* tracked_realloc(
+    void* user_ptr, 
+    usize new_size, 
+    const char* file, 
+    int line
+) {
+    if (!user_ptr) {
+        return tracked_malloc(new_size, file, line);
+    } else if (new_size == 0) {
+        tracked_free(user_ptr);
+        return NULL;
+    }
+
+    void* old_raw_ptr = get_raw_ptr(user_ptr);
+    usize old_size = *(usize*)old_raw_ptr;
+
+    usize new_total_size = new_size + sizeof(usize);
+    void* new_raw_ptr = realloc(old_raw_ptr, new_total_size);
+
+    if (!new_raw_ptr) {
+        fprintf(stderr, "[MEM ERROR] Realloc failed at %s:%d\n", file, line);
+        return NULL;
+    }
+
+    *(usize*)new_raw_ptr = new_size;
+    void* new_user_ptr = (char*)new_raw_ptr + sizeof(usize);
+
+    curalloc = (curalloc - old_size) + new_size;
+    
+    if (curalloc > peakalloc) {
+        peakalloc = curalloc;
+    }
+
+    return new_user_ptr;
+}
+
+void* tracked_calloc(
+    usize num, 
+    usize size, 
+    const char* file, 
+    int line
+) {
+    usize total_bytes = num * size;
+    void* user_ptr = tracked_malloc(total_bytes, file, line);
+    if (user_ptr) {
+        char* p = (char*)user_ptr;
+        for (usize i = 0; i < total_bytes; i++) p[i] = 0;
+    }
+    return user_ptr;
+}
+
+void print_mem_stats() {
+    printf("\n=== MEMORY USAGE METRICS ===\n");
+    printf("Current Leaked Memory: %zu bytes\n", curalloc);
+    printf("Peak Memory Footprint: %zu bytes\n", peakalloc);
+    printf("============================\n");
+}

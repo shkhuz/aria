@@ -26,9 +26,18 @@ Astnode* astnode_block_new(
     return n;
 }
 
-Astnode* astnode_exprstmt_new(Astnode* expr) {
-    Astnode* n = astnode_new(AST_EXPRSTMT, expr->span, expr->span);
-    n->exprstmt.expr = expr;
+Astnode* astnode_comp_new(Token* start, Astnode* child) {
+    Astnode* n = astnode_new(
+        AST_COMP, 
+        span_from_two(start->span, child->span), 
+        child->span);
+    n->comp.child = child;
+    return n;
+}
+
+Astnode* astnode_exprstmt_new(Astnode* child) {
+    Astnode* n = astnode_new(AST_EXPRSTMT, child->span, child->span);
+    n->exprstmt.child = child;
     return n;
 }
 

@@ -5,8 +5,9 @@ const char* tokenkind_strs[] = {
 };
 
 const StringTokenKindTup keywords[] = {
-    { "imm",        TK_KW_IMM },
+    { "comp",       TK_KW_COMP },
     { "fun",        TK_KW_FUN },
+    { "imm",        TK_KW_IMM },
     { "mut",        TK_KW_MUT },
     { "struct",     TK_KW_STRUCT },
     { "yield",      TK_KW_YIELD },

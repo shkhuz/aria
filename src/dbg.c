@@ -64,9 +64,15 @@ static void print_astnode(Astnode* n) {
             printf(")");
         } break;
 
+        case AST_COMP: {
+            printf("(comp ");
+            print_astnode(n->comp.child);
+            printf(")");
+        } break;
+
         case AST_EXPRSTMT: {
             printf("(exprstmt ");
-            print_astnode(n->exprstmt.expr);
+            print_astnode(n->exprstmt.child);
             printf(")");
         } break;
 
@@ -86,7 +92,7 @@ static void print_astnode(Astnode* n) {
                 if (i != 0) printf(", ");
                 print_astnode(n->func.params[i]);
             }
-            printf(") ");
+            printf(") : ");
             print_astnode(n->func.returntype);
 
             printf(" ");

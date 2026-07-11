@@ -5,7 +5,7 @@ fun main() void {
     imm b = struct {
         offset: usize,
 
-        fun calc(n: usize, spc: isize) {
+        fun calc(n: usize, spc: isize) void {
             yield n;
         }
     };
