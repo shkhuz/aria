@@ -71,7 +71,12 @@ typedef ssize_t isize;
 #define ENUM_GEN(ENUM) ENUM,
 #define STRING_GEN(STRING) #STRING,
 #define ALLOC_OBJ(type) ((type*)xmalloc(sizeof(type)))
-
+#define LOG(expr) _Generic((expr), \
+    int:                (printf("[TRACE] %s:%d: %s = %d\n", __FILE__, __LINE__, #expr, (int)(expr)), (expr)), \
+    unsigned int:       (printf("[TRACE] %s:%d: %s = %u\n", __FILE__, __LINE__, #expr, (unsigned int)(expr)), (expr)), \
+    long unsigned int:  (printf("[TRACE] %s:%d: %s = %lu\n", __FILE__, __LINE__, #expr, (long unsigned int)(expr)), (expr)), \
+    char*:              (printf("[TRACE] %s:%d: %s = %s\n", __FILE__, __LINE__, #expr, (char*)(expr)), (expr)) \
+)
 usize align_to_pow2(size_t n, size_t pow2);
 usize u64_bitlength(u64 n);
 usize get_bits_for_value(u128 n);
@@ -121,7 +126,7 @@ typedef struct {
     (memcpy(&((b)[_bufhdr((b))->len]), (e), (COMBINE(__tmpsize, __LINE__)))), \
     (_bufhdr((b))->len += (COMBINE(__tmpsize, __LINE__))));}
 
-#define bufpop(b) (buflen(b) > 0 ? (_bufhdr((b))->len--) : 0)
+#define bufpop(b) (buflen(b) > 0 ? (b)[--_bufhdr((b))->len] : 0)
 
 #define buffree(b) ((b) ? (xfree(_bufhdr(b)), b=NULL) : 0)
 

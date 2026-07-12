@@ -62,6 +62,7 @@ ParseCtx parsectx_new(
     p.compilectx = compilectx;
     p.error = false;
     p.error_handler_pos = error_handler_pos;
+    p.sextra = NULL;
     return p;
 }
 
@@ -161,6 +162,13 @@ static inline TokenIndex expect_comma(ParseCtx* p) {
     return expect(p, TK_COMMA, "expected `,`");
 }
 
+static void flush_sextra(ParseCtx* p, usize marker) {
+    for (usize i = 0; i < buflen(p->sextra)-marker; i++) {
+        bufpush(p->src->nextra, p->sextra[marker + i]);
+    }
+    _bufhdr(p->sextra)->len = marker;
+}
+
 static NodeIndex parse_atom_expr(ParseCtx* p) {
     if (match(p, TK_IDENT)) {
         bufpush(p->src->nodes, (Node){
@@ -230,23 +238,21 @@ static NodeIndex parse_atom_expr(ParseCtx* p) {
             return buflastidx(p->src->nodes);
         } else if (match(p, TK_LBRACE)) {
             TokenIndex lbrace = p->token_idx-1;
-            int* children = NULL;
+            usize marker = buflen(p->sextra);
             while (!match(p, TK_RBRACE)) {
                 check_eof(p, lbrace);
                 NodeIndex child = parse_astnode_root(p);
-                bufpush(children, child);
+                bufpush(p->sextra, child);
             }
 
             bufpush(p->src->nodes, (Node){
                 AST_STRUCT,
                 span_from_two(tkspan(p, keyword), prev(p)->span),
                 buflen(p->src->nextra),
-                buflen(children)
+                buflen(p->sextra) - marker
             });
-            bufloop(children, i) {
-                bufpush(p->src->nextra, children[i]);
-            }
-            buffree(children);
+            flush_sextra(p, marker);
+
             return buflastidx(p->src->nodes);
         }
     } else if (current(p)->kind == TK_LBRACE) {
@@ -307,7 +313,7 @@ static NodeIndex parse_func(ParseCtx* p) {
     TokenIndex ident = expect(p, TK_IDENT, "expected function name");
     TokenIndex lparen = expect_lparen(p);
 
-    int* params = NULL;
+    usize marker = buflen(p->sextra);
     while (!match(p, TK_RPAREN)) {
         check_eof(p, lparen);
         TokenIndex pident = expect(
@@ -323,7 +329,7 @@ static NodeIndex parse_func(ParseCtx* p) {
             pident,
             ptype,
         });
-        bufpush(params, buflastidx(p->src->nodes));
+        bufpush(p->sextra, buflastidx(p->src->nodes));
         if (current(p)->kind != TK_RPAREN) {
             expect_comma(p);
         }
@@ -351,13 +357,10 @@ static NodeIndex parse_func(ParseCtx* p) {
         buflen(p->src->nextra),
         ident 
     });
-    bufpush(p->src->nextra, buflen(params));
+    bufpush(p->src->nextra, buflen(p->sextra)-marker);
     bufpush(p->src->nextra, returntype);
     bufpush(p->src->nextra, body);
-    bufloop(params, i) {
-        bufpush(p->src->nextra, params[i]);
-    }
-    buffree(params);
+    flush_sextra(p, marker);
     return buflastidx(p->src->nodes);
 }
 
@@ -405,7 +408,7 @@ static NodeIndex parse_astnode_root(ParseCtx* p) {
 
 static NodeIndex parse_block(ParseCtx* p) {
     TokenIndex lbrace = expect_lbrace(p);
-    int* children = NULL;
+    usize marker = buflen(p->sextra);
     NodeIndex value = 0;
 
     while (!match(p, TK_RBRACE)) {
@@ -462,7 +465,7 @@ static NodeIndex parse_block(ParseCtx* p) {
             child = buflastidx(p->src->nodes);
         }
 
-        if (child) bufpush(children, child);
+        bufpush(p->sextra, child);
     }
 
     bufpush(p->src->nodes, (Node){
@@ -471,27 +474,21 @@ static NodeIndex parse_block(ParseCtx* p) {
         buflen(p->src->nextra),
         0
     });
-    bufpush(p->src->nextra, buflen(children));
+    bufpush(p->src->nextra, buflen(p->sextra)-marker);
     bufpush(p->src->nextra, value);
-    bufloop(children, i) {
-        bufpush(p->src->nextra, children[i]);
-    }
-    buffree(children);
+    flush_sextra(p, marker);
     return buflastidx(p->src->nodes);
 }
 
 void parse(ParseCtx* p) {
-    int* children = NULL;
+    usize marker = buflen(p->sextra);
     while (current(p)->kind != TK_EOF) {
         NodeIndex child = parse_astnode_root(p);
-        bufpush(children, child);
+        bufpush(p->sextra, child);
     }
 
     Node* root = nd(p, 1);
     root->lhs = buflen(p->src->nextra);
-    root->rhs = buflen(children);
-    bufloop(children, i) {
-        bufpush(p->src->nextra, children[i]);
-    }
-    buffree(children);
+    root->rhs = buflen(p->sextra) - marker;
+    flush_sextra(p, marker);
 }

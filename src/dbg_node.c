@@ -51,6 +51,7 @@ static void print_node(ParseCtx* p, NodeIndex node) {
         case AST_FIELD:
         case AST_FNDECL:
         case AST_VARDECL:
+        case AST_EXPRSTMT:
             format();
             break;
         default: break;

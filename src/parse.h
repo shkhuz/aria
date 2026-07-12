@@ -13,6 +13,10 @@ typedef struct {
     struct CompileCtx* compilectx;
     bool error;
     jmp_buf* error_handler_pos;
+    // LIFO scratchpad for nextra.
+    // Used to temporarily store child indices 
+    // until the end of parsing of a node.
+    int* sextra;
 } ParseCtx;
 
 ParseCtx parsectx_new(
