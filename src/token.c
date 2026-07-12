@@ -16,10 +16,12 @@ const int KEYWORDS_LEN = (int)ARRAY_LEN(keywords);
 
 StrlitData* token_strlit_data = NULL;
 
-Token* token_new(TokenKind kind, Span span) {
-    Token* token = ALLOC_OBJ(Token);
-    token->kind = kind;
-    token->span = span;
+Token token_new(TokenKind kind, Span span) {
+    Token token = (Token){
+        .kind = kind,
+        .span = span,
+        .extra = -1
+    };
     return token;
 }
 

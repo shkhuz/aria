@@ -9,7 +9,6 @@ struct Token;
 
 typedef struct {
     struct Srcfile* src;
-    struct Token* current, *prev;
     usize token_idx;
     struct CompileCtx* compilectx;
     bool error;

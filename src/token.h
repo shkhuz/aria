@@ -51,7 +51,7 @@ typedef struct {
 extern const StringTokenKindTup keywords[];
 extern const int KEYWORDS_LEN;
 
-Token* token_new(TokenKind kind, Span span);
+Token token_new(TokenKind kind, Span span);
 bool token_lexeme_eqlto(
     Token* token, 
     Srcfile* src, 

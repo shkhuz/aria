@@ -65,7 +65,7 @@ static inline char peek(LexCtx* l) {
 }
 
 static void push_tok(LexCtx* l, TokenKind kind) {
-    Token* t = token_new(kind, span_from_start_to_current(l));
+    Token t = token_new(kind, span_from_start_to_current(l));
     bufpush(l->src->tokens, t);
 }
 
@@ -86,7 +86,7 @@ static void push_tok_adv_cond(
 }
 
 static inline Token* last_tok(LexCtx* l) {
-    return l->src->tokens[buflen(l->src->tokens)-1];
+    return &l->src->tokens[buflen(l->src->tokens)-1];
 }
 
 void lex(LexCtx* l) {

@@ -6,21 +6,22 @@
 static Srcfile* cursrc;
 static int indent;
 
-void dbg_print_tokens(Token** tokens, Srcfile* src) {
+void dbg_print_tokens(Token* tokens, Srcfile* src) {
     cursrc = src;
     bufloop(tokens, i) {
         printf(
             "\n%20s %20s %d,%d", 
-            tokenkind_strs[tokens[i]->kind], 
-            span_tostring(tokens[i]->span, cursrc),
-            tokens[i]->span.start,
-            tokens[i]->span.end
+            tokenkind_strs[tokens[i].kind], 
+            span_tostring(tokens[i].span, cursrc),
+            tokens[i].span.start,
+            tokens[i].span.end
         );
     }
     printf("\ntokens: %lu", buflen(tokens));
 }
 
-static void print_token(Token* token) {
+static void print_token(TokenIndex idx) {
+    Token* token = &cursrc->tokens[idx];
     printf(
         "%.*s",
         (int)(token->span.end - token->span.start),

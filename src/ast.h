@@ -19,7 +19,6 @@ typedef enum {
 struct Astnode {
     AstnodeKind kind;
     Span span;
-    Span short_span;
 
     union {
         struct {
@@ -36,19 +35,19 @@ struct Astnode {
         } exprstmt;
 
         struct {
-            Token* ident;
+            TokenIndex ident;
             Astnode* type;
         } field;
 
         struct {
-            Token* ident;
+            TokenIndex ident;
             Astnode** params;
             Astnode* returntype;
             Astnode* body;
         } func;
 
         struct {
-            Token* ident;
+            TokenIndex ident;
             Astnode* type;
         } param;
 
@@ -56,7 +55,7 @@ struct Astnode {
             bool import;
             union {
                 struct {
-                    Token* path;
+                    TokenIndex path;
                     Srcfile* src;
                 } imp;
 
@@ -67,53 +66,16 @@ struct Astnode {
         } strct;
 
         struct {
-            Token* ident;
+            TokenIndex ident;
         } sym;
 
         struct {
-            Token* ident; 
+            TokenIndex ident; 
             Astnode* type;
-            Token* equal;
+            TokenIndex equal;
             Astnode* init;
         } vardecl;
     };
 };
-
-Astnode* astnode_block_new(
-    Token* start, 
-    Astnode** ast, 
-    Astnode* value,
-    Token* end
-);
-Astnode* astnode_comp_new(Token* start, Astnode* child);
-Astnode* astnode_exprstmt_new(Astnode* child);
-Astnode* astnode_field_new(Token* ident, Astnode* type);
-Astnode* astnode_func_new(
-    Token* start,
-    Token* ident,
-    Astnode** params,
-    Astnode* returntype,
-    Astnode* body
-);
-Astnode* astnode_param_new(Token* ident, Astnode* type);
-Astnode* astnode_struct_import_new(
-    Token* start, 
-    Token* path, 
-    Token* end,
-    Srcfile* src
-);
-Astnode* astnode_struct_inline_new(
-    Token* start, 
-    Astnode** ast, 
-    Token* end
-);
-Astnode* astnode_symbol_new(Token* ident);
-Astnode* astnode_vardecl_new(
-    Token* start, 
-    Token* ident,
-    Astnode* type,
-    Token* equal,
-    Astnode* init
-);
 
 #endif

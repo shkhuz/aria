@@ -7,7 +7,7 @@
 struct Srcfile {
     int id;
     File handle;
-    struct Token** tokens;
+    struct Token* tokens;
     Astnode** ast;
 };
 
