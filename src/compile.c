@@ -13,7 +13,7 @@ CompileCtx compilectx_new() {
     return c;
 }
 
-Srcfile* read_srcfile(
+int read_srcfile(
     CompileCtx* c, 
     const char* path, 
     Span span,
@@ -25,20 +25,19 @@ Srcfile* read_srcfile(
             for (usize i = 0; i < buflen(c->srcfiles); i++) {
                 if (strcmp(
                     efile.handle.abs_path, 
-                    c->srcfiles[i].handle.abs_path
+                    c->srcfiles[i]->handle.abs_path
                 ) == 0) {
-                    return &c->srcfiles[i];
+                    return (int)i;
                 }
             }
 
-            Srcfile src = (Srcfile){
-                .id = c->next_srcfile_id++,
-                .handle = efile.handle,
-                .tokens = NULL,
-                .ast = NULL,
-            };
+            Srcfile* src = ALLOC_OBJ(Srcfile);
+            src->handle = efile.handle,
+            src->tokens = NULL,
+            src->nodes = NULL,
+            src->nextra = NULL,
             bufpush(c->srcfiles, src);
-            return buflast(c->srcfiles);
+            return buflastidx(c->srcfiles);
         } break;
 
         case FILEIO_DIRECTORY:
@@ -62,13 +61,14 @@ Srcfile* read_srcfile(
                 );
                 _msg_emit(&msg, c);
             }
+            return -1;
         } break;
     }
+    return -1;
 }
 
-void compilectx_init_stream(CompileCtx* c, const char* stream) {
-    bufpush(c->srcfiles, (Srcfile){
-        .id = c->next_srcfile_id++,
+int compilectx_init_stream(CompileCtx* c, const char* stream) {
+    Srcfile src = (Srcfile){
         .handle = (File){
             .path = "<stream>", 
             .abs_path = "<stream>", 
@@ -76,16 +76,17 @@ void compilectx_init_stream(CompileCtx* c, const char* stream) {
             .len = strlen(stream)
         },
         .tokens = NULL,
-        .ast = NULL,
-    });
+        .nodes = NULL,
+        .nextra = NULL
+    };
+    Srcfile* psrc = ALLOC_OBJ(Srcfile);
+    *psrc = src;
+    bufpush(c->srcfiles, psrc);
+    return buflastidx(c->srcfiles);
 }
 
-bool compilectx_init_path(
-    CompileCtx* c, 
-    const char* path
-) {
-    Srcfile* src = read_srcfile(c, path, (Span){}, NULL);
-    return src != NULL;
+int compilectx_init_path(CompileCtx* c, const char* path) {
+    return read_srcfile(c, path, (Span){}, NULL);
 }
 
 void compile(CompileCtx* c) {
@@ -93,9 +94,9 @@ void compile(CompileCtx* c) {
     jmp_buf parse_error_handler_pos;
 
     for (usize i = 0; i < buflen(c->srcfiles); i++) {
-        printf("\n:: Compiling %s", c->srcfiles[i].handle.path);
+        printf("\n:: Compiling %s", c->srcfiles[i]->handle.path);
         LexCtx l = lexctx_new(
-            &c->srcfiles[i], 
+            c->srcfiles[i], 
             c, 
             &lex_error_handler_pos
         );
@@ -112,14 +113,14 @@ void compile(CompileCtx* c) {
         }
 
         ParseCtx p = parsectx_new(
-            &c->srcfiles[i], 
+            c->srcfiles[i], 
             c, 
             &parse_error_handler_pos
         );
         if (!setjmp(parse_error_handler_pos)) {
             parse(&p);
             if (p.error) c->parsing_error = true;
-            else /*if (c->print_ast)*/ dbg_print_ast(c->srcfiles[i].ast, &c->srcfiles[i]);
+            else dbg_nodes(&p);
         } else {
             c->parsing_error = true;
             continue;

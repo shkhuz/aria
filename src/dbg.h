@@ -2,8 +2,8 @@
 #define DEBUG_H
 
 #include "types.h"
+#include "parse.h"
 
-void dbg_print_tokens(Token* tokens, Srcfile* src);
-void dbg_print_ast(Astnode** ast, Srcfile* src);
+void dbg_nodes(ParseCtx* p);
 
 #endif

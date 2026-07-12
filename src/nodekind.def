@@ -1,0 +1,45 @@
+// lhs = index in nextra 
+//     nextra[0] = children stmts count
+//     nextra[1] = yield value node ID (0 for none)
+//     nextra[2, ...] = children node IDs
+// rhs = unused
+WRAP(AST_BLOCK)
+// lhs = child node ID
+// rhs = unused
+WRAP(AST_COMP)
+// lhs = child node ID
+// rhs = unused
+WRAP(AST_EXPRSTMT)
+// lhs = ident token ID
+// rhs = type node ID
+WRAP(AST_FIELD)
+// lhs = index in nextra
+//     nextra[0] = param count
+//     nextra[1] = return type node ID
+//     nextra[2] = body block node ID
+//     nextra[3, ...] = param node IDs
+// rhs = ident token ID
+WRAP(AST_FNDECL)
+// lhs = index in srcfiles
+// rhs = path token ID
+WRAP(AST_IMPORT)
+// lhs = ident token ID
+// rhs = type node ID
+WRAP(AST_PARAM)
+// lhs = index in nextra where IDs of children are stored sequentially
+// rhs = child count
+WRAP(AST_ROOT)
+// lhs = index in nextra where IDs of children are stored sequentially
+// rhs = child count
+WRAP(AST_STRUCT)
+// lhs = ident token ID
+// rhs = unused
+WRAP(AST_SYM)
+// lhs = index in nextra
+//     nextra[0] = mut/imm keyword token ID
+//     nextra[1] = type node ID
+//     nextra[2] = init node ID
+// rhs = ident token ID
+WRAP(AST_VARDECL)
+WRAP(AST_LEN)
+

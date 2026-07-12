@@ -5,10 +5,11 @@
 #include "core.h"
 
 struct Srcfile {
-    int id;
     File handle;
-    struct Token* tokens;
-    Astnode** ast;
+    Token* tokens;
+
+    Node* nodes;
+    int* nextra;
 };
 
 typedef struct {

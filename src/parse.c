@@ -2,27 +2,37 @@
 #include "srcfile.h"
 #include "msg.h"
 #include "token.h"
-#include "ast.h"
+#include "node.h"
 #include "compile.h"
 
-#include "ast_builder.h"
-
-static Astnode* parse_astnode_root(ParseCtx* p);
-static Astnode* parse_block(ParseCtx* p);
+static NodeIndex parse_astnode_root(ParseCtx* p);
+static NodeIndex parse_block(ParseCtx* p);
 
 #define msg_with_span(kind, msg, span) _msg_with_span(kind, msg, span, p->src)
 #define msg_addl_fat(m, msg, span) _msg_addl_fat(m, msg, span, p->src)
 
-static inline Token* at(ParseCtx* p, TokenIndex idx) {
+static inline Span tkspan(ParseCtx* p, TokenIndex idx) {
+    return p->src->tokens[idx].span;
+}
+
+static inline Span ndspan(ParseCtx* p, NodeIndex idx) {
+    return p->src->nodes[idx].span;
+}
+
+static inline Token* tk(ParseCtx* p, TokenIndex idx) {
     return &p->src->tokens[idx];
 }
 
+static inline Node* nd(ParseCtx* p, NodeIndex idx) {
+    return &p->src->nodes[idx];
+}
+
 static inline Token* current(ParseCtx* p) {
-    return at(p, p->token_idx);
+    return tk(p, p->token_idx);
 }
 
 static inline Token* prev(ParseCtx* p) {
-    if (p->token_idx > 0) return at(p, p->token_idx - 1);
+    if (p->token_idx > 0) return tk(p, p->token_idx - 1);
     assert(0);
     return NULL;
 }
@@ -34,8 +44,21 @@ ParseCtx parsectx_new(
 ) {
     ParseCtx p;
     p.src = src;
-    p.src->ast = NULL;
-    p.token_idx = 0;
+    p.src->nodes = NULL;
+    p.src->nextra = NULL;
+    // Index 0 is a placeholder node.
+    // Used to signify index 0 as empty/error.
+    bufpush(p.src->nodes, (Node){});
+    // Index 1 is used for root node.
+    // lhs & rhs are filled in at the end of parsing.
+    bufpush(p.src->nodes, (Node){
+        AST_ROOT,
+        (Span){},
+        0,
+        0
+    });
+    // Index 0 is error/empty token.
+    p.token_idx = 1;
     p.compilectx = compilectx;
     p.error = false;
     p.error_handler_pos = error_handler_pos;
@@ -76,7 +99,7 @@ static void check_eof(ParseCtx* p, TokenIndex pair) {
             "unexpected end of file",
             current(p)->span
         );
-        msg_addl_fat(&msg, "while searching for:", at(p, pair)->span);
+        msg_addl_fat(&msg, "while searching for:", tk(p, pair)->span);
         msg_emit(p, &msg);
     }
 }
@@ -138,14 +161,25 @@ static inline TokenIndex expect_comma(ParseCtx* p) {
     return expect(p, TK_COMMA, "expected `,`");
 }
 
-static Astnode* parse_atom_expr(ParseCtx* p) {
+static NodeIndex parse_atom_expr(ParseCtx* p) {
     if (match(p, TK_IDENT)) {
-        Astnode* left = astnode_symbol_new(p, p->token_idx-1);
-        return left;
+        bufpush(p->src->nodes, (Node){
+            AST_SYM,
+            prev(p)->span,
+            p->token_idx-1,
+            0
+        });
+        return buflastidx(p->src->nodes);
     } else if (match(p, TK_KW_COMP)) {
         TokenIndex keyword = p->token_idx-1;
-        Astnode* child = parse_atom_expr(p);
-        return astnode_comp_new(p, keyword, child);
+        NodeIndex child = parse_atom_expr(p);
+        bufpush(p->src->nodes, (Node){
+            AST_COMP,
+            span_from_two(tkspan(p, keyword), ndspan(p, child)),
+            child,
+            0
+        });
+        return buflastidx(p->src->nodes);
     } else if (match(p, TK_KW_STRUCT)) {
         TokenIndex keyword = p->token_idx-1;
         if (match(p, TK_LPAREN)) {
@@ -154,19 +188,19 @@ static Astnode* parse_atom_expr(ParseCtx* p) {
                 TK_STRLIT, 
                 "expected a string literal path"
             );
-            expect_rparen(p);
+            TokenIndex rparen = expect_rparen(p);
 
-            if (token_lexeme_eqlto(at(p, path), p->src, "\"\"")) {
+            if (token_lexeme_eqlto(tk(p, path), p->src, "\"\"")) {
                 Msg msg = msg_with_span(
                     MSG_ERROR,
                     "empty path",
-                    at(p, path)->span
+                    tkspan(p, path)
                 );
                 msg_emit_non_fatal(p, &msg);
-                return NULL;
+                return 0;
             }
 
-            StrlitData* data = &token_strlit_data[at(p, path)->extra];
+            StrlitData* data = &token_strlit_data[tk(p, path)->extra];
             char path_wc[1024];
             const char* this_path = p->src->handle.path;
             const char* last_fslash = strrchr(this_path, '/');
@@ -181,33 +215,39 @@ static Astnode* parse_atom_expr(ParseCtx* p) {
                 data->len
             );
             path_wc[start + data->len] = '\0';
-            Srcfile* src = read_srcfile(
+            int src = read_srcfile(
                 p->compilectx,
                 path_wc,
-                at(p, path)->span,
+                tkspan(p, path),
                 p->src
             );
-            return astnode_struct_import_new(
-                p, 
-                keyword, 
-                path, 
-                p->token_idx-1,
-                src
-            );
+            bufpush(p->src->nodes, (Node){
+                AST_IMPORT,
+                span_from_two(tkspan(p, keyword), tkspan(p, rparen)),
+                src,
+                path
+            });
+            return buflastidx(p->src->nodes);
         } else if (match(p, TK_LBRACE)) {
             TokenIndex lbrace = p->token_idx-1;
-            Astnode** ast = NULL;
+            int* children = NULL;
             while (!match(p, TK_RBRACE)) {
                 check_eof(p, lbrace);
-                Astnode* n = parse_astnode_root(p);
-                if (n) bufpush(ast, n);
+                NodeIndex child = parse_astnode_root(p);
+                bufpush(children, child);
             }
-            return astnode_struct_inline_new(
-                p, 
-                keyword,
-                ast,
-                p->token_idx-1
-            );
+
+            bufpush(p->src->nodes, (Node){
+                AST_STRUCT,
+                span_from_two(tkspan(p, keyword), prev(p)->span),
+                buflen(p->src->nextra),
+                buflen(children)
+            });
+            bufloop(children, i) {
+                bufpush(p->src->nextra, children[i]);
+            }
+            buffree(children);
+            return buflastidx(p->src->nodes);
         }
     } else if (current(p)->kind == TK_LBRACE) {
         return parse_block(p);
@@ -221,38 +261,53 @@ static Astnode* parse_atom_expr(ParseCtx* p) {
         current(p)->span
     );
     msg_emit(p, &msg);
-    return NULL;
+    return 0;
 }
 
-static Astnode* parse_vardecl(ParseCtx* p) {
+static NodeIndex parse_vardecl(ParseCtx* p) {
     TokenIndex keyword = p->token_idx-1;
     bool imm = true;
-    if (at(p, keyword)->kind == TK_KW_MUT) imm = false;
+    if (tk(p, keyword)->kind == TK_KW_MUT) imm = false;
     TokenIndex ident = expect(p, TK_IDENT, "expected variable name");
-    Astnode* type = NULL;
+    NodeIndex type = 0;
     if (match(p, TK_COLON)) {
         type = parse_atom_expr(p);
     }
-    Astnode* initializer = NULL;
+    NodeIndex init = 0;
     if (match(p, TK_EQUAL)) {
-        initializer = parse_atom_expr(p);
+        init = parse_atom_expr(p);
     }
     expect_semicolon(p);
-    return astnode_vardecl_new(
-        p, 
-        keyword, 
-        ident,
-        type,
-        -1,
-        initializer
-    );
+    if (type == 0 && init == 0) {
+        Msg msg = msg_with_span(
+            MSG_ERROR,
+            "variable without type or initializer",
+            tkspan(p, ident)
+        );
+        msg_emit(p, &msg);
+    }
+
+    bufpush(p->src->nodes, (Node){
+        AST_VARDECL,
+        span_from_two(
+            tkspan(p, keyword), 
+            ndspan(p, init == 0 ? type : init)
+        ),
+        buflen(p->src->nextra),
+        ident
+    });
+    bufpush(p->src->nextra, keyword);
+    bufpush(p->src->nextra, type);
+    bufpush(p->src->nextra, init);
+    return buflastidx(p->src->nodes);
 }
 
-static Astnode* parse_func(ParseCtx* p) {
+static NodeIndex parse_func(ParseCtx* p) {
     TokenIndex keyword = p->token_idx-1;
     TokenIndex ident = expect(p, TK_IDENT, "expected function name");
     TokenIndex lparen = expect_lparen(p);
-    Astnode** params = NULL;
+
+    int* params = NULL;
     while (!match(p, TK_RPAREN)) {
         check_eof(p, lparen);
         TokenIndex pident = expect(
@@ -261,14 +316,21 @@ static Astnode* parse_func(ParseCtx* p) {
             "expected parameter name"
         );
         expect_colon(p);
-        Astnode* ptype = parse_atom_expr(p);
-        bufpush(params, astnode_param_new(p, pident, ptype));
+        NodeIndex ptype = parse_atom_expr(p);
+        bufpush(p->src->nodes, (Node){
+            AST_PARAM,
+            span_from_two(tkspan(p, pident), ndspan(p, ptype)),
+            pident,
+            ptype,
+        });
+        bufpush(params, buflastidx(p->src->nodes));
         if (current(p)->kind != TK_RPAREN) {
             expect_comma(p);
         }
     }
-    Astnode* returntype = parse_atom_expr(p);
-    if (current(p)->kind != TK_LBRACE && returntype->kind == AST_BLOCK) {
+
+    NodeIndex returntype = parse_atom_expr(p);
+    if (current(p)->kind != TK_LBRACE && nd(p, returntype)->kind == AST_BLOCK) {
         Msg msg = msg_with_span(
             MSG_ERROR,
             "expected `{` for function body",
@@ -277,22 +339,29 @@ static Astnode* parse_func(ParseCtx* p) {
         msg_addl_fat(
             &msg, 
             "perhaps you forgot the return type?", 
-            span_only_firstchar(returntype->span)
+            span_only_firstchar(nd(p, returntype)->span)
         );
         msg_emit(p, &msg);
     }
-    Astnode* body = parse_block(p);
-    return astnode_func_new(
-        p, 
-        keyword,
-        ident,
-        params,
-        returntype,
-        body
-    );
+
+    NodeIndex body = parse_block(p);
+    bufpush(p->src->nodes, (Node){
+        AST_FNDECL,
+        span_from_two(tkspan(p, keyword), prev(p)->span),
+        buflen(p->src->nextra),
+        ident 
+    });
+    bufpush(p->src->nextra, buflen(params));
+    bufpush(p->src->nextra, returntype);
+    bufpush(p->src->nextra, body);
+    bufloop(params, i) {
+        bufpush(p->src->nextra, params[i]);
+    }
+    buffree(params);
+    return buflastidx(p->src->nodes);
 }
 
-static Astnode* parse_astnode_root(ParseCtx* p) {
+static NodeIndex parse_astnode_root(ParseCtx* p) {
     if (match(p, TK_KW_IMM) || match(p, TK_KW_MUT)) {
         return parse_vardecl(p);
     } else if (match(p, TK_KW_FUN)) {
@@ -300,11 +369,18 @@ static Astnode* parse_astnode_root(ParseCtx* p) {
     } else if (match(p, TK_IDENT)) {
         TokenIndex ident = p->token_idx-1;
         if (match(p, TK_COLON)) {
-            Astnode* type = parse_atom_expr(p);
+            NodeIndex type = parse_atom_expr(p);
             if (current(p)->kind != TK_RBRACE) {
                 expect_comma(p);
             }
-            return astnode_field_new(p, ident, type);
+
+            bufpush(p->src->nodes, (Node){
+                AST_FIELD,
+                span_from_two(tkspan(p, ident), ndspan(p, type)),
+                ident,
+                type
+            });
+            return buflastidx(p->src->nodes);
         } else {
             Msg msg = msg_with_span(
                 MSG_ERROR,
@@ -324,16 +400,17 @@ static Astnode* parse_astnode_root(ParseCtx* p) {
         );
         msg_emit(p, &msg);
     }
+    return 0;
 }
 
-static Astnode* parse_block(ParseCtx* p) {
+static NodeIndex parse_block(ParseCtx* p) {
     TokenIndex lbrace = expect_lbrace(p);
-    Astnode** ast = NULL;
-    Astnode* value = NULL;
+    int* children = NULL;
+    NodeIndex value = 0;
 
     while (!match(p, TK_RBRACE)) {
         check_eof(p, lbrace);
-        Astnode* child = NULL;
+        NodeIndex child = 0;
         if (match(p, TK_KW_IMM) || match(p, TK_KW_MUT)) {
             child = parse_vardecl(p); 
         } else if (match(p, TK_KW_FUN)) {
@@ -352,14 +429,18 @@ static Astnode* parse_block(ParseCtx* p) {
             }
             break;
         } else {
-            Astnode* n = parse_atom_expr(p);
+            NodeIndex n = parse_atom_expr(p);
             // The type of AST that warrants skipping the semicolon 
             // should have a child of kind AST_BLOCK or itself be AST_BLOCK.
             // Nodes having child at the end:
             // - AST_COMP
             // - AST_IF
-            if (n->kind == AST_BLOCK
-                || (n->kind == AST_COMP && n->comp.child->kind == AST_BLOCK)) {
+            // - ...
+            Node* pn = nd(p, n);
+            if (pn->kind == AST_BLOCK
+                || (pn->kind == AST_COMP 
+                    && p->src->nodes[pn->lhs].kind == AST_BLOCK)
+            ) {
             } else {
                 if (current(p)->kind == TK_COLON) {
                     expect(
@@ -371,23 +452,46 @@ static Astnode* parse_block(ParseCtx* p) {
                     expect_semicolon(p);
                 }
             }
-            child = astnode_exprstmt_new(p, n);
+
+            bufpush(p->src->nodes, (Node){
+                AST_EXPRSTMT,
+                ndspan(p, n),
+                n,
+                0
+            });
+            child = buflastidx(p->src->nodes);
         }
 
-        if (child) bufpush(ast, child);
+        if (child) bufpush(children, child);
     }
-    return astnode_block_new(
-        p, 
-        lbrace,
-        ast,
-        value,
-        p->token_idx-1
-    );
+
+    bufpush(p->src->nodes, (Node){
+        AST_BLOCK,
+        span_from_two(tkspan(p, lbrace), prev(p)->span),
+        buflen(p->src->nextra),
+        0
+    });
+    bufpush(p->src->nextra, buflen(children));
+    bufpush(p->src->nextra, value);
+    bufloop(children, i) {
+        bufpush(p->src->nextra, children[i]);
+    }
+    buffree(children);
+    return buflastidx(p->src->nodes);
 }
 
 void parse(ParseCtx* p) {
+    int* children = NULL;
     while (current(p)->kind != TK_EOF) {
-        Astnode* astnode = parse_astnode_root(p);
-        if (astnode) bufpush(p->src->ast, astnode);
+        NodeIndex child = parse_astnode_root(p);
+        bufpush(children, child);
     }
+
+    Node* root = nd(p, 1);
+    root->lhs = buflen(p->src->nextra);
+    root->rhs = buflen(children);
+    bufloop(children, i) {
+        bufpush(p->src->nextra, children[i]);
+    }
+    buffree(children);
 }

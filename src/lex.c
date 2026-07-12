@@ -11,6 +11,9 @@ LexCtx lexctx_new(
     LexCtx l;
     l.src = src;
     l.src->tokens = NULL;
+    // Index 0 is a placeholder
+    // for error/empty tokens.
+    bufpush(l.src->tokens, (Token){});
     l.start = src->handle.contents;
     l.current = l.start;
     l.lastnl = l.start;

@@ -106,6 +106,7 @@ typedef struct {
 #define _bufhdr(b) ((bufhdr*)((char*)(b) - offsetof(bufhdr, data)))
 #define bufend(b) ((b) + buflen(b))
 #define buflast(b) (buflen((b)) == 0 ? (NULL) : (bufend((b))-1))
+#define buflastidx(b) (buflen(b)-1)
 
 #define buffit(b, n) (bufcap(b) >= n ? 0 : \
     ((b) = _bufgrow((b), (n), sizeof(*(b)))))
@@ -122,7 +123,7 @@ typedef struct {
 
 #define bufpop(b) (buflen(b) > 0 ? (_bufhdr((b))->len--) : 0)
 
-#define buffree(b) ((b) ? (free(_bufhdr(b)), b=NULL) : 0)
+#define buffree(b) ((b) ? (xfree(_bufhdr(b)), b=NULL) : 0)
 
 #define bufloop(b, c) for (usize c = 0; c < buflen(b); c++)
 #define bufrevloop(b, c) for (usize c = buflen(b); c-- > 0 ;)
