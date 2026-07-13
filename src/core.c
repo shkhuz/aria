@@ -81,11 +81,12 @@ char* format_string(const char* fmt, ...) {
     return buf;
 }
 
-u64 hash_string(const char* str) {
-    u64 hash = 5381;
-    int c;
-    while ((c = *str++))
-        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+u32 hash_string(const char* str, usize len) {
+    u32 hash = 2166136261u;
+    for (usize i = 0; i < len; i++) {
+        hash ^= (u8)str[i];
+        hash *= 16777619u;
+    }
     return hash;
 }
 
@@ -116,6 +117,127 @@ void* _bufgrow(const void* buf, usize new_len, usize elem_size) {
 
     new_hdr->cap = new_cap;
     return new_hdr->data;
+}
+
+// =============================================================================
+// STRING INTERNING
+// =============================================================================
+
+#define STRI_INIT_MAP_CAP 16
+#define STRI_LOAD_FACTOR 0.75
+
+void stri_init(stri* s) {
+    s->slices = NULL;
+    s->buckets = NULL;
+    s->nodes = NULL;
+
+    buffit(s->buckets, STRI_INIT_MAP_CAP);
+    memset(s->buckets, 0xFF, STRI_INIT_MAP_CAP * sizeof(u32));
+    _bufhdr(s->buckets)->len = STRI_INIT_MAP_CAP;
+}
+
+void stri_free(stri* s) {
+    buffree(s->slices);
+    buffree(s->buckets);
+    buffree(s->nodes);
+}
+
+static void stri_resize_buckets(stri* s) {
+    usize oldcap = buflen(s->buckets);
+    usize newcap = oldcap * 2;
+    buffit(s->buckets, newcap);
+    memset(s->buckets, 0xFF, newcap*sizeof(u32));
+    _bufhdr(s->buckets)->len = newcap;
+
+    for (usize i = 0; i < buflen(s->nodes); i++) {
+        u32 newbucket = s->nodes[i].hash % newcap;
+        s->nodes[i].next_nodeid = s->buckets[newbucket];
+        s->buckets[newbucket] = (u32)i;
+    }
+}
+
+strid stri_intern(stri* s, const char* str, usize len) {
+    u32 hash = hash_string(str, len);
+    usize bucketcap = buflen(s->buckets);
+    u32 bucketid = hash % bucketcap;
+
+    u32 nodeid = s->buckets[bucketid];
+    while (nodeid != STRI_INVALID_ID) {
+        strinode* node = &s->nodes[nodeid];
+        if (node->hash == hash) {
+            strislice ent = s->slices[node->id];
+            if (ent.len == len 
+                    && strncmp(ent.ptr, str, len) == 0) {
+                return node->id;
+            }
+        }
+        nodeid = node->next_nodeid;
+    }
+
+    if ((float)(buflen(s->nodes)+1) / (float)bucketcap 
+            > STRI_LOAD_FACTOR) {
+        stri_resize_buckets(s);
+        bucketcap = buflen(s->buckets);
+        bucketid = hash % bucketcap;
+    }
+
+    strid newstrid = (strid)buflen(s->slices);
+    strislice newslice = (strislice){.ptr = str, .len = len};
+    bufpush(s->slices, newslice);
+
+    strinode newnode = (strinode){
+        .hash = hash,
+        .id = newstrid,
+        .next_nodeid = s->buckets[bucketid]
+    };
+    u32 newnodeid = (u32)buflen(s->nodes);
+    bufpush(s->nodes, newnode);
+    s->buckets[bucketid] = newnodeid;
+    return newstrid;
+}
+
+strislice stri_lookup(const stri* s, strid id) {
+    return s->slices[id];
+}
+
+void stri_print_stats(const stri* s) {
+    usize total_nodes = 0;
+    usize active_buckets = 0;
+    usize collided_nodes = 0;
+    float mean_collision_ratio = 0;
+    usize max_chainlen = 0;
+
+    total_nodes = buflen(s->nodes);
+    usize bucketcap = buflen(s->buckets);
+    for (usize i = 0; i < bucketcap; i++) {
+        uint32_t nodeid = s->buckets[i];
+        if (nodeid == STRI_INVALID_ID) continue;
+        active_buckets++;
+        
+        usize chainlen = 0;
+        while (nodeid != STRI_INVALID_ID) {
+            chainlen++;
+            nodeid = s->nodes[nodeid].next_nodeid;
+        }
+        
+        if (chainlen > max_chainlen) {
+            max_chainlen = chainlen;
+        }
+    }
+
+    if (total_nodes != 0) {
+        collided_nodes = total_nodes - active_buckets;
+        mean_collision_ratio = (float)collided_nodes / (float)total_nodes;
+    }
+
+    printf("\n--- STRESS TEST ANALYSIS INITIAL RESULTS ---\n");
+    printf("Unique Strings Saved     : %zu\n", buflen(s->slices));
+    printf("Total Nodes Registered   : %zu\n", buflen(s->nodes));
+    printf("Final Buckets Capacity   : %zu\n", buflen(s->buckets));
+    printf("Total Active Buckets     : %zu / %zu\n", active_buckets, buflen(s->buckets));
+    printf("Total Collided Nodes     : %zu\n", collided_nodes);
+    printf("Mean Collision Ratio     : %.2f%%\n", mean_collision_ratio * 100.0f);
+    printf("Max Chain Depth Length   : %zu\n", max_chainlen);
 }
 
 // =============================================================================

@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <time.h>
 
 #ifdef __linux__
 #include <linux/limits.h>
@@ -96,7 +97,7 @@ u64 maxinteger_signed(int bytes);
 // calling strncmp, it would work, but is inefficient.
 bool slice_eql_to_str(const char* slice, int slicelen, const char* str);
 char* format_string(const char* fmt, ...);
-u64 hash_string(const char* str);
+u32 hash_string(const char* str, usize len);
 
 // =============================================================================
 // BUFFER
@@ -142,6 +143,39 @@ typedef struct {
 usize buflen(const void* buf);
 usize bufcap(const void* buf);
 void* _bufgrow(const void* buf, usize new_len, usize elem_size);
+
+// =============================================================================
+// STRING INTERNING
+// =============================================================================
+
+#define STRI_INVALID_ID 0xFFFFFFFF
+
+typedef u32 strid;
+
+typedef struct {
+    const char* ptr;
+    usize len;
+} strislice;
+
+typedef struct {
+    u32 hash;
+    // Index into slices buffer.
+    strid id;
+    // ID of the next node in a collision chain.
+    u32 next_nodeid;
+} strinode;
+
+typedef struct {
+    strislice* slices;
+    u32* buckets;
+    strinode* nodes;
+} stri;
+
+void stri_init(stri* s);
+void stri_free(stri* s);
+strid stri_intern(stri* s, const char* str, usize len);
+strislice stri_lookup(const stri* s, strid id);
+void stri_print_stats(const stri* s);
 
 // =============================================================================
 // FILE IO
@@ -257,6 +291,7 @@ void print_mem_stats();
 #define xcalloc(n, s)   tracked_calloc(n, s, __FILE__, __LINE__)
 #define xrealloc(p, s)  tracked_realloc(p, s, __FILE__, __LINE__)
 #define xfree(p)        tracked_free(p)
+
 
 void init_core();
 

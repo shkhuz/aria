@@ -11,6 +11,7 @@ int main() {
     assert(bufpop(a) == 1);
     assert(buflen(a) == 0);
 
+
     init_core();
     CompileCtx c = compilectx_new();
     // compilectx_init_stream(
