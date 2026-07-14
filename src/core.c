@@ -230,7 +230,7 @@ void stri_print_stats(const stri* s) {
         mean_collision_ratio = (float)collided_nodes / (float)total_nodes;
     }
 
-    printf("\n--- STRESS TEST ANALYSIS INITIAL RESULTS ---\n");
+    printf("\n=== STRING INTERNER STATS ===\n");
     printf("Unique Strings Saved     : %zu\n", buflen(s->slices));
     printf("Total Nodes Registered   : %zu\n", buflen(s->nodes));
     printf("Final Buckets Capacity   : %zu\n", buflen(s->buckets));
@@ -238,6 +238,7 @@ void stri_print_stats(const stri* s) {
     printf("Total Collided Nodes     : %zu\n", collided_nodes);
     printf("Mean Collision Ratio     : %.2f%%\n", mean_collision_ratio * 100.0f);
     printf("Max Chain Depth Length   : %zu\n", max_chainlen);
+    printf("============================\n");
 }
 
 // =============================================================================

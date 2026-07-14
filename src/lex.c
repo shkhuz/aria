@@ -2,6 +2,7 @@
 #include "srcfile.h"
 #include "msg.h"
 #include "token.h"
+#include "compile.h"
 
 LexCtx lexctx_new(
     struct Srcfile* src,
@@ -111,17 +112,19 @@ void lex(LexCtx* l) {
                 while (isalnum(*l->current) || *l->current == '_')
                     l->current++;
 
-                for (int i = 0; i < KEYWORDS_LEN; i++) {
-                    if (slice_eql_to_str(
-                        l->start, 
-                        l->current-l->start, 
-                        keywords[i].k
-                    )) {
+                strid id = stri_intern(
+                    &l->compilectx->interner, 
+                    l->start,
+                    l->current - l->start
+                );
+                for (usize i = 0; i < buflen(keywords); i++) {
+                    if (id == keywords[i].k) {
                         kind = keywords[i].v;
                         break;
                     }
                 }
                 push_tok(l, kind);
+                last_tok(l)->extra = id;
             } break;
 
             case ':': push_tok_adv(l, TK_COLON); break;
@@ -134,7 +137,6 @@ void lex(LexCtx* l) {
             case ';': push_tok_adv(l, TK_SEMICOLON); break;
 
             case '\"': {
-                char* str = NULL;
                 l->current++;
                 while (*l->current != '\"') {
                     if (*l->current == '\n' || *l->current == '\0') {
@@ -145,21 +147,17 @@ void lex(LexCtx* l) {
                         );
                         fatal_msg_emit(l, &msg);
                     }
-
-                    if (*l->current == '\\') {
-                        l->current++;
-                        // unsigned char c = escape_char(l);
-                        // bufpush(str, c);
-                    } else {
-                        bufpush(str, *l->current);
-                        l->current++;
-                    }
+                    // Char escaping is not done here because that
+                    // would mean storing an escaped-copy of the string.
+                    l->current++;
                 }
-                bufpush(str, '\0');
-                bufpush(token_strlit_data, (StrlitData){ str, buflen(str)-1 });
+
+                const char* strstart = l->start + 1;
+                usize len = l->current - strstart;
+                strid id = stri_intern(&l->compilectx->interner, strstart, len);
 
                 push_tok_adv(l, TK_STRLIT);
-                last_tok(l)->extra = buflen(token_strlit_data)-1;
+                last_tok(l)->extra = id;
             } break;
 
             case '/': {

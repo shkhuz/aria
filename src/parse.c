@@ -120,20 +120,19 @@ static TokenIndex expect(ParseCtx* p, TokenKind kind, const char* msgstr) {
             msgstr,
             current(p)->span
         );
-        if (kind == TK_IDENT) {
-            for (int i = 0; i < KEYWORDS_LEN; i++) {
-                if (token_lexeme_eqlto(current(p), p->src, keywords[i].k)) {
-                    msg_addl_thin(
-                        &msg, 
-                        format_string("`%s` is a keyword", keywords[i].k)
-                    );
-                    break;
-                }
-            }
-        }
-        msg_emit(p, &msg);
-        // Dead code.
-        return -1;
+        // if (kind == TK_IDENT) {
+        //     for (int i = 0; i < KEYWORDS_LEN; i++) {
+        //         if (token_lexeme_eqlto(current(p), p->src, keywords[i].k)) {
+        //             msg_addl_thin(
+        //                 &msg, 
+        //                 format_string("`%s` is a keyword", keywords[i].k)
+        //             );
+        //             break;
+        //         }
+        //     }
+        // }
+        // msg_emit(p, &msg);
+        // return -1;
     }
     return p->token_idx-1;
 }
@@ -208,7 +207,7 @@ static NodeIndex parse_atom_expr(ParseCtx* p) {
                 return 0;
             }
 
-            StrlitData* data = &token_strlit_data[tk(p, path)->extra];
+            strislice data = stri_lookup(&p->compilectx->interner, tk(p, path)->extra);
             char path_wc[1024];
             const char* this_path = p->src->handle.path;
             const char* last_fslash = strrchr(this_path, '/');
@@ -219,10 +218,10 @@ static NodeIndex parse_atom_expr(ParseCtx* p) {
             }
             memcpy(
                 &path_wc[start],
-                data->str,
-                data->len
+                data.ptr,
+                data.len
             );
-            path_wc[start + data->len] = '\0';
+            path_wc[start + data.len] = '\0';
             int src = read_srcfile(
                 p->compilectx,
                 path_wc,

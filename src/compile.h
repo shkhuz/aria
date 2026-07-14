@@ -3,6 +3,7 @@
 
 #include "core.h"
 #include "msg.h"
+#include "token.h"
 
 // Context used for the whole compilation pipeline.
 // Srcfile is per file.
@@ -14,7 +15,14 @@ typedef struct CompileCtx {
 
     Srcfile** srcfiles;
     bool parsing_error;
+    stri interner;
 } CompileCtx;
+
+typedef struct {
+    strid k;
+    TokenKind v;
+} KeywordMap;
+extern KeywordMap* keywords;
 
 CompileCtx compilectx_new();
 int read_srcfile(

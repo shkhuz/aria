@@ -26,5 +26,6 @@ int main() {
         "examples/v2-1.ar"
     );
     compile(&c);
+    stri_print_stats(&c.interner);
     if (c.parsing_error) compile_terminate(&c);
 }

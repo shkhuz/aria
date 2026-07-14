@@ -4,18 +4,6 @@ const char* tokenkind_strs[] = {
     FOREACH_TOKENKIND(STRING_GEN)
 };
 
-const StringTokenKindTup keywords[] = {
-    { "comp",       TK_KW_COMP },
-    { "fun",        TK_KW_FUN },
-    { "imm",        TK_KW_IMM },
-    { "mut",        TK_KW_MUT },
-    { "struct",     TK_KW_STRUCT },
-    { "yield",      TK_KW_YIELD },
-};
-const int KEYWORDS_LEN = (int)ARRAY_LEN(keywords);
-
-StrlitData* token_strlit_data = NULL;
-
 Token token_new(TokenKind kind, Span span) {
     Token token = (Token){
         .kind = kind,

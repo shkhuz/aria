@@ -99,6 +99,18 @@ bool slice_eql_to_str(const char* slice, int slicelen, const char* str);
 char* format_string(const char* fmt, ...);
 u32 hash_string(const char* str, usize len);
 
+#define MEASURE_TIME(block_name, ...) do { \
+    struct timespec _start, _end; \
+    clock_gettime(CLOCK_MONOTONIC, &_start); \
+    __VA_ARGS__ \
+    clock_gettime(CLOCK_MONOTONIC, &_end); \
+    long long _seconds = _end.tv_sec - _start.tv_sec; \
+    long long _nanoseconds = _end.tv_nsec - _start.tv_nsec; \
+    long long _total_ns = (_seconds * 1000000000LL) + _nanoseconds; \
+    printf("\n[%s] Execution time: %lld ns (%.6f s)", \
+           block_name, _total_ns, _total_ns / 1000000000.0); \
+} while(0)
+
 // =============================================================================
 // BUFFER
 // =============================================================================

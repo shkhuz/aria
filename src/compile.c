@@ -3,6 +3,8 @@
 #include "parse.h"
 #include "dbg.h"
 
+KeywordMap* keywords;
+
 CompileCtx compilectx_new() {
     CompileCtx c;
     c.msgs = NULL;
@@ -10,6 +12,20 @@ CompileCtx compilectx_new() {
     c.did_msg = false;
     c.srcfiles = NULL;
     c.parsing_error = false;
+    stri_init(&c.interner);
+
+#define DEFKEYWORD(k, v) (bufpush(\
+        keywords,\
+        (KeywordMap){stri_intern(&c.interner, k, strlen(k)), v}\
+    ));
+    DEFKEYWORD("comp",          TK_KW_COMP);
+    DEFKEYWORD("imm",           TK_KW_IMM);
+    DEFKEYWORD("mut",           TK_KW_MUT);
+    DEFKEYWORD("fun",           TK_KW_FUN);
+    DEFKEYWORD("struct",        TK_KW_STRUCT);
+    DEFKEYWORD("yield",         TK_KW_YIELD);
+#undef DEFKEYWORD
+
     return c;
 }
 
@@ -120,7 +136,7 @@ void compile(CompileCtx* c) {
         if (!setjmp(parse_error_handler_pos)) {
             parse(&p);
             if (p.error) c->parsing_error = true;
-            else dbg_nodes(&p);
+            // else dbg_nodes(&p);
         } else {
             c->parsing_error = true;
             continue;

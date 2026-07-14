@@ -29,7 +29,6 @@
 typedef enum {
     FOREACH_TOKENKIND(ENUM_GEN)
 } TokenKind;
-
 extern const char* tokenkind_strs[];
 
 struct Token {
@@ -37,19 +36,6 @@ struct Token {
     Span span;
     int extra;
 };
-
-typedef struct {
-    const char* str;
-    int len;
-} StrlitData;
-extern StrlitData* token_strlit_data;
-
-typedef struct {
-    char* k;
-    TokenKind v;
-} StringTokenKindTup;
-extern const StringTokenKindTup keywords[];
-extern const int KEYWORDS_LEN;
 
 Token token_new(TokenKind kind, Span span);
 bool token_lexeme_eqlto(
