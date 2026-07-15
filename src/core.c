@@ -90,6 +90,45 @@ u32 hash_string(const char* str, usize len) {
     return hash;
 }
 
+usize get_memory_usage() {
+    usize physical_pages = 0;
+    FILE* fp = fopen("/proc/self/statm", "r");
+    if (fp) {
+        usize total_vm_pages = 0;
+        if (fscanf(
+            fp, 
+            "%ld %ld", 
+            &total_vm_pages, 
+            &physical_pages
+        ) != 2) {
+            physical_pages = 0;
+        }
+        fclose(fp);
+    }
+
+    usize page_size = sysconf(_SC_PAGESIZE);
+    usize physical_bytes = physical_pages * page_size;
+    return physical_bytes;
+}
+
+usize print_memory_size(usize bytes) {
+    const char* units[] = {"B", "KB", "MB", "GB", "TB"};
+    int unit_index = 0;
+    double size = (double)bytes;
+
+    while (size >= 1024 && unit_index < 4) {
+        size /= 1024;
+        unit_index++;
+    }
+
+    if (unit_index == 0) {
+        printf("%.0f %s", size, units[unit_index]);
+    } else {
+        printf("%.2f %s", size, units[unit_index]);
+    }
+    return bytes;
+}
+
 // =============================================================================
 // BUFFERS
 // =============================================================================
@@ -120,84 +159,177 @@ void* _bufgrow(const void* buf, usize new_len, usize elem_size) {
 }
 
 // =============================================================================
+// ARENA + LIST
+// =============================================================================
+
+Arena arena_create(u64 reserve) {
+    Arena arena = (Arena){};
+    void* ptr = mmap(NULL, reserve, PROT_READ | PROT_WRITE,
+        MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+    if (ptr != MAP_FAILED) {
+        arena.base = ptr;
+        arena.capacity = reserve;
+    }
+    return arena;
+}
+
+void arena_destroy(Arena* arena) {
+    if (arena->base) {
+        munmap(arena->base, arena->capacity);
+    }
+}
+
+void arena_clear(Arena* arena) {
+    arena->pos = 0;
+}
+
+void* arena_push(Arena* arena, u64 size) {
+    u64 aligned_size = (size + 7) & ~7;
+    assert(arena->pos + aligned_size <= arena->capacity && "Arena out of memory!");
+    void* ptr = arena->base + arena->pos;
+    arena->pos += aligned_size;
+    return ptr;
+}
+
+void* _listgrow(Arena* arena, const void* list, usize new_len, usize elem_size) {
+    listhdr* hdr = list ? _listhdr(list) : NULL;
+    if (!hdr) {
+        hdr = (listhdr*)arena_push(arena, sizeof(listhdr));
+        hdr->arena = arena;
+        hdr->cap = 0;
+        hdr->len = 0;
+        hdr->chunkcap = 0;
+        hdr->chunkcount = 0;
+        hdr->chunks = NULL;
+    }
+    
+    while (hdr->cap < new_len) {
+        u32 target_chunk = hdr->chunkcount;
+        if (target_chunk >= hdr->chunkcap) {
+            u32 oldcap = hdr->chunkcap;
+            hdr->chunkcap = hdr->chunkcap == 0 ? 4 : hdr->chunkcap * 2;
+            void** new_chunks = arena_push(hdr->arena, hdr->chunkcap * sizeof(void*));
+            if (oldcap > 0) {
+                memcpy(new_chunks, hdr->chunks, oldcap * sizeof(void*));
+            }
+            hdr->chunks = new_chunks;
+        }
+
+        usize chunk_mem = LIST_CHUNK_SIZE * elem_size;
+        hdr->chunks[target_chunk] = arena_push(hdr->arena, chunk_mem);
+        hdr->chunkcount++;
+        hdr->cap += LIST_CHUNK_SIZE;
+    }
+    return (void*)((char*)hdr + sizeof(listhdr));
+}
+
+void list_debug_dump_uniform_chunks(const void *list) {
+    if (!list) {
+        return;
+    }
+
+    listhdr *hdr = _listhdr(list);
+    printf("=== UNIFORM GRID GRID INSPECTION ===\n");
+    printf("Total Elements Tracked : %zu\n", hdr->len);
+    printf("Total Capacity Allocated: %zu elements\n", hdr->cap);
+    printf("Pointer Table Capacity : %u slots\n", hdr->chunkcap);
+    printf("Active Uniform Blocks  : %u\n", hdr->chunkcount);
+    
+    for (u32 i = 0; i < hdr->chunkcount; i++) {
+        void* block_address = hdr->chunks[i];
+        
+        usize start_idx = i * LIST_CHUNK_SIZE;
+        usize end_idx   = start_idx + LIST_CHUNK_SIZE - 1;
+        
+        printf("  [Block %u] Address: %p | Handles Indices: [%zu to %zu]\n", 
+               i, block_address, start_idx, end_idx);
+    }
+    printf("====================================\n\n");
+}
+
+// =============================================================================
 // STRING INTERNING
 // =============================================================================
 
 #define STRI_INIT_MAP_CAP 16
 #define STRI_LOAD_FACTOR 0.75
 
-void stri_init(stri* s) {
+static void stri_clear_buckets(stri* s, usize start, usize end) {
+    u32* buckets = s->buckets;
+    for (usize i = start; i < end; i++) {
+        listget(buckets, i) = STRI_INVALID_ID;
+    }
+}
+
+void stri_init(Arena* arena, stri* s) {
     s->slices = NULL;
     s->buckets = NULL;
     s->nodes = NULL;
+    listinit(arena, s->slices);
+    listinit(arena, s->buckets);
+    listinit(arena, s->nodes);
 
-    buffit(s->buckets, STRI_INIT_MAP_CAP);
-    memset(s->buckets, 0xFF, STRI_INIT_MAP_CAP * sizeof(u32));
-    _bufhdr(s->buckets)->len = STRI_INIT_MAP_CAP;
-}
-
-void stri_free(stri* s) {
-    buffree(s->slices);
-    buffree(s->buckets);
-    buffree(s->nodes);
+    listfit(s->buckets, STRI_INIT_MAP_CAP);
+    _listhdr(s->buckets)->len = STRI_INIT_MAP_CAP;
+    stri_clear_buckets(s, 0, STRI_INIT_MAP_CAP);
 }
 
 static void stri_resize_buckets(stri* s) {
-    usize oldcap = buflen(s->buckets);
+    usize oldcap = listlen(s->buckets);
     usize newcap = oldcap * 2;
-    buffit(s->buckets, newcap);
-    memset(s->buckets, 0xFF, newcap*sizeof(u32));
-    _bufhdr(s->buckets)->len = newcap;
+    listfit(s->buckets, newcap);
+    _listhdr(s->buckets)->len = newcap;
+    stri_clear_buckets(s, 0, newcap);
 
-    for (usize i = 0; i < buflen(s->nodes); i++) {
-        u32 newbucket = s->nodes[i].hash % newcap;
-        s->nodes[i].next_nodeid = s->buckets[newbucket];
-        s->buckets[newbucket] = (u32)i;
+    for (usize i = 0; i < listlen(s->nodes); i++) {
+        u32 newbucket = listget(s->nodes, i).hash % newcap;
+        listget(s->nodes, i).next_nodeid = listget(s->buckets, newbucket);
+        listget(s->buckets, newbucket) = (u32)i;
     }
 }
 
 strid stri_intern(stri* s, const char* str, usize len) {
     u32 hash = hash_string(str, len);
-    usize bucketcap = buflen(s->buckets);
+    usize bucketcap = listlen(s->buckets);
     u32 bucketid = hash % bucketcap;
 
-    u32 nodeid = s->buckets[bucketid];
+    u32 nodeid = listget(s->buckets, bucketid);
     while (nodeid != STRI_INVALID_ID) {
-        strinode* node = &s->nodes[nodeid];
-        if (node->hash == hash) {
-            strislice ent = s->slices[node->id];
+        strinode node = listget(s->nodes, nodeid);
+        if (node.hash == hash) {
+            strislice ent = listget(s->slices, node.id);
             if (ent.len == len 
                     && strncmp(ent.ptr, str, len) == 0) {
-                return node->id;
+                return node.id;
             }
         }
-        nodeid = node->next_nodeid;
+        nodeid = node.next_nodeid;
     }
 
-    if ((float)(buflen(s->nodes)+1) / (float)bucketcap 
+    if ((float)(listlen(s->nodes)+1) / (float)bucketcap 
             > STRI_LOAD_FACTOR) {
         stri_resize_buckets(s);
-        bucketcap = buflen(s->buckets);
+        bucketcap = listlen(s->buckets);
         bucketid = hash % bucketcap;
     }
 
-    strid newstrid = (strid)buflen(s->slices);
+    strid newstrid = (strid)listlen(s->slices);
     strislice newslice = (strislice){.ptr = str, .len = len};
-    bufpush(s->slices, newslice);
+    listpush(s->slices, newslice);
 
     strinode newnode = (strinode){
         .hash = hash,
         .id = newstrid,
-        .next_nodeid = s->buckets[bucketid]
+        .next_nodeid = listget(s->buckets, bucketid)
     };
-    u32 newnodeid = (u32)buflen(s->nodes);
-    bufpush(s->nodes, newnode);
-    s->buckets[bucketid] = newnodeid;
+    u32 newnodeid = (u32)listlen(s->nodes);
+    listpush(s->nodes, newnode);
+    listget(s->buckets, bucketid) = newnodeid;
     return newstrid;
 }
 
 strislice stri_lookup(const stri* s, strid id) {
-    return s->slices[id];
+    return listget(s->slices, id);
 }
 
 void stri_print_stats(const stri* s) {
@@ -207,17 +339,17 @@ void stri_print_stats(const stri* s) {
     float mean_collision_ratio = 0;
     usize max_chainlen = 0;
 
-    total_nodes = buflen(s->nodes);
-    usize bucketcap = buflen(s->buckets);
+    total_nodes = listlen(s->nodes);
+    usize bucketcap = listlen(s->buckets);
     for (usize i = 0; i < bucketcap; i++) {
-        uint32_t nodeid = s->buckets[i];
+        uint32_t nodeid = listget(s->buckets, i);
         if (nodeid == STRI_INVALID_ID) continue;
         active_buckets++;
         
         usize chainlen = 0;
         while (nodeid != STRI_INVALID_ID) {
             chainlen++;
-            nodeid = s->nodes[nodeid].next_nodeid;
+            nodeid = listget(s->nodes, nodeid).next_nodeid;
         }
         
         if (chainlen > max_chainlen) {
@@ -231,10 +363,10 @@ void stri_print_stats(const stri* s) {
     }
 
     printf("\n=== STRING INTERNER STATS ===\n");
-    printf("Unique Strings Saved     : %zu\n", buflen(s->slices));
-    printf("Total Nodes Registered   : %zu\n", buflen(s->nodes));
-    printf("Final Buckets Capacity   : %zu\n", buflen(s->buckets));
-    printf("Total Active Buckets     : %zu / %zu\n", active_buckets, buflen(s->buckets));
+    printf("Unique Strings Saved     : %zu\n", listlen(s->slices));
+    printf("Total Nodes Registered   : %zu\n", listlen(s->nodes));
+    printf("Final Buckets Capacity   : %zu\n", listlen(s->buckets));
+    printf("Total Active Buckets     : %zu / %zu\n", active_buckets, listlen(s->buckets));
     printf("Total Collided Nodes     : %zu\n", collided_nodes);
     printf("Mean Collision Ratio     : %.2f%%\n", mean_collision_ratio * 100.0f);
     printf("Max Chain Depth Length   : %zu\n", max_chainlen);
@@ -255,7 +387,7 @@ int is_dir(const char* path) {
     return S_ISDIR(path_stat.st_mode);
 }
 
-FileOrError read_file(const char* path) {
+FileOrError read_file(Arena* arena, const char* path) {
     // TODO: more thorough error checking
     FILE* raw = fopen(path, "r");
     if (!raw) {
@@ -270,7 +402,7 @@ FileOrError read_file(const char* path) {
     usize size = ftell(raw);
     rewind(raw);
 
-    char* contents = (char*)xmalloc(size + 1);
+    char* contents = (char*)arena_push(arena, size + 1);
     fread(contents, sizeof(char), size, raw);
     fclose(raw);
     contents[size] = '\0';
@@ -279,7 +411,7 @@ FileOrError read_file(const char* path) {
     char* abs_path = NULL;
     if (realpath(path, abs_path_buf)) {
         usize abs_path_len = strlen(abs_path_buf);
-        abs_path = (char*)xmalloc(abs_path_len + 1);
+        abs_path = (char*)arena_push(arena, abs_path_len + 1);
         // including '\0'
         memcpy(abs_path, abs_path_buf, abs_path_len+1); 
     }

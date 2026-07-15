@@ -16,6 +16,8 @@ typedef struct CompileCtx {
 
     Srcfile** srcfiles;
     bool parsing_error;
+    Arena permarena;
+    Arena fendarena;
     stri interner;
 } CompileCtx;
 
@@ -41,7 +43,7 @@ void compile_register_msg(CompileCtx* c, Msg msg);
 void compile_terminate(CompileCtx* c);
 
 static inline Token* tk(Srcfile* src, TokenIndex idx) {
-    return &src->tokens[idx];
+    return &listget(src->tokens, idx);
 }
 
 static inline Node* nd(Srcfile* src, NodeIndex idx) {

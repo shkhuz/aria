@@ -7,7 +7,7 @@
 static int indent;
 
 void dbg_print_tokens(Srcfile* src) {
-    bufloop(src->tokens, i) {
+    listloop(src->tokens, i) {
         Token* t = tk(src, i);
         printf(
             "\n%15s '%s' %d,%d, extra=%d", 
@@ -93,16 +93,16 @@ static void print_node(ParseCtx* p, NodeIndex node) {
         } break;
 
         case AST_FNDECL: {
-            int param_count = p->src->nextra[n->lhs + 0];
-            int returntype = p->src->nextra[n->lhs + 1];
-            int body = p->src->nextra[n->lhs + 2];
+            int param_count = listget(p->src->nextra, n->lhs + 0);
+            int returntype = listget(p->src->nextra, n->lhs + 1);
+            int body = listget(p->src->nextra, n->lhs + 2);
 
             printf("(func ");  
             print_token(p, n->rhs);
             printf(" (");
             for (int i = 0; i < param_count; i++) {
                 if (i != 0) printf(", ");
-                print_node(p, p->src->nextra[n->lhs + 3 + i]);
+                print_node(p, listget(p->src->nextra, n->lhs + 3 + i));
             }
             printf(") : ");
             print_node(p, returntype);
@@ -125,7 +125,7 @@ static void print_node(ParseCtx* p, NodeIndex node) {
             printf("(struct ");
             indent++;
             for (int i = 0; i < n->rhs; i++) {
-                print_node(p, p->src->nextra[n->lhs + i]);
+                print_node(p, listget(p->src->nextra, n->lhs + i));
             }
             indent--;
             printf(")");
@@ -138,9 +138,9 @@ static void print_node(ParseCtx* p, NodeIndex node) {
         } break;
 
         case AST_VARDECL: {
-            int kw = p->src->nextra[n->lhs + 0];
-            int type = p->src->nextra[n->lhs + 1];
-            int init = p->src->nextra[n->lhs + 2];
+            int kw = listget(p->src->nextra, n->lhs + 0);
+            int type = listget(p->src->nextra, n->lhs + 1);
+            int init = listget(p->src->nextra, n->lhs + 2);
             printf("(vardecl ");
             print_token(p, n->rhs);
             if (type) {
@@ -157,7 +157,7 @@ static void print_node(ParseCtx* p, NodeIndex node) {
 }
 
 void dbg_nodes(ParseCtx* p) {
-    for (int i = 0; i < (int)buflen(p->src->tokens); i++) {
+    for (int i = 0; i < (int)listlen(p->src->tokens); i++) {
         printf(
             "\n  at tokens[%2d] -> %s", 
             i, 
@@ -165,17 +165,17 @@ void dbg_nodes(ParseCtx* p) {
         );
     }
 
-    for (int i = 0; i < (int)buflen(p->src->nodes); i++) {
-        Node* n = &p->src->nodes[i];
+    for (int i = 0; i < (int)listlen(p->src->nodes); i++) {
+        Node* n = &listget(p->src->nodes, i);
         printf("\n  at nodes[%2d] -> k=%s, lhs=%d, rhs=%d", i, nodekind_strs[n->kind], n->lhs, n->rhs);
     }
-    for (int i = 0; i < (int)buflen(p->src->nextra); i++) {
-        printf("\n  at nextra[%2d] -> %d", i, p->src->nextra[i]);
+    for (int i = 0; i < (int)listlen(p->src->nextra); i++) {
+        printf("\n  at nextra[%2d] -> %d", i, listget(p->src->nextra, i));
     }
 
-    Node* r = &p->src->nodes[1];
+    Node* r = &listget(p->src->nodes, 1);
     for (int i = 0; i < r->rhs; i++) {
-        print_node(p, p->src->nextra[r->lhs + i]);
+        print_node(p, listget(p->src->nextra, r->lhs + i));
     }
     printf("\n");
 }

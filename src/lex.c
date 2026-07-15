@@ -9,12 +9,12 @@ LexCtx lexctx_new(
     struct CompileCtx* compilectx, 
     jmp_buf* error_handler_pos
 ) {
-    LexCtx l;
+    LexCtx l = (LexCtx){};
     l.src = src;
-    l.src->tokens = NULL;
+    listinit(&compilectx->fendarena, l.src->tokens);
     // Index 0 is a placeholder
     // for error/empty tokens.
-    bufpush(l.src->tokens, (Token){.kind = TK_NONE});
+    listpush(l.src->tokens, (Token){.kind = TK_NONE});
     l.start = src->handle.contents;
     l.current = l.start;
     l.lastnl = l.start;
@@ -70,7 +70,7 @@ static inline char peek(LexCtx* l) {
 
 static void push_tok(LexCtx* l, TokenKind kind) {
     Token t = token_new(kind, span_from_start_to_current(l));
-    bufpush(l->src->tokens, t);
+    listpush(l->src->tokens, t);
 }
 
 static inline void push_tok_adv(LexCtx* l, TokenKind kind) {   
@@ -90,7 +90,7 @@ static void push_tok_adv_cond(
 }
 
 static inline Token* last_tok(LexCtx* l) {
-    return &l->src->tokens[buflen(l->src->tokens)-1];
+    return &listget(l->src->tokens, listlen(l->src->tokens)-1);
 }
 
 void lex(LexCtx* l) {
@@ -117,9 +117,10 @@ void lex(LexCtx* l) {
                     l->start,
                     l->current - l->start
                 );
-                for (usize i = 0; i < buflen(keywords); i++) {
-                    if (id == keywords[i].k) {
-                        kind = keywords[i].v;
+                for (usize i = 0; i < listlen(keywords); i++) {
+                    StrTokenMap m = listget(keywords, i);
+                    if (id == m.k) {
+                        kind = m.v;
                         break;
                     }
                 }
@@ -140,9 +141,10 @@ void lex(LexCtx* l) {
                     l->start + 1,
                     l->current - l->start - 1
                 );
-                for (usize i = 0; i < buflen(directives); i++) {
-                    if (id == directives[i].k) {
-                        kind = directives[i].v;
+                for (usize i = 0; i < listlen(directives); i++) {
+                    StrTokenMap m = listget(directives, i);
+                    if (id == m.k) {
+                        kind = m.v;
                         break;
                     }
                 }

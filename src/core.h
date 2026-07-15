@@ -99,6 +99,8 @@ u64 maxinteger_signed(int bytes);
 bool slice_eql_to_str(const char* slice, int slicelen, const char* str);
 char* format_string(const char* fmt, ...);
 u32 hash_string(const char* str, usize len);
+usize get_memory_usage();
+usize print_memory_size(usize bytes);
 
 #define MEASURE_TIME(block_name, ...) do { \
     struct timespec _start, _end; \
@@ -158,6 +160,63 @@ usize bufcap(const void* buf);
 void* _bufgrow(const void* buf, usize new_len, usize elem_size);
 
 // =============================================================================
+// ARENA + LIST
+// =============================================================================
+
+typedef struct {
+    char* base;
+    usize capacity;
+    usize pos;
+} Arena;
+
+Arena arena_create(u64 reserve);
+void arena_destroy(Arena* arena);
+void arena_clear(Arena* arena);
+void* arena_push(Arena* arena, u64 size);
+
+#define LIST_CHUNK_SHIFT 16
+#define LIST_CHUNK_SIZE  (1ULL << LIST_CHUNK_SHIFT)
+#define LIST_CHUNK_MASK  (LIST_CHUNK_SIZE - 1)
+
+typedef struct {
+    Arena* arena;
+    usize cap;
+    usize len;
+    usize elem_size;
+    u32 chunkcap;
+    u32 chunkcount;
+    void** chunks;
+} listhdr;
+
+#define _listhdr(b)      ((listhdr*)((char*)(b) - sizeof(listhdr)))
+#define listlen(b)       ((b) ? _listhdr((b))->len : 0)
+#define listcap(b)       ((b) ? _listhdr((b))->cap : 0)
+#define listend(b)       ((b) + listlen(b))
+#define listlastidx(b)   (listlen(b) - 1)
+#define listlast(b)      (listlen((b)) == 0 ? (NULL) : &listget((b), listlastidx(b)))
+
+#define listinit(arena, b) ((b) = _listgrow((arena), NULL, 0, sizeof(*(b))))
+#define listget(b, i) (((__typeof__(b))(_listhdr(b)->chunks[(i) >> LIST_CHUNK_SHIFT]))[(i) & LIST_CHUNK_MASK])
+
+#define listfit(b, n) (((b) && listcap(b) >= (n)) ? 0 : \
+    ((b) = _listgrow(_listhdr(b)->arena, (b), (n), sizeof(*(b)))))
+
+#define listpush(b, ...) (listfit((b), 1 + listlen((b))), \
+    (listget((b), _listhdr((b))->len) = __VA_ARGS__), \
+    _listhdr((b))->len++)
+
+#define listpop(b) (listlen(b) > 0 ? listget((b), --_listhdr((b))->len) : 0)
+
+#define listclear(b) ((b) ? _listhdr((b))->len = 0 : 0)
+#define listfree(b)  ((b) ? (b=NULL) : 0) 
+
+#define listloop(b, c) for (usize c = 0; c < listlen(b); c++)
+#define listrevloop(b, c) for (usize c = listlen(b); c-- > 0 ;)
+
+void* _listgrow(Arena* arena, const void* list, usize new_len, usize elem_size);
+void list_debug_dump_uniform_chunks(const void *list);
+
+// =============================================================================
 // STRING INTERNING
 // =============================================================================
 
@@ -184,8 +243,7 @@ typedef struct {
     strinode* nodes;
 } stri;
 
-void stri_init(stri* s);
-void stri_free(stri* s);
+void stri_init(Arena* arena, stri* s);
 strid stri_intern(stri* s, const char* str, usize len);
 strislice stri_lookup(const stri* s, strid id);
 void stri_print_stats(const stri* s);
@@ -214,7 +272,7 @@ typedef struct {
 
 bool file_exists(const char* path);
 int is_dir(const char* path);
-FileOrError read_file(const char* path);
+FileOrError read_file(Arena* arena, const char* path);
 FileOpResult write_bin_file(const char* path, const char* contents, u64 bytes);
 const char* file_get_line_ptr(const File* handle, usize line);
 

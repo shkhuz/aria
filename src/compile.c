@@ -3,20 +3,36 @@
 #include "parse.h"
 #include "dbg.h"
 
+// TODO: make these fixed length (static allocation)
 StrTokenMap* keywords;
 StrTokenMap* directives;
 
 CompileCtx compilectx_new() {
     CompileCtx c;
+    c.permarena = arena_create(4ULL << 30);
+    if (!c.permarena.base) {
+        fprintf(stderr, "error: cannot allocate `permarena`\n");
+        compile_terminate(&c);
+    }
+
+    c.fendarena = arena_create(4ULL << 30);
+    if (!c.fendarena.base) {
+        fprintf(stderr, "error: cannot allocate `fendarena`\n");
+        compile_terminate(&c);
+    }
+
     c.msgs = NULL;
     c.print_msg_to_stderr = true;
     c.did_msg = false;
     c.srcfiles = NULL;
     c.parsing_error = false;
-    stri_init(&c.interner);
+    stri_init(&c.permarena, &c.interner);
 
-#define DEF(buf, k, v) (bufpush(\
-    buf,\
+    listinit(&c.fendarena, keywords);
+    listinit(&c.fendarena, directives);
+
+#define DEF(list, k, v) (listpush(\
+    list,\
     (StrTokenMap){stri_intern(&c.interner, k, strlen(k)), v}\
 ));
     DEF(keywords,   "comp",         TK_KW_COMP);
@@ -38,7 +54,7 @@ int read_srcfile(
     Span span,
     Srcfile* spansrc
 ) {
-    FileOrError efile = read_file(path);
+    FileOrError efile = read_file(&c->permarena, path);
     switch (efile.status) {
         case FILEIO_SUCCESS: {
             for (usize i = 0; i < buflen(c->srcfiles); i++) {
@@ -108,24 +124,6 @@ int compilectx_init_path(CompileCtx* c, const char* path) {
     return read_srcfile(c, path, (Span){}, NULL);
 }
 
-usize print_memory_size(usize bytes) {
-    const char* units[] = {"B", "KB", "MB", "GB", "TB"};
-    int unit_index = 0;
-    double size = (double)bytes;
-
-    while (size >= 1024 && unit_index < 4) {
-        size /= 1024;
-        unit_index++;
-    }
-
-    if (unit_index == 0) {
-        printf("%.0f %s", size, units[unit_index]);
-    } else {
-        printf("%.2f %s", size, units[unit_index]);
-    }
-    return bytes;
-}
-
 void compile(CompileCtx* c) {
     jmp_buf lex_error_handler_pos;
     jmp_buf parse_error_handler_pos;
@@ -147,8 +145,8 @@ void compile(CompileCtx* c) {
                 continue;
             } 
             // else dbg_print_tokens(src);
-            tokens_count += buflen(src->tokens);
-            tokens_mem += bufcap(src->tokens)*sizeof(Token);
+            tokens_count += listlen(src->tokens);
+            tokens_mem += listcap(src->tokens)*sizeof(Token);
         } else {
             c->parsing_error = true;
             continue;
@@ -166,10 +164,11 @@ void compile(CompileCtx* c) {
                 continue;
             }
             // else dbg_nodes(&p);
-            nodes_count += buflen(src->nodes);
-            nodes_mem += bufcap(src->nodes)*sizeof(Node);
-            nextra_count += buflen(src->nextra);
-            nextra_mem += bufcap(src->nextra)*sizeof(int);
+            nodes_count += listlen(src->nodes);
+            nodes_mem += listcap(src->nodes)*sizeof(Node);
+            nextra_count += listlen(src->nextra);
+            nextra_mem += listcap(src->nextra)*sizeof(int);
+            nextra_mem += listcap(p.sextra)*sizeof(int);
         } else {
             c->parsing_error = true;
             continue;
@@ -179,11 +178,11 @@ void compile(CompileCtx* c) {
     printf("\nSource: ");
     total += print_memory_size(source_mem);
 
-    printf("\nKeywords (%lu): ", buflen(keywords));
-    total += print_memory_size(bufcap(keywords)*sizeof(StrTokenMap));
+    printf("\nKeywords (%lu): ", listlen(keywords));
+    total += print_memory_size(listcap(keywords)*sizeof(StrTokenMap));
 
-    printf("\nDirectives (%lu): ", buflen(directives));
-    total += print_memory_size(bufcap(directives)*sizeof(StrTokenMap));
+    printf("\nDirectives (%lu): ", listlen(directives));
+    total += print_memory_size(listcap(directives)*sizeof(StrTokenMap));
 
     printf("\nTokens (%lu): ", tokens_count);
     total += print_memory_size(tokens_mem);
@@ -195,15 +194,21 @@ void compile(CompileCtx* c) {
     total += print_memory_size(nextra_mem);
 
     printf("\nStri:");
-    printf("\n  slices (%lu): ", buflen(c->interner.slices));
-    total += print_memory_size(bufcap(c->interner.slices)*sizeof(strislice));
-    printf("\n  buckets (%lu): ", buflen(c->interner.buckets));
-    total += print_memory_size(bufcap(c->interner.buckets)*sizeof(u32));
-    printf("\n  nodes (%lu): ", buflen(c->interner.nodes));
-    total += print_memory_size(bufcap(c->interner.nodes)*sizeof(strinode));
+    printf("\n  slices (%lu): ", listlen(c->interner.slices));
+    total += print_memory_size(listcap(c->interner.slices)*sizeof(strislice));
+    printf("\n  buckets (%lu): ", listlen(c->interner.buckets));
+    total += print_memory_size(listcap(c->interner.buckets)*sizeof(u32));
+    printf("\n  nodes (%lu): ", listlen(c->interner.nodes));
+    total += print_memory_size(listcap(c->interner.nodes)*sizeof(strinode));
     printf("\nTotal: %lu or ", total);
     print_memory_size(total);
+
+    printf("\nPermarena Mem: ");
+    print_memory_size(c->permarena.pos);
     
+    printf("\nFront-end Mem: ");
+    print_memory_size(c->fendarena.pos);
+
     if (c->parsing_error) return;
 }
 

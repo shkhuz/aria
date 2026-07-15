@@ -17,7 +17,7 @@ static NodeIndex parse_block(ParseCtx* p);
 #define prevspan(p) (tkspan(p->src, p->current-1))
 
 static inline Span tkspan(Srcfile* src, TokenIndex idx) {
-    return src->tokens[idx].span;
+    return listget(src->tokens, idx).span;
 }
 
 static inline Span ndspan(Srcfile* src, NodeIndex idx) {
@@ -29,16 +29,16 @@ ParseCtx parsectx_new(
     struct CompileCtx* compilectx, 
     jmp_buf* error_handler_pos
 ) {
-    ParseCtx p;
+    ParseCtx p = (ParseCtx){};
     p.src = src;
-    p.src->nodes = NULL;
-    p.src->nextra = NULL;
+    listinit(&compilectx->fendarena, p.src->nodes);
+    listinit(&compilectx->fendarena, p.src->nextra);
     // Index 0 is a placeholder node.
     // Used to signify index 0 as empty/error.
-    bufpush(p.src->nodes, (Node){});
+    listpush(p.src->nodes, (Node){});
     // Index 1 is used for root node.
     // lhs & rhs are filled in at the end of parsing.
-    bufpush(p.src->nodes, (Node){
+    listpush(p.src->nodes, (Node){
         AST_ROOT,
         (Span){},
         0,
@@ -49,7 +49,7 @@ ParseCtx parsectx_new(
     p.compilectx = compilectx;
     p.error = false;
     p.error_handler_pos = error_handler_pos;
-    p.sextra = NULL;
+    listinit(&compilectx->fendarena, p.sextra);
     return p;
 }
 
@@ -69,7 +69,7 @@ static inline void msg_emit_non_fatal(ParseCtx* p, Msg* msg) {
 }
 
 static void goto_next_token(ParseCtx* p) {
-    if (p->current < buflen(p->src->tokens)) {
+    if (p->current < listlen(p->src->tokens)) {
         p->current++;
     }
 }
@@ -150,25 +150,25 @@ static inline TokenIndex expect_comma(ParseCtx* p) {
 
 static void flush_sextra(ParseCtx* p, usize marker) {
     if (!p->sextra) return;
-    for (usize i = 0; i < buflen(p->sextra)-marker; i++) {
-        bufpush(p->src->nextra, p->sextra[marker + i]);
+    for (usize i = 0; i < listlen(p->sextra)-marker; i++) {
+        listpush(p->src->nextra, p->sextra[marker + i]);
     }
-    _bufhdr(p->sextra)->len = marker;
+    _listhdr(p->sextra)->len = marker;
 }
 
 static NodeIndex parse_atom_expr(ParseCtx* p) {
     if (match(p, TK_IDENT)) {
-        bufpush(p->src->nodes, (Node){
+        listpush(p->src->nodes, (Node){
             AST_SYM,
             prevspan(p),
             p->current-1,
             0
         });
-        return buflastidx(p->src->nodes);
+        return listlastidx(p->src->nodes);
     } else if (match(p, TK_KW_COMP)) {
         TokenIndex keyword = p->current-1;
         NodeIndex child = parse_atom_expr(p);
-        bufpush(p->src->nodes, (Node){
+        listpush(p->src->nodes, (Node){
             AST_COMP,
             span_from_two(
                 tkspan(p->src, keyword), 
@@ -177,7 +177,7 @@ static NodeIndex parse_atom_expr(ParseCtx* p) {
             child,
             0
         });
-        return buflastidx(p->src->nodes);
+        return listlastidx(p->src->nodes);
     } else if (match(p, TK_KW_STRUCT)) {
         TokenIndex keyword = p->current-1;
         if (match(p, TK_LPAREN)) {
@@ -222,7 +222,7 @@ static NodeIndex parse_atom_expr(ParseCtx* p) {
                 tkspan(p->src, path),
                 p->src
             );
-            bufpush(p->src->nodes, (Node){
+            listpush(p->src->nodes, (Node){
                 AST_IMPORT,
                 span_from_two(
                     tkspan(p->src, keyword), 
@@ -231,28 +231,28 @@ static NodeIndex parse_atom_expr(ParseCtx* p) {
                 src,
                 path
             });
-            return buflastidx(p->src->nodes);
+            return listlastidx(p->src->nodes);
         } else if (match(p, TK_LBRACE)) {
             TokenIndex lbrace = p->current-1;
-            usize marker = buflen(p->sextra);
+            usize marker = listlen(p->sextra);
             while (!match(p, TK_RBRACE)) {
                 check_eof(p, lbrace);
                 NodeIndex child = parse_astnode_root(p);
-                bufpush(p->sextra, child);
+                listpush(p->sextra, child);
             }
 
-            bufpush(p->src->nodes, (Node){
+            listpush(p->src->nodes, (Node){
                 AST_STRUCT,
                 span_from_two(
                     tkspan(p->src, keyword), 
                     prevspan(p)
                 ),
-                buflen(p->src->nextra),
-                buflen(p->sextra) - marker
+                listlen(p->src->nextra),
+                listlen(p->sextra) - marker
             });
             flush_sextra(p, marker);
 
-            return buflastidx(p->src->nodes);
+            return listlastidx(p->src->nodes);
         }
     } else if (current(p)->kind == TK_LBRACE) {
         return parse_block(p);
@@ -292,19 +292,19 @@ static NodeIndex parse_vardecl(ParseCtx* p) {
         msg_emit(p, &msg);
     }
 
-    bufpush(p->src->nodes, (Node){
+    listpush(p->src->nodes, (Node){
         AST_VARDECL,
         span_from_two(
             tkspan(p->src, keyword), 
             ndspan(p->src, init == 0 ? type : init)
         ),
-        buflen(p->src->nextra),
+        listlen(p->src->nextra),
         ident
     });
-    bufpush(p->src->nextra, keyword);
-    bufpush(p->src->nextra, type);
-    bufpush(p->src->nextra, init);
-    return buflastidx(p->src->nodes);
+    listpush(p->src->nextra, keyword);
+    listpush(p->src->nextra, type);
+    listpush(p->src->nextra, init);
+    return listlastidx(p->src->nodes);
 }
 
 static NodeIndex parse_func(ParseCtx* p) {
@@ -312,7 +312,7 @@ static NodeIndex parse_func(ParseCtx* p) {
     TokenIndex ident = expect(p, TK_IDENT, "expected function name");
     TokenIndex lparen = expect_lparen(p);
 
-    usize marker = buflen(p->sextra);
+    usize marker = listlen(p->sextra);
     while (!match(p, TK_RPAREN)) {
         check_eof(p, lparen);
         TokenIndex pident = expect(
@@ -322,7 +322,7 @@ static NodeIndex parse_func(ParseCtx* p) {
         );
         expect_colon(p);
         NodeIndex ptype = parse_atom_expr(p);
-        bufpush(p->src->nodes, (Node){
+        listpush(p->src->nodes, (Node){
             AST_PARAM,
             span_from_two(
                 tkspan(p->src, pident), 
@@ -331,7 +331,7 @@ static NodeIndex parse_func(ParseCtx* p) {
             pident,
             ptype,
         });
-        bufpush(p->sextra, buflastidx(p->src->nodes));
+        listpush(p->sextra, listlastidx(p->src->nodes));
         if (current(p)->kind != TK_RPAREN) {
             expect_comma(p);
         }
@@ -354,17 +354,17 @@ static NodeIndex parse_func(ParseCtx* p) {
     }
 
     NodeIndex body = parse_block(p);
-    bufpush(p->src->nodes, (Node){
+    listpush(p->src->nodes, (Node){
         AST_FNDECL,
         span_from_two(tkspan(p->src, keyword), prevspan(p)),
-        buflen(p->src->nextra),
+        listlen(p->src->nextra),
         ident 
     });
-    bufpush(p->src->nextra, buflen(p->sextra)-marker);
-    bufpush(p->src->nextra, returntype);
-    bufpush(p->src->nextra, body);
+    listpush(p->src->nextra, listlen(p->sextra)-marker);
+    listpush(p->src->nextra, returntype);
+    listpush(p->src->nextra, body);
     flush_sextra(p, marker);
-    return buflastidx(p->src->nodes);
+    return listlastidx(p->src->nodes);
 }
 
 static NodeIndex parse_astnode_root(ParseCtx* p) {
@@ -380,7 +380,7 @@ static NodeIndex parse_astnode_root(ParseCtx* p) {
                 expect_comma(p);
             }
 
-            bufpush(p->src->nodes, (Node){
+            listpush(p->src->nodes, (Node){
                 AST_FIELD,
                 span_from_two(
                     tkspan(p->src, ident), 
@@ -389,7 +389,7 @@ static NodeIndex parse_astnode_root(ParseCtx* p) {
                 ident,
                 type
             });
-            return buflastidx(p->src->nodes);
+            return listlastidx(p->src->nodes);
         } else {
             Msg msg = msg_with_span(
                 MSG_ERROR,
@@ -414,7 +414,7 @@ static NodeIndex parse_astnode_root(ParseCtx* p) {
 
 static NodeIndex parse_block(ParseCtx* p) {
     TokenIndex lbrace = expect_lbrace(p);
-    usize marker = buflen(p->sextra);
+    usize marker = listlen(p->sextra);
     NodeIndex value = 0;
 
     while (!match(p, TK_RBRACE)) {
@@ -462,39 +462,39 @@ static NodeIndex parse_block(ParseCtx* p) {
                 }
             }
 
-            bufpush(p->src->nodes, (Node){
+            listpush(p->src->nodes, (Node){
                 AST_EXPRSTMT,
                 ndspan(p->src, n),
                 n,
                 0
             });
-            child = buflastidx(p->src->nodes);
+            child = listlastidx(p->src->nodes);
         }
 
-        bufpush(p->sextra, child);
+        listpush(p->sextra, child);
     }
 
-    bufpush(p->src->nodes, (Node){
+    listpush(p->src->nodes, (Node){
         AST_BLOCK,
         span_from_two(tkspan(p->src, lbrace), prevspan(p)),
-        buflen(p->src->nextra),
+        listlen(p->src->nextra),
         0
     });
-    bufpush(p->src->nextra, buflen(p->sextra)-marker);
-    bufpush(p->src->nextra, value);
+    listpush(p->src->nextra, listlen(p->sextra)-marker);
+    listpush(p->src->nextra, value);
     flush_sextra(p, marker);
-    return buflastidx(p->src->nodes);
+    return listlastidx(p->src->nodes);
 }
 
 void parse(ParseCtx* p) {
-    usize marker = buflen(p->sextra);
+    usize marker = listlen(p->sextra);
     while (current(p)->kind != TK_EOF) {
         NodeIndex child = parse_astnode_root(p);
-        bufpush(p->sextra, child);
+        listpush(p->sextra, child);
     }
 
     Node* root = nd(p->src, 1);
-    root->lhs = buflen(p->src->nextra);
-    root->rhs = buflen(p->sextra) - marker;
+    root->lhs = listlen(p->src->nextra);
+    root->rhs = listlen(p->sextra) - marker;
     flush_sextra(p, marker);
 }
