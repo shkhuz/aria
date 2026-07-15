@@ -14,7 +14,7 @@ LexCtx lexctx_new(
     l.src->tokens = NULL;
     // Index 0 is a placeholder
     // for error/empty tokens.
-    bufpush(l.src->tokens, (Token){});
+    bufpush(l.src->tokens, (Token){.kind = TK_NONE});
     l.start = src->handle.contents;
     l.current = l.start;
     l.lastnl = l.start;
@@ -125,6 +125,39 @@ void lex(LexCtx* l) {
                 }
                 push_tok(l, kind);
                 last_tok(l)->extra = id;
+            } break;
+
+            case '@': {
+                TokenKind kind = TK_NONE;
+                l->current++;
+                if (isalpha(*l->current) || *l->current == '_') 
+                    l->current++;
+                while (isalnum(*l->current) || *l->current == '_') 
+                    l->current++;
+
+                strid id = stri_intern(
+                    &l->compilectx->interner,
+                    l->start + 1,
+                    l->current - l->start - 1
+                );
+                for (usize i = 0; i < buflen(directives); i++) {
+                    if (id == directives[i].k) {
+                        kind = directives[i].v;
+                        break;
+                    }
+                }
+
+                if (kind == TK_NONE) {
+                    Msg msg = msg_with_span(
+                        MSG_ERROR,
+                        "unknown directive",
+                        span_from_start_to_current(l)
+                    );
+                    msg_emit(l, &msg);
+                } else {
+                    push_tok(l, kind);
+                    last_tok(l)->extra = id;
+                }
             } break;
 
             case ':': push_tok_adv(l, TK_COLON); break;

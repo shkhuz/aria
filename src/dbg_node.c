@@ -2,29 +2,30 @@
 #include "token.h"
 #include "dbg.h"
 #include "node.h"
+#include "compile.h"
 
 static int indent;
 
-// void dbg_print_tokens(Token* tokens, Srcfile* srcfile) {
-//     src = srcfile;
-//     bufloop(tokens, i) {
-//         printf(
-//             "\n%20s %20s %d,%d", 
-//             tokenkind_strs[tokens[i].kind], 
-//             span_tostring(tokens[i].span, p->src),
-//             tokens[i].span.start,
-//             tokens[i].span.end
-//         );
-//     }
-//     printf("\ntokens: %lu", buflen(tokens));
-// }
+void dbg_print_tokens(Srcfile* src) {
+    bufloop(src->tokens, i) {
+        Token* t = tk(src, i);
+        printf(
+            "\n%15s '%s' %d,%d, extra=%d", 
+            tokenkind_strs[t->kind], 
+            span_tostring(t->span, src),
+            t->span.start,
+            t->span.end,
+            t->extra
+        );
+    }
+}
 
 static void print_token(ParseCtx* p, TokenIndex idx) {
-    Token* token = &p->src->tokens[idx];
+    Span span = tk(p->src, idx)->span;
     printf(
         "%.*s",
-        (int)(token->span.end - token->span.start),
-        &p->src->handle.contents[token->span.start]
+        (int)(span.end - span.start),
+        &p->src->handle.contents[span.start]
     );
 }
 
@@ -35,17 +36,13 @@ static void format() {
     }
 }
 
-static inline Node* nd(ParseCtx* p, NodeIndex n) {
-    return &p->src->nodes[n];
-}
-
 static void print_node(ParseCtx* p, NodeIndex node) {
     if (node == 0) {
         printf("nil");
         return;
     }
 
-    Node* n = nd(p, node);
+    Node* n = nd(p->src, node);
     switch (n->kind) {
         case AST_BLOCK:
         case AST_FIELD:
@@ -160,17 +157,14 @@ static void print_node(ParseCtx* p, NodeIndex node) {
 }
 
 void dbg_nodes(ParseCtx* p) {
-    printf("\nname: %s", p->src->handle.path);
-    printf("\ntokens: %lu", buflen(p->src->tokens));
     for (int i = 0; i < (int)buflen(p->src->tokens); i++) {
         printf(
             "\n  at tokens[%2d] -> %s", 
             i, 
-            span_tostring(p->src->tokens[i].span, p->src)
+            span_tostring(tk(p->src, i)->span, p->src)
         );
     }
 
-    printf("\nnodes: %lu", buflen(p->src->nodes));
     for (int i = 0; i < (int)buflen(p->src->nodes); i++) {
         Node* n = &p->src->nodes[i];
         printf("\n  at nodes[%2d] -> k=%s, lhs=%d, rhs=%d", i, nodekind_strs[n->kind], n->lhs, n->rhs);

@@ -6,8 +6,8 @@ imm S = struct {
     imm new: Mod = super;
 };
 
-fun main() void {
-    fun cool() {
+fn main() void {
+    fn cool() {
     }
     {
         comp {
@@ -16,5 +16,5 @@ fun main() void {
         yield hi;
     }
 
-    fun nice() void {}
+    fn nice() void {}
 }

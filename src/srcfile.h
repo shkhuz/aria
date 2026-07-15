@@ -7,7 +7,6 @@
 struct Srcfile {
     File handle;
     Token* tokens;
-
     Node* nodes;
     int* nextra;
 };
