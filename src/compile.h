@@ -17,7 +17,7 @@ typedef struct CompileCtx {
     Srcfile** srcfiles;
     bool parsing_error;
     Arena permarena;
-    Arena fendarena;
+    Arena parsearena;
     stri interner;
 } CompileCtx;
 
@@ -29,7 +29,6 @@ typedef struct {
 extern StrTokenMap* keywords;
 extern StrTokenMap* directives;
 
-CompileCtx compilectx_new();
 int read_srcfile(
     CompileCtx* c, 
     const char* path, 

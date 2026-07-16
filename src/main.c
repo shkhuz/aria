@@ -12,7 +12,7 @@ int main() {
     // assert(buflen(a) == 0);
 
     init_core();
-    CompileCtx c = compilectx_new();
+    CompileCtx c;
     // compilectx_init_stream(
     //     &c, 
     //     "imm a = some;\n"
@@ -20,13 +20,15 @@ int main() {
     //     "hi:struct(\"name\"),\n"
     //     "imm b = struct(\"hiya\");\n"
     // );
-    // compilectx_init_path(
-    //     &c,
-    //     "examples/v2-1.ar"
-    // );
-    // compile(&c);
+    compilectx_init_path(
+        &c,
+        "examples/v2-1.ar"
+    );
+    compile(&c);
     // stri_print_stats(&c.interner);
     // if (c.parsing_error) compile_terminate(&c);
+    list_dump_chunks("srcfiles", c.srcfiles);
+    arena_print_segment_metrics(&c.permarena);
     printf("\nTotal physical RAM usage: ");
     print_memory_size(get_memory_usage());
 }

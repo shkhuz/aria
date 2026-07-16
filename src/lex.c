@@ -11,7 +11,7 @@ LexCtx lexctx_new(
 ) {
     LexCtx l = (LexCtx){};
     l.src = src;
-    listinit(&compilectx->fendarena, l.src->tokens);
+    listinit(&compilectx->parsearena, l.src->tokens);
     // Index 0 is a placeholder
     // for error/empty tokens.
     listpush(l.src->tokens, (Token){.kind = TK_NONE});

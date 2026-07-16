@@ -31,8 +31,9 @@ ParseCtx parsectx_new(
 ) {
     ParseCtx p = (ParseCtx){};
     p.src = src;
-    listinit(&compilectx->fendarena, p.src->nodes);
-    listinit(&compilectx->fendarena, p.src->nextra);
+    printf("\nnodes: %p, nextra: %p, sextra: %p", p.src->nodes, p.src->nextra, p.sextra);
+    listinit(&compilectx->parsearena, p.src->nodes);
+    listinit(&compilectx->parsearena, p.src->nextra);
     // Index 0 is a placeholder node.
     // Used to signify index 0 as empty/error.
     listpush(p.src->nodes, (Node){});
@@ -49,7 +50,7 @@ ParseCtx parsectx_new(
     p.compilectx = compilectx;
     p.error = false;
     p.error_handler_pos = error_handler_pos;
-    listinit(&compilectx->fendarena, p.sextra);
+    listinit(&compilectx->parsearena, p.sextra);
     return p;
 }
 
@@ -151,7 +152,11 @@ static inline TokenIndex expect_comma(ParseCtx* p) {
 static void flush_sextra(ParseCtx* p, usize marker) {
     if (!p->sextra) return;
     for (usize i = 0; i < listlen(p->sextra)-marker; i++) {
-        listpush(p->src->nextra, p->sextra[marker + i]);
+        // listpush(p->src->nextra, listget(p->sextra, marker + i));
+        printf("pushing\n");
+        printf("Address before push: %p\n", (void*)p->src->nextra);
+        listpush(p->src->nextra, 1);
+        printf("Address after push: %p\n", (void*)p->src->nextra);
     }
     _listhdr(p->sextra)->len = marker;
 }

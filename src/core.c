@@ -103,6 +103,7 @@ usize get_memory_usage() {
         ) != 2) {
             physical_pages = 0;
         }
+
         fclose(fp);
     }
 
@@ -124,9 +125,102 @@ usize print_memory_size(usize bytes) {
     if (unit_index == 0) {
         printf("%.0f %s", size, units[unit_index]);
     } else {
-        printf("%.2f %s", size, units[unit_index]);
+        double frac = fabs(size - (int)size);
+        if (frac < 0.01) {
+            printf("%.0f %s", size, units[unit_index]);
+        } else {
+            printf("%.2f %s", size, units[unit_index]);
+        }
     }
     return bytes;
+}
+
+// =============================================================================
+// ARENA
+// =============================================================================
+
+Arena arena_create(const char* name, u64 reserve) {
+    Arena arena = (Arena){};
+    arena.name = name;
+    void* ptr = mmap(NULL, reserve, PROT_READ | PROT_WRITE,
+        MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+    if (ptr != MAP_FAILED) {
+        arena.base = ptr;
+        arena.capacity = reserve;
+    }
+    return arena;
+}
+
+void arena_destroy(Arena* arena) {
+    if (arena->base) {
+        munmap(arena->base, arena->capacity);
+    }
+}
+
+void arena_clear(Arena* arena) {
+    arena->pos = 0;
+}
+
+
+void* arena_push(Arena* arena, u64 size, const char* reason) {
+    u64 aligned_size = (size + 7) & ~7;
+    assert(arena->pos + aligned_size <= arena->capacity && "Arena out of memory!");
+    printf("\n[I] arena_push(%s, ", arena->name);
+    print_memory_size(aligned_size);
+    printf(", %s) = ", reason ? reason : "");
+    void* ptr = arena->base + arena->pos;
+    arena->pos += aligned_size;
+    print_memory_size(arena->pos);
+    return ptr;
+}
+
+void arena_print_segment_metrics(const Arena *arena) {
+    if (!arena || !arena->base) {
+        printf("Arena is uninitialized.\n");
+        return;
+    }
+
+    FILE* fp = fopen("/proc/self/smaps", "r");
+    if (!fp) {
+        perror("Failed to open /proc/self/smaps");
+        return;
+    }
+
+    char line[512];
+    uintptr_t target_addr = (uintptr_t)arena->base;
+    int inside_target_segment = 0;
+    u64 size = 0, rss = 0, anon = 0, thp = 0;
+
+    while (fgets(line, sizeof(line), fp)) {
+        uintptr_t start = 0, end = 0;
+        if (sscanf(line, "%lx-%lx", &start, &end) == 2) {
+            if (target_addr >= start && target_addr < end) {
+                inside_target_segment = 1;
+                printf("\nArena [%p] \n  Mapped Region: %lx-%lx", 
+                       (void*)target_addr, start, end);
+            } else {
+                inside_target_segment = 0;
+            }
+            continue;
+        }
+
+        if (inside_target_segment) {
+            if (strncmp(line, "Size:", 5) == 0)          sscanf(line, "Size: %lu", &size);
+            else if (strncmp(line, "Rss:", 4) == 0)      sscanf(line, "Rss: %lu", &rss);
+            else if (strncmp(line, "Anonymous:", 10) == 0) sscanf(line, "Anonymous: %lu", &anon);
+            else if (strncmp(line, "AnonHugePages:", 14) == 0) {
+                sscanf(line, "AnonHugePages: %lu", &thp);
+                
+                printf("\n  Segment Virtual Limit    : "); print_memory_size(size*1024);
+                printf("\n  Physical Memory Committed: "); print_memory_size(rss*1024);
+                printf("\n  Anonymous Allocation     : "); print_memory_size(anon*1024);
+                printf("\n  Transparent Huge Pages   : "); print_memory_size(thp*1024);
+                break; 
+            }
+        }
+    }
+
+    fclose(fp);
 }
 
 // =============================================================================
@@ -159,42 +253,55 @@ void* _bufgrow(const void* buf, usize new_len, usize elem_size) {
 }
 
 // =============================================================================
-// ARENA + LIST
+// LIST
 // =============================================================================
 
-Arena arena_create(u64 reserve) {
-    Arena arena = (Arena){};
-    void* ptr = mmap(NULL, reserve, PROT_READ | PROT_WRITE,
-        MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
-    if (ptr != MAP_FAILED) {
-        arena.base = ptr;
-        arena.capacity = reserve;
-    }
-    return arena;
+usize listlen(const void* list) {
+    return list ? _listhdr(list)->len : 0;
 }
 
-void arena_destroy(Arena* arena) {
-    if (arena->base) {
-        munmap(arena->base, arena->capacity);
-    }
-}
-
-void arena_clear(Arena* arena) {
-    arena->pos = 0;
-}
-
-void* arena_push(Arena* arena, u64 size) {
-    u64 aligned_size = (size + 7) & ~7;
-    assert(arena->pos + aligned_size <= arena->capacity && "Arena out of memory!");
-    void* ptr = arena->base + arena->pos;
-    arena->pos += aligned_size;
-    return ptr;
+usize listcap(const void* list) {
+    return list ? _listhdr(list)->cap : 0;
 }
 
 void* _listgrow(Arena* arena, const void* list, usize new_len, usize elem_size) {
     listhdr* hdr = list ? _listhdr(list) : NULL;
+    printf("\nnew_len: %lu, elem_size: %lu", new_len, elem_size);
+
+// if (!hdr) {
+//     hdr = (listhdr*)arena_push(arena, sizeof(listhdr), "list_hdr");
+//     hdr->arena = arena;
+//     hdr->chunkcap = 4;
+    
+//     // 💡 FIX: Make sure this allocation matches the exact arguments arena_push expects!
+//     hdr->chunks = (void**)arena_push(arena, hdr->chunkcap * sizeof(void*), "list_chunks");
+    
+//     // If arena_push failed, bail early out of safety
+//     if (!hdr->chunks) {
+//         fprintf(stderr, "Fatal: Arena failed to allocate list pointer table.\n");
+//         exit(1);
+//     }
+
+//     usize initial_chunk_mem = (1ULL << LIST_CHUNK_SHIFT) * elem_size;
+//     hdr->chunks[0] = arena_push(arena, initial_chunk_mem, "chunk");
+//     hdr->chunkcount = 1;
+//     hdr->cap = (1ULL << LIST_CHUNK_SHIFT);
+//     hdr->len = 0;
+// }
+    
     if (!hdr) {
-        hdr = (listhdr*)arena_push(arena, sizeof(listhdr));
+        // hdr = (listhdr*)arena_push(arena, sizeof(listhdr), "_listgrow: hdr");
+        // hdr->arena = arena;
+        // hdr->cap = LIST_CHUNK_SIZE;
+        // hdr->len = 0;
+        // hdr->chunkcap = 4;
+        // hdr->chunkcount = 1;
+        // hdr->chunks = arena_push(hdr->arena, hdr->chunkcap*sizeof(void*), "");
+        // hdr->chunks[0] = arena_push(hdr->arena, LIST_CHUNK_SIZE * elem_size, "");
+
+
+
+        hdr = (listhdr*)arena_push(arena, sizeof(listhdr), "_listgrow: hdr");
         hdr->arena = arena;
         hdr->cap = 0;
         hdr->len = 0;
@@ -202,13 +309,13 @@ void* _listgrow(Arena* arena, const void* list, usize new_len, usize elem_size) 
         hdr->chunkcount = 0;
         hdr->chunks = NULL;
     }
-    
-    while (hdr->cap < new_len) {
+
+    if (hdr->cap < new_len) {
         u32 target_chunk = hdr->chunkcount;
         if (target_chunk >= hdr->chunkcap) {
             u32 oldcap = hdr->chunkcap;
             hdr->chunkcap = hdr->chunkcap == 0 ? 4 : hdr->chunkcap * 2;
-            void** new_chunks = arena_push(hdr->arena, hdr->chunkcap * sizeof(void*));
+            void** new_chunks = arena_push(hdr->arena, hdr->chunkcap * sizeof(void*), "_listgrow: chunkptrs");
             if (oldcap > 0) {
                 memcpy(new_chunks, hdr->chunks, oldcap * sizeof(void*));
             }
@@ -216,24 +323,24 @@ void* _listgrow(Arena* arena, const void* list, usize new_len, usize elem_size) 
         }
 
         usize chunk_mem = LIST_CHUNK_SIZE * elem_size;
-        hdr->chunks[target_chunk] = arena_push(hdr->arena, chunk_mem);
+        hdr->chunks[target_chunk] = arena_push(hdr->arena, chunk_mem, "_listgrow: new chunk");
         hdr->chunkcount++;
         hdr->cap += LIST_CHUNK_SIZE;
     }
     return (void*)((char*)hdr + sizeof(listhdr));
 }
 
-void list_debug_dump_uniform_chunks(const void *list) {
+void list_dump_chunks(const char* name, const void *list) {
     if (!list) {
         return;
     }
 
     listhdr *hdr = _listhdr(list);
-    printf("=== UNIFORM GRID GRID INSPECTION ===\n");
-    printf("Total Elements Tracked : %zu\n", hdr->len);
-    printf("Total Capacity Allocated: %zu elements\n", hdr->cap);
-    printf("Pointer Table Capacity : %u slots\n", hdr->chunkcap);
-    printf("Active Uniform Blocks  : %u\n", hdr->chunkcount);
+    printf("\nDumping list %s (%p) info: ", name ? name : "", list);
+    printf("\n  Total Elements Tracked : %zu", hdr->len);
+    printf("\n  Total Capacity Allocated: %zu elements", hdr->cap);
+    printf("\n  Pointer Table Capacity : %u slots", hdr->chunkcap);
+    printf("\n  Active Uniform Blocks  : %u", hdr->chunkcount);
     
     for (u32 i = 0; i < hdr->chunkcount; i++) {
         void* block_address = hdr->chunks[i];
@@ -241,10 +348,9 @@ void list_debug_dump_uniform_chunks(const void *list) {
         usize start_idx = i * LIST_CHUNK_SIZE;
         usize end_idx   = start_idx + LIST_CHUNK_SIZE - 1;
         
-        printf("  [Block %u] Address: %p | Handles Indices: [%zu to %zu]\n", 
+        printf("\n    [Block %u] Address: %p | Handles Indices: [%zu to %zu]", 
                i, block_address, start_idx, end_idx);
     }
-    printf("====================================\n\n");
 }
 
 // =============================================================================
@@ -402,7 +508,7 @@ FileOrError read_file(Arena* arena, const char* path) {
     usize size = ftell(raw);
     rewind(raw);
 
-    char* contents = (char*)arena_push(arena, size + 1);
+    char* contents = (char*)arena_push(arena, size + 1, "readfile: source code");
     fread(contents, sizeof(char), size, raw);
     fclose(raw);
     contents[size] = '\0';
@@ -411,7 +517,7 @@ FileOrError read_file(Arena* arena, const char* path) {
     char* abs_path = NULL;
     if (realpath(path, abs_path_buf)) {
         usize abs_path_len = strlen(abs_path_buf);
-        abs_path = (char*)arena_push(arena, abs_path_len + 1);
+        abs_path = (char*)arena_push(arena, abs_path_len + 1, "abs path");
         // including '\0'
         memcpy(abs_path, abs_path_buf, abs_path_len+1); 
     }
@@ -889,7 +995,7 @@ void init_core() {
         g_reset_color = "";
         g_bold_cornflower_blue_color = "";
     }
-    BIGINT_ZERO = bigint_new_u64(0);
+    //BIGINT_ZERO = bigint_new_u64(0);
     atexit(print_mem_stats);
 }
 
@@ -915,6 +1021,7 @@ void* tracked_malloc(
 ) {
     usize total_size = size + sizeof(usize);
     void* raw_ptr = malloc(total_size);
+    printf("\nmalloc(%lu) at %s,%d", size, file, line);
     
     if (!raw_ptr) {
         fprintf(stderr, "[MEM ERROR] Out of memory at %s:%d\n", file, line);
@@ -994,8 +1101,6 @@ void* tracked_calloc(
 }
 
 void print_mem_stats() {
-    printf("\n=== MEMORY USAGE METRICS ===\n");
-    printf("Current Leaked Memory: %zu bytes\n", curalloc);
-    printf("Peak Memory Footprint: %zu bytes\n", peakalloc);
-    printf("============================\n");
+    printf("\nCurrent Leaked Memory: %zu bytes", curalloc);
+    printf("\nPeak Memory Footprint: %zu bytes", peakalloc);
 }

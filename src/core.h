@@ -21,6 +21,7 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <time.h>
+#include <math.h>
 
 #ifdef __linux__
 #include <linux/limits.h>
@@ -72,11 +73,12 @@ typedef ssize_t isize;
 #define STRINGIFY(X) STRINGIFY1(X)
 #define ENUM_GEN(ENUM) ENUM,
 #define STRING_GEN(STRING) #STRING,
-#define ALLOC_OBJ(arena, type) ((type*)arena_push(arena, sizeof(type)))
+#define ALLOC_OBJ(arena, type) ((type*)arena_push(arena, sizeof(type), "ALLOC_OBJ"))
 #define LOG(expr) _Generic((expr), \
     int:                (printf("[TRACE] %s:%d: %s = %d\n", __FILE__, __LINE__, #expr, (int)(expr)), (expr)), \
     unsigned int:       (printf("[TRACE] %s:%d: %s = %u\n", __FILE__, __LINE__, #expr, (unsigned int)(expr)), (expr)), \
     long unsigned int:  (printf("[TRACE] %s:%d: %s = %lu\n", __FILE__, __LINE__, #expr, (long unsigned int)(expr)), (expr)), \
+    long long unsigned int:(printf("[TRACE] %s:%d: %s = %llu\n", __FILE__, __LINE__, #expr, (long long unsigned int)(expr)), (expr)), \
     char*:              (printf("[TRACE] %s:%d: %s = %s\n", __FILE__, __LINE__, #expr, (char*)(expr)), (expr)) \
 )
 usize align_to_pow2(size_t n, size_t pow2);
@@ -115,10 +117,28 @@ usize print_memory_size(usize bytes);
 } while(0)
 
 // =============================================================================
+// ARENA
+// =============================================================================
+
+typedef struct {
+    const char* name;
+    char* base;
+    usize capacity;
+    usize pos;
+} Arena;
+
+Arena arena_create(const char* name, u64 reserve);
+void arena_destroy(Arena* arena);
+void arena_clear(Arena* arena);
+void* arena_push(Arena* arena, u64 size, const char* reason);
+void arena_print_segment_metrics(const Arena *arena);
+
+// =============================================================================
 // BUFFER
 // =============================================================================
 
 typedef struct {
+    Arena* arena;
     usize cap;
     usize len;
     char data[];
@@ -160,21 +180,10 @@ usize bufcap(const void* buf);
 void* _bufgrow(const void* buf, usize new_len, usize elem_size);
 
 // =============================================================================
-// ARENA + LIST
+// LIST
 // =============================================================================
 
-typedef struct {
-    char* base;
-    usize capacity;
-    usize pos;
-} Arena;
-
-Arena arena_create(u64 reserve);
-void arena_destroy(Arena* arena);
-void arena_clear(Arena* arena);
-void* arena_push(Arena* arena, u64 size);
-
-#define LIST_CHUNK_SHIFT 16
+#define LIST_CHUNK_SHIFT 10
 #define LIST_CHUNK_SIZE  (1ULL << LIST_CHUNK_SHIFT)
 #define LIST_CHUNK_MASK  (LIST_CHUNK_SIZE - 1)
 
@@ -182,15 +191,12 @@ typedef struct {
     Arena* arena;
     usize cap;
     usize len;
-    usize elem_size;
     u32 chunkcap;
     u32 chunkcount;
     void** chunks;
 } listhdr;
 
 #define _listhdr(b)      ((listhdr*)((char*)(b) - sizeof(listhdr)))
-#define listlen(b)       ((b) ? _listhdr((b))->len : 0)
-#define listcap(b)       ((b) ? _listhdr((b))->cap : 0)
 #define listend(b)       ((b) + listlen(b))
 #define listlastidx(b)   (listlen(b) - 1)
 #define listlast(b)      (listlen((b)) == 0 ? (NULL) : &listget((b), listlastidx(b)))
@@ -198,10 +204,11 @@ typedef struct {
 #define listinit(arena, b) ((b) = _listgrow((arena), NULL, 0ULL, sizeof(*(b))))
 #define listget(b, i) (((__typeof__(b))(_listhdr(b)->chunks[(i) >> LIST_CHUNK_SHIFT]))[(i) & LIST_CHUNK_MASK])
 
-#define listfit(b, n) (((b) && listcap(b) >= (n)) ? 0 : \
+#define listfit(b, n) (((b) && (listcap(b)) >= (n)) ? 0 : \
     ((b) = _listgrow(_listhdr(b)->arena, (b), (n), sizeof(*(b)))))
 
-#define listpush(b, ...) (listfit((b), 1 + listlen((b))), \
+#define listpush(b, ...) \
+    (listfit((b), 1 + listlen((b))), \
     (listget((b), _listhdr((b))->len) = __VA_ARGS__), \
     _listhdr((b))->len++)
 
@@ -213,8 +220,10 @@ typedef struct {
 #define listloop(b, c) for (usize c = 0; c < listlen(b); c++)
 #define listrevloop(b, c) for (usize c = listlen(b); c-- > 0 ;)
 
+usize listlen(const void* list);
+usize listcap(const void* list);
 void* _listgrow(Arena* arena, const void* list, usize new_len, usize elem_size);
-void list_debug_dump_uniform_chunks(const void *list);
+void list_dump_chunks(const char* name, const void *list);
 
 // =============================================================================
 // STRING INTERNING
