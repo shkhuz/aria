@@ -72,7 +72,7 @@ typedef ssize_t isize;
 #define STRINGIFY(X) STRINGIFY1(X)
 #define ENUM_GEN(ENUM) ENUM,
 #define STRING_GEN(STRING) #STRING,
-#define ALLOC_OBJ(type) ((type*)xmalloc(sizeof(type)))
+#define ALLOC_OBJ(arena, type) ((type*)arena_push(arena, sizeof(type)))
 #define LOG(expr) _Generic((expr), \
     int:                (printf("[TRACE] %s:%d: %s = %d\n", __FILE__, __LINE__, #expr, (int)(expr)), (expr)), \
     unsigned int:       (printf("[TRACE] %s:%d: %s = %u\n", __FILE__, __LINE__, #expr, (unsigned int)(expr)), (expr)), \
@@ -195,7 +195,7 @@ typedef struct {
 #define listlastidx(b)   (listlen(b) - 1)
 #define listlast(b)      (listlen((b)) == 0 ? (NULL) : &listget((b), listlastidx(b)))
 
-#define listinit(arena, b) ((b) = _listgrow((arena), NULL, 0, sizeof(*(b))))
+#define listinit(arena, b) ((b) = _listgrow((arena), NULL, 0ULL, sizeof(*(b))))
 #define listget(b, i) (((__typeof__(b))(_listhdr(b)->chunks[(i) >> LIST_CHUNK_SHIFT]))[(i) & LIST_CHUNK_MASK])
 
 #define listfit(b, n) (((b) && listcap(b) >= (n)) ? 0 : \

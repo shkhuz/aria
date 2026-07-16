@@ -4,12 +4,12 @@
 #include "compile.h"
 
 int main() {
-    int* a = NULL;
-    bufpush(a, 1);
-    bufpush(a, 2);
-    assert(bufpop(a) == 2);
-    assert(bufpop(a) == 1);
-    assert(buflen(a) == 0);
+    // int* a = NULL;
+    // bufpush(a, 1);
+    // bufpush(a, 2);
+    // assert(bufpop(a) == 2);
+    // assert(bufpop(a) == 1);
+    // assert(buflen(a) == 0);
 
     init_core();
     CompileCtx c = compilectx_new();
@@ -20,13 +20,13 @@ int main() {
     //     "hi:struct(\"name\"),\n"
     //     "imm b = struct(\"hiya\");\n"
     // );
-    compilectx_init_path(
-        &c,
-        "examples/v2-1.ar"
-    );
-    compile(&c);
-    stri_print_stats(&c.interner);
-    if (c.parsing_error) compile_terminate(&c);
+    // compilectx_init_path(
+    //     &c,
+    //     "examples/v2-1.ar"
+    // );
+    // compile(&c);
+    // stri_print_stats(&c.interner);
+    // if (c.parsing_error) compile_terminate(&c);
     printf("\nTotal physical RAM usage: ");
     print_memory_size(get_memory_usage());
 }

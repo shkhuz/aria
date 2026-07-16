@@ -8,41 +8,42 @@ StrTokenMap* keywords;
 StrTokenMap* directives;
 
 CompileCtx compilectx_new() {
-    CompileCtx c;
+    CompileCtx c = (CompileCtx){};
     c.permarena = arena_create(4ULL << 30);
     if (!c.permarena.base) {
         fprintf(stderr, "error: cannot allocate `permarena`\n");
         compile_terminate(&c);
     }
 
-    c.fendarena = arena_create(4ULL << 30);
-    if (!c.fendarena.base) {
-        fprintf(stderr, "error: cannot allocate `fendarena`\n");
-        compile_terminate(&c);
-    }
+    // c.fendarena = arena_create(4ULL << 30);
+    // if (!c.fendarena.base) {
+    //     fprintf(stderr, "error: cannot allocate `fendarena`\n");
+    //     compile_terminate(&c);
+    // }
 
     c.msgs = NULL;
     c.print_msg_to_stderr = true;
     c.did_msg = false;
-    c.srcfiles = NULL;
+    listinit(&c.permarena, c.srcfiles);
+    list_debug_dump_uniform_chunks(c.srcfiles);
     c.parsing_error = false;
-    stri_init(&c.permarena, &c.interner);
+    // stri_init(&c.permarena, &c.interner);
 
-    listinit(&c.fendarena, keywords);
-    listinit(&c.fendarena, directives);
+    // listinit(&c.fendarena, keywords);
+    // listinit(&c.fendarena, directives);
 
 #define DEF(list, k, v) (listpush(\
     list,\
     (StrTokenMap){stri_intern(&c.interner, k, strlen(k)), v}\
 ));
-    DEF(keywords,   "comp",         TK_KW_COMP);
-    DEF(keywords,   "imm",          TK_KW_IMM);
-    DEF(keywords,   "mut",          TK_KW_MUT);
-    DEF(keywords,   "fn",           TK_KW_FN);
-    DEF(keywords,   "struct",       TK_KW_STRUCT);
-    DEF(keywords,   "yield",        TK_KW_YIELD);
+    // DEF(keywords,   "comp",         TK_KW_COMP);
+    // DEF(keywords,   "imm",          TK_KW_IMM);
+    // DEF(keywords,   "mut",          TK_KW_MUT);
+    // DEF(keywords,   "fn",           TK_KW_FN);
+    // DEF(keywords,   "struct",       TK_KW_STRUCT);
+    // DEF(keywords,   "yield",        TK_KW_YIELD);
 
-    DEF(directives, "cast",         TK_DT_CAST);
+    // DEF(directives, "cast",         TK_DT_CAST);
 #undef DEF
 
     return c;
@@ -57,22 +58,22 @@ int read_srcfile(
     FileOrError efile = read_file(&c->permarena, path);
     switch (efile.status) {
         case FILEIO_SUCCESS: {
-            for (usize i = 0; i < buflen(c->srcfiles); i++) {
+            for (usize i = 0; i < listlen(c->srcfiles); i++) {
                 if (strcmp(
                     efile.handle.abs_path, 
-                    c->srcfiles[i]->handle.abs_path
+                    listget(c->srcfiles, i)->handle.abs_path
                 ) == 0) {
                     return (int)i;
                 }
             }
 
-            Srcfile* src = ALLOC_OBJ(Srcfile);
+            Srcfile* src = ALLOC_OBJ(&c->permarena, Srcfile);
             src->handle = efile.handle,
             src->tokens = NULL,
             src->nodes = NULL,
             src->nextra = NULL,
-            bufpush(c->srcfiles, src);
-            return buflastidx(c->srcfiles);
+            listpush(c->srcfiles, src);
+            return listlastidx(c->srcfiles);
         } break;
 
         case FILEIO_DIRECTORY:
@@ -114,10 +115,10 @@ int compilectx_init_stream(CompileCtx* c, const char* stream) {
         .nodes = NULL,
         .nextra = NULL
     };
-    Srcfile* psrc = ALLOC_OBJ(Srcfile);
+    Srcfile* psrc = ALLOC_OBJ(&c->permarena, Srcfile);
     *psrc = src;
-    bufpush(c->srcfiles, psrc);
-    return buflastidx(c->srcfiles);
+    listpush(c->srcfiles, psrc);
+    return listlastidx(c->srcfiles);
 }
 
 int compilectx_init_path(CompileCtx* c, const char* path) {
@@ -133,46 +134,46 @@ void compile(CompileCtx* c) {
     usize nodes_count = 0, nodes_mem = 0;
     usize nextra_count = 0, nextra_mem = 0;
     usize total = 0;
-    for (usize i = 0; i < buflen(c->srcfiles); i++) {
-        Srcfile* src = c->srcfiles[i];
+    for (usize i = 0; i < listlen(c->srcfiles); i++) {
+        Srcfile* src = listget(c->srcfiles, i);
         source_mem += src->handle.len;
         printf("\nCompiling %s", src->handle.path);
-        LexCtx l = lexctx_new(src, c, &lex_error_handler_pos);
-        if (!setjmp(lex_error_handler_pos)) {
-            lex(&l);
-            if (l.error) {
-                c->parsing_error = true;
-                continue;
-            } 
-            // else dbg_print_tokens(src);
-            tokens_count += listlen(src->tokens);
-            tokens_mem += listcap(src->tokens)*sizeof(Token);
-        } else {
-            c->parsing_error = true;
-            continue;
-        }
+        // LexCtx l = lexctx_new(src, c, &lex_error_handler_pos);
+        // if (!setjmp(lex_error_handler_pos)) {
+        //     lex(&l);
+        //     if (l.error) {
+        //         c->parsing_error = true;
+        //         continue;
+        //     } 
+        //     // else dbg_print_tokens(src);
+        //     tokens_count += listlen(src->tokens);
+        //     tokens_mem += listcap(src->tokens)*sizeof(Token);
+        // } else {
+        //     c->parsing_error = true;
+        //     continue;
+        // }
 
-        ParseCtx p = parsectx_new(
-            c->srcfiles[i], 
-            c, 
-            &parse_error_handler_pos
-        );
-        if (!setjmp(parse_error_handler_pos)) {
-            parse(&p);
-            if (p.error) {
-                c->parsing_error = true;
-                continue;
-            }
-            // else dbg_nodes(&p);
-            nodes_count += listlen(src->nodes);
-            nodes_mem += listcap(src->nodes)*sizeof(Node);
-            nextra_count += listlen(src->nextra);
-            nextra_mem += listcap(src->nextra)*sizeof(int);
-            nextra_mem += listcap(p.sextra)*sizeof(int);
-        } else {
-            c->parsing_error = true;
-            continue;
-        }
+        // ParseCtx p = parsectx_new(
+        //     src,
+        //     c, 
+        //     &parse_error_handler_pos
+        // );
+        // if (!setjmp(parse_error_handler_pos)) {
+        //     parse(&p);
+        //     if (p.error) {
+        //         c->parsing_error = true;
+        //         continue;
+        //     }
+        //     // else dbg_nodes(&p);
+        //     nodes_count += listlen(src->nodes);
+        //     nodes_mem += listcap(src->nodes)*sizeof(Node);
+        //     nextra_count += listlen(src->nextra);
+        //     nextra_mem += listcap(src->nextra)*sizeof(int);
+        //     nextra_mem += listcap(p.sextra)*sizeof(int);
+        // } else {
+        //     c->parsing_error = true;
+        //     continue;
+        // }
     }
 
     printf("\nSource: ");
