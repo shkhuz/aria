@@ -165,18 +165,18 @@ void arena_clear(Arena* arena) {
 void* arena_push(Arena* arena, u64 size, const char* reason) {
     u64 aligned_size = (size + 7) & ~7;
     assert(arena->pos + aligned_size <= arena->capacity && "Arena out of memory!");
-    printf("\n[I] arena_push(%s, ", arena->name);
-    print_memory_size(aligned_size);
-    printf(", %s) = ", reason ? reason : "");
+    // printf("\n[I] arena_push(%s, ", arena->name);
+    // print_memory_size(aligned_size);
+    // printf(", %s) = ", reason ? reason : "");
     void* ptr = arena->base + arena->pos;
     arena->pos += aligned_size;
-    print_memory_size(arena->pos);
+    // print_memory_size(arena->pos);
     return ptr;
 }
 
 void arena_print_segment_metrics(const Arena *arena) {
     if (!arena || !arena->base) {
-        printf("Arena is uninitialized.\n");
+        printf("Arena '%s' is uninitialized.\n", arena->name);
         return;
     }
 
@@ -196,8 +196,8 @@ void arena_print_segment_metrics(const Arena *arena) {
         if (sscanf(line, "%lx-%lx", &start, &end) == 2) {
             if (target_addr >= start && target_addr < end) {
                 inside_target_segment = 1;
-                printf("\nArena [%p] \n  Mapped Region: %lx-%lx", 
-                       (void*)target_addr, start, end);
+                printf("\nArena %s [%p] \n  Mapped Region: %lx-%lx", 
+                       arena->name, (void*)target_addr, start, end);
             } else {
                 inside_target_segment = 0;
             }
@@ -266,66 +266,27 @@ usize listcap(const void* list) {
 
 void* _listgrow(Arena* arena, const void* list, usize new_len, usize elem_size) {
     listhdr* hdr = list ? _listhdr(list) : NULL;
-    printf("\nnew_len: %lu, elem_size: %lu", new_len, elem_size);
-
-// if (!hdr) {
-//     hdr = (listhdr*)arena_push(arena, sizeof(listhdr), "list_hdr");
-//     hdr->arena = arena;
-//     hdr->chunkcap = 4;
-    
-//     // 💡 FIX: Make sure this allocation matches the exact arguments arena_push expects!
-//     hdr->chunks = (void**)arena_push(arena, hdr->chunkcap * sizeof(void*), "list_chunks");
-    
-//     // If arena_push failed, bail early out of safety
-//     if (!hdr->chunks) {
-//         fprintf(stderr, "Fatal: Arena failed to allocate list pointer table.\n");
-//         exit(1);
-//     }
-
-//     usize initial_chunk_mem = (1ULL << LIST_CHUNK_SHIFT) * elem_size;
-//     hdr->chunks[0] = arena_push(arena, initial_chunk_mem, "chunk");
-//     hdr->chunkcount = 1;
-//     hdr->cap = (1ULL << LIST_CHUNK_SHIFT);
-//     hdr->len = 0;
-// }
-    
     if (!hdr) {
-        // hdr = (listhdr*)arena_push(arena, sizeof(listhdr), "_listgrow: hdr");
-        // hdr->arena = arena;
-        // hdr->cap = LIST_CHUNK_SIZE;
-        // hdr->len = 0;
-        // hdr->chunkcap = 4;
-        // hdr->chunkcount = 1;
-        // hdr->chunks = arena_push(hdr->arena, hdr->chunkcap*sizeof(void*), "");
-        // hdr->chunks[0] = arena_push(hdr->arena, LIST_CHUNK_SIZE * elem_size, "");
-
-
-
         hdr = (listhdr*)arena_push(arena, sizeof(listhdr), "_listgrow: hdr");
         hdr->arena = arena;
-        hdr->cap = 0;
         hdr->len = 0;
+        hdr->cap = 0;
         hdr->chunkcap = 0;
         hdr->chunkcount = 0;
         hdr->chunks = NULL;
     }
 
-    if (hdr->cap < new_len) {
-        u32 target_chunk = hdr->chunkcount;
-        if (target_chunk >= hdr->chunkcap) {
+    while (new_len > hdr->cap) {
+        if (hdr->chunkcount >= hdr->chunkcap) {
             u32 oldcap = hdr->chunkcap;
             hdr->chunkcap = hdr->chunkcap == 0 ? 4 : hdr->chunkcap * 2;
-            void** new_chunks = arena_push(hdr->arena, hdr->chunkcap * sizeof(void*), "_listgrow: chunkptrs");
-            if (oldcap > 0) {
-                memcpy(new_chunks, hdr->chunks, oldcap * sizeof(void*));
-            }
-            hdr->chunks = new_chunks;
+            void** newchunks = arena_push(hdr->arena, hdr->chunkcap*sizeof(void*), "_listgrow: ptrs");
+            if (oldcap > 0) memcpy(newchunks, hdr->chunks, oldcap*sizeof(void*));
+            hdr->chunks = newchunks;
         }
-
-        usize chunk_mem = LIST_CHUNK_SIZE * elem_size;
-        hdr->chunks[target_chunk] = arena_push(hdr->arena, chunk_mem, "_listgrow: new chunk");
-        hdr->chunkcount++;
         hdr->cap += LIST_CHUNK_SIZE;
+        hdr->chunks[hdr->chunkcount] = arena_push(hdr->arena, LIST_CHUNK_SIZE * elem_size, "_listgrow: chunk");
+        hdr->chunkcount++;
     }
     return (void*)((char*)hdr + sizeof(listhdr));
 }

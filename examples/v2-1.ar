@@ -1,4 +1,4 @@
-// imm mod: struct("v2-2.ar") = hiya;
+imm mod: struct("v2-2.ar") = hiya;
 imm S = struct {
     nice: nice,
     wow: wow,

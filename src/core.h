@@ -183,20 +183,22 @@ void* _bufgrow(const void* buf, usize new_len, usize elem_size);
 // LIST
 // =============================================================================
 
-#define LIST_CHUNK_SHIFT 10
+#define LIST_CHUNK_SHIFT 16
 #define LIST_CHUNK_SIZE  (1ULL << LIST_CHUNK_SHIFT)
 #define LIST_CHUNK_MASK  (LIST_CHUNK_SIZE - 1)
 
 typedef struct {
     Arena* arena;
+    void** chunks;
     usize cap;
     usize len;
-    u32 chunkcap;
     u32 chunkcount;
-    void** chunks;
+    u32 chunkcap;
 } listhdr;
 
-#define _listhdr(b)      ((listhdr*)((char*)(b) - sizeof(listhdr)))
+// #define _listhdr(b)      ((listhdr*)((char*)(b) - sizeof(listhdr)))
+static inline listhdr* _listhdr(const void* list) { return (listhdr*)((char*)list - sizeof(listhdr)); }
+
 #define listend(b)       ((b) + listlen(b))
 #define listlastidx(b)   (listlen(b) - 1)
 #define listlast(b)      (listlen((b)) == 0 ? (NULL) : &listget((b), listlastidx(b)))

@@ -46,7 +46,7 @@ static inline Token* tk(Srcfile* src, TokenIndex idx) {
 }
 
 static inline Node* nd(Srcfile* src, NodeIndex idx) {
-    return &src->nodes[idx];
+    return &listget(src->nodes, idx);
 }
 
 #endif

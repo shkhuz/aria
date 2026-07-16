@@ -20,6 +20,7 @@ static void compilectx_init(CompileCtx* c) {
         compile_terminate(c);
     }
 
+    c->srcfiles = NULL;
     c->msgs = NULL;
     c->print_msg_to_stderr = true;
     c->did_msg = false;
