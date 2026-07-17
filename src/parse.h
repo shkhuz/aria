@@ -16,7 +16,7 @@ typedef struct {
     // LIFO scratchpad for nextra.
     // Used to temporarily store child indices 
     // until the end of parsing of a node.
-    int* sextra;
+    DefineList(sextra, int);
 } ParseCtx;
 
 ParseCtx parsectx_new(

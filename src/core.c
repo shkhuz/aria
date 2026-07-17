@@ -258,11 +258,15 @@ void* _bufgrow(const void* buf, usize new_len, usize elem_size) {
 // =============================================================================
 
 usize listlen(const void* list) {
-    return list ? _listhdr(list)->len : 0;
+    if (list) return _listhdr(list)->len;
+    assert(0);
+    return 0;
 }
 
 usize listcap(const void* list) {
-    return list ? _listhdr(list)->cap : 0;
+    if (list) return _listhdr(list)->cap;
+    assert(0);
+    return 0;
 }
 
 listhdr* _listhdr(const void* list) { 
@@ -314,7 +318,7 @@ void list_dump_chunks(const char* name, const void *list) {
         usize start_idx = i * LIST_CHUNK_SIZE;
         usize end_idx   = start_idx + LIST_CHUNK_SIZE - 1;
         
-        printf("    [Block %u] Address: %p | Handles Indices: [%zu to %zu]\n", 
+        printf("    [Block %u] Address: %p [%zu to %zu]\n", 
                i, block_address, start_idx, end_idx);
     }
 }
@@ -327,7 +331,7 @@ void list_dump_chunks(const char* name, const void *list) {
 #define STRI_LOAD_FACTOR 0.75
 
 static void stri_clear_buckets(stri* s, usize start, usize end) {
-    u32* buckets = s->buckets;
+    u32(*buckets)() = s->buckets;
     for (usize i = start; i < end; i++) {
         listget(buckets, i) = STRI_INVALID_ID;
     }

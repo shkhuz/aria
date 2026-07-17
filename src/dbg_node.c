@@ -56,13 +56,13 @@ static void print_node(ParseCtx* p, NodeIndex node) {
 
     switch (n->kind) {
         case AST_BLOCK: {
-            int count = p->src->nextra[n->lhs + 0];
-            int value = p->src->nextra[n->lhs + 1];
+            int count = listget(p->src->nextra, n->lhs + 0);
+            int value = listget(p->src->nextra, n->lhs + 1);
 
             printf("(block ");
             indent++;
             for (int i = 0; i < count; i++) {
-                print_node(p, p->src->nextra[n->lhs + 2 + i]);
+                print_node(p, listget(p->src->nextra, n->lhs + 2 + i));
             }
             format();
             printf("(yield ");

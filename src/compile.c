@@ -4,8 +4,8 @@
 #include "dbg.h"
 
 // TODO: make these fixed length (static allocation)
-StrTokenMap* keywords;
-StrTokenMap* directives;
+DefineList(keywords, StrTokenMap);
+DefineList(directives, StrTokenMap);
 
 static void compilectx_init(CompileCtx* c) {
     c->permarena = arena_create("permarena", 4ULL << 30);

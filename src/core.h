@@ -196,28 +196,30 @@ typedef struct {
     u32 chunkcap;
 } listhdr;
 
-#define listend(b)       ((b) + listlen(b))
-#define listlastidx(b)   (listlen(b) - 1)
-#define listlast(b)      (listlen((b)) == 0 ? (NULL) : &listget((b), listlastidx(b)))
+#define DefineList(name, type) type (*name)()
+// Don't enclose macro value with parentheses!
+#define ListType(p) __typeof__((p)())
 
-#define listinit(arena, b) ((b) = _listgrow((arena), NULL, 0ULL, sizeof(*(b))))
-#define listget(b, i) (((__typeof__(b))(_listhdr(b)->chunks[(i) >> LIST_CHUNK_SHIFT]))[(i) & LIST_CHUNK_MASK])
+#define listinit(arena, p) ((p) = _listgrow((arena), NULL, 0, sizeof(ListType((p)))))
 
-#define listfit(b, n) (((b) && (listcap(b)) >= (n)) ? 0 : \
-    ((b) = _listgrow(_listhdr(b)->arena, (b), (n), sizeof(*(b)))))
+#define listget(p, i) (((ListType((p))*)(_listhdr((p))->chunks[(i) >> LIST_CHUNK_SHIFT]))[(i) & LIST_CHUNK_MASK])
+#define listlastidx(p)   (listlen((p)) - 1)
+#define listlast(p)      (listlen((p)) == 0 ? (NULL) : &listget((p), listlastidx((p))))
 
-#define listpush(b, ...) \
-    (listfit((b), 1 + listlen((b))), \
-    (listget((b), _listhdr((b))->len) = __VA_ARGS__), \
-    _listhdr((b))->len++)
+#define listfit(p, n) \
+    (((p) && (listcap((p))) >= (n)) ? 0 : \
+    ((p) = _listgrow(_listhdr((p))->arena, (p), (n), sizeof(ListType((p))))))
 
-#define listpop(b) (listlen(b) > 0 ? listget((b), --_listhdr((b))->len) : 0)
+#define listpush(p, ...) \
+    (listfit((p), 1 + listlen((p))), \
+    (listget((p), _listhdr((p))->len) = __VA_ARGS__), \
+    _listhdr((p))->len++)
 
-#define listclear(b) ((b) ? _listhdr((b))->len = 0 : 0)
-#define listfree(b)  ((b) ? (b=NULL) : 0) 
+#define listpop(p) (listlen((p)) > 0 ? listget((p), --_listhdr((p))->len) : 0)
+#define listclear(p) ((p) ? _listhdr((p))->len = 0 : 0)
 
-#define listloop(b, c) for (usize c = 0; c < listlen(b); c++)
-#define listrevloop(b, c) for (usize c = listlen(b); c-- > 0 ;)
+#define listloop(p, c) for (usize c = 0; c < listlen(p); c++)
+#define listrevloop(p, c) for (usize c = listlen(p); c-- > 0 ;)
 
 usize listlen(const void* list);
 usize listcap(const void* list);
@@ -247,9 +249,9 @@ typedef struct {
 } strinode;
 
 typedef struct {
-    strislice* slices;
-    u32* buckets;
-    strinode* nodes;
+    DefineList(slices, strislice);
+    DefineList(buckets, u32);
+    DefineList(nodes, strinode);
 } stri;
 
 void stri_init(Arena* arena, stri* s);
@@ -371,7 +373,6 @@ void print_mem_stats();
 #define xcalloc(n, s)   tracked_calloc(n, s, __FILE__, __LINE__)
 #define xrealloc(p, s)  tracked_realloc(p, s, __FILE__, __LINE__)
 #define xfree(p)        tracked_free(p)
-
 
 void init_core();
 

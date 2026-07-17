@@ -6,9 +6,9 @@
 
 struct Srcfile {
     File handle;
-    Token* tokens;
-    Node* nodes;
-    int* nextra;
+    DefineList(tokens, Token);
+    DefineList(nodes, Node);
+    DefineList(nextra, int);
 };
 
 typedef struct {

@@ -14,7 +14,7 @@ typedef struct CompileCtx {
     bool print_msg_to_stderr;
     bool did_msg;
 
-    Srcfile** srcfiles;
+    DefineList(srcfiles, Srcfile*);
     bool parsing_error;
     Arena permarena;
     Arena parsearena;
@@ -26,8 +26,8 @@ typedef struct {
     TokenKind v;
 } StrTokenMap;
 
-extern StrTokenMap* keywords;
-extern StrTokenMap* directives;
+extern DefineList(keywords, StrTokenMap);
+extern DefineList(directives, StrTokenMap);
 
 int read_srcfile(
     CompileCtx* c, 

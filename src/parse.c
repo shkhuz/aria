@@ -21,7 +21,7 @@ static inline Span tkspan(Srcfile* src, TokenIndex idx) {
 }
 
 static inline Span ndspan(Srcfile* src, NodeIndex idx) {
-    return src->nodes[idx].span;
+    return listget(src->nodes, idx).span;
 }
 
 ParseCtx parsectx_new(
@@ -151,7 +151,7 @@ static inline TokenIndex expect_comma(ParseCtx* p) {
 static void flush_sextra(ParseCtx* p, usize marker) {
     if (!p->sextra) return;
     for (usize i = 0; i < listlen(p->sextra)-marker; i++) {
-        listpush(p->src->nextra, p->sextra[marker + i]);
+        listpush(p->src->nextra, listget(p->sextra, marker + i));
     }
     _listhdr(p->sextra)->len = marker;
 }
@@ -448,7 +448,7 @@ static NodeIndex parse_block(ParseCtx* p) {
             Node* pn = nd(p->src, n);
             if (pn->kind == AST_BLOCK
                 || (pn->kind == AST_COMP 
-                    && p->src->nodes[pn->lhs].kind == AST_BLOCK)
+                    && listget(p->src->nodes, pn->lhs).kind == AST_BLOCK)
             ) {
             } else {
                 if (current(p)->kind == TK_COLON) {

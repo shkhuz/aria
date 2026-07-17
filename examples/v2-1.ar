@@ -12,7 +12,7 @@ fn main() void {
     {
         comp {
             new;
-        };
+        }
         yield hi;
     }
 
