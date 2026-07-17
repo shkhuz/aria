@@ -196,7 +196,7 @@ void arena_print_segment_metrics(const Arena *arena) {
         if (sscanf(line, "%lx-%lx", &start, &end) == 2) {
             if (target_addr >= start && target_addr < end) {
                 inside_target_segment = 1;
-                printf("\nArena %s [%p] \n  Mapped Region: %lx-%lx", 
+                printf("Arena %s [%p] \n  Mapped Region: %lx-%lx\n", 
                        arena->name, (void*)target_addr, start, end);
             } else {
                 inside_target_segment = 0;
@@ -211,10 +211,11 @@ void arena_print_segment_metrics(const Arena *arena) {
             else if (strncmp(line, "AnonHugePages:", 14) == 0) {
                 sscanf(line, "AnonHugePages: %lu", &thp);
                 
-                printf("\n  Segment Virtual Limit    : "); print_memory_size(size*1024);
+                printf("  Segment Virtual Limit    : "); print_memory_size(size*1024);
                 printf("\n  Physical Memory Committed: "); print_memory_size(rss*1024);
                 printf("\n  Anonymous Allocation     : "); print_memory_size(anon*1024);
                 printf("\n  Transparent Huge Pages   : "); print_memory_size(thp*1024);
+                printf("\n");
                 break; 
             }
         }
@@ -264,6 +265,10 @@ usize listcap(const void* list) {
     return list ? _listhdr(list)->cap : 0;
 }
 
+listhdr* _listhdr(const void* list) { 
+    return (listhdr*)((char*)list - sizeof(listhdr)); 
+}
+
 void* _listgrow(Arena* arena, const void* list, usize new_len, usize elem_size) {
     listhdr* hdr = list ? _listhdr(list) : NULL;
     if (!hdr) {
@@ -297,11 +302,11 @@ void list_dump_chunks(const char* name, const void *list) {
     }
 
     listhdr *hdr = _listhdr(list);
-    printf("\nDumping list %s (%p) info: ", name ? name : "", list);
-    printf("\n  Total Elements Tracked : %zu", hdr->len);
-    printf("\n  Total Capacity Allocated: %zu elements", hdr->cap);
-    printf("\n  Pointer Table Capacity : %u slots", hdr->chunkcap);
-    printf("\n  Active Uniform Blocks  : %u", hdr->chunkcount);
+    printf("Dumping list %s (%p) info: \n", name ? name : "", list);
+    printf("  Total Elements Tracked : %zu\n", hdr->len);
+    printf("  Total Capacity Allocated: %zu elements\n", hdr->cap);
+    printf("  Pointer Table Capacity : %u slots\n", hdr->chunkcap);
+    printf("  Active Uniform Blocks  : %u\n", hdr->chunkcount);
     
     for (u32 i = 0; i < hdr->chunkcount; i++) {
         void* block_address = hdr->chunks[i];
@@ -309,7 +314,7 @@ void list_dump_chunks(const char* name, const void *list) {
         usize start_idx = i * LIST_CHUNK_SIZE;
         usize end_idx   = start_idx + LIST_CHUNK_SIZE - 1;
         
-        printf("\n    [Block %u] Address: %p | Handles Indices: [%zu to %zu]", 
+        printf("    [Block %u] Address: %p | Handles Indices: [%zu to %zu]\n", 
                i, block_address, start_idx, end_idx);
     }
 }
@@ -429,7 +434,7 @@ void stri_print_stats(const stri* s) {
         mean_collision_ratio = (float)collided_nodes / (float)total_nodes;
     }
 
-    printf("\n=== STRING INTERNER STATS ===\n");
+    printf("=== STRING INTERNER STATS ===\n");
     printf("Unique Strings Saved     : %zu\n", listlen(s->slices));
     printf("Total Nodes Registered   : %zu\n", listlen(s->nodes));
     printf("Final Buckets Capacity   : %zu\n", listlen(s->buckets));
@@ -982,7 +987,7 @@ void* tracked_malloc(
 ) {
     usize total_size = size + sizeof(usize);
     void* raw_ptr = malloc(total_size);
-    printf("\nmalloc(%lu) at %s,%d", size, file, line);
+    printf("malloc(%lu) at %s,%d\n", size, file, line);
     
     if (!raw_ptr) {
         fprintf(stderr, "[MEM ERROR] Out of memory at %s:%d\n", file, line);
@@ -1062,6 +1067,6 @@ void* tracked_calloc(
 }
 
 void print_mem_stats() {
-    printf("\nCurrent Leaked Memory: %zu bytes", curalloc);
-    printf("\nPeak Memory Footprint: %zu bytes", peakalloc);
+    printf("Current Leaked Memory: %zu bytes\n", curalloc);
+    printf("Peak Memory Footprint: %zu bytes\n", peakalloc);
 }

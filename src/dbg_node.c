@@ -10,7 +10,7 @@ void dbg_print_tokens(Srcfile* src) {
     listloop(src->tokens, i) {
         Token* t = tk(src, i);
         printf(
-            "\n%15s '%s' %d,%d, extra=%d", 
+            "%15s '%s' %d,%d, extra=%d\n", 
             tokenkind_strs[t->kind], 
             span_tostring(t->span, src),
             t->span.start,
@@ -159,7 +159,7 @@ static void print_node(ParseCtx* p, NodeIndex node) {
 void dbg_nodes(ParseCtx* p) {
     for (int i = 0; i < (int)listlen(p->src->tokens); i++) {
         printf(
-            "\n  at tokens[%2d] -> %s", 
+            "  at tokens[%2d] -> %s\n", 
             i, 
             span_tostring(tk(p->src, i)->span, p->src)
         );
@@ -167,15 +167,14 @@ void dbg_nodes(ParseCtx* p) {
 
     for (int i = 0; i < (int)listlen(p->src->nodes); i++) {
         Node* n = &listget(p->src->nodes, i);
-        printf("\n  at nodes[%2d] -> k=%s, lhs=%d, rhs=%d", i, nodekind_strs[n->kind], n->lhs, n->rhs);
+        printf("  at nodes[%2d] -> k=%s, lhs=%d, rhs=%d\n", i, nodekind_strs[n->kind], n->lhs, n->rhs);
     }
     for (int i = 0; i < (int)listlen(p->src->nextra); i++) {
-        printf("\n  at nextra[%2d] -> %d", i, listget(p->src->nextra, i));
+        printf("  at nextra[%2d] -> %d\n", i, listget(p->src->nextra, i));
     }
 
     Node* r = &listget(p->src->nodes, 1);
     for (int i = 0; i < r->rhs; i++) {
         print_node(p, listget(p->src->nextra, r->lhs + i));
     }
-    printf("\n");
 }

@@ -29,6 +29,7 @@ int main() {
     // if (c.parsing_error) compile_terminate(&c);
     list_dump_chunks("srcfiles", c.srcfiles);
     arena_print_segment_metrics(&c.permarena);
-    printf("\nTotal physical RAM usage: ");
+    printf("Total physical RAM usage: ");
     print_memory_size(get_memory_usage());
+    printf("\n");
 }

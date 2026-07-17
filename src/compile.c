@@ -136,7 +136,7 @@ void compile(CompileCtx* c) {
     for (usize i = 0; i < listlen(c->srcfiles); i++) {
         Srcfile* src = listget(c->srcfiles, i);
         source_mem += src->handle.len;
-        printf("\nCompiling %s", src->handle.path);
+        printf("Compiling %s\n", src->handle.path);
         LexCtx l = lexctx_new(src, c, &lex_error_handler_pos);
         if (!setjmp(lex_error_handler_pos)) {
             lex(&l);
@@ -175,7 +175,7 @@ void compile(CompileCtx* c) {
         }
     }
 
-    printf("\nSource: ");
+    printf("Source: ");
     total += print_memory_size(source_mem);
 
     printf("\nKeywords (%lu): ", listlen(keywords));
@@ -186,15 +186,14 @@ void compile(CompileCtx* c) {
 
     printf("\nTokens (%lu): ", tokens_count);
     total += print_memory_size(tokens_mem);
-    
+
     printf("\nNodes (%lu): ", nodes_count);
     total += print_memory_size(nodes_mem);
-    
+
     printf("\nNextra (%lu): ", nextra_count);
     total += print_memory_size(nextra_mem);
 
-    printf("\nStri:");
-    printf("\n  slices (%lu): ", listlen(c->interner.slices));
+    printf("\nStri:\n  slices (%lu): ", listlen(c->interner.slices));
     total += print_memory_size(listcap(c->interner.slices)*sizeof(strislice));
     printf("\n  buckets (%lu): ", listlen(c->interner.buckets));
     total += print_memory_size(listcap(c->interner.buckets)*sizeof(u32));
@@ -208,6 +207,7 @@ void compile(CompileCtx* c) {
     
     printf("\nFront-end Mem: ");
     print_memory_size(c->parsearena.pos);
+    printf("\n");
 
     if (c->parsing_error) return;
 }

@@ -112,7 +112,7 @@ usize print_memory_size(usize bytes);
     long long _seconds = _end.tv_sec - _start.tv_sec; \
     long long _nanoseconds = _end.tv_nsec - _start.tv_nsec; \
     long long _total_ns = (_seconds * 1000000000LL) + _nanoseconds; \
-    printf("\n[%s] Execution time: %lld ns (%.6f s)", \
+    printf("[%s] Execution time: %lld ns (%.6f s)\n", \
            block_name, _total_ns, _total_ns / 1000000000.0); \
 } while(0)
 
@@ -196,9 +196,6 @@ typedef struct {
     u32 chunkcap;
 } listhdr;
 
-// #define _listhdr(b)      ((listhdr*)((char*)(b) - sizeof(listhdr)))
-static inline listhdr* _listhdr(const void* list) { return (listhdr*)((char*)list - sizeof(listhdr)); }
-
 #define listend(b)       ((b) + listlen(b))
 #define listlastidx(b)   (listlen(b) - 1)
 #define listlast(b)      (listlen((b)) == 0 ? (NULL) : &listget((b), listlastidx(b)))
@@ -224,6 +221,7 @@ static inline listhdr* _listhdr(const void* list) { return (listhdr*)((char*)lis
 
 usize listlen(const void* list);
 usize listcap(const void* list);
+listhdr* _listhdr(const void* list);
 void* _listgrow(Arena* arena, const void* list, usize new_len, usize elem_size);
 void list_dump_chunks(const char* name, const void *list);
 
