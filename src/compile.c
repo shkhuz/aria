@@ -20,8 +20,7 @@ static void compilectx_init(CompileCtx* c) {
         compile_terminate(c);
     }
 
-    c->srcfiles = NULL;
-    c->msgs = NULL;
+    listinit(&c->permarena, c->msgs);
     c->print_msg_to_stderr = true;
     c->did_msg = false;
     listinit(&c->permarena, c->srcfiles);
@@ -162,8 +161,7 @@ void compile(CompileCtx* c) {
             if (p.error) {
                 c->parsing_error = true;
                 continue;
-            }
-            // else dbg_nodes(&p);
+            } else dbg_nodes(&p);
             nodes_count += listlen(src->nodes);
             nodes_mem += listcap(src->nodes)*sizeof(Node);
             nextra_count += listlen(src->nextra);
@@ -213,7 +211,7 @@ void compile(CompileCtx* c) {
 }
 
 void compile_register_msg(CompileCtx* c, Msg msg) {
-    bufpush(c->msgs, msg);
+    listpush(c->msgs, msg);
 }
 
 void compile_terminate(CompileCtx* c) {

@@ -7,6 +7,7 @@
 
 static NodeIndex parse_astnode_root(ParseCtx* p);
 static NodeIndex parse_block(ParseCtx* p);
+static NodeIndex parse_expr(ParseCtx* p);
 
 #define msg_with_span(kind, msg, span) _msg_with_span(kind, msg, span, p->src)
 #define msg_addl_fat(m, msg, span) _msg_addl_fat(m, msg, span, p->src)
@@ -39,7 +40,7 @@ ParseCtx parsectx_new(
     // Index 1 is used for root node.
     // lhs & rhs are filled in at the end of parsing.
     listpush(p.src->nodes, (Node){
-        AST_ROOT,
+        ND_ROOT,
         (Span){},
         0,
         0
@@ -159,7 +160,23 @@ static void flush_sextra(ParseCtx* p, usize marker) {
 static NodeIndex parse_atom_expr(ParseCtx* p) {
     if (match(p, TK_IDENT)) {
         listpush(p->src->nodes, (Node){
-            AST_SYM,
+            ND_SYM,
+            prevspan(p),
+            p->current-1,
+            0
+        });
+        return listlastidx(p->src->nodes);
+    } else if (match(p, TK_INTLIT)) {
+        listpush(p->src->nodes, (Node){
+            ND_INTLIT,
+            prevspan(p),
+            p->current-1,
+            0
+        });
+        return listlastidx(p->src->nodes);
+    } else if (match(p, TK_STRLIT)) {
+        listpush(p->src->nodes, (Node){
+            ND_STRLIT,
             prevspan(p),
             p->current-1,
             0
@@ -167,9 +184,9 @@ static NodeIndex parse_atom_expr(ParseCtx* p) {
         return listlastidx(p->src->nodes);
     } else if (match(p, TK_KW_COMP)) {
         TokenIndex keyword = p->current-1;
-        NodeIndex child = parse_atom_expr(p);
+        NodeIndex child = parse_expr(p);
         listpush(p->src->nodes, (Node){
-            AST_COMP,
+            ND_COMP,
             span_from_two(
                 tkspan(p->src, keyword), 
                 ndspan(p->src, child)
@@ -223,7 +240,7 @@ static NodeIndex parse_atom_expr(ParseCtx* p) {
                 p->src
             );
             listpush(p->src->nodes, (Node){
-                AST_IMPORT,
+                ND_IMPORT,
                 span_from_two(
                     tkspan(p->src, keyword), 
                     tkspan(p->src, rparen)
@@ -242,7 +259,7 @@ static NodeIndex parse_atom_expr(ParseCtx* p) {
             }
 
             listpush(p->src->nodes, (Node){
-                AST_STRUCT,
+                ND_STRUCT,
                 span_from_two(
                     tkspan(p->src, keyword), 
                     prevspan(p)
@@ -256,7 +273,7 @@ static NodeIndex parse_atom_expr(ParseCtx* p) {
         }
     } else if (current(p)->kind == TK_LBRACE) {
         return parse_block(p);
-    }
+    } 
 
     Msg msg = msg_with_span(
         MSG_ERROR,
@@ -269,6 +286,35 @@ static NodeIndex parse_atom_expr(ParseCtx* p) {
     return 0;
 }
 
+static NodeIndex parse_binary_addsub(ParseCtx* p) {
+    NodeIndex left = parse_atom_expr(p);
+    while (match(p, TK_PLUS) || match(p, TK_MINUS)) {
+        TokenIndex op = p->current-1;
+        NodeKind kind;
+        switch (tk(p->src, op)->kind) {
+            case TK_PLUS:  kind = ND_ADD; break;
+            case TK_MINUS: kind = ND_SUB; break;
+            default: assert(0); break;
+        }
+        NodeIndex right = parse_atom_expr(p);
+        listpush(p->src->nodes, (Node){
+            kind,
+            span_from_two(
+                ndspan(p->src, left),
+                ndspan(p->src, right)
+            ),
+            left,
+            right,
+        });
+        left = listlastidx(p->src->nodes);
+    }
+    return left;
+}
+
+static NodeIndex parse_expr(ParseCtx* p) {
+    return parse_binary_addsub(p);
+}
+
 static NodeIndex parse_vardecl(ParseCtx* p) {
     TokenIndex keyword = p->current-1;
     bool imm = true;
@@ -276,11 +322,11 @@ static NodeIndex parse_vardecl(ParseCtx* p) {
     TokenIndex ident = expect(p, TK_IDENT, "expected variable name");
     NodeIndex type = 0;
     if (match(p, TK_COLON)) {
-        type = parse_atom_expr(p);
+        type = parse_expr(p);
     }
     NodeIndex init = 0;
     if (match(p, TK_EQUAL)) {
-        init = parse_atom_expr(p);
+        init = parse_expr(p);
     }
     expect_semicolon(p);
     if (type == 0 && init == 0) {
@@ -293,7 +339,7 @@ static NodeIndex parse_vardecl(ParseCtx* p) {
     }
 
     listpush(p->src->nodes, (Node){
-        AST_VARDECL,
+        ND_VARDECL,
         span_from_two(
             tkspan(p->src, keyword), 
             ndspan(p->src, init == 0 ? type : init)
@@ -321,9 +367,9 @@ static NodeIndex parse_func(ParseCtx* p) {
             "expected parameter name"
         );
         expect_colon(p);
-        NodeIndex ptype = parse_atom_expr(p);
+        NodeIndex ptype = parse_expr(p);
         listpush(p->src->nodes, (Node){
-            AST_PARAM,
+            ND_PARAM,
             span_from_two(
                 tkspan(p->src, pident), 
                 ndspan(p->src, ptype)
@@ -337,9 +383,9 @@ static NodeIndex parse_func(ParseCtx* p) {
         }
     }
 
-    NodeIndex returntype = parse_atom_expr(p);
+    NodeIndex returntype = parse_expr(p);
     if (current(p)->kind != TK_LBRACE 
-            && nd(p->src, returntype)->kind == AST_BLOCK) {
+            && nd(p->src, returntype)->kind == ND_BLOCK) {
         Msg msg = msg_with_span(
             MSG_ERROR,
             "expected `{` for function body",
@@ -355,7 +401,7 @@ static NodeIndex parse_func(ParseCtx* p) {
 
     NodeIndex body = parse_block(p);
     listpush(p->src->nodes, (Node){
-        AST_FNDECL,
+        ND_FNDECL,
         span_from_two(tkspan(p->src, keyword), prevspan(p)),
         listlen(p->src->nextra),
         ident 
@@ -375,13 +421,13 @@ static NodeIndex parse_astnode_root(ParseCtx* p) {
     } else if (match(p, TK_IDENT)) {
         TokenIndex ident = p->current-1;
         if (match(p, TK_COLON)) {
-            NodeIndex type = parse_atom_expr(p);
+            NodeIndex type = parse_expr(p);
             if (current(p)->kind != TK_RBRACE) {
                 expect_comma(p);
             }
 
             listpush(p->src->nodes, (Node){
-                AST_FIELD,
+                ND_FIELD,
                 span_from_two(
                     tkspan(p->src, ident), 
                     ndspan(p->src, type)
@@ -425,7 +471,7 @@ static NodeIndex parse_block(ParseCtx* p) {
         } else if (match(p, TK_KW_FN)) {
             child = parse_func(p);
         } else if (match(p, TK_KW_YIELD)) {
-            value = parse_atom_expr(p);
+            value = parse_expr(p);
             expect_semicolon(p);
             if (!match(p, TK_RBRACE)) {
                 Msg msg = msg_with_span(
@@ -438,17 +484,17 @@ static NodeIndex parse_block(ParseCtx* p) {
             }
             break;
         } else {
-            NodeIndex n = parse_atom_expr(p);
+            NodeIndex n = parse_expr(p);
             // The type of AST that warrants skipping the semicolon 
-            // should have a child of kind AST_BLOCK or itself be AST_BLOCK.
+            // should have a child of kind ND_BLOCK or itself be ND_BLOCK.
             // Nodes having child at the end:
-            // - AST_COMP
-            // - AST_IF
+            // - ND_COMP
+            // - ND_IF
             // - ...
             Node* pn = nd(p->src, n);
-            if (pn->kind == AST_BLOCK
-                || (pn->kind == AST_COMP 
-                    && listget(p->src->nodes, pn->lhs).kind == AST_BLOCK)
+            if (pn->kind == ND_BLOCK
+                || (pn->kind == ND_COMP 
+                    && listget(p->src->nodes, pn->lhs).kind == ND_BLOCK)
             ) {
             } else {
                 if (current(p)->kind == TK_COLON) {
@@ -463,7 +509,7 @@ static NodeIndex parse_block(ParseCtx* p) {
             }
 
             listpush(p->src->nodes, (Node){
-                AST_EXPRSTMT,
+                ND_EXPRSTMT,
                 ndspan(p->src, n),
                 n,
                 0
@@ -475,7 +521,7 @@ static NodeIndex parse_block(ParseCtx* p) {
     }
 
     listpush(p->src->nodes, (Node){
-        AST_BLOCK,
+        ND_BLOCK,
         span_from_two(tkspan(p->src, lbrace), prevspan(p)),
         listlen(p->src->nextra),
         0

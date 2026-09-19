@@ -1,19 +1,47 @@
-imm mod: struct("v2-2.ar") = hiya;
+imm mod = struct("/v2-2.ar");
+
 imm S = struct {
     nice: nice,
     wow: wow,
-
-    imm new: Mod = super;
+    imm new: Mod = 0b101_11 - 2 + { imm a = 12; yield a; };
+    imm new: Mod = "dss";
 };
+
+// static invocation version
+fn Type(
+    t: type, 
+    str: []const u8, 
+    params: any = .{},
+) type {
+    siv imm a = 1;
+    siv mut b: i32 = @cast(3.04f);
+
+    for elem (elements) {
+
+    }
+
+    // Swift-style syntax
+    if x (ff) {
+
+    }
+
+    switch (uni) {
+        .int(x) => {},
+    }
+
+    siv {
+    }
+    return t;
+}
+
+Type(u32)
 
 fn main() void {
     fn cool() {
     }
-    {
-        comp {
-            new;
-        }
-        yield hi;
+
+    siv {
+        new;
     }
 
     fn nice() void {}

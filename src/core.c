@@ -135,6 +135,22 @@ usize print_memory_size(usize bytes) {
     return bytes;
 }
 
+bool isdigitwithbase(char digit, int base) {
+    if (base < 2 || base > 36) return false;
+
+    if (isdigit(digit)) {
+        return (digit - '0') < base;
+    }
+
+    if (base > 10) {
+        digit = tolower(digit);
+        if (digit >= 'a' && digit <= 'z') {
+            return (digit - 'a' + 10) < base;
+        }
+    }
+    return false;
+}
+
 // =============================================================================
 // ARENA
 // =============================================================================

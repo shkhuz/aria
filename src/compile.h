@@ -10,7 +10,7 @@
 // Srcfile is per file.
 
 typedef struct CompileCtx {
-    Msg* msgs;
+    DefineList(msgs, Msg);
     bool print_msg_to_stderr;
     bool did_msg;
 
@@ -37,7 +37,9 @@ int read_srcfile(
 );
 int compilectx_init_stream(CompileCtx* c, const char* stream);
 int compilectx_init_path(CompileCtx* c, const char* path);
+
 void compile(CompileCtx* c);
+
 void compile_register_msg(CompileCtx* c, Msg msg);
 void compile_terminate(CompileCtx* c);
 

@@ -128,6 +128,24 @@ void lex(LexCtx* l) {
                 last_tok(l)->extra = id;
             } break;
 
+            case '0': case '1': case '2': case '3': case '4':
+            case '5': case '6': case '7': case '8': case '9': {
+                int base = 10;
+                if (*l->current == '0') {
+                    l->current++;
+                    switch (*l->current) {
+                        case 'x': base = 16; l->current++; break;
+                        case 'o': base = 8;  l->current++; break;
+                        case 'b': base = 2;  l->current++; break;
+                        default: break;
+                    }
+                }
+                while (isdigitwithbase(*l->current, base) 
+                        || *l->current == '_')
+                    l->current++;
+                push_tok(l, TK_INTLIT); 
+            } break;
+
             case '@': {
                 TokenKind kind = TK_NONE;
                 l->current++;
@@ -167,6 +185,8 @@ void lex(LexCtx* l) {
             case '=': push_tok_adv(l, TK_EQUAL); break;
             case '{': push_tok_adv(l, TK_LBRACE); break;
             case '(': push_tok_adv(l, TK_LPAREN); break;
+            case '-': push_tok_adv(l, TK_MINUS); break;
+            case '+': push_tok_adv(l, TK_PLUS); break;
             case '}': push_tok_adv(l, TK_RBRACE); break;
             case ')': push_tok_adv(l, TK_RPAREN); break;
             case ';': push_tok_adv(l, TK_SEMICOLON); break;

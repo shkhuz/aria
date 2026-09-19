@@ -81,6 +81,7 @@ typedef ssize_t isize;
     long long unsigned int:(printf("[TRACE] %s:%d: %s = %llu\n", __FILE__, __LINE__, #expr, (long long unsigned int)(expr)), (expr)), \
     char*:              (printf("[TRACE] %s:%d: %s = %s\n", __FILE__, __LINE__, #expr, (char*)(expr)), (expr)) \
 )
+
 usize align_to_pow2(size_t n, size_t pow2);
 usize u64_bitlength(u64 n);
 usize get_bits_for_value(u128 n);
@@ -103,6 +104,7 @@ char* format_string(const char* fmt, ...);
 u32 hash_string(const char* str, usize len);
 usize get_memory_usage();
 usize print_memory_size(usize bytes);
+bool isdigitwithbase(char digit, int base);
 
 #define MEASURE_TIME(block_name, ...) do { \
     struct timespec _start, _end; \

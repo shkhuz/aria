@@ -1,5 +1,5 @@
-#ifndef AST_H 
-#define AST_H
+#ifndef NODE_H 
+#define NODE_H
 
 #include "types.h"
 #include "core.h"
@@ -19,63 +19,4 @@ struct Node {
     int lhs, rhs;
 };
 
-// union {
-//     struct {
-//         Astnode** ast;
-//         Astnode* value;
-//     } block;
-
-//     struct {
-//         Astnode* child;
-//     } comp;
-
-//     struct {
-//         Astnode* child;
-//     } exprstmt;
-
-//     struct {
-//         TokenIndex ident;
-//         Astnode* type;
-//     } field;
-
-//     struct {
-//         TokenIndex ident;
-//         Astnode** params;
-//         Astnode* returntype;
-//         Astnode* body;
-//     } func;
-
-//     struct {
-//         TokenIndex ident;
-//         Astnode* type;
-//     } param;
-
-//     struct {
-//     } root;
-
-//     struct {
-//         bool import;
-//         union {
-//             struct {
-//                 TokenIndex path;
-//                 Srcfile* src;
-//             } imp;
-
-//             struct {
-//                 Astnode** ast;
-//             } inl;
-//         };
-//     } strct;
-
-//     struct {
-//         TokenIndex ident;
-//     } sym;
-
-//     struct {
-//         TokenIndex ident; 
-//         Astnode* type;
-//         TokenIndex equal;
-//         Astnode* init;
-//     } vardecl;
-// };
 #endif
